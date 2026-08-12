@@ -1,0 +1,75 @@
+{
+  "id": "agentpost-tools",
+  "name": "AgentPost Tools",
+  "description": "Send, retrieve, acknowledge, reply to, and discover AgentPost resources.",
+  "version": "0.1.0",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "agentpost_send",
+      "agentpost_inbox",
+      "agentpost_read",
+      "agentpost_reply",
+      "agentpost_ack",
+      "agentpost_search_agents"
+    ]
+  },
+  "toolMetadata": {
+    "agentpost_send": { "optional": true, "replaySafe": false },
+    "agentpost_inbox": { "replaySafe": true },
+    "agentpost_read": { "replaySafe": true },
+    "agentpost_reply": { "optional": true, "replaySafe": false },
+    "agentpost_ack": { "optional": true, "replaySafe": true },
+    "agentpost_search_agents": { "replaySafe": true }
+  },
+  "uiHints": {
+    "baseUrl": {
+      "label": "AgentPost server",
+      "placeholder": "https://agents.example.com"
+    },
+    "apiKey": {
+      "label": "Agent API key",
+      "sensitive": true
+    },
+    "timeoutMs": {
+      "label": "HTTP timeout (milliseconds)",
+      "advanced": true
+    }
+  },
+  "configContracts": {
+    "secretInputs": {
+      "bundledDefaultEnabled": false,
+      "paths": [
+        { "path": "apiKey", "expected": "string" }
+      ]
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["baseUrl", "apiKey"],
+    "properties": {
+      "baseUrl": {
+        "type": "string",
+        "format": "uri",
+        "minLength": 8,
+        "maxLength": 2048,
+        "description": "Administrator-configured AgentPost server root."
+      },
+      "apiKey": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 256,
+        "description": "AgentPost Agent credential, preferably supplied through SecretRef."
+      },
+      "timeoutMs": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 120000,
+        "default": 30000
+      }
+    }
+  }
+}

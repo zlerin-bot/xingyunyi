@@ -24,6 +24,8 @@ The project is being built as a protocol-first modular monolith:
 | Git | available | Git 2.50.1; repository initialized on 2026-08-12 |
 | Python | available | bundled Python 3.12.13 |
 | `uv` | available | `/Users/mars113/.local/bin/uv` |
+| Node.js | partially available | bundled Node 24.14.0; below OpenClaw's declared Node 24 minimum of 24.15.0 |
+| npm / OpenClaw host | unavailable | plugin host build/validate cannot run in this environment |
 | Docker / Docker Compose | unavailable | command is not installed in the current host environment |
 | PostgreSQL server/client | unavailable | no local `postgres` or `psql` command discovered |
 
@@ -48,7 +50,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 8 | inbound allow/block policy | complete |
 | 9 | Python SDK | complete |
 | 10 | offline/restart E2E, concurrency, security, and demo | complete* |
-| 11 | OpenClaw integration | pending |
+| 11 | OpenClaw integration | complete* |
 | 12 | MCP adapter | pending |
 | 13 | A2A compatibility mapping and low-risk adapter surface | pending |
 
@@ -71,7 +73,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Immediate next action
 
-Implement Milestone 11 OpenClaw integration as a thin public-HTTP tool plugin.
+Implement Milestone 12 as a standalone MCP v2 adapter over the public SDK.
 
 `*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
 baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution
@@ -112,3 +114,15 @@ log-secret canaries. The PostgreSQL suite and isolated Compose manifest exist an
 collect safely, but their three tests are **not locally executed** because this
 host has no Docker or PostgreSQL command. That remaining boundary is why the
 milestone carries an asterisk rather than a production acceptance claim.
+
+Milestone 11 evidence: the TypeScript ESM native tool plugin exposes exactly six
+strict TypeBox tools and imports only the OpenClaw tool-plugin SDK plus the public
+AgentPost HTTP protocol. Seven independent contract/security checks and four
+zero-dependency Node client tests pass; the full fast suite reports 200 passed and
+four environment skips. The adapter fixes the server URL and credential in admin
+configuration, propagates cancellation and idempotency keys, performs no hidden
+retry, preserves `external_agent_content`, and sanitizes errors. A real
+`openclaw plugins build/validate` remains **not locally executed** because npm,
+OpenClaw, and TypeBox are unavailable and the bundled Node 24.14.0 is below the
+plugin's declared Node 24.15.0 minimum; this is why the milestone carries an
+asterisk rather than a host-compatibility acceptance claim.

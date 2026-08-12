@@ -12,6 +12,8 @@ __pycache__/
 .coverage
 htmlcov/
 dist/
+!integrations/openclaw/dist/
+!integrations/openclaw/dist/*.js
 build/
 data/
 uploads/
@@ -19,4 +21,3 @@ uploads/
 *.sqlite3
 node_modules/
 .next/
-
