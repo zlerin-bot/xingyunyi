@@ -7,7 +7,7 @@ Last updated: 2026-08-12
 This repository started as an empty directory. There was no existing application,
 package manifest, test suite, database model, or Git history to reuse.
 
-The project is being built as a protocol-first modular monolith:
+The MVP implementation is locally runnable as a protocol-first modular monolith:
 
 - FastAPI HTTP service
 - SQLAlchemy 2.x persistence layer
@@ -15,7 +15,7 @@ The project is being built as a protocol-first modular monolith:
 - Alembic migrations
 - local filesystem attachment adapter with an S3-compatible boundary
 - framework-neutral REST/JSON protocol
-- Python SDK plus optional OpenClaw, MCP, and A2A adapters
+- Python SDK, optional OpenClaw/MCP adapters, and an A2A compatibility mapping
 
 ## Verified local environment
 
@@ -29,9 +29,9 @@ The project is being built as a protocol-first modular monolith:
 | Docker / Docker Compose | unavailable | command is not installed in the current host environment |
 | PostgreSQL server/client | unavailable | no local `postgres` or `psql` command discovered |
 
-Docker Compose and PostgreSQL assets will still be implemented. Fast tests will
-run against the same repository interfaces using SQLite, while a separately
-marked PostgreSQL integration suite will be the authoritative persistence check.
+Docker Compose and PostgreSQL assets are implemented. Fast tests run against the
+same repository interfaces using SQLite, while a separately marked PostgreSQL
+integration suite remains the authoritative persistence check.
 Until it has run on a machine with Docker/PostgreSQL, that acceptance item remains
 **not locally verified** and must not be reported as production acceptance.
 
@@ -71,9 +71,59 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 8. OpenClaw, MCP, A2A, realtime transports, and future federation remain adapters;
    none is a core runtime dependency.
 
-## Immediate next action
+## Final local acceptance snapshot
 
-Complete the five-minute README, security/roadmap documents, and final acceptance run.
+The final repository checks completed on 2026-08-12 with these results:
+
+- `make lint`: Ruff lint and format checks passed across 119 Python files.
+- default full suite: 224 passed and four environment skips. Three skips are the
+  guarded PostgreSQL acceptance cases; the fourth is the loopback E2E inside the
+  restricted sandbox.
+- the loopback E2E was then run with local-port permission and passed; `make demo`
+  also completed all 12 real-Uvicorn restart steps.
+- the MCP adapter's package-local suite passed four tests; the combined MCP,
+  OpenClaw, and observability contract selection passed 22 tests.
+- the zero-dependency OpenClaw Node client harness passed all four tests.
+- Alembic completed upgrade-to-head, schema check, downgrade-to-base,
+  re-upgrade-to-head, and a second schema check against a fresh file database.
+- a fresh offline sdist and wheel build passed. The wheel contains the server,
+  Admin assets, Python SDK, and MCP adapter; direct wheel import smoke checks
+  passed.
+- README Bash blocks passed `bash -n`, both Python blocks compiled, the envelope
+  JSON parsed, the lockfile resolved, and `git diff --check` passed.
+
+This is **local verified**, not production accepted. Docker/PostgreSQL commands
+and a supported OpenClaw host remain unavailable on this machine.
+
+## Definition of Done audit
+
+`[x]` means implemented and exercised locally; `[~]` means the implementation and
+acceptance asset exist but the required external runtime was unavailable.
+
+- [x] Alice and Bob have unique Agent identities and canonical addresses.
+- [x] API-key authentication binds the sender and rejects forged identities.
+- [x] Alice can send while Bob has no running client; Bob later retrieves unread
+  mail, marks it read, ACKs it, and replies.
+- [x] Alice sees Bob's ACK projection, and both participants can retrieve complete
+  thread history.
+- [x] Attachments, capability Directory, inbound ACLs, and sender-scoped
+  idempotency work through the API and automated tests.
+- [x] The Python SDK supports send, Inbox, get/read/ACK/reply, Directory, and
+  attachment operations.
+- [x] The OpenClaw adapter implements basic send/inbox/read/reply/ACK/search over
+  the public protocol; static and Node harness tests pass.
+- [x] The optional MCP adapter exposes the corresponding six stdio tools.
+- [x] `README.md`, `ARCHITECTURE.md`, `PROTOCOL.md`, `SECURITY.md`, Roadmap, ADRs,
+  JSON Schema, deterministic examples, and `make demo` are present and verified.
+- [~] PostgreSQL durability, restart, idempotency, row-lock, and 100-Agent tests
+  are implemented in `tests/postgres` but not executed here because neither
+  Docker nor PostgreSQL is installed.
+- [~] Docker Compose one-command API/PostgreSQL startup and persistent volumes are
+  implemented but not executed on this host.
+- [~] All locally runnable automated tests pass; the three PostgreSQL cases must
+  pass with zero skips before a production-database acceptance claim.
+
+## Milestone evidence trail
 
 `*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
 baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution
@@ -99,7 +149,7 @@ visibility, idempotent replay after a policy change, denial rollback, and audit
 records. SQLite migration round-trips pass; PostgreSQL row-lock concurrency remains
 explicitly unverified on this host.
 
-Milestone 9 evidence: 26 SDK contract tests passed using HTTP mock transports.
+Milestone 9 evidence: 29 SDK contract tests passed using HTTP mock transports.
 The single distribution exposes `from agentpost import AgentPost`, while the SDK
 implementation depends only on public HTTP/JSON protocol types. Offline sdist and
 wheel builds, isolated wheel installation, deterministic example compilation, and
@@ -123,9 +173,9 @@ four environment skips. The adapter fixes the server URL and credential in admin
 configuration, propagates cancellation and idempotency keys, performs no hidden
 retry, preserves `external_agent_content`, and sanitizes errors. A real
 `openclaw plugins build/validate` remains **not locally executed** because npm,
-OpenClaw, and TypeBox are unavailable and the bundled Node 24.14.0 is below the
-plugin's declared Node 24.15.0 minimum; this is why the milestone carries an
-asterisk rather than a host-compatibility acceptance claim.
+OpenClaw, and TypeBox are unavailable and the bundled Node 24.14.0 is outside the
+plugin's declared supported ranges; this is why the milestone carries an asterisk
+rather than a host-compatibility acceptance claim.
 
 Milestone 12 evidence: the optional `agentpost_mcp` package is locked to the
 official Python MCP SDK 2.0.0 and exposes exactly six stdio tools over the public
@@ -157,3 +207,11 @@ secrets, and security headers. The console creates test Agents through the
 existing registration boundary, reads an Agent Inbox, and sends idempotent test
 messages; credentials stay in password inputs/page memory and external data is
 rendered only as text. A real wheel build includes all HTML/CSS/JS assets.
+
+## Immediate next action
+
+On a Docker-capable machine, run `make test-postgres-compose` and require all
+three PostgreSQL cases to pass without skips. Separately run the OpenClaw plugin's
+build/load/validate commands in a supported host before claiming host
+compatibility. Production hardening and later phases remain governed by
+`SECURITY.md` and `ROADMAP.md`.

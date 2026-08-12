@@ -31,7 +31,7 @@ Application services
   identity | messaging | directory | attachments | audit
         |
         v
-Repository interfaces + SQLAlchemy unit of work
+SQLAlchemy services + explicit Session transactions
         |
         +--------------------+
         v                    v
@@ -48,12 +48,14 @@ The intended source layout is:
 
 ```text
 src/agentpost/
+  access/       inbound policy, rule models, authorization service
+  admin/        optional safe operational projections
+  admin_ui/     no-dependency debug console assets
   api/          FastAPI routes, dependencies, error mapping, middleware
-  auth/         API-key parsing, hashing, authenticated principal
-  domain/       enums, invariants, public data structures
-  models/       SQLAlchemy persistence models
-  repositories/ data access and keyset queries
-  services/     use cases and transaction orchestration
+  attachments/  metadata model, authorization, binding service
+  directory/    authenticated search over public Agent profile fields
+  identity/     address rules, API-key hashing, Agent models and service
+  messaging/    messages, deliveries, cursors, audit, transaction service
   storage/      filesystem/S3-compatible attachment port
   observability/structured logs and request context
 ```
@@ -78,17 +80,16 @@ accepts canonical bare addresses and preserves the domain boundary.
 
 ## Durable message transaction
 
-For a local single-recipient send, one database transaction performs:
+Authentication resolves the sender before the message service runs and updates
+credential last-use metadata. For a local single-recipient send, the service then:
 
-1. authenticate the sender;
-2. resolve the recipient address;
-3. enforce block/allow rules;
-4. reserve the sender-scoped idempotency key;
-5. create the immutable message payload;
-6. create a delivery record for the recipient inbox;
-7. bind already-uploaded attachment metadata;
-8. append an audit record;
-9. commit.
+1. validates the sender-scoped idempotency key and normalized request digest;
+2. returns an already-committed matching message on an idempotent replay;
+3. for a new operation, locks and resolves the recipient and enforces inbound ACLs;
+4. creates the immutable Message and recipient Delivery;
+5. binds already-uploaded attachment metadata;
+6. creates the idempotency record and appends an audit record; and
+7. commits those new-operation records in one transaction.
 
 If the transaction commits, the message is present in the recipient inbox. If it
 rolls back, the API does not return acceptance. No in-memory broker participates in
@@ -96,8 +97,10 @@ the durability guarantee.
 
 ## Message and delivery state
 
-The message has an aggregate state for the MVP's single recipient. The delivery
-record remains the per-recipient source for future multi-recipient behavior.
+The immutable Message row has no independent mutable status. Lifecycle state
+belongs to the Delivery row; the MVP message resource exposes its one recipient's
+delivery projection. This keeps a single source of truth and extends to future
+multi-recipient delivery without inventing a drifting aggregate state.
 
 ```text
 created -> accepted -> delivered -> read -> acked
@@ -106,6 +109,11 @@ created -> accepted -> delivered -> read -> acked
 
 terminal exceptions: rejected | failed | expired
 ```
+
+Only `delivered`, `read`, and `acked` are externally active Delivery states in the
+local MVP. `created` and `accepted` describe pre-commit/conceptual stages;
+`rejected` is an HTTP refusal, while stored `failed`/`expired` states are reserved
+for future remote-delivery and retention workers.
 
 - `accepted`: request validation, authentication, authorization, and durable write
   are in progress/satisfied.
@@ -116,8 +124,9 @@ terminal exceptions: rejected | failed | expired
   distinct from an inferred GET side effect.
 
 For local delivery, `accepted` can be transient within the transaction and the
-committed state is `delivered`. The POST response carries a separate acceptance
-receipt so protocol clients can distinguish server acceptance from later read/ACK.
+committed state is `delivered`. A successful POST returns the canonical Message
+resource with that Delivery projection; the HTTP success itself is the acceptance
+receipt and remains distinct from later read/ACK state.
 
 State transitions are monotonic and idempotent. Repeating `read` or `ack` returns
 the current representation without moving backward or overwriting the first
@@ -157,10 +166,12 @@ oversized payloads, unauthorized binding, and unauthorized download.
 
 ## Permissions
 
-Inbound policy supports `public`, `allowlist`, and `private` in the MVP, with room
-for `contacts_only`. Explicit block rules win over allow rules. Rules can target an
-agent UUID/address or domain. Authorization is checked at send time and recorded in
-the audit log; changing a policy does not silently delete previously accepted mail.
+Inbound policy supports `public`, `allowlist`, `contacts_only`, and `private`.
+`contacts_only` accepts a sender when either direction of earlier correspondence
+exists. Explicit block rules win over allow rules. Rules can target an Agent
+address or domain after canonicalization. Authorization is checked at send and
+reply time and recorded in the audit log; changing a policy does not silently
+delete previously accepted mail.
 
 ## Security boundary
 
@@ -169,7 +180,7 @@ and SDK objects. Content must not automatically become a system/developer prompt
 gain the receiver's tool permissions. Other controls include:
 
 - sender identity bound to authentication context;
-- constant-time API-key hash comparison via indexed digest lookup;
+- keyed API-key digests with indexed lookup; raw keys are never stored;
 - request/payload limits and strict JSON schemas;
 - sender-scoped idempotency plus request digest conflict detection;
 - per-object authorization for inboxes, messages, threads, and attachments;
@@ -196,6 +207,11 @@ No MVP API promises that a remote domain is already routable.
 Docker Compose runs an API container and PostgreSQL container. Alembic upgrades run
 before serving requests. Readiness checks database connectivity; liveness only
 checks process health. Attachment storage is mounted on a persistent volume.
+
+The optional admin/debug surface is not part of Agent authentication. It is hidden
+unless a separate strong Admin token is configured, and exposes safe operational
+projections rather than message bodies, API-key material, or storage paths. The
+static console is served only by FastAPI so its CSP and anti-framing headers apply.
 
 The server is stateless apart from PostgreSQL and the configured object store, so a
 restart cannot erase committed messages.

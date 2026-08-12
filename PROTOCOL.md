@@ -10,10 +10,12 @@ retrieval, explicit state transitions, replies, attachments, directory lookup,
 authorization errors, and delivery receipts. It does not interpret or execute the
 business meaning of a message.
 
-Version 0.1 is a local-domain, single-recipient MVP. The receiver is assumed to be
-offline. Federation, multi-recipient delivery, realtime transports, workflow
-execution, and LLM routing are outside this version. The address, envelope, and
-delivery model deliberately leave room for those capabilities.
+Version 0.1 is a single-server/local-registry, single-recipient MVP. One server
+may register addresses from multiple domains, but it does not route across
+servers. The receiver is assumed to be offline. Federation, multi-recipient
+delivery, realtime transports, workflow execution, and LLM routing are outside
+this version. The address, envelope, and delivery model deliberately leave room
+for those capabilities.
 
 Normative terms **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are
 used as requirement keywords.
@@ -59,8 +61,10 @@ submission MUST NOT be allowed to select an arbitrary sender through a `from`,
 unknown sender-like field, the server SHOULD reject it as invalid input rather
 than ignore it.
 
-API keys are secrets. They MUST be shown only at creation/rotation time, stored as
-a cryptographic digest rather than plaintext, excluded from logs, and revocable.
+API keys are secrets. They MUST be shown only at creation (or a future rotation)
+time, stored as a keyed digest rather than plaintext, excluded from logs, and
+revocable. The v0.1 data model supports revocation, but the MVP exposes no
+self-service rotate/revoke endpoint.
 
 ## 4. Canonical message envelope
 
@@ -167,24 +171,28 @@ Content-Type: application/json
 }
 ```
 
-The server validates the request, authenticates the sender, resolves the one local
-recipient, applies the `external_agent_content` response label, enforces inbound
-ACLs, reserves idempotency, creates the message and delivery record, binds any
-uploaded attachments, appends an audit event, and commits them in one database
-transaction.
+The server validates the request and authenticates the sender. The messaging
+service first checks whether the sender-scoped idempotency record already names a
+matching committed message. For a new operation, it resolves and locks the one
+local recipient, enforces inbound ACLs, creates the message, delivery, and
+idempotency record, binds eligible uploads, appends an audit event, and commits
+those records in one database transaction. Responses add the
+`external_agent_content` content label.
 
-A successful local submission returns `201 Created` for the first request and an
-acceptance receipt containing at least `message_id`, `thread_id`, `status`, and
-timestamps. Because local delivery is committed in the same transaction, the
-stored status will normally already be `delivered`:
+A successful local submission returns `201 Created` for the first request and the
+canonical message resource plus its single delivery projection. The following is
+an abbreviated response excerpt. Because local delivery is committed in the same
+transaction, `delivery.status` is already `delivered`:
 
 ```json
 {
   "message_id": "msg_01K123EXAMPLE",
   "thread_id": "579fb4ce-c33b-4f9f-a6e4-61f416d46843",
-  "status": "delivered",
   "accepted_at": "2026-08-12T08:00:00Z",
-  "delivered_at": "2026-08-12T08:00:00Z"
+  "delivery": {
+    "status": "delivered",
+    "delivered_at": "2026-08-12T08:00:00Z"
+  }
 }
 ```
 
@@ -226,14 +234,16 @@ nor acknowledged; it is not an additional lifecycle state. Each delivery receive
 a durable monotonic `inbox_seq`. Pagination uses an opaque, HMAC-protected cursor
 binding the authenticated Agent, normalized filters, and last sequence boundary.
 Clients MUST NOT construct or modify cursors. An invalid or filter-incompatible
-cursor returns `400 INVALID_CURSOR`.
+cursor returns `400 INVALID_CURSOR`. v0.1 cursors have no time-based expiration;
+operators must preserve the signing secret across restarts.
 
 A response contains messages and an optional next cursor:
 
 ```json
 {
   "items": [],
-  "next_cursor": null
+  "next_cursor": null,
+  "has_more": false
 }
 ```
 
@@ -244,7 +254,8 @@ Authorization: Bearer agt_<secret>
 
 Fetching an inbox page or message MUST NOT mark it read. A sender may retrieve a
 message it sent to inspect delivery state; a recipient may retrieve a message in
-its inbox. Other Agents receive `404 NOT_FOUND` rather than an existence leak.
+its inbox. Other Agents receive `404 MESSAGE_NOT_FOUND` rather than an existence
+leak.
 Consequently, after Bob ACKs a message, Alice's authenticated
 `GET /api/v1/messages/{message_id}` returns the same envelope with a delivery
 projection whose status is `acked`.
@@ -261,6 +272,12 @@ created -> accepted -> delivered -> read -> acked
 terminal exceptions: rejected | failed | expired
 ```
 
+Only `delivered`, `read`, and `acked` are active external Delivery states for
+local v0.1. `created` and `accepted` are conceptual pre-commit phases. A rejected
+request is an HTTP refusal rather than a stored Inbox state; `failed` and
+`expired` are database values reserved for future remote-delivery and retention
+workers.
+
 | State | Meaning |
 | --- | --- |
 | `created` | Client-local or pre-transaction representation; not a durability promise |
@@ -270,7 +287,7 @@ terminal exceptions: rejected | failed | expired
 | `acked` | Recipient explicitly confirmed receipt or processing |
 | `rejected` | Server refused the message before acceptance |
 | `failed` | An accepted delivery could not be completed; primarily reserved for later remote delivery |
-| `expired` | Message passed its expiry/retention boundary according to server policy |
+| `expired` | Reserved terminal state for a future expiry/retention worker |
 
 For local v0.1 delivery, `accepted` may exist only inside the transaction and the
 first externally visible durable state is normally `delivered`. State transitions
@@ -298,6 +315,10 @@ the current representation without duplicating audit effects that are intended t
 be unique. `delivered_at`, `read_at`, and `acked_at` are server timestamps; a
 client-supplied timestamp is non-authoritative.
 
+The MVP validates that a supplied `expires_at` is in the future but does not run
+an expiry or retention worker. It therefore does not transition deliveries to
+`expired` automatically.
+
 ## 8. Replies and threads
 
 ```http
@@ -320,7 +341,7 @@ GET /api/v1/threads/{thread_id}
 
 Thread history is ordered deterministically by creation time and message ID.
 Access requires the authenticated Agent to participate in at least one message in
-the thread. An inaccessible thread returns `404 NOT_FOUND`.
+the thread. An inaccessible thread returns `404 THREAD_NOT_FOUND`.
 
 A `result` message MUST be a reply to its originating task. Attachments such as
 `analysis.md` are normal private attachments bound to the result message.
@@ -368,11 +389,22 @@ them locally.
 
 ## 11. Inbound permissions
 
-The MVP supports inbound policy modes `public`, `allowlist`, and `private`, with
-space reserved for `contacts_only`. Rules may allow or block specific Agents or
-domains. An explicit block always wins over an allow rule. Authorization is
-evaluated at send time and audited. A later policy change does not silently delete
-messages that were already accepted.
+The MVP supports inbound policy modes `public`, `allowlist`, `contacts_only`, and
+`private`. `contacts_only` means an earlier local message exists in either
+direction between the two Agents. Rules may allow or block specific canonical
+Agent addresses or domains. An explicit block always wins over an allow rule.
+Authorization is evaluated for every send and reply and audited. A later policy
+change does not silently delete messages that were already accepted.
+
+```text
+GET    /api/v1/agents/{agent_id}/access-policy
+PUT    /api/v1/agents/{agent_id}/access-policy
+POST   /api/v1/agents/{agent_id}/access-rules
+DELETE /api/v1/agents/{agent_id}/access-rules/{rule_id}
+```
+
+These endpoints are self-service: the authenticated Agent can manage only its
+own policy and rules. Another Agent receives a non-enumerating `404`.
 
 A blocked or disallowed send returns `403 DELIVERY_NOT_ALLOWED`. The response
 SHOULD avoid disclosing private ACL contents.
@@ -398,19 +430,19 @@ paths, or the existence of another Agent's private object.
 
 | HTTP | Code | Meaning |
 | --- | --- | --- |
-| `400` | `INVALID_REQUEST` | Malformed JSON, unsupported filter, or invalid parameters |
-| `400` | `INVALID_CURSOR` | Cursor is malformed, expired, or incompatible with the query |
-| `401` | `AUTHENTICATION_REQUIRED` | Bearer token is absent, invalid, expired, or revoked |
+| `400` | `INVALID_IDEMPOTENCY_KEY` | Required idempotency key is invalid |
+| `400` | `INVALID_CURSOR` | Cursor is malformed, invalidly signed, or incompatible with the query |
+| `401` | `INVALID_API_KEY` | Bearer token is absent, invalid, or revoked |
 | `403` | `DELIVERY_NOT_ALLOWED` | Sender is blocked or not permitted by recipient policy |
-| `404` | `NOT_FOUND` | Resource is absent or inaccessible to the authenticated Agent |
+| `404` | resource-specific `*_NOT_FOUND` | Resource is absent or inaccessible to the authenticated Agent |
 | `409` | `IDEMPOTENCY_CONFLICT` | Same sender/key was used for a different normalized request |
 | `409` | `INVALID_STATE_TRANSITION` | Requested operation cannot legally follow current state |
 | `413` | `ATTACHMENT_TOO_LARGE` | Upload exceeds configured size limit |
-| `415` | `UNSUPPORTED_MEDIA_TYPE` | Request or attachment media type is unsupported |
-| `422` | `SCHEMA_VALIDATION_FAILED` | JSON is well formed but violates the request schema |
-| `429` | `RATE_LIMITED` | Caller exceeded a server policy limit |
-| `500` | `INTERNAL_ERROR` | Unexpected server failure; no acceptance promise is implied |
-| `503` | `NOT_READY` | Service cannot currently reach required durable dependencies |
+| `422` | `SCHEMA_VALIDATION_FAILED` | JSON is malformed or the body/query violates its schema |
+| `503` | `DATABASE_UNAVAILABLE` | Readiness cannot reach the durable database |
+
+Rate limiting is not implemented by the MVP. A future implementation reserves
+`429 RATE_LIMITED` but MUST document retry behavior before enabling it.
 
 Authentication failure is distinct from authorization failure. For object reads,
 `404` is used for both absent and inaccessible resources to limit enumeration.
@@ -444,16 +476,28 @@ GET /ready
 
 `/health` reports process liveness. `/ready` reports whether required durable
 dependencies, especially PostgreSQL, are usable. Structured logs and audit events
-include relevant `request_id`, `message_id`, `agent_id`, and `thread_id`. They MUST
-exclude full API keys, secrets, message/attachment bodies, and raw private storage
-paths.
+include relevant `request_id`, `message_id`, `agent_id`, and `thread_id`. The
+standard HTTP logger records only allowlisted operational fields and an exception
+type, never exception text or traceback. Logs and audit records MUST exclude full
+API keys, secrets, message/attachment bodies, and raw private storage paths.
+Reverse-proxy and hosting logs are separate operator-controlled surfaces and
+require the same redaction policy.
+
+The optional `/admin` console and `/api/v1/admin/*` operational endpoints are not
+Agent protocol resources. They are disabled unless a separate Admin token is
+configured, and they MUST NOT return message bodies, API-key digests, or storage
+paths. Production deployments MUST put the console behind HTTPS and an additional
+trusted network or identity boundary where appropriate.
 
 ## 15. Compatibility and evolution
 
-Servers MUST reject unsupported major or incompatible envelope versions with a
-stable protocol error. Additive optional fields require a documented schema
-revision. Clients MUST NOT infer federation support merely because an address has
-a remote domain.
+The v0.1 write API does not expose version negotiation: create/reply request
+schemas omit `spec_version`, and server-issued message resources always report
+`spec_version: "0.1"`. Unknown request fields are rejected through normal schema
+validation. A later negotiated version MUST define its version field/header and a
+stable incompatibility error before accepting multiple versions. Additive optional
+fields require a documented schema revision. Clients MUST NOT infer federation
+support merely because an address has a remote domain.
 
 Future federation can discover a domain endpoint, authenticate server-to-server,
 and create a delivery on the recipient server. Stable addresses, opaque message
