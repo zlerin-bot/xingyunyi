@@ -42,8 +42,8 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 2 | Agent identity, registration, API keys, authentication, lookup | complete |
 | 3 | persistent message/inbox APIs and offline delivery | complete |
 | 4 | message lifecycle, explicit read and acknowledgement | complete |
-| 5 | replies and thread history | in progress |
-| 6 | attachment upload/download, integrity and authorization | pending |
+| 5 | replies and thread history | complete |
+| 6 | attachment upload/download, integrity and authorization | in progress |
 | 7 | address/capability directory | pending |
 | 8 | inbound allow/block policy | pending |
 | 9 | Python SDK | pending |
@@ -71,7 +71,8 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Immediate next action
 
-Implement Milestone 5 replies and authorized thread history.
+Implement Milestone 6 attachment upload/download, integrity, binding, and
+participant authorization.
 
 `*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
 baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution

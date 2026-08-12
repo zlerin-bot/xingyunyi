@@ -151,6 +151,50 @@ class MessageCreate(StrictModel):
         return self
 
 
+class MessageReply(StrictModel):
+    message_type: MessageType = Field(default=MessageType.message, alias="type")
+    subject: str = Field(default="", max_length=500)
+    content: ContentCreate
+    task: TaskPayload | None = None
+    result: ResultPayload | None = None
+    attachments: list[UUID] = Field(default_factory=list, max_length=32)
+    priority: Priority = Priority.normal
+    requires_ack: bool = True
+    metadata: dict[str, JsonValue] = Field(default_factory=dict, max_length=64)
+    expires_at: AwareDatetime | None = None
+
+    @field_validator("metadata")
+    @classmethod
+    def validate_metadata(cls, value: dict[str, JsonValue]) -> dict[str, JsonValue]:
+        _validate_json_limits(value, max_bytes=MAX_METADATA_BYTES, label="metadata")
+        return value
+
+    @field_validator("attachments")
+    @classmethod
+    def attachments_are_not_enabled_yet(cls, value: list[UUID]) -> list[UUID]:
+        if value:
+            raise ValueError("attachments are introduced in protocol milestone 6")
+        return value
+
+    @model_validator(mode="after")
+    def validate_reply_semantics(self) -> MessageReply:
+        if self.message_type == MessageType.task:
+            if self.task is None:
+                raise ValueError("task replies require a task payload")
+        elif self.task is not None:
+            raise ValueError("task payload is only valid for task messages")
+
+        if self.message_type == MessageType.result:
+            if self.result is None:
+                raise ValueError("result replies require a result payload")
+        elif self.result is not None:
+            raise ValueError("result payload is only valid for result messages")
+
+        if self.expires_at is not None and self.expires_at <= datetime.now(UTC):
+            raise ValueError("expires_at must be in the future")
+        return self
+
+
 class AgentReference(StrictModel):
     agent_id: UUID
     address: str
@@ -200,3 +244,22 @@ class InboxResponse(StrictModel):
     items: list[MessageResponse]
     next_cursor: str | None
     has_more: bool
+
+
+class ThreadSummary(StrictModel):
+    thread_id: UUID
+    participants: list[AgentReference]
+    last_message_at: datetime
+    last_message_id: str
+    message_count: int
+    unread_count: int
+
+
+class ThreadListResponse(StrictModel):
+    items: list[ThreadSummary]
+
+
+class ThreadResponse(StrictModel):
+    thread_id: UUID
+    participants: list[AgentReference]
+    messages: list[MessageResponse]

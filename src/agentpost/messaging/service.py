@@ -27,11 +27,15 @@ from agentpost.messaging.schemas import (
     InboxResponse,
     InboxStatus,
     MessageCreate,
+    MessageReply,
     MessageResponse,
     MessageType,
     Priority,
     ResultPayload,
     TaskPayload,
+    ThreadListResponse,
+    ThreadResponse,
+    ThreadSummary,
 )
 
 _IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[\x21-\x7e]{1,255}$", flags=re.ASCII)
@@ -83,7 +87,24 @@ class InboxFilters:
 
 def _request_hash(payload: MessageCreate) -> str:
     canonical = json.dumps(
-        payload.model_dump(mode="json", by_alias=True, exclude_none=False),
+        {
+            "operation": "send_message",
+            "payload": payload.model_dump(mode="json", by_alias=True, exclude_none=False),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _reply_request_hash(message_id: str, payload: MessageReply) -> str:
+    canonical = json.dumps(
+        {
+            "operation": "reply_message",
+            "reply_to": message_id,
+            "payload": payload.model_dump(mode="json", by_alias=True, exclude_none=False),
+        },
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -223,6 +244,120 @@ def send_message(
     return SendResult(message=stored, replayed=False)
 
 
+def reply_to_message(
+    session: Session,
+    *,
+    sender: Agent,
+    parent_message_id: str,
+    payload: MessageReply,
+    idempotency_key: str,
+    request_id: str,
+) -> SendResult:
+    key = _validate_idempotency_key(idempotency_key)
+    request_hash = _reply_request_hash(parent_message_id, payload)
+    existing = session.scalar(
+        select(IdempotencyRecord).where(
+            IdempotencyRecord.sender_agent_id == sender.id,
+            IdempotencyRecord.idempotency_key == key,
+        )
+    )
+    if existing is not None:
+        if existing.request_hash != request_hash:
+            raise IdempotencyConflictError(key)
+        replay = _load_message(session, existing.message_id)
+        if replay is None:
+            raise RuntimeError("idempotency record references a missing reply")
+        return SendResult(message=replay, replayed=True)
+
+    parent = get_visible_message(session, agent_id=sender.id, message_id=parent_message_id)
+    if payload.message_type == MessageType.result and parent.message_type != MessageType.task.value:
+        raise InvalidStateTransitionError(parent.message_type)
+    if sender.id == parent.sender_agent_id:
+        recipient = parent.delivery.recipient
+    elif sender.id == parent.delivery.recipient_agent_id:
+        recipient = parent.sender
+    else:  # Defensive; get_visible_message already enforces this.
+        raise MessageNotFoundError(parent_message_id)
+
+    now = utc_now()
+    message = Message(
+        id=f"msg_{uuid4().hex}",
+        sender_agent_id=sender.id,
+        subject=payload.subject,
+        content_format=payload.content.format,
+        content_body=payload.content.body,
+        message_type=payload.message_type.value,
+        priority=payload.priority.value,
+        thread_id=parent.thread_id,
+        reply_to_message_id=parent.id,
+        requires_ack=payload.requires_ack,
+        task_payload=(payload.task.model_dump(mode="json") if payload.task else None),
+        result_payload=(
+            payload.result.model_dump(mode="json") if payload.result else None
+        ),
+        message_metadata=payload.metadata,
+        accepted_at=now,
+        created_at=now,
+        expires_at=payload.expires_at,
+    )
+    delivery = Delivery(
+        message=message,
+        recipient_agent_id=recipient.id,
+        delivery_status="delivered",
+        delivery_attempts=1,
+        last_attempt_at=now,
+        delivered_at=now,
+        created_at=now,
+    )
+    idempotency = IdempotencyRecord(
+        sender_agent_id=sender.id,
+        idempotency_key=key,
+        request_hash=request_hash,
+        operation="reply_message",
+        message_id=message.id,
+        created_at=now,
+    )
+    audit = AuditLog(
+        actor_agent_id=sender.id,
+        action="message.replied",
+        target_type="message",
+        target_id=message.id,
+        outcome="success",
+        request_id=request_id,
+        audit_metadata={
+            "recipient_agent_id": str(recipient.id),
+            "reply_to_message_id": parent.id,
+            "thread_id": str(parent.thread_id),
+            "message_type": message.message_type,
+        },
+        created_at=now,
+    )
+    session.add_all([message, delivery, idempotency, audit])
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        existing = session.scalar(
+            select(IdempotencyRecord).where(
+                IdempotencyRecord.sender_agent_id == sender.id,
+                IdempotencyRecord.idempotency_key == key,
+            )
+        )
+        if existing is None:
+            raise
+        if existing.request_hash != request_hash:
+            raise IdempotencyConflictError(key) from None
+        replay = _load_message(session, existing.message_id)
+        if replay is None:
+            raise RuntimeError("idempotency replay reply is missing") from None
+        return SendResult(message=replay, replayed=True)
+
+    stored = _load_message(session, message.id)
+    if stored is None:
+        raise RuntimeError("committed reply could not be reloaded")
+    return SendResult(message=stored, replayed=False)
+
+
 def get_visible_message(session: Session, *, agent_id: UUID, message_id: str) -> Message:
     message = session.scalar(
         _message_query()
@@ -318,6 +453,91 @@ def transition_delivery(
     if message is None:
         raise MessageNotFoundError(message_id)
     return message
+
+
+def _visible_thread_ids(session: Session, agent_id: UUID) -> list[UUID]:
+    return list(
+        session.scalars(
+            select(Message.thread_id)
+            .join(Delivery, Delivery.message_id == Message.id)
+            .where(
+                or_(
+                    Message.sender_agent_id == agent_id,
+                    Delivery.recipient_agent_id == agent_id,
+                )
+            )
+            .distinct()
+        )
+    )
+
+
+def _thread_messages(session: Session, thread_id: UUID) -> list[Message]:
+    return list(
+        session.scalars(
+            _message_query()
+            .where(Message.thread_id == thread_id)
+            .order_by(Message.created_at.asc(), Message.id.asc())
+        ).unique()
+    )
+
+
+def _thread_participants(messages: list[Message]) -> list[AgentReference]:
+    by_id: dict[UUID, AgentReference] = {}
+    for message in messages:
+        by_id[message.sender.id] = AgentReference(
+            agent_id=message.sender.id,
+            address=message.sender.address,
+        )
+        recipient = message.delivery.recipient
+        by_id[recipient.id] = AgentReference(
+            agent_id=recipient.id,
+            address=recipient.address,
+        )
+    return sorted(by_id.values(), key=lambda item: item.address)
+
+
+def list_threads(session: Session, *, agent: Agent) -> ThreadListResponse:
+    summaries: list[ThreadSummary] = []
+    for thread_id in _visible_thread_ids(session, agent.id):
+        messages = _thread_messages(session, thread_id)
+        if not messages:
+            continue
+        last = messages[-1]
+        unread_count = sum(
+            1
+            for message in messages
+            if message.delivery.recipient_agent_id == agent.id
+            and message.delivery.delivery_status == "delivered"
+            and message.delivery.read_at is None
+        )
+        summaries.append(
+            ThreadSummary(
+                thread_id=thread_id,
+                participants=_thread_participants(messages),
+                last_message_at=_as_utc(last.created_at),
+                last_message_id=last.id,
+                message_count=len(messages),
+                unread_count=unread_count,
+            )
+        )
+    summaries.sort(
+        key=lambda item: (item.last_message_at, item.last_message_id),
+        reverse=True,
+    )
+    return ThreadListResponse(items=summaries)
+
+
+def get_thread(session: Session, *, agent: Agent, thread_id: UUID) -> ThreadResponse:
+    if thread_id not in set(_visible_thread_ids(session, agent.id)):
+        raise MessageNotFoundError(str(thread_id))
+    messages = _thread_messages(session, thread_id)
+    if not messages:
+        raise MessageNotFoundError(str(thread_id))
+    return ThreadResponse(
+        thread_id=thread_id,
+        participants=_thread_participants(messages),
+        messages=[message_response(message) for message in messages],
+    )
 
 
 def list_inbox(

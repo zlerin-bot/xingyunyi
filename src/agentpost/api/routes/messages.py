@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, status
 
@@ -12,9 +13,12 @@ from agentpost.messaging.schemas import (
     InboxResponse,
     InboxStatus,
     MessageCreate,
+    MessageReply,
     MessageResponse,
     MessageType,
     Priority,
+    ThreadListResponse,
+    ThreadResponse,
 )
 from agentpost.messaging.service import (
     IdempotencyConflictError,
@@ -23,9 +27,12 @@ from agentpost.messaging.service import (
     InvalidStateTransitionError,
     MessageNotFoundError,
     RecipientNotFoundError,
+    get_thread,
     get_visible_message,
     list_inbox,
+    list_threads,
     message_response,
+    reply_to_message,
     send_message,
     transition_delivery,
 )
@@ -227,3 +234,92 @@ def acknowledge_message(
         session=session,
         current_agent=current_agent,
     )
+
+
+@router.post(
+    "/messages/{message_id}/reply",
+    response_model=MessageResponse,
+    response_model_by_alias=True,
+    response_model_exclude_none=True,
+    status_code=status.HTTP_201_CREATED,
+)
+def reply_message(
+    request: Request,
+    response: Response,
+    message_id: str,
+    payload: MessageReply,
+    session: SessionDep,
+    current_agent: CurrentAgentDep,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+) -> MessageResponse:
+    try:
+        result = reply_to_message(
+            session,
+            sender=current_agent,
+            parent_message_id=message_id,
+            payload=payload,
+            idempotency_key=idempotency_key,
+            request_id=request.state.request_id,
+        )
+    except InvalidIdempotencyKeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "invalid_idempotency_key", "message": str(exc)},
+        ) from exc
+    except IdempotencyConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "idempotency_conflict",
+                "message": "The idempotency key was already used for a different request",
+            },
+        ) from exc
+    except MessageNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "message_not_found", "message": "Message was not found"},
+        ) from exc
+    except InvalidStateTransitionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "invalid_state_transition",
+                "message": "A result reply requires a task parent message",
+            },
+        ) from exc
+    request.state.message_id = result.message.id
+    request.state.thread_id = str(result.message.thread_id)
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+        response.headers["Idempotency-Replayed"] = "true"
+    return message_response(result.message)
+
+
+@router.get(
+    "/threads",
+    response_model=ThreadListResponse,
+    response_model_by_alias=True,
+    response_model_exclude_none=True,
+)
+def read_threads(session: SessionDep, current_agent: CurrentAgentDep) -> ThreadListResponse:
+    return list_threads(session, agent=current_agent)
+
+
+@router.get(
+    "/threads/{thread_id}",
+    response_model=ThreadResponse,
+    response_model_by_alias=True,
+    response_model_exclude_none=True,
+)
+def read_thread(
+    thread_id: UUID,
+    session: SessionDep,
+    current_agent: CurrentAgentDep,
+) -> ThreadResponse:
+    try:
+        return get_thread(session, agent=current_agent, thread_id=thread_id)
+    except MessageNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "thread_not_found", "message": "Thread was not found"},
+        ) from exc
