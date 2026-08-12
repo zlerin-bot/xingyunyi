@@ -41,8 +41,8 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 1 | FastAPI, PostgreSQL, Compose, health/readiness, Alembic, basic tests | complete* |
 | 2 | Agent identity, registration, API keys, authentication, lookup | complete |
 | 3 | persistent message/inbox APIs and offline delivery | complete |
-| 4 | message lifecycle, explicit read and acknowledgement | in progress |
-| 5 | replies and thread history | pending |
+| 4 | message lifecycle, explicit read and acknowledgement | complete |
+| 5 | replies and thread history | in progress |
 | 6 | attachment upload/download, integrity and authorization | pending |
 | 7 | address/capability directory | pending |
 | 8 | inbound allow/block policy | pending |
@@ -71,8 +71,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Immediate next action
 
-Implement Milestone 4 explicit read and acknowledgement with monotonic,
-recipient-only state transitions.
+Implement Milestone 5 replies and authorized thread history.
 
 `*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
 baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution

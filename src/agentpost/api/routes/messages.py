@@ -20,12 +20,14 @@ from agentpost.messaging.service import (
     IdempotencyConflictError,
     InboxFilters,
     InvalidIdempotencyKeyError,
+    InvalidStateTransitionError,
     MessageNotFoundError,
     RecipientNotFoundError,
     get_visible_message,
     list_inbox,
     message_response,
     send_message,
+    transition_delivery,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["messages"])
@@ -149,3 +151,79 @@ def read_message(
             detail={"code": "message_not_found", "message": "Message was not found"},
         ) from exc
     return message_response(message)
+
+
+def _transition_message(
+    *,
+    transition: str,
+    request: Request,
+    message_id: str,
+    session: SessionDep,
+    current_agent: CurrentAgentDep,
+) -> MessageResponse:
+    try:
+        message = transition_delivery(
+            session,
+            recipient=current_agent,
+            message_id=message_id,
+            transition=transition,
+            request_id=request.state.request_id,
+        )
+    except MessageNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "message_not_found", "message": "Message was not found"},
+        ) from exc
+    except InvalidStateTransitionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "invalid_state_transition",
+                "message": "The delivery cannot make this state transition",
+            },
+        ) from exc
+    request.state.message_id = message.id
+    request.state.thread_id = str(message.thread_id)
+    return message_response(message)
+
+
+@router.post(
+    "/messages/{message_id}/read",
+    response_model=MessageResponse,
+    response_model_by_alias=True,
+    response_model_exclude_none=True,
+)
+def mark_message_read(
+    request: Request,
+    message_id: str,
+    session: SessionDep,
+    current_agent: CurrentAgentDep,
+) -> MessageResponse:
+    return _transition_message(
+        transition="read",
+        request=request,
+        message_id=message_id,
+        session=session,
+        current_agent=current_agent,
+    )
+
+
+@router.post(
+    "/messages/{message_id}/ack",
+    response_model=MessageResponse,
+    response_model_by_alias=True,
+    response_model_exclude_none=True,
+)
+def acknowledge_message(
+    request: Request,
+    message_id: str,
+    session: SessionDep,
+    current_agent: CurrentAgentDep,
+) -> MessageResponse:
+    return _transition_message(
+        transition="ack",
+        request=request,
+        message_id=message_id,
+        session=session,
+        current_agent=current_agent,
+    )

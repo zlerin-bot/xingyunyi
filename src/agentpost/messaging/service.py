@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from pydantic import SecretStr
-from sqlalchemy import Select, or_, select
+from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -50,6 +50,10 @@ class InvalidIdempotencyKeyError(ValueError):
 
 
 class IdempotencyConflictError(Exception):
+    pass
+
+
+class InvalidStateTransitionError(Exception):
     pass
 
 
@@ -228,6 +232,89 @@ def get_visible_message(session: Session, *, agent_id: UUID, message_id: str) ->
             or_(Message.sender_agent_id == agent_id, Delivery.recipient_agent_id == agent_id),
         )
     )
+    if message is None:
+        raise MessageNotFoundError(message_id)
+    return message
+
+
+def transition_delivery(
+    session: Session,
+    *,
+    recipient: Agent,
+    message_id: str,
+    transition: str,
+    request_id: str,
+) -> Message:
+    """Apply an explicit recipient transition with monotonic conditional updates."""
+
+    if transition not in {"read", "ack"}:
+        raise ValueError("unsupported delivery transition")
+
+    now = utc_now()
+    if transition == "read":
+        result = session.execute(
+            update(Delivery)
+            .where(
+                Delivery.message_id == message_id,
+                Delivery.recipient_agent_id == recipient.id,
+                Delivery.delivery_status == "delivered",
+            )
+            .values(
+                delivery_status="read",
+                read_at=func.coalesce(Delivery.read_at, now),
+            )
+        )
+    else:
+        result = session.execute(
+            update(Delivery)
+            .where(
+                Delivery.message_id == message_id,
+                Delivery.recipient_agent_id == recipient.id,
+                Delivery.delivery_status.in_(("delivered", "read")),
+            )
+            .values(
+                delivery_status="acked",
+                read_at=func.coalesce(Delivery.read_at, now),
+                acked_at=func.coalesce(Delivery.acked_at, now),
+            )
+        )
+    changed = result.rowcount == 1
+
+    delivery = session.scalar(
+        select(Delivery).where(
+            Delivery.message_id == message_id,
+            Delivery.recipient_agent_id == recipient.id,
+        )
+    )
+    if delivery is None:
+        session.rollback()
+        raise MessageNotFoundError(message_id)
+
+    allowed_current_states = {"read", "acked"} if transition == "read" else {"acked"}
+    if not changed and delivery.delivery_status not in allowed_current_states:
+        session.rollback()
+        raise InvalidStateTransitionError(delivery.delivery_status)
+
+    if changed:
+        session.add(
+            AuditLog(
+                actor_agent_id=recipient.id,
+                action=f"message.{transition}",
+                target_type="message",
+                target_id=message_id,
+                outcome="success",
+                request_id=request_id,
+                audit_metadata={"delivery_id": str(delivery.id)},
+                created_at=now,
+            )
+        )
+        try:
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+
+    message = _load_message(session, message_id)
     if message is None:
         raise MessageNotFoundError(message_id)
     return message
