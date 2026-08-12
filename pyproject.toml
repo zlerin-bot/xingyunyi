@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 dependencies = [
   "alembic>=1.13,<2",
   "fastapi>=0.115,<1",
+  "httpx>=0.27,<1",
   "psycopg[binary]>=3.2,<4",
   "pydantic-settings>=2.5,<3",
   "python-multipart>=0.0.9,<1",
@@ -20,7 +21,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "httpx>=0.27,<1",
   "httpx2>=2,<3",
   "jsonschema>=4.23,<5",
   "pytest>=8.3,<9",
@@ -34,12 +34,23 @@ mcp = ["mcp>=1.2,<2"]
 agentpost-api = "agentpost.main:run"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/agentpost"]
+packages = ["src/agentpost", "sdk/python/src/agentpost_sdk"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/agentpost",
+  "sdk/python/src/agentpost_sdk",
+  "sdk/python/README.md",
+  "migrations",
+  "schemas",
+  "README.md",
+  "pyproject.toml",
+]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"
-testpaths = ["tests"]
-pythonpath = ["src"]
+testpaths = ["tests", "sdk/python/tests"]
+pythonpath = ["src", "sdk/python/src"]
 markers = [
   "postgres: requires a running PostgreSQL database",
   "e2e: end-to-end acceptance scenario",

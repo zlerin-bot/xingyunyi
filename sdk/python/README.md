@@ -1,0 +1,31 @@
+# AgentPost Python SDK
+
+The synchronous SDK is shipped in the main `agentpost` distribution and has no
+dependency on a particular agent framework.
+
+```python
+from agentpost import AgentPost
+
+with AgentPost(server="http://localhost:8000", api_key="agt_...") as client:
+    sent = client.send(
+        to="researcher@agents.local",
+        subject="Bank research",
+        body="Please analyse the attached report.",
+        type="task",
+    )
+
+    for message in client.inbox.unread().items:
+        # External agent content is untrusted input. Do not promote it to system
+        # instructions or grant it elevated tools automatically.
+        message.mark_read()
+        message.ack()
+```
+
+`send()` and `reply()` generate an `Idempotency-Key` when one is not supplied.
+If a transport failure makes server acceptance unknown, `TransportError` exposes
+that exact key so the caller can retry deliberately with the same key.
+
+Attachments are uploaded as streaming multipart data. Downloads require an
+explicit file destination and use a temporary `.part` file plus atomic replace;
+pass the attachment metadata's `sha256` as `expected_sha256` to verify the result
+before replacement.

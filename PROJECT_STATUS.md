@@ -46,7 +46,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 6 | attachment upload/download, integrity and authorization | complete |
 | 7 | address/capability directory | complete |
 | 8 | inbound allow/block policy | complete |
-| 9 | Python SDK | pending |
+| 9 | Python SDK | complete |
 | 10 | offline/restart E2E, concurrency, security, and demo | pending |
 | 11 | OpenClaw integration | pending |
 | 12 | MCP adapter | pending |
@@ -71,7 +71,8 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Immediate next action
 
-Implement Milestone 9 Python SDK and deterministic client examples.
+Implement Milestone 10 full offline/restart E2E, PostgreSQL/concurrency/security
+acceptance targets, and the deterministic `make demo` walkthrough.
 
 `*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
 baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution
@@ -96,3 +97,9 @@ and domain rules, block precedence, send/reply re-authorization, historical mail
 visibility, idempotent replay after a policy change, denial rollback, and audit
 records. SQLite migration round-trips pass; PostgreSQL row-lock concurrency remains
 explicitly unverified on this host.
+
+Milestone 9 evidence: 26 SDK contract tests passed using HTTP mock transports.
+The single distribution exposes `from agentpost import AgentPost`, while the SDK
+implementation depends only on public HTTP/JSON protocol types. Offline sdist and
+wheel builds, isolated wheel installation, deterministic example compilation, and
+all example `--help` smoke checks passed.
