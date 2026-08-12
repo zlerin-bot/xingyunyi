@@ -104,9 +104,7 @@ def test_registration_token_is_required_when_configured(
     )
     app = create_app(settings=protected_settings, database=database)
     with TestClient(app) as protected_client:
-        missing = protected_client.post(
-            "/api/v1/agents", json={"address": "alice@agents.local"}
-        )
+        missing = protected_client.post("/api/v1/agents", json={"address": "alice@agents.local"})
         wrong = protected_client.post(
             "/api/v1/agents",
             json={"address": "alice@agents.local"},

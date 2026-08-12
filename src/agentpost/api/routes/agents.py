@@ -47,9 +47,7 @@ def create_agent(
     payload: AgentCreate,
     session: SessionDep,
     settings: SettingsDep,
-    registration_token: Annotated[
-        str | None, Header(alias="X-Registration-Token")
-    ] = None,
+    registration_token: Annotated[str | None, Header(alias="X-Registration-Token")] = None,
 ) -> AgentRegistrationResponse:
     _verify_registration_token(settings, registration_token)
     try:

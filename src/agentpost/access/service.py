@@ -33,9 +33,7 @@ class DeliveryNotAllowedError(Exception):
 
 
 def _lock_owner(session: Session, owner_id: UUID) -> Agent:
-    owner = session.scalar(
-        select(Agent).where(Agent.id == owner_id).with_for_update()
-    )
+    owner = session.scalar(select(Agent).where(Agent.id == owner_id).with_for_update())
     if owner is None:  # Authenticated self-owned routes make this defensive only.
         raise AccessRuleNotFoundError(str(owner_id))
     return owner
@@ -184,9 +182,7 @@ def lock_recipient_for_delivery(
     if (recipient_id is None) == (recipient_address is None):
         raise ValueError("exactly one recipient locator is required")
     locator = (
-        Agent.id == recipient_id
-        if recipient_id is not None
-        else Agent.address == recipient_address
+        Agent.id == recipient_id if recipient_id is not None else Agent.address == recipient_address
     )
     recipient = session.scalar(select(Agent).where(locator).with_for_update())
     if recipient is None or recipient.status != "active":

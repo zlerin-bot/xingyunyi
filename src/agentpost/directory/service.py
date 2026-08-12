@@ -20,9 +20,7 @@ def _normalize_text_query(value: str | None) -> str | None:
     if value is None:
         return None
     if len(value) > MAX_QUERY_LENGTH:
-        raise InvalidDirectoryFilterError(
-            f"q must contain at most {MAX_QUERY_LENGTH} characters"
-        )
+        raise InvalidDirectoryFilterError(f"q must contain at most {MAX_QUERY_LENGTH} characters")
     normalized = value.strip().lower()
     if not normalized:
         raise InvalidDirectoryFilterError("q must not be blank")
@@ -61,9 +59,7 @@ class DirectoryFilters:
         normalized_q = _normalize_text_query(q)
         normalized_capability = _normalize_capability(capability)
         if normalized_q is None and normalized_capability is None:
-            raise InvalidDirectoryFilterError(
-                "at least one of q or capability must be provided"
-            )
+            raise InvalidDirectoryFilterError("at least one of q or capability must be provided")
         return cls(q=normalized_q, capability=normalized_capability)
 
 

@@ -59,9 +59,7 @@ def get_current_agent(
         raise _authentication_error()
 
     digest = digest_api_key(raw_api_key, settings.api_key_pepper)
-    credential = session.scalar(
-        select(AgentApiKey).where(AgentApiKey.key_digest == digest)
-    )
+    credential = session.scalar(select(AgentApiKey).where(AgentApiKey.key_digest == digest))
     if (
         credential is None
         or credential.revoked_at is not None

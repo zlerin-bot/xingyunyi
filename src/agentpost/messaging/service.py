@@ -338,9 +338,7 @@ def reply_to_message(
         reply_to_message_id=parent.id,
         requires_ack=payload.requires_ack,
         task_payload=(payload.task.model_dump(mode="json") if payload.task else None),
-        result_payload=(
-            payload.result.model_dump(mode="json") if payload.result else None
-        ),
+        result_payload=(payload.result.model_dump(mode="json") if payload.result else None),
         message_metadata=payload.metadata,
         accepted_at=now,
         created_at=now,

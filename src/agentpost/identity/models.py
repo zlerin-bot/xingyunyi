@@ -39,9 +39,7 @@ class Agent(Base):
     owner_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     domain: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
-    inbound_policy: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="public"
-    )
+    inbound_policy: Mapped[str] = mapped_column(String(32), nullable=False, default="public")
     public_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     capabilities: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     endpoint: Mapped[str | None] = mapped_column(String(2048), nullable=True)

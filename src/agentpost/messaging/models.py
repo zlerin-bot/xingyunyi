@@ -134,9 +134,7 @@ class Delivery(Base):
 class IdempotencyRecord(Base):
     __tablename__ = "idempotency_records"
     __table_args__ = (
-        UniqueConstraint(
-            "sender_agent_id", "idempotency_key", name="uq_idempotency_sender_key"
-        ),
+        UniqueConstraint("sender_agent_id", "idempotency_key", name="uq_idempotency_sender_key"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)

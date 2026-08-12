@@ -154,9 +154,7 @@ def test_offline_delivery_survives_app_recreation_and_remains_unread(
         message_id = resource_message_id(receipt)
 
     restarted_database = Database(settings.database_url)
-    with TestClient(
-        create_app(settings=settings, database=restarted_database)
-    ) as restarted_client:
+    with TestClient(create_app(settings=settings, database=restarted_database)) as restarted_client:
         inbox = restarted_client.get(
             "/api/v1/inbox",
             params={"status": "unread"},
@@ -386,9 +384,7 @@ def test_cursor_pagination_does_not_drop_or_duplicate_equal_timestamp_messages(
     fixed_timestamp = datetime(2026, 1, 1, tzinfo=UTC)
     with database.session_factory() as session:
         session.execute(
-            update(messages)
-            .where(messages.c.id.in_(sent_ids))
-            .values(created_at=fixed_timestamp)
+            update(messages).where(messages.c.id.in_(sent_ids)).values(created_at=fixed_timestamp)
         )
         session.commit()
 
@@ -467,9 +463,6 @@ def test_message_resources_label_received_content_as_external_agent_content(
         headers=bearer(bob),
     )
     assert fetched.status_code == 200, fetched.text
-    assert (
-        envelope(fetched.json())["content"]["security_label"]
-        == "external_agent_content"
-    )
+    assert envelope(fetched.json())["content"]["security_label"] == "external_agent_content"
     item = inbox_items(client.get("/api/v1/inbox", headers=bearer(bob)))[0]
     assert envelope(item)["content"]["security_label"] == "external_agent_content"

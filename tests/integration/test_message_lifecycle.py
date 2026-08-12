@@ -280,9 +280,7 @@ def test_read_then_ack_preserves_read_time_and_sender_sees_final_state(
     ack_delivery = delivery(ack_response.json())
     assert ack_delivery["status"] == "acked"
     assert ack_delivery["read_at"] == first_read_at
-    assert datetime.fromisoformat(first_read_at) <= datetime.fromisoformat(
-        ack_delivery["acked_at"]
-    )
+    assert datetime.fromisoformat(first_read_at) <= datetime.fromisoformat(ack_delivery["acked_at"])
 
     sender_view = client.get(
         f"/api/v1/messages/{message_id}",
@@ -401,9 +399,7 @@ def test_inbox_status_and_unread_filters_track_explicit_lifecycle(
         acked_id,
     }
     assert inbox_ids(client, bob, status="unread") == {delivered_message["message_id"]}
-    assert inbox_ids(client, bob, status="delivered") == {
-        delivered_message["message_id"]
-    }
+    assert inbox_ids(client, bob, status="delivered") == {delivered_message["message_id"]}
     assert inbox_ids(client, bob, status="read") == {read_id}
     assert inbox_ids(client, bob, status="acked") == {acked_id}
 

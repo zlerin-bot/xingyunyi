@@ -254,9 +254,7 @@ def test_thread_list_and_history_are_complete_visible_and_stably_ordered(
     fixed_time = datetime(2026, 8, 12, 1, 2, 3, tzinfo=UTC)
     with database.session_factory() as session:
         session.execute(
-            update(Message)
-            .where(Message.id.in_(message_ids))
-            .values(created_at=fixed_time)
+            update(Message).where(Message.id.in_(message_ids)).values(created_at=fixed_time)
         )
         session.commit()
 
@@ -265,9 +263,7 @@ def test_thread_list_and_history_are_complete_visible_and_stably_ordered(
         threads = client.get("/api/v1/threads", headers=bearer(participant))
         assert threads.status_code == 200, threads.text
         summary = next(
-            item
-            for item in threads.json()["items"]
-            if item["thread_id"] == original["thread_id"]
+            item for item in threads.json()["items"] if item["thread_id"] == original["thread_id"]
         )
         assert summary["message_count"] == 3
         assert summary["last_message_id"] == expected_order[-1]
@@ -458,8 +454,7 @@ def test_result_and_task_reply_payload_rules_and_initial_result_rejection(
     initial_result = client.post(
         "/api/v1/messages",
         headers=bearer(alice, **{"Idempotency-Key": "initial-result-forbidden"}),
-        json=send_payload(bob, message_type="result")
-        | {"result": {"status": "completed"}},
+        json=send_payload(bob, message_type="result") | {"result": {"status": "completed"}},
     )
     assert_protocol_error(
         initial_result,
@@ -542,10 +537,13 @@ def test_reply_idempotency_binds_payload_and_parent(
             status_code=409,
             code="IDEMPOTENCY_CONFLICT",
         )
-    assert reply_count(
-        database,
-        [first_parent["message_id"], second_parent["message_id"]],
-    ) == 1
+    assert (
+        reply_count(
+            database,
+            [first_parent["message_id"], second_parent["message_id"]],
+        )
+        == 1
+    )
 
 
 def test_idempotency_key_namespace_is_shared_by_send_and_reply(
@@ -677,9 +675,7 @@ def test_thread_persists_across_application_recreation(
         expected_ids = [original["message_id"], reply_response.json()["message_id"]]
 
     restarted_database = Database(settings.database_url)
-    with TestClient(
-        create_app(settings=settings, database=restarted_database)
-    ) as restarted_client:
+    with TestClient(create_app(settings=settings, database=restarted_database)) as restarted_client:
         history = restarted_client.get(
             f"/api/v1/threads/{original['thread_id']}",
             headers=bearer(alice),
@@ -688,9 +684,7 @@ def test_thread_persists_across_application_recreation(
         assert [item["message_id"] for item in history.json()["messages"]] == expected_ids
         assert any(
             item["thread_id"] == original["thread_id"]
-            for item in restarted_client.get(
-                "/api/v1/threads", headers=bearer(bob)
-            ).json()["items"]
+            for item in restarted_client.get("/api/v1/threads", headers=bearer(bob)).json()["items"]
         )
 
 
@@ -778,7 +772,10 @@ def test_concurrent_same_key_reply_creates_exactly_one_message_and_record(
         )
     assert len(records) == 1
     assert records[0].operation == "reply_message"
-    assert sum(
-        row.action == "message.replied" and row.target_id in reply_ids
-        for row in audit_rows(database)
-    ) == 1
+    assert (
+        sum(
+            row.action == "message.replied" and row.target_id in reply_ids
+            for row in audit_rows(database)
+        )
+        == 1
+    )

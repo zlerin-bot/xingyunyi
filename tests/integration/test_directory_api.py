@@ -18,10 +18,7 @@ from agentpost.main import create_app
 @pytest.fixture
 def directory_client(settings: Settings, database: Database) -> Iterator[TestClient]:
     app = create_app(settings=settings, database=database)
-    if not any(
-        getattr(route, "path", None) == "/api/v1/directory/search"
-        for route in app.routes
-    ):
+    if not any(getattr(route, "path", None) == "/api/v1/directory/search" for route in app.routes):
         app.include_router(directory_router)
     with TestClient(app) as test_client:
         yield test_client

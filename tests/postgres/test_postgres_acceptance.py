@@ -148,14 +148,10 @@ def test_offline_message_and_reply_survive_two_engine_and_app_recreations(
         assert unread.status_code == 200, unread.text
         assert [item["message_id"] for item in unread.json()["items"]] == [original_id]
 
-        marked_read = bob_client.post(
-            f"/api/v1/messages/{original_id}/read", headers=_headers(bob)
-        )
+        marked_read = bob_client.post(f"/api/v1/messages/{original_id}/read", headers=_headers(bob))
         assert marked_read.status_code == 200, marked_read.text
         assert marked_read.json()["delivery"]["status"] == "read"
-        acked = bob_client.post(
-            f"/api/v1/messages/{original_id}/ack", headers=_headers(bob)
-        )
+        acked = bob_client.post(f"/api/v1/messages/{original_id}/ack", headers=_headers(bob))
         assert acked.status_code == 200, acked.text
         assert acked.json()["delivery"]["status"] == "acked"
 
@@ -229,17 +225,13 @@ def test_postgres_concurrency_exactly_deduplicates_transitions_and_100_senders(
 
         def concurrent_ack(_: int):
             transition_barrier.wait(timeout=10)
-            return client.post(
-                f"/api/v1/messages/{transition_id}/ack", headers=_headers(bob)
-            )
+            return client.post(f"/api/v1/messages/{transition_id}/ack", headers=_headers(bob))
 
         with ThreadPoolExecutor(max_workers=transition_workers) as executor:
             transition_responses = list(executor.map(concurrent_ack, range(transition_workers)))
         assert [response.status_code for response in transition_responses] == [200] * 12
 
-        senders = [
-            _register(client, f"sender-{index:03d}@agents.local") for index in range(100)
-        ]
+        senders = [_register(client, f"sender-{index:03d}@agents.local") for index in range(100)]
         baseline_messages = _count(migrated_database, Message)
         baseline_deliveries = _count(migrated_database, Delivery)
         baseline_idempotency = _count(migrated_database, IdempotencyRecord)
@@ -272,10 +264,7 @@ def test_postgres_concurrency_exactly_deduplicates_transitions_and_100_senders(
                 session.scalar(
                     select(func.count())
                     .select_from(IdempotencyRecord)
-                    .where(
-                        IdempotencyRecord.idempotency_key
-                        == "postgres-concurrent-idempotency"
-                    )
+                    .where(IdempotencyRecord.idempotency_key == "postgres-concurrent-idempotency")
                 )
                 or 0
             )

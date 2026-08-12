@@ -1,16 +1,20 @@
-.PHONY: install test test-fast test-postgres test-postgres-compose lint migrate run demo compose-up compose-down
+.PHONY: install test test-fast test-mcp test-postgres test-postgres-compose lint migrate run demo compose-up compose-down
 
 PYTHON := .venv/bin/python
 PYTEST := .venv/bin/pytest
 RUFF := .venv/bin/ruff
 
 install:
-	uv sync --extra dev
+	uv sync --extra dev --extra mcp
 
 test: test-fast
 
 test-fast:
 	$(PYTEST) -m "not postgres"
+	$(PYTEST) integrations/mcp/tests
+
+test-mcp:
+	$(PYTEST) integrations/mcp/tests
 
 test-postgres:
 	$(PYTEST) tests/postgres
@@ -20,6 +24,7 @@ test-postgres-compose:
 
 lint:
 	$(RUFF) check .
+	$(RUFF) format --check .
 
 migrate:
 	PYTHONPATH=src .venv/bin/alembic upgrade head

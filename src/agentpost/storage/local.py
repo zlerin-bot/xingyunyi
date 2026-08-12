@@ -71,9 +71,7 @@ class LocalAttachmentStorage:
                 while chunk := source.read(self.chunk_size):
                     total += len(chunk)
                     if total > max_bytes:
-                        raise UploadTooLargeError(
-                            f"attachment exceeds the {max_bytes}-byte limit"
-                        )
+                        raise UploadTooLargeError(f"attachment exceeds the {max_bytes}-byte limit")
                     digest.update(chunk)
                     destination.write(chunk)
                 destination.flush()

@@ -21,13 +21,17 @@ async def request_context_middleware(request: Request, call_next) -> Response:
     try:
         response = await call_next(request)
         status_code = response.status_code
-    except Exception:
-        logger.exception(
+    except Exception as exc:
+        # Exception messages can contain database parameters or other external
+        # values. Keep the operational signal without serializing the exception,
+        # traceback, request body, or headers into the standard HTTP log stream.
+        logger.error(
             "request.failed",
             extra={
                 "request_id": request_id,
                 "method": request.method,
                 "path": request.url.path,
+                "exception_type": type(exc).__name__,
                 "message_id": None,
                 "agent_id": None,
                 "thread_id": None,

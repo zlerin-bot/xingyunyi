@@ -248,9 +248,7 @@ def test_unsafe_filename_is_rejected_or_safely_normalized_by_multipart_boundary(
     assert not Path(normalized).is_absolute()
     assert all(character not in normalized for character in ("/", "\\", "\x00", "\r", "\n"))
     assert_safe_metadata(metadata, raw_content=b"must-not-persist")
-    downloaded = client.get(
-        f"/api/v1/attachments/{metadata['id']}", headers=bearer(alice)
-    )
+    downloaded = client.get(f"/api/v1/attachments/{metadata['id']}", headers=bearer(alice))
     assert downloaded.status_code == 200, downloaded.text
     disposition = downloaded.headers["content-disposition"]
     assert "\r" not in disposition and "\n" not in disposition
@@ -452,9 +450,7 @@ def test_pending_and_attached_objects_survive_full_app_recreation(tmp_path: Path
         )
         assert attached_download.status_code == 200, attached_download.text
         assert attached_download.content == raw
-        visible_message = third_client.get(
-            f"/api/v1/messages/{message_id}", headers=bearer(bob)
-        )
+        visible_message = third_client.get(f"/api/v1/messages/{message_id}", headers=bearer(bob))
         assert visible_message.status_code == 200, visible_message.text
         assert visible_message.json()["attachments"][0]["id"] == uploaded["id"]
 
@@ -511,9 +507,7 @@ def test_result_reply_can_bind_analysis_attachment_for_original_task_sender(
     )
     assert attachment_row(database, analysis["id"]).message_id == reply_message["message_id"]
 
-    alice_download = client.get(
-        f"/api/v1/attachments/{analysis['id']}", headers=bearer(alice)
-    )
+    alice_download = client.get(f"/api/v1/attachments/{analysis['id']}", headers=bearer(alice))
     assert alice_download.status_code == 200, alice_download.text
     assert alice_download.content == analysis_bytes
     assert_attachment_not_found(
