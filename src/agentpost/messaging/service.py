@@ -12,6 +12,11 @@ from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
+from agentpost.access.service import (
+    DeliveryNotAllowedError,
+    lock_recipient_for_delivery,
+    record_delivery_denied,
+)
 from agentpost.attachments.service import (
     attachment_metadata,
     bind_attachments,
@@ -169,9 +174,22 @@ def send_message(
         return SendResult(message=message, replayed=True)
 
     recipient_address = payload.to[0].address
-    recipient = session.scalar(select(Agent).where(Agent.address == recipient_address))
-    if recipient is None or recipient.status != "active":
-        raise RecipientNotFoundError(recipient_address)
+    try:
+        recipient = lock_recipient_for_delivery(
+            session,
+            sender=sender,
+            recipient_address=recipient_address,
+        )
+    except LookupError:
+        raise RecipientNotFoundError(recipient_address) from None
+    except DeliveryNotAllowedError as exc:
+        record_delivery_denied(
+            session,
+            sender=sender,
+            error=exc,
+            request_id=request_id,
+        )
+        raise
 
     now = utc_now()
     message = Message(
@@ -285,11 +303,27 @@ def reply_to_message(
     if payload.message_type == MessageType.result and parent.message_type != MessageType.task.value:
         raise InvalidStateTransitionError(parent.message_type)
     if sender.id == parent.sender_agent_id:
-        recipient = parent.delivery.recipient
+        recipient_id = parent.delivery.recipient_agent_id
     elif sender.id == parent.delivery.recipient_agent_id:
-        recipient = parent.sender
+        recipient_id = parent.sender_agent_id
     else:  # Defensive; get_visible_message already enforces this.
         raise MessageNotFoundError(parent_message_id)
+    try:
+        recipient = lock_recipient_for_delivery(
+            session,
+            sender=sender,
+            recipient_id=recipient_id,
+        )
+    except LookupError:
+        raise RecipientNotFoundError(str(recipient_id)) from None
+    except DeliveryNotAllowedError as exc:
+        record_delivery_denied(
+            session,
+            sender=sender,
+            error=exc,
+            request_id=request_id,
+        )
+        raise
 
     now = utc_now()
     message = Message(

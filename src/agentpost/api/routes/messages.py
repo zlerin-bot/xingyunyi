@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, status
 
+from agentpost.access.service import DeliveryNotAllowedError
 from agentpost.api.dependencies import CurrentAgentDep, SessionDep, SettingsDep
 from agentpost.attachments.service import AttachmentUnavailableError
 from agentpost.identity.addressing import canonicalize_agent_address
@@ -81,6 +82,14 @@ def create_message(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "recipient_not_found", "message": "Recipient was not found"},
+        ) from exc
+    except DeliveryNotAllowedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "delivery_not_allowed",
+                "message": "The recipient does not accept this delivery",
+            },
         ) from exc
     except AttachmentUnavailableError as exc:
         raise HTTPException(
@@ -284,6 +293,19 @@ def reply_message(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "message_not_found", "message": "Message was not found"},
+        ) from exc
+    except RecipientNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "recipient_not_found", "message": "Recipient was not found"},
+        ) from exc
+    except DeliveryNotAllowedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "delivery_not_allowed",
+                "message": "The recipient does not accept this delivery",
+            },
         ) from exc
     except InvalidStateTransitionError as exc:
         raise HTTPException(

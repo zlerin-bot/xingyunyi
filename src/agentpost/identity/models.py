@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from agentpost.db import Base
+
+if TYPE_CHECKING:
+    from agentpost.access.models import AccessRule
 
 
 def utc_now() -> datetime:
@@ -23,6 +26,10 @@ class Agent(Base):
             "status IN ('active', 'suspended', 'disabled')",
             name="ck_agents_status",
         ),
+        CheckConstraint(
+            "inbound_policy IN ('public', 'allowlist', 'contacts_only', 'private')",
+            name="ck_agents_inbound_policy",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
@@ -32,6 +39,9 @@ class Agent(Base):
     owner_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     domain: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    inbound_policy: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="public"
+    )
     public_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     capabilities: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     endpoint: Mapped[str | None] = mapped_column(String(2048), nullable=True)
@@ -45,6 +55,11 @@ class Agent(Base):
 
     api_keys: Mapped[list[AgentApiKey]] = relationship(
         back_populates="agent",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    access_rules: Mapped[list[AccessRule]] = relationship(
+        back_populates="owner",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )

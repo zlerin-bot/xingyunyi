@@ -45,7 +45,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 5 | replies and thread history | complete |
 | 6 | attachment upload/download, integrity and authorization | complete |
 | 7 | address/capability directory | complete |
-| 8 | inbound allow/block policy | pending |
+| 8 | inbound allow/block policy | complete |
 | 9 | Python SDK | pending |
 | 10 | offline/restart E2E, concurrency, security, and demo | pending |
 | 11 | OpenClaw integration | pending |
@@ -71,8 +71,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Immediate next action
 
-Implement Milestone 8 inbound allowlist/blocklist policy and enforce it on both
-new messages and replies.
+Implement Milestone 9 Python SDK and deterministic client examples.
 
 `*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
 baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution
@@ -90,3 +89,10 @@ single-use sender-owned binding, participant-only download, atomic rollback,
 task/result attachments, and persistence across complete application recreation.
 Alembic upgrade/check/downgrade/upgrade passed against SQLite; PostgreSQL execution
 remains explicitly unverified on this host.
+
+Milestone 8 evidence: 151 fast tests passed, including 18 independent ACL tests.
+The suite covers public/allowlist/contacts-only/private policies, canonical Agent
+and domain rules, block precedence, send/reply re-authorization, historical mail
+visibility, idempotent replay after a policy change, denial rollback, and audit
+records. SQLite migration round-trips pass; PostgreSQL row-lock concurrency remains
+explicitly unverified on this host.
