@@ -40,8 +40,8 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 0 | repository audit, status, architecture, plan | complete |
 | 1 | FastAPI, PostgreSQL, Compose, health/readiness, Alembic, basic tests | complete* |
 | 2 | Agent identity, registration, API keys, authentication, lookup | complete |
-| 3 | persistent message/inbox APIs and offline delivery | in progress |
-| 4 | message lifecycle, explicit read and acknowledgement | pending |
+| 3 | persistent message/inbox APIs and offline delivery | complete |
+| 4 | message lifecycle, explicit read and acknowledgement | in progress |
 | 5 | replies and thread history | pending |
 | 6 | attachment upload/download, integrity and authorization | pending |
 | 7 | address/capability directory | pending |
@@ -71,9 +71,15 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Immediate next action
 
-Implement Milestone 3 persistent inbox and offline Alice-to-Bob delivery as a
-tested vertical slice.
+Implement Milestone 4 explicit read and acknowledgement with monotonic,
+recipient-only state transitions.
 
 `*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
 baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution
 remain not locally verified because this host has neither command installed.
+
+Milestone 3 evidence: 60 fast tests passed, including application recreation on a
+file-backed database, sender forgery rejection, sender-scoped idempotency,
+participant isolation, cursor integrity, equal-timestamp pagination, and explicit
+`external_agent_content` labelling. Real PostgreSQL restart remains a later marked
+acceptance target.

@@ -3,10 +3,13 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 
+from agentpost.api.errors import http_exception_handler, validation_exception_handler
 from agentpost.api.middleware import request_context_middleware
 from agentpost.api.routes.agents import router as agents_router
+from agentpost.api.routes.messages import router as messages_router
 from agentpost.api.routes.system import router as system_router
 from agentpost.config import Settings, get_settings
 from agentpost.db import Database
@@ -32,8 +35,11 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.state.settings = runtime_settings
     app.state.database = runtime_database
     app.middleware("http")(request_context_middleware)
+    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.include_router(system_router)
     app.include_router(agents_router)
+    app.include_router(messages_router)
     return app
 
 

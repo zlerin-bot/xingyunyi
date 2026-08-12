@@ -86,7 +86,7 @@ def test_registration_rejects_duplicate_canonical_address(client: TestClient) ->
     )
 
     assert response.status_code == 409
-    assert response.json()["detail"]["code"] == "address_already_registered"
+    assert response.json()["error"]["code"] == "ADDRESS_ALREADY_REGISTERED"
 
 
 def test_registration_token_is_required_when_configured(
@@ -171,7 +171,7 @@ def test_patch_forbids_identity_and_credential_fields(client: TestClient, field:
     )
 
     assert response.status_code == 422
-    assert response.json()["detail"][0]["type"] == "extra_forbidden"
+    assert response.json()["error"]["details"][0]["type"] == "extra_forbidden"
 
 
 @pytest.mark.parametrize(
@@ -196,7 +196,7 @@ def test_missing_or_invalid_credentials_return_401(
 
     assert response.status_code == 401
     assert response.headers["WWW-Authenticate"] == "Bearer"
-    assert response.json()["detail"]["code"] == "invalid_api_key"
+    assert response.json()["error"]["code"] == "INVALID_API_KEY"
 
 
 def test_revoked_api_key_returns_401(client: TestClient, database: Database) -> None:
@@ -223,11 +223,11 @@ def test_create_and_update_payloads_forbid_unknown_fields(client: TestClient) ->
     )
 
     assert create_response.status_code == 422
-    assert create_response.json()["detail"][0]["type"] == "extra_forbidden"
+    assert create_response.json()["error"]["details"][0]["type"] == "extra_forbidden"
 
 
 def test_unknown_agent_lookups_return_not_found(client: TestClient) -> None:
     response = client.get("/api/v1/agents/2e78d3be-fc9a-4cb3-89ef-404b8768d3bd")
 
     assert response.status_code == 404
-    assert response.json()["detail"]["code"] == "agent_not_found"
+    assert response.json()["error"]["code"] == "AGENT_NOT_FOUND"
