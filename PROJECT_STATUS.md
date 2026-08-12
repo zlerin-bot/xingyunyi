@@ -44,7 +44,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 4 | message lifecycle, explicit read and acknowledgement | complete |
 | 5 | replies and thread history | complete |
 | 6 | attachment upload/download, integrity and authorization | in progress |
-| 7 | address/capability directory | pending |
+| 7 | address/capability directory | complete |
 | 8 | inbound allow/block policy | pending |
 | 9 | Python SDK | pending |
 | 10 | offline/restart E2E, concurrency, security, and demo | pending |
