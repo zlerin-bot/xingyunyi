@@ -73,7 +73,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Immediate next action
 
-Add the lightweight token-gated admin/debug surface and complete MVP documentation.
+Complete the five-minute README, security/roadmap documents, and final acceptance run.
 
 `*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
 baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution
@@ -148,3 +148,12 @@ and forbids advertising streaming, push, cancellation, or verified skills before
 implementation. `integrations/a2a/` is intentionally only a reserved adapter
 surface: no A2A runtime endpoint or conformance claim is shipped, which is why
 the milestone carries an asterisk.
+
+Admin/debug evidence: an optional `/admin` console and five read-only operational
+endpoints are hidden unless a 32–512 character Admin token is configured. Four
+integration tests cover disabled/wrong-token generic 404 behavior, safe Agent,
+Message, Thread, Delivery, and Audit projections, absence of body/key/storage
+secrets, and security headers. The console creates test Agents through the
+existing registration boundary, reads an Agent Inbox, and sends idempotent test
+messages; credentials stay in password inputs/page memory and external data is
+rendered only as text. A real wheel build includes all HTML/CSS/JS assets.

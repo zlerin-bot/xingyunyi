@@ -23,6 +23,8 @@ services:
       AGENTPOST_STORAGE_PATH: /data/attachments
       AGENTPOST_API_KEY_PEPPER: development-only-change-me
       AGENTPOST_CURSOR_SECRET: development-only-cursor-secret
+      AGENTPOST_ADMIN_TOKEN: ${AGENTPOST_ADMIN_TOKEN:-}
+      AGENTPOST_REGISTRATION_TOKEN: ${AGENTPOST_REGISTRATION_TOKEN:-}
     depends_on:
       db:
         condition: service_healthy

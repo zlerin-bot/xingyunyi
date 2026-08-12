@@ -24,15 +24,23 @@ class Settings(BaseSettings):
     api_key_pepper: SecretStr = SecretStr("development-only-change-me")
     cursor_secret: SecretStr = SecretStr("development-only-cursor-secret")
     registration_token: SecretStr | None = None
+    admin_token: SecretStr | None = None
     max_attachment_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
 
-    @field_validator("registration_token", mode="before")
+    @field_validator("registration_token", "admin_token", mode="before")
     @classmethod
     def empty_registration_token_is_unset(cls, value: object) -> object:
         if isinstance(value, SecretStr):
             return value if value.get_secret_value().strip() else None
         if isinstance(value, str) and not value.strip():
             return None
+        return value
+
+    @field_validator("admin_token")
+    @classmethod
+    def admin_token_is_strong_when_enabled(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and not 32 <= len(value.get_secret_value()) <= 512:
+            raise ValueError("AGENTPOST_ADMIN_TOKEN must contain between 32 and 512 characters")
         return value
 
     @property
@@ -53,6 +61,8 @@ class Settings(BaseSettings):
             raise ValueError("AGENTPOST_CURSOR_SECRET must be replaced in production")
         if self.registration_token is None:
             raise ValueError("AGENTPOST_REGISTRATION_TOKEN must be configured in production")
+        if self.admin_token is None:
+            raise ValueError("AGENTPOST_ADMIN_TOKEN must be configured in production")
         return self
 
 

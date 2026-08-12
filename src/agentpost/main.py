@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from agentpost.api.errors import http_exception_handler, validation_exception_handler
 from agentpost.api.middleware import request_context_middleware
 from agentpost.api.routes.access import router as access_router
+from agentpost.api.routes.admin import router as admin_router
 from agentpost.api.routes.agents import router as agents_router
 from agentpost.api.routes.attachments import router as attachments_router
 from agentpost.api.routes.directory import router as directory_router
@@ -41,6 +42,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.include_router(system_router)
+    app.include_router(admin_router)
     app.include_router(agents_router)
     app.include_router(access_router)
     app.include_router(attachments_router)

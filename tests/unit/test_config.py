@@ -38,12 +38,35 @@ def test_production_requires_registration_token() -> None:
         )
 
 
+def test_production_requires_admin_token() -> None:
+    with pytest.raises(ValidationError, match="ADMIN_TOKEN"):
+        Settings(
+            environment="production",
+            api_key_pepper="production-pepper",
+            cursor_secret="production-cursor-secret",
+            registration_token="registration-secret",
+        )
+
+
 def test_production_accepts_all_required_secrets() -> None:
     settings = Settings(
         environment="production",
         api_key_pepper="production-pepper",
         cursor_secret="production-cursor-secret",
         registration_token="registration-secret",
+        admin_token="production-admin-token-at-least-32",
     )
 
     assert settings.registration_token is not None
+    assert settings.admin_token is not None
+
+
+def test_admin_token_is_optional_but_must_be_strong_when_enabled() -> None:
+    assert Settings().admin_token is None
+    with pytest.raises(ValidationError, match="ADMIN_TOKEN"):
+        Settings(admin_token="too-short")
+    with pytest.raises(ValidationError, match="ADMIN_TOKEN"):
+        Settings(admin_token="x" * 513)
+    settings = Settings(admin_token="admin-token-with-at-least-32-bytes")
+    assert settings.admin_token is not None
+    assert "admin-token-with-at-least-32-bytes" not in repr(settings)
