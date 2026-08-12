@@ -324,6 +324,23 @@ def test_inbox_filters_unread_and_cursor_remains_opaque() -> None:
     assert unread.next_cursor == "opaque+/==.signed-token"
 
 
+def test_inbox_omits_unset_optional_query_parameters() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return json_response(
+            request,
+            200,
+            {"items": [], "next_cursor": None, "has_more": False},
+        )
+
+    with make_client(handler) as client:
+        client.inbox.unread()
+
+    assert dict(requests[0].url.params) == {"status": "unread", "limit": "50"}
+
+
 def test_get_read_ack_and_bound_message_methods() -> None:
     requests: list[httpx.Request] = []
 
@@ -431,6 +448,32 @@ def test_directory_search_encodes_only_supplied_filters() -> None:
     }
     assert agents[0].address == "bob@agents.local"
     assert agents[0].capabilities == ["financial-research"]
+
+
+def test_directory_search_omits_unset_optional_query_parameters() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return json_response(request, 200, {"items": []})
+
+    with make_client(handler) as client:
+        assert client.search_agents(q="bank") == []
+
+    assert dict(requests[0].url.params) == {"q": "bank", "limit": "20"}
+
+
+def test_directory_search_requires_a_filter_without_an_http_request() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return json_response(request, 200, {"items": []})
+
+    with make_client(handler) as client, pytest.raises(ConfigurationError):
+        client.search_agents()
+
+    assert requests == []
 
 
 def test_upload_uses_multipart_without_loading_a_path_name_into_json(tmp_path: Path) -> None:
@@ -605,7 +648,7 @@ def test_context_manager_closes_transport() -> None:
         "agt_key",
         transport=transport,
     ) as client:
-        assert client.search_agents() == []
+        assert client.search_agents(q="any") == []
         assert transport.closed is False
     assert transport.closed is True
 

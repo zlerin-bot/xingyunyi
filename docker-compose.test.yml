@@ -1,0 +1,42 @@
+# Run the isolated acceptance suite:
+# docker compose -f docker-compose.test.yml up --build --abort-on-container-exit \
+#   --exit-code-from pytest-postgres
+# Cleanup: docker compose -f docker-compose.test.yml down --volumes
+
+name: agentpost-postgres-tests
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agentpost_test
+      POSTGRES_USER: agentpost_test
+      POSTGRES_PASSWORD: agentpost_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentpost_test -d agentpost_test"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "${AGENTPOST_TEST_POSTGRES_PORT:-55432}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  pytest-postgres:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    user: "0:0"
+    environment:
+      AGENTPOST_TEST_POSTGRES_URL: >-
+        postgresql+psycopg://agentpost_test:agentpost_test@postgres-test:5432/agentpost_test
+      PYTHONDONTWRITEBYTECODE: "1"
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    volumes:
+      - ./tests:/app/tests:ro
+    command:
+      - sh
+      - -c
+      - python -m pip install --no-cache-dir '.[dev]' && python -m pytest -q tests/postgres

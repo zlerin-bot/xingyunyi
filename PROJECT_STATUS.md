@@ -47,7 +47,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 7 | address/capability directory | complete |
 | 8 | inbound allow/block policy | complete |
 | 9 | Python SDK | complete |
-| 10 | offline/restart E2E, concurrency, security, and demo | pending |
+| 10 | offline/restart E2E, concurrency, security, and demo | complete* |
 | 11 | OpenClaw integration | pending |
 | 12 | MCP adapter | pending |
 | 13 | A2A compatibility mapping and low-risk adapter surface | pending |
@@ -71,8 +71,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Immediate next action
 
-Implement Milestone 10 full offline/restart E2E, PostgreSQL/concurrency/security
-acceptance targets, and the deterministic `make demo` walkthrough.
+Implement Milestone 11 OpenClaw integration as a thin public-HTTP tool plugin.
 
 `*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
 baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution
@@ -103,3 +102,13 @@ The single distribution exposes `from agentpost import AgentPost`, while the SDK
 implementation depends only on public HTTP/JSON protocol types. Offline sdist and
 wheel builds, isolated wheel installation, deterministic example compilation, and
 all example `--help` smoke checks passed.
+
+Milestone 10 evidence: the real-process `make demo` completed all 12 Alice/Bob
+steps, including terminating Uvicorn and restarting it against the same durable
+database. Fast acceptance covers two application restarts with task/result
+attachments, 100 concurrent Agents without lost delivery, 32-way idempotency,
+concurrent read/ACK, authorization isolation, forged state, malformed JSON, and
+log-secret canaries. The PostgreSQL suite and isolated Compose manifest exist and
+collect safely, but their three tests are **not locally executed** because this
+host has no Docker or PostgreSQL command. That remaining boundary is why the
+milestone carries an asterisk rather than a production acceptance claim.

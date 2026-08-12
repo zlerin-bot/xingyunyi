@@ -129,13 +129,17 @@ class _InboxResource:
         cursor: str | None = None,
     ) -> InboxPage:
         params = {
-            "status": status,
-            "sender": sender,
-            "type": type,
-            "priority": priority,
-            "since": since.isoformat() if hasattr(since, "isoformat") else since,
-            "limit": limit,
-            "cursor": cursor,
+            key: value
+            for key, value in {
+                "status": status,
+                "sender": sender,
+                "type": type,
+                "priority": priority,
+                "since": since.isoformat() if hasattr(since, "isoformat") else since,
+                "limit": limit,
+                "cursor": cursor,
+            }.items()
+            if value is not None
         }
         data = self._owner._request("GET", "/inbox", params=params)
         try:
@@ -319,11 +323,14 @@ class AgentPost:
         capability: str | None = None,
         limit: int = 20,
     ) -> list[AgentProfile]:
-        data = self._request(
-            "GET",
-            "/directory/search",
-            params={"q": q, "capability": capability, "limit": limit},
-        )
+        if q is None and capability is None:
+            raise ConfigurationError("at least one of q or capability must be provided")
+        params = {
+            key: value
+            for key, value in {"q": q, "capability": capability, "limit": limit}.items()
+            if value is not None
+        }
+        data = self._request("GET", "/directory/search", params=params)
         try:
             return DirectoryPage.model_validate(data).items
         except PydanticValidationError as exc:
