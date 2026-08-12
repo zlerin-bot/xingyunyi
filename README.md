@@ -46,5 +46,6 @@ They do not replace the separately marked PostgreSQL acceptance suite.
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md)
+- [Protocol](PROTOCOL.md)
 - [Implementation plan](IMPLEMENTATION_PLAN.md)
 - [Current status](PROJECT_STATUS.md)

@@ -1,0 +1,419 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentpost.example/schemas/message-envelope-v0.1.json",
+  "title": "AgentPost Message Envelope v0.1",
+  "description": "The canonical, server-issued AgentPost message envelope. The authenticated server, not an untrusted client field, binds the sender identity. AgentPost MVP accepts exactly one recipient while retaining an array-shaped recipient field for future multi-recipient delivery.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "spec_version",
+    "message_id",
+    "from",
+    "to",
+    "type",
+    "subject",
+    "content",
+    "attachments",
+    "thread_id",
+    "reply_to",
+    "priority",
+    "requires_ack",
+    "metadata",
+    "created_at",
+    "expires_at"
+  ],
+  "properties": {
+    "spec_version": {
+      "const": "0.1",
+      "description": "Envelope schema version."
+    },
+    "message_id": {
+      "$ref": "#/$defs/opaqueId",
+      "description": "Globally unique, immutable protocol message identifier assigned by the server.",
+      "readOnly": true
+    },
+    "from": {
+      "$ref": "#/$defs/sender",
+      "description": "Authenticated sender identity bound by the server. Message-create clients must not use this field to select a sender.",
+      "readOnly": true
+    },
+    "to": {
+      "type": "array",
+      "description": "Recipient list. v0.1 accepts exactly one recipient; the array shape is reserved for a later multi-recipient protocol version.",
+      "minItems": 1,
+      "maxItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/recipient"
+      }
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "message",
+        "task",
+        "result",
+        "request",
+        "response",
+        "notification",
+        "event",
+        "error",
+        "system"
+      ]
+    },
+    "subject": {
+      "type": "string",
+      "maxLength": 500
+    },
+    "content": {
+      "$ref": "#/$defs/content"
+    },
+    "task": {
+      "$ref": "#/$defs/task"
+    },
+    "result": {
+      "$ref": "#/$defs/result"
+    },
+    "attachments": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/attachment"
+      }
+    },
+    "thread_id": {
+      "$ref": "#/$defs/uuid",
+      "description": "Immutable thread identifier assigned for an initial message and inherited by replies.",
+      "readOnly": true
+    },
+    "reply_to": {
+      "description": "Direct parent message identifier, or null for an initial message.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/opaqueId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ]
+    },
+    "requires_ack": {
+      "type": "boolean"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Application-defined, non-authoritative metadata. Security-sensitive routing or identity decisions must not rely on this object.",
+      "maxProperties": 64,
+      "additionalProperties": {
+        "$ref": "#/$defs/jsonValue"
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server-recorded creation time in RFC 3339 form.",
+      "readOnly": true
+    },
+    "expires_at": {
+      "description": "Optional RFC 3339 expiry time. Null means that the configured retention policy applies.",
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "task"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "task"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "task"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "result"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "result"
+        ],
+        "properties": {
+          "reply_to": {
+            "$ref": "#/$defs/opaqueId"
+          }
+        }
+      },
+      "else": {
+        "not": {
+          "required": [
+            "result"
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "opaqueId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]*$"
+    },
+    "uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "address": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 320,
+      "pattern": "^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?@[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$",
+      "description": "Canonical lowercase bare agent address. The agent:// URI form is reserved for a later protocol version."
+    },
+    "sender": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent_id",
+        "address"
+      ],
+      "properties": {
+        "agent_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "address": {
+          "$ref": "#/$defs/address"
+        }
+      }
+    },
+    "recipient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "address"
+      ],
+      "properties": {
+        "agent_id": {
+          "$ref": "#/$defs/uuid",
+          "description": "Resolved local recipient identity when present.",
+          "readOnly": true
+        },
+        "address": {
+          "$ref": "#/$defs/address"
+        }
+      }
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "body",
+        "security_label"
+      ],
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": [
+            "text",
+            "markdown",
+            "json"
+          ]
+        },
+        "body": {
+          "description": "Untrusted content supplied by an external agent. JSON format permits any JSON value; text and markdown require a string.",
+          "$ref": "#/$defs/jsonValue"
+        },
+        "security_label": {
+          "const": "external_agent_content",
+          "description": "Server-applied response label. Receivers must treat the message as untrusted external input, never as an elevated system or developer instruction.",
+          "readOnly": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "enum": [
+                  "text",
+                  "markdown"
+                ]
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "body": {
+                "type": "string",
+                "maxLength": 1048576
+              }
+            }
+          }
+        }
+      ]
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instruction"
+      ],
+      "properties": {
+        "instruction": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1048576
+        },
+        "deadline": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_output": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "partial",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 10000
+        }
+      }
+    },
+    "attachment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "filename",
+        "content_type",
+        "size",
+        "sha256"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "filename": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[^/\\\\\\u0000]+$",
+          "not": {
+            "enum": [
+              ".",
+              ".."
+            ]
+          }
+        },
+        "content_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "jsonValue": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        }
+      ]
+    }
+  }
+}
