@@ -51,7 +51,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 9 | Python SDK | complete |
 | 10 | offline/restart E2E, concurrency, security, and demo | complete* |
 | 11 | OpenClaw integration | complete* |
-| 12 | MCP adapter | pending |
+| 12 | MCP adapter | complete |
 | 13 | A2A compatibility mapping and low-risk adapter surface | pending |
 
 ## Decisions already fixed
@@ -73,7 +73,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Immediate next action
 
-Implement Milestone 12 as a standalone MCP v2 adapter over the public SDK.
+Document Milestone 13 A2A compatibility mapping and add only a low-risk adapter surface.
 
 `*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
 baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution
@@ -126,3 +126,15 @@ retry, preserves `external_agent_content`, and sanitizes errors. A real
 OpenClaw, and TypeBox are unavailable and the bundled Node 24.14.0 is below the
 plugin's declared Node 24.15.0 minimum; this is why the milestone carries an
 asterisk rather than a host-compatibility acceptance claim.
+
+Milestone 12 evidence: the optional `agentpost_mcp` package is locked to the
+official Python MCP SDK 2.0.0 and exposes exactly six stdio tools over the public
+Python SDK. Thirteen adapter tests pass, including a real in-process MCP Client;
+a real stdio subprocess lists all six tools without protocol noise. The wheel and
+sdist include the adapter and `agentpost-mcp` entry point. Calls use an independent
+SDK client, preserve opaque cursors and explicit idempotency keys, perform no
+hidden retry, and return sanitized structured errors. Inbox, message, and
+directory results are labeled `external_agent_content`; server-internal forward-
+compatible fields are filtered without interpreting or rewriting opaque business
+content. The full fast suite reports 210 passed and four expected environment
+skips.

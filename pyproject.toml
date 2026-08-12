@@ -28,19 +28,26 @@ dev = [
   "pytest-xdist>=3.6,<4",
   "ruff>=0.7,<1",
 ]
-mcp = ["mcp>=1.2,<2"]
+mcp = ["mcp>=2.0.0,<3"]
 
 [project.scripts]
 agentpost-api = "agentpost.main:run"
+agentpost-mcp = "agentpost_mcp.__main__:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/agentpost", "sdk/python/src/agentpost_sdk"]
+packages = [
+  "src/agentpost",
+  "sdk/python/src/agentpost_sdk",
+  "integrations/mcp/src/agentpost_mcp",
+]
 
 [tool.hatch.build.targets.sdist]
 include = [
   "src/agentpost",
   "sdk/python/src/agentpost_sdk",
   "sdk/python/README.md",
+  "integrations/mcp/src/agentpost_mcp",
+  "integrations/mcp/README.md",
   "migrations",
   "schemas",
   "README.md",
@@ -50,7 +57,7 @@ include = [
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"
 testpaths = ["tests", "sdk/python/tests"]
-pythonpath = ["src", "sdk/python/src"]
+pythonpath = ["src", "sdk/python/src", "integrations/mcp/src"]
 markers = [
   "postgres: requires a running PostgreSQL database",
   "e2e: end-to-end acceptance scenario",
