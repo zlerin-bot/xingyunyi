@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,6 +26,15 @@ class Settings(BaseSettings):
     registration_token: SecretStr | None = None
     max_attachment_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
 
+    @field_validator("registration_token", mode="before")
+    @classmethod
+    def empty_registration_token_is_unset(cls, value: object) -> object:
+        if isinstance(value, SecretStr):
+            return value if value.get_secret_value().strip() else None
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
     @property
     def is_production(self) -> bool:
         return self.environment.casefold() == "production"
@@ -42,6 +51,8 @@ class Settings(BaseSettings):
             raise ValueError("AGENTPOST_API_KEY_PEPPER must be replaced in production")
         if self.cursor_secret.get_secret_value() in unsafe:
             raise ValueError("AGENTPOST_CURSOR_SECRET must be replaced in production")
+        if self.registration_token is None:
+            raise ValueError("AGENTPOST_REGISTRATION_TOKEN must be configured in production")
         return self
 
 

@@ -6,6 +6,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from agentpost.api.middleware import request_context_middleware
+from agentpost.api.routes.agents import router as agents_router
 from agentpost.api.routes.system import router as system_router
 from agentpost.config import Settings, get_settings
 from agentpost.db import Database
@@ -32,6 +33,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.state.database = runtime_database
     app.middleware("http")(request_context_middleware)
     app.include_router(system_router)
+    app.include_router(agents_router)
     return app
 
 

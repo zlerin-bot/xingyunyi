@@ -7,8 +7,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from agentpost.config import Settings
-from agentpost.db import Database
+from agentpost.db import Base, Database
+from agentpost.identity.models import Agent, AgentApiKey
 from agentpost.main import create_app
+
+_MODELS = (Agent, AgentApiKey)
 
 
 @pytest.fixture
@@ -30,7 +33,9 @@ def settings(database_url: str, tmp_path: Path) -> Settings:
 @pytest.fixture
 def database(settings: Settings) -> Iterator[Database]:
     instance = Database(settings.database_url)
+    Base.metadata.create_all(instance.engine)
     yield instance
+    Base.metadata.drop_all(instance.engine)
     instance.dispose()
 
 

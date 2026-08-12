@@ -27,3 +27,23 @@ def test_attachment_limit_must_be_positive() -> None:
 def test_production_rejects_development_secrets() -> None:
     with pytest.raises(ValidationError):
         Settings(environment="production")
+
+
+def test_production_requires_registration_token() -> None:
+    with pytest.raises(ValidationError, match="REGISTRATION_TOKEN"):
+        Settings(
+            environment="production",
+            api_key_pepper="production-pepper",
+            cursor_secret="production-cursor-secret",
+        )
+
+
+def test_production_accepts_all_required_secrets() -> None:
+    settings = Settings(
+        environment="production",
+        api_key_pepper="production-pepper",
+        cursor_secret="production-cursor-secret",
+        registration_token="registration-secret",
+    )
+
+    assert settings.registration_token is not None
