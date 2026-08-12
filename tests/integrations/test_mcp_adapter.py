@@ -185,8 +185,17 @@ def test_real_mcp_v2_server_exports_exact_schemas_and_sync_tool_contracts() -> N
     inbox = tools["agentpost_list_inbox"].parameters
     assert "result" not in send["properties"]["message_type"]["enum"]
     assert "result" in reply["properties"]["message_type"]["enum"]
-    assert send["properties"]["idempotency_key"]["anyOf"][0]["maxLength"] == 255
-    assert inbox["properties"]["cursor"]["anyOf"][0]["type"] == "string"
+    for schema in (send, reply):
+        idempotency = schema["properties"]["idempotency_key"]["anyOf"][0]
+        assert idempotency["minLength"] == 1
+        assert idempotency["maxLength"] == 255
+    cursor = inbox["properties"]["cursor"]["anyOf"][0]
+    assert cursor["type"] == "string"
+    assert cursor["maxLength"] == 2048
+    for name in ("agentpost_read_message", "agentpost_reply", "agentpost_ack"):
+        message_id = tools[name].parameters["properties"]["message_id"]
+        assert message_id["minLength"] == 1
+        assert message_id["maxLength"] == 64
     for tool in tools.values():
         serialized = json.dumps(tool.parameters).casefold()
         assert all(
