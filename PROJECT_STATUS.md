@@ -52,7 +52,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 10 | offline/restart E2E, concurrency, security, and demo | complete* |
 | 11 | OpenClaw integration | complete* |
 | 12 | MCP adapter | complete |
-| 13 | A2A compatibility mapping and low-risk adapter surface | pending |
+| 13 | A2A compatibility mapping and low-risk adapter surface | complete* |
 
 ## Decisions already fixed
 
@@ -73,7 +73,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Immediate next action
 
-Document Milestone 13 A2A compatibility mapping and add only a low-risk adapter surface.
+Add the lightweight token-gated admin/debug surface and complete MVP documentation.
 
 `*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
 baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution
@@ -138,3 +138,13 @@ directory results are labeled `external_agent_content`; server-internal forward-
 compatible fields are filtered without interpreting or rewriting opaque business
 content. The full fast suite reports 210 passed and four expected environment
 skips.
+
+Milestone 13 evidence: `docs/A2A_MAPPING.md` defines a normative A2A 1.0
+compatibility boundary and a machine-readable contract registry; six contract
+tests pass. The mapping keeps mailbox Delivery and A2A Task state permanently
+separate (`ACK` has no Task effect), requires restart-safe principal-scoped task
+bindings, preserves Inbox durability, treats Cards/Parts/Artifacts as untrusted,
+and forbids advertising streaming, push, cancellation, or verified skills before
+implementation. `integrations/a2a/` is intentionally only a reserved adapter
+surface: no A2A runtime endpoint or conformance claim is shipped, which is why
+the milestone carries an asterisk.
