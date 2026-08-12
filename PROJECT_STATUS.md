@@ -38,8 +38,8 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | Milestone | Scope | Status |
 | --- | --- | --- |
 | 0 | repository audit, status, architecture, plan | complete |
-| 1 | FastAPI, PostgreSQL, Compose, health/readiness, Alembic, basic tests | in progress |
-| 2 | Agent identity, registration, API keys, authentication, lookup | pending |
+| 1 | FastAPI, PostgreSQL, Compose, health/readiness, Alembic, basic tests | complete* |
+| 2 | Agent identity, registration, API keys, authentication, lookup | in progress |
 | 3 | persistent message/inbox APIs and offline delivery | pending |
 | 4 | message lifecycle, explicit read and acknowledgement | pending |
 | 5 | replies and thread history | pending |
@@ -71,5 +71,8 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Immediate next action
 
-Implement Milestone 1 as a runnable vertical slice, run its tests, fix failures,
-and commit it before adding identity and messaging behavior.
+Implement Milestone 2 identity and authentication as a tested vertical slice.
+
+`*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
+baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution
+remain not locally verified because this host has neither command installed.

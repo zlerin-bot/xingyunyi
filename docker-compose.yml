@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agentpost
+      POSTGRES_USER: agentpost
+      POSTGRES_PASSWORD: agentpost
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentpost -d agentpost"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    environment:
+      AGENTPOST_ENVIRONMENT: development
+      AGENTPOST_DATABASE_URL: postgresql+psycopg://agentpost:agentpost@db:5432/agentpost
+      AGENTPOST_STORAGE_PATH: /data/attachments
+      AGENTPOST_API_KEY_PEPPER: development-only-change-me
+      AGENTPOST_CURSOR_SECRET: development-only-cursor-secret
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - attachment-data:/data/attachments
+
+volumes:
+  postgres-data:
+  attachment-data:

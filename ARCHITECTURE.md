@@ -112,21 +112,25 @@ terminal exceptions: rejected | failed | expired
 - `delivered`: the message is committed to the recipient's persistent inbox.
 - `read`: the recipient explicitly marks it read.
 - `acked`: the recipient explicitly confirms receipt/processing. ACK may follow
-  `delivered` directly; it is still distinct from an inferred GET side effect.
+  `delivered` directly and atomically fills a missing `read_at`; it is still
+  distinct from an inferred GET side effect.
 
 For local delivery, `accepted` can be transient within the transaction and the
 committed state is `delivered`. The POST response carries a separate acceptance
 receipt so protocol clients can distinguish server acceptance from later read/ACK.
 
 State transitions are monotonic and idempotent. Repeating `read` or `ack` returns
-the current representation without moving backward.
+the current representation without moving backward or overwriting the first
+transition timestamps. `acked_at` can never be present while `read_at` is absent.
 
 ## Inbox and cursors
 
-Inbox reads are scoped by the authenticated recipient. Keyset cursors encode the
-last `(created_at, message_id)` boundary; clients do not submit offsets. Cursors are
-opaque, validated, and stable across inserts. Filters include state, sender,
-message type, priority, time, and page limit.
+Inbox reads are scoped by the authenticated recipient. Each delivery receives a
+durable, monotonic `inbox_seq`; incremental cursors encode the authenticated agent,
+normalized filter, and last sequence boundary. Clients do not submit offsets.
+Cursors are HMAC-protected, opaque, validated, and stable across inserts and
+restarts. Filters include state, sender, message type, priority, time, and page
+limit.
 
 `unread` means delivered but neither explicitly read nor acknowledged. A GET never
 marks a message read.
@@ -210,4 +214,3 @@ restart cannot erase committed messages.
 
 SQLite success is not evidence that the PostgreSQL acceptance suite passed. Both
 results are reported separately.
-
