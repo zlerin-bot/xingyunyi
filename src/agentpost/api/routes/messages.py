@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, status
 
 from agentpost.api.dependencies import CurrentAgentDep, SessionDep, SettingsDep
+from agentpost.attachments.service import AttachmentUnavailableError
 from agentpost.identity.addressing import canonicalize_agent_address
 from agentpost.messaging.cursors import InvalidCursorError
 from agentpost.messaging.schemas import (
@@ -80,6 +81,11 @@ def create_message(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "recipient_not_found", "message": "Recipient was not found"},
+        ) from exc
+    except AttachmentUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "attachment_unavailable", "message": str(exc)},
         ) from exc
 
     request.state.message_id = result.message.id
@@ -286,6 +292,11 @@ def reply_message(
                 "code": "invalid_state_transition",
                 "message": "A result reply requires a task parent message",
             },
+        ) from exc
+    except AttachmentUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "attachment_unavailable", "message": str(exc)},
         ) from exc
     request.state.message_id = result.message.id
     request.state.thread_id = str(result.message.thread_id)

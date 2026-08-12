@@ -10,8 +10,12 @@ from uuid import UUID, uuid4
 from pydantic import SecretStr
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
+from agentpost.attachments.service import (
+    attachment_metadata,
+    bind_attachments,
+)
 from agentpost.identity.models import Agent, utc_now
 from agentpost.messaging.cursors import (
     InboxCursor,
@@ -124,6 +128,7 @@ def _message_query() -> Select[tuple[Message]]:
     return select(Message).options(
         joinedload(Message.sender),
         joinedload(Message.delivery).joinedload(Delivery.recipient),
+        selectinload(Message.attachments),
     )
 
 
@@ -219,6 +224,13 @@ def send_message(
     )
     session.add_all([message, delivery, idempotency, audit])
     try:
+        session.flush()
+        bind_attachments(
+            session,
+            sender=sender,
+            attachment_ids=payload.attachments,
+            message_id=message.id,
+        )
         session.commit()
     except IntegrityError:
         session.rollback()
@@ -334,6 +346,13 @@ def reply_to_message(
     )
     session.add_all([message, delivery, idempotency, audit])
     try:
+        session.flush()
+        bind_attachments(
+            session,
+            sender=sender,
+            attachment_ids=payload.attachments,
+            message_id=message.id,
+        )
         session.commit()
     except IntegrityError:
         session.rollback()
@@ -622,7 +641,7 @@ def message_response(message: Message) -> MessageResponse:
         content=ContentResponse(format=message.content_format, body=message.content_body),
         task=task,
         result=result,
-        attachments=[],
+        attachments=[attachment_metadata(item) for item in message.attachments],
         thread_id=message.thread_id,
         reply_to=message.reply_to_message_id,
         priority=Priority(message.priority),

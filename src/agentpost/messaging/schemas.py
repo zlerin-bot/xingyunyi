@@ -133,9 +133,9 @@ class MessageCreate(StrictModel):
 
     @field_validator("attachments")
     @classmethod
-    def attachments_are_not_enabled_yet(cls, value: list[UUID]) -> list[UUID]:
-        if value:
-            raise ValueError("attachments are introduced in protocol milestone 6")
+    def attachments_are_unique(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("attachment IDs must not be repeated")
         return value
 
     @model_validator(mode="after")
@@ -171,9 +171,9 @@ class MessageReply(StrictModel):
 
     @field_validator("attachments")
     @classmethod
-    def attachments_are_not_enabled_yet(cls, value: list[UUID]) -> list[UUID]:
-        if value:
-            raise ValueError("attachments are introduced in protocol milestone 6")
+    def attachments_are_unique(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("attachment IDs must not be repeated")
         return value
 
     @model_validator(mode="after")

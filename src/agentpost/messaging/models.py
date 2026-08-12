@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -21,6 +21,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from agentpost.db import Base
 from agentpost.identity.models import Agent, utc_now
+
+if TYPE_CHECKING:
+    from agentpost.attachments.models import Attachment
 
 
 class Message(Base):
@@ -68,6 +71,11 @@ class Message(Base):
         back_populates="message",
         cascade="all, delete-orphan",
         uselist=False,
+    )
+    attachments: Mapped[list[Attachment]] = relationship(
+        back_populates="message",
+        cascade="save-update, merge",
+        passive_deletes=True,
     )
 
 

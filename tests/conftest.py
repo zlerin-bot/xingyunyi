@@ -6,13 +6,14 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from agentpost.attachments.models import Attachment
 from agentpost.config import Settings
 from agentpost.db import Base, Database
 from agentpost.identity.models import Agent, AgentApiKey
 from agentpost.main import create_app
 from agentpost.messaging.models import AuditLog, Delivery, IdempotencyRecord, Message
 
-_MODELS = (Agent, AgentApiKey, Message, Delivery, IdempotencyRecord, AuditLog)
+_MODELS = (Agent, AgentApiKey, Message, Delivery, IdempotencyRecord, AuditLog, Attachment)
 
 
 @pytest.fixture

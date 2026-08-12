@@ -6,11 +6,12 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from agentpost.attachments.models import Attachment
 from agentpost.db import Base
 from agentpost.identity.models import Agent, AgentApiKey
 from agentpost.messaging.models import AuditLog, Delivery, IdempotencyRecord, Message
 
-_MODELS = (Agent, AgentApiKey, Message, Delivery, IdempotencyRecord, AuditLog)
+_MODELS = (Agent, AgentApiKey, Message, Delivery, IdempotencyRecord, AuditLog, Attachment)
 
 config = context.config
 if config.config_file_name is not None:

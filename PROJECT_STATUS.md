@@ -43,7 +43,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 3 | persistent message/inbox APIs and offline delivery | complete |
 | 4 | message lifecycle, explicit read and acknowledgement | complete |
 | 5 | replies and thread history | complete |
-| 6 | attachment upload/download, integrity and authorization | in progress |
+| 6 | attachment upload/download, integrity and authorization | complete |
 | 7 | address/capability directory | complete |
 | 8 | inbound allow/block policy | pending |
 | 9 | Python SDK | pending |
@@ -71,8 +71,8 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Immediate next action
 
-Implement Milestone 6 attachment upload/download, integrity, binding, and
-participant authorization.
+Implement Milestone 8 inbound allowlist/blocklist policy and enforce it on both
+new messages and replies.
 
 `*` Milestone 1 fast-test evidence: 7 tests passed, Ruff passed, and the Alembic
 baseline ran through the SQLite adapter. Docker Compose and PostgreSQL execution
@@ -83,3 +83,10 @@ file-backed database, sender forgery rejection, sender-scoped idempotency,
 participant isolation, cursor integrity, equal-timestamp pagination, and explicit
 `external_agent_content` labelling. Real PostgreSQL restart remains a later marked
 acceptance target.
+
+Milestone 6 evidence: 133 fast tests passed. The 15 attachment-specific security
+tests cover actual-byte limits, SHA256, unsafe filenames, temporary-file cleanup,
+single-use sender-owned binding, participant-only download, atomic rollback,
+task/result attachments, and persistence across complete application recreation.
+Alembic upgrade/check/downgrade/upgrade passed against SQLite; PostgreSQL execution
+remains explicitly unverified on this host.
