@@ -1,6 +1,6 @@
 # AgentPost Project Status
 
-Last updated: 2026-08-12
+Last updated: 2026-08-13
 
 ## Current state
 
@@ -208,10 +208,41 @@ existing registration boundary, reads an Agent Inbox, and sends idempotent test
 messages; credentials stay in password inputs/page memory and external data is
 rendered only as text. A real wheel build includes all HTML/CSS/JS assets.
 
+## Alibaba Cloud deployment evidence
+
+On 2026-08-13, the committed service was installed on a dedicated Alibaba Cloud
+Light Application Server in Hangzhou. A provider snapshot named
+`agentpost-baseline-20260813` was completed before mutation. The active origin
+uses Ubuntu 24.04, PostgreSQL 16, a Python 3.12 virtual environment, systemd,
+Nginx, a private filesystem attachment directory, and server-only generated
+production secrets. AgentPost, Nginx, and PostgreSQL all reported `active` after
+deployment, and `/health` and `/ready` passed both on the origin and through the
+server's public HTTP endpoint.
+
+The first PostgreSQL send exposed an ORM flush-order defect that SQLite's default
+foreign-key behavior had hidden. The transaction rolled back cleanly. Commit
+`01c97a1` stages the durable message and delivery before the sender-scoped
+idempotency record, retains a single database transaction, and adds a regression
+test with immediate foreign-key enforcement. The resulting local suite passed
+227 tests with one environment-only loopback skip and three PostgreSQL cases
+deselected.
+
+The cloud acceptance then passed against real PostgreSQL: Alice sent while no Bob
+client was running; the delivery was persisted; the AgentPost service restarted;
+Bob found the unread message, marked it read, ACKed it, and replied; Alice found
+the reply; and the thread contained exactly two messages. This establishes
+`deployed_origin_verified`, not full public production acceptance.
+
+`agentpost.me` DNS, ICP filing, and HTTPS were intentionally not changed. Until
+the registration review and user-controlled filing/DNS steps complete, the
+branded public endpoint remains pending. Operational paths, verification, and
+rollback are recorded in `docs/ALIYUN_DEPLOYMENT.md`.
+
 ## Immediate next action
 
-On a Docker-capable machine, run `make test-postgres-compose` and require all
-three PostgreSQL cases to pass without skips. Separately run the OpenClaw plugin's
+After the domain registration review completes, the user-controlled next gate is
+ICP filing for the Hangzhou origin. Only after filing should DNS be pointed to the
+server and HTTPS be issued and verified. Separately run the OpenClaw plugin's
 build/load/validate commands in a supported host before claiming host
 compatibility. Production hardening and later phases remain governed by
 `SECURITY.md` and `ROADMAP.md`.
