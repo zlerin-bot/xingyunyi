@@ -240,7 +240,12 @@ def send_message(
         },
         created_at=now,
     )
-    session.add_all([message, delivery, idempotency, audit])
+    # Flush the message/delivery graph before the sender-scoped idempotency row.
+    # SQLite commonly runs without foreign-key enforcement, but PostgreSQL checks
+    # the idempotency_records.message_id FK immediately.  Explicit staging keeps
+    # the whole operation in one transaction while making the dependency order
+    # unambiguous to every supported database.
+    session.add_all([message, delivery])
     try:
         session.flush()
         bind_attachments(
@@ -249,6 +254,8 @@ def send_message(
             attachment_ids=payload.attachments,
             message_id=message.id,
         )
+        session.add_all([idempotency, audit])
+        session.flush()
         session.commit()
     except IntegrityError:
         session.rollback()
@@ -376,7 +383,7 @@ def reply_to_message(
         },
         created_at=now,
     )
-    session.add_all([message, delivery, idempotency, audit])
+    session.add_all([message, delivery])
     try:
         session.flush()
         bind_attachments(
@@ -385,6 +392,8 @@ def reply_to_message(
             attachment_ids=payload.attachments,
             message_id=message.id,
         )
+        session.add_all([idempotency, audit])
+        session.flush()
         session.commit()
     except IntegrityError:
         session.rollback()

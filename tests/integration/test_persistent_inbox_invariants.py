@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select, update
+from sqlalchemy import event, func, select, update
 
 from agentpost.config import Settings
 from agentpost.db import Base, Database
@@ -168,6 +169,57 @@ def test_offline_delivery_survives_app_recreation_and_remains_unread(
         )
         assert stored.status_code == 200, stored.text
         assert envelope(stored.json())["content"]["body"] == "Hello Bob"
+
+
+def test_send_and_reply_respect_immediate_message_foreign_keys(tmp_path: Path) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'foreign-key-order.db'}"
+    settings = Settings(
+        environment="test",
+        database_url=database_url,
+        storage_path=tmp_path / "foreign-key-attachments",
+        api_key_pepper="foreign-key-order-pepper",
+        cursor_secret="foreign-key-order-cursor",
+        log_level="WARNING",
+    )
+    database = Database(database_url)
+
+    @event.listens_for(database.engine, "connect")
+    def enable_foreign_keys(dbapi_connection: Any, _: Any) -> None:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    Base.metadata.create_all(database.engine)
+    try:
+        with TestClient(create_app(settings=settings, database=database)) as client:
+            alice = register(client, "fk-alice@agents.local")
+            bob = register(client, "fk-bob@agents.local")
+            accepted = send(
+                client,
+                alice,
+                bob["agent"]["address"],
+                key="foreign-key-send",
+            )
+            assert accepted.status_code == 201, accepted.text
+            message_id = resource_message_id(accepted.json())
+
+            reply = client.post(
+                f"/api/v1/messages/{message_id}/reply",
+                headers=bearer(bob) | {"Idempotency-Key": "foreign-key-reply"},
+                json={
+                    "type": "response",
+                    "subject": "Received",
+                    "content": {"format": "text", "body": "Received."},
+                    "attachments": [],
+                    "priority": "normal",
+                    "requires_ack": True,
+                    "metadata": {},
+                    "expires_at": None,
+                },
+            )
+            assert reply.status_code == 201, reply.text
+    finally:
+        database.dispose()
 
 
 def test_inbox_and_message_reads_are_isolated_to_participants(
