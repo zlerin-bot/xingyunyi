@@ -1,0 +1,28 @@
+{
+	email {$AGENTPOST_ACME_EMAIL}
+	admin 127.0.0.1:2019
+}
+
+{$AGENTPOST_SITE_ADDRESS} {
+	encode zstd gzip
+
+	header {
+		-Server
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+	}
+
+	reverse_proxy api:8000 {
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 60s
+		}
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
+

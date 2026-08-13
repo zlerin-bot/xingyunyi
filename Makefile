@@ -1,4 +1,4 @@
-.PHONY: install test test-fast test-mcp test-postgres test-postgres-compose lint migrate run demo compose-up compose-down
+.PHONY: install test test-fast test-mcp test-postgres test-postgres-compose lint migrate run demo compose-up compose-down compose-production-config
 
 PYTHON := .venv/bin/python
 PYTEST := .venv/bin/pytest
@@ -40,3 +40,6 @@ compose-up:
 
 compose-down:
 	docker compose down
+
+compose-production-config:
+	docker compose --env-file .env.production -f docker-compose.production.yml config --quiet

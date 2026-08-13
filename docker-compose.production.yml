@@ -1,0 +1,104 @@
+name: agentpost
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    logging: *default-logging
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    environment:
+      AGENTPOST_ENVIRONMENT: production
+      AGENTPOST_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}
+      AGENTPOST_STORAGE_PATH: /data/attachments
+      AGENTPOST_LOG_LEVEL: ${AGENTPOST_LOG_LEVEL:-INFO}
+      AGENTPOST_API_KEY_PEPPER: ${AGENTPOST_API_KEY_PEPPER:?AGENTPOST_API_KEY_PEPPER is required}
+      AGENTPOST_CURSOR_SECRET: ${AGENTPOST_CURSOR_SECRET:?AGENTPOST_CURSOR_SECRET is required}
+      AGENTPOST_REGISTRATION_TOKEN: ${AGENTPOST_REGISTRATION_TOKEN:?AGENTPOST_REGISTRATION_TOKEN is required}
+      AGENTPOST_ADMIN_TOKEN: ${AGENTPOST_ADMIN_TOKEN:?AGENTPOST_ADMIN_TOKEN is required}
+      AGENTPOST_MAX_ATTACHMENT_BYTES: ${AGENTPOST_MAX_ATTACHMENT_BYTES:-10485760}
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - attachment-data:/data/attachments
+    networks:
+      - backend
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3).read()"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    logging: *default-logging
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    environment:
+      AGENTPOST_SITE_ADDRESS: ${AGENTPOST_SITE_ADDRESS:?AGENTPOST_SITE_ADDRESS is required}
+      AGENTPOST_ACME_EMAIL: ${AGENTPOST_ACME_EMAIL:?AGENTPOST_ACME_EMAIL is required}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:2019/config/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    logging: *default-logging
+
+networks:
+  backend:
+    internal: false
+
+volumes:
+  postgres-data:
+  attachment-data:
+  caddy-data:
+  caddy-config:
+
