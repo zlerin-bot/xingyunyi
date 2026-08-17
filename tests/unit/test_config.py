@@ -32,6 +32,14 @@ def test_human_session_ttl_is_bounded() -> None:
         Settings(human_session_ttl_seconds=7 * 24 * 60 * 60 + 1)
 
 
+def test_human_confirmation_ttl_is_short_and_bounded() -> None:
+    assert Settings().human_confirmation_ttl_seconds == 300
+    with pytest.raises(ValidationError):
+        Settings(human_confirmation_ttl_seconds=59)
+    with pytest.raises(ValidationError):
+        Settings(human_confirmation_ttl_seconds=901)
+
+
 def test_production_rejects_development_secrets() -> None:
     with pytest.raises(ValidationError):
         Settings(environment="production")

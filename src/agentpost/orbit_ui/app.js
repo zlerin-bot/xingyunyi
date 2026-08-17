@@ -2,6 +2,7 @@
 
 const state = {
   dashboard: null,
+  csrfToken: "",
 };
 
 const elements = {
@@ -369,10 +370,11 @@ async function enterOrbit(event) {
   }
   setFormStatus("正在验证身份并建立短期安全会话…");
   try {
-    await requestJson("/api/v1/orbit/session", {
+    const browserSession = await requestJson("/api/v1/orbit/session", {
       method: "POST",
       headers: { Authorization: `Bearer ${candidate}` },
     });
+    state.csrfToken = browserSession.csrf_token;
     elements.accessKey.value = "";
     await loadDashboard();
     setFormStatus("身份验证成功，访问密钥已从页面清除。", "success");
@@ -387,12 +389,16 @@ async function enterOrbit(event) {
 async function signOut() {
   let revoked = false;
   try {
-    await requestJson("/api/v1/orbit/session", { method: "DELETE" });
+    await requestJson("/api/v1/orbit/session", {
+      method: "DELETE",
+      headers: state.csrfToken ? { "X-CSRF-Token": state.csrfToken } : {},
+    });
     revoked = true;
   } catch (_error) {
     // Closing the local view does not prove that the server revoked the session.
   } finally {
     state.dashboard = null;
+    state.csrfToken = "";
     elements.accessKey.value = "";
     elements.workspaceView.hidden = true;
     elements.welcomeView.hidden = false;
@@ -409,8 +415,11 @@ async function signOut() {
 
 async function restoreSession() {
   try {
+    const browserSession = await requestJson("/api/v1/orbit/session");
+    state.csrfToken = browserSession.csrf_token;
     await loadDashboard();
   } catch (error) {
+    state.csrfToken = "";
     elements.workspaceView.hidden = true;
     elements.welcomeView.hidden = false;
     if (error.status === 401) {
@@ -433,6 +442,7 @@ elements.signOut.addEventListener("click", signOut);
 
 window.addEventListener("pagehide", () => {
   elements.accessKey.value = "";
+  state.csrfToken = "";
 });
 
 restoreSession();

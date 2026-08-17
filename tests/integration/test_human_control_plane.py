@@ -320,6 +320,8 @@ def test_human_key_creates_revocable_short_lived_browser_session(
         assert login.status_code == 201
         assert login.json()["authentication"] == "browser_session"
         assert login.json()["user"]["email"] == "session@example.com"
+        raw_csrf = login.json()["csrf_token"]
+        assert isinstance(raw_csrf, str) and raw_csrf.startswith("csrf_")
         assert "access_key" not in login.text
         assert raw_session is not None and raw_session.startswith("hss_")
         cookie_header = login.headers["set-cookie"]
@@ -336,6 +338,8 @@ def test_human_key_creates_revocable_short_lived_browser_session(
             assert stored is not None
             assert stored.token_digest != raw_session
             assert raw_session not in stored.token_digest
+            assert stored.csrf_token_digest != raw_csrf
+            assert raw_csrf not in stored.csrf_token_digest
 
         logout = client.delete("/api/v1/orbit/session")
         assert logout.status_code == 204

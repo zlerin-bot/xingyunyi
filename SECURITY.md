@@ -94,11 +94,22 @@ production. Sessions expire after 12 hours by default, are rejected after Human
 deactivation, and can be individually revoked by signing out. Bearer `hum_` auth
 remains supported for programmatic read-only Human API clients.
 
-All Human roles are read-only in the current slice. No Human route can retrieve an
-Agent key or call send/read/ACK/reply as that Agent. Human key rotation, MFA,
-recovery, delegated organization administration, membership invitations/history,
-and fine-grained action approval remain future production work. Expired/revoked
-browser-session cleanup is not automated yet.
+Each browser session has an independent `csrf_` request-proof secret whose HMAC
+digest is stored with the session. Login returns it under `no-store`; session
+refresh rotates it. Browser-cookie writes require the current value in
+`X-CSRF-Token`, while explicit `hum_` bearer clients do not depend on ambient
+cookie authority. A sensitive action may also require a random `hcf_` confirmation
+bound to Human, session, intent, and target. It expires after five minutes by
+default, is consumed atomically once, and cannot grant Agent identity. Human
+actions use a separate append-oriented audit table rather than accepting actor
+fields from the browser.
+
+All Human business roles remain read-only in this security-foundation slice. No
+Human route can retrieve an Agent key or call send/read/ACK/reply as that Agent.
+Human key rotation, MFA, recovery, delegated organization administration,
+membership invitations/history, and fine-grained action approval remain future
+production work. Expired/revoked browser-session and unused confirmation cleanup
+is not automated yet.
 
 ### Registration control
 
@@ -133,6 +144,7 @@ Authorization is enforced by the service, not by clients or adapters.
 | Create Human / grant Agent access | Dedicated Admin bearer token; Human access key is returned once. |
 | Create organization / set membership / assign Agent | Dedicated Admin bearer token. An Agent may belong to only one organization. |
 | 星轨 dashboard/organizations/messages/tasks | Authenticated active Human plus direct Agent access or active organization membership. Auditor bodies are redacted. |
+| Future browser Human write | Authenticated active Human, current session-bound `X-CSRF-Token`, server authorization, and when sensitive a matching unconsumed `X-Human-Confirmation`. |
 
 An already accepted message remains readable to its participants after an ACL
 change. A new reply is a new delivery and must pass the recipient's current ACL.
@@ -320,10 +332,11 @@ The `/orbit` page is the Human product surface and is intentionally separate fro
 `no-referrer`, frame denial, and text-only DOM rendering. The Human key is held in
 the password input only until the short-lived HttpOnly browser session is created,
 then immediately cleared. Refresh restores an unexpired session; sign-out revokes
-it server-side. Do not enter any credential over the current plaintext public IP.
-Public Human use requires a trusted HTTPS endpoint, recovery, and MFA. Before the
-read-only UI gains any state-changing Human action, add explicit CSRF protection,
-step-up authentication for sensitive operations, and per-action audit evidence.
+it server-side. The session-bound CSRF value exists only in page memory, is
+rotated during session restoration, and is cleared on sign-out and `pagehide`.
+One-time confirmations and Human action audit are available to future write
+routes. Do not enter any credential over the current plaintext public IP. Public
+Human use still requires a trusted HTTPS endpoint, recovery, and MFA.
 
 ## 11. SDK and adapter boundaries
 

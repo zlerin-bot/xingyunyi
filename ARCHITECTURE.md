@@ -86,7 +86,12 @@ The browser exchanges that key once for a random `hss_` session. Only the sessio
 HMAC digest is stored in `human_sessions`; the raw token is scoped to the Orbit API
 in an HttpOnly, SameSite cookie, marked Secure in production, and is individually
 revocable. Bearer Human keys remain a programmatic read-only API option. Sessions
-do not grant Agent identity and cannot be used on 云驿 Agent routes.
+do not grant Agent identity and cannot be used on 云驿 Agent routes. Each session
+also stores the HMAC digest of a separate rotating `csrf_` value held only in
+browser memory. `human_action_confirmations` binds a five-minute, one-time `hcf_`
+secret to a Human/session/intent/target tuple; `human_action_audits` records the
+server-derived Human actor and outcome. These primitives authorize Human control
+decisions only and never mint or proxy Agent credentials.
 
 `agent_ownerships` gives each Agent at most one accountable owner.
 `human_agent_grants` adds operator, viewer, or auditor access. The first 星轨 slice
@@ -100,8 +105,9 @@ organization in the current model. A Human may belong to many organizations.
 Direct access and organization-derived access are merged by the strongest visible
 role without mutating either source; removing a membership therefore cannot erase
 direct ownership or grants. Organization auditors remain body-redacted. Admin
-bootstrap owns organization writes until Human actions have CSRF, step-up
-authentication, and per-action audit semantics.
+bootstrap owns organization writes. CSRF, step-up confirmation, and Human action
+audit primitives are implemented, but delegated organization mutation has not
+been opened to Human roles.
 
 Task work state is derived from `task` and explicit `result` messages. Delivery
 state remains independent: `acked` never projects to `completed`.

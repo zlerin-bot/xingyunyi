@@ -59,6 +59,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 14 | 星云驿 naming and 星轨 read-only Human control plane | complete* |
 | 15 | 星轨 short-lived browser sessions and server-side revocation | complete* |
 | 16 | 星轨 organizations, memberships, and organization-scoped Agent visibility | complete* |
+| 17 | 星轨 browser CSRF, one-time action confirmation, and Human action audit | complete* |
 
 ## Decisions already fixed
 
@@ -81,6 +82,9 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 10. An organization is a server-side authorization scope, not a UI filter. One
     Agent can belong to one organization in the current model; direct grants and
     organization-derived visibility remain independent.
+11. A Human control decision uses Human identity, session-bound CSRF, and when
+    sensitive a target-bound one-time confirmation. It never impersonates an
+    Agent or executes Agent business work implicitly.
 
 ## 星轨 read-only control-plane evidence
 
@@ -104,6 +108,14 @@ viewer visibility, and auditors remain body-redacted. Direct ownership/grants ar
 merged without being overwritten, so membership removal revokes only derived
 access. 星轨 renders these relationships in the new “组织星图” section.
 
+The Human write-security foundation is now durable. Browser sessions own a
+separate `csrf_` value stored only as an HMAC digest; login returns it under
+`no-store`, session refresh rotates it, and stale tokens fail immediately.
+Sensitive actions can require a five-minute, single-use `hcf_` confirmation bound
+to Human, session, intent, and target. Human security events use a dedicated audit
+record with server-derived actor and request context. No Human business write is
+exposed by this milestone.
+
 Six integration tests prove branding/security headers and no browser key
 persistence; Human/Agent credential separation; owner-only communication
 visibility; unrelated Agent isolation; auditor body redaction; grant revocation;
@@ -116,17 +128,20 @@ isolation, canonical and unique organization identities, the single-organization
 Agent invariant, membership-derived visibility, auditor redaction, immediate
 revocation, direct-grant preservation, and audit events. The 0008 migration also
 passed upgrade, schema check, downgrade to 0007, re-upgrade, and a second check.
-The full locally runnable regression now reports 238 passed and one expected
-loopback-sandbox skip, plus four MCP package tests; Ruff check/format and the
-dependency-free browser script syntax check also pass.
+The 0009 migration passed fresh upgrade, schema check, downgrade to 0008,
+re-upgrade, and a second schema check against SQLite. The current fast regression
+reports 243 passed, one expected loopback-sandbox skip, and three explicitly
+deselected PostgreSQL tests; the MCP package suite adds four passing tests. Ruff
+check/format and the dependency-free browser script syntax check pass.
 
 This is a locally verified read-only control-plane slice, not public Human login.
 It has not been deployed to Alibaba Cloud or exercised against PostgreSQL. The
 current public IP remains plaintext HTTP and must not receive Human credentials.
-Trusted HTTPS, MFA, recovery, Human key rotation, approvals, CSRF protection for
-future Human writes, and Human action audit are later gates. Basic membership
-exists; delegated administration, invitations, membership history, SSO/domain
-proof, and nested organization units do not.
+Trusted HTTPS, MFA, recovery, Human key rotation, and approval business workflows
+remain later gates. CSRF, one-time confirmation, and Human action audit primitives
+are implemented locally. Basic membership exists; delegated administration,
+invitations, membership history, SSO/domain proof, and nested organization units
+do not.
 
 ## Final local acceptance snapshot
 

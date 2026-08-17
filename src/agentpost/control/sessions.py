@@ -16,11 +16,14 @@ from agentpost.messaging.models import AuditLog
 HUMAN_SESSION_COOKIE = "xinggui_session"
 HUMAN_SESSION_MARKER = "hss_"
 HUMAN_SESSION_RANDOM_BYTES = 32
+HUMAN_CSRF_MARKER = "csrf_"
+HUMAN_CSRF_RANDOM_BYTES = 32
 
 
 @dataclass(frozen=True)
 class CreatedHumanSession:
     raw_token: str
+    raw_csrf_token: str
     expires_at: datetime
 
 
@@ -28,7 +31,15 @@ def generate_human_session_token() -> str:
     return f"{HUMAN_SESSION_MARKER}{secrets.token_urlsafe(HUMAN_SESSION_RANDOM_BYTES)}"
 
 
+def generate_human_csrf_token() -> str:
+    return f"{HUMAN_CSRF_MARKER}{secrets.token_urlsafe(HUMAN_CSRF_RANDOM_BYTES)}"
+
+
 def digest_human_session_token(raw_token: str, settings: Settings) -> str:
+    return digest_human_key(raw_token, settings.human_api_key_pepper)
+
+
+def digest_human_csrf_token(raw_token: str, settings: Settings) -> str:
     return digest_human_key(raw_token, settings.human_api_key_pepper)
 
 
@@ -48,9 +59,11 @@ def create_human_session(
     now = utc_now()
     expires_at = now + timedelta(seconds=settings.human_session_ttl_seconds)
     raw_token = generate_human_session_token()
+    raw_csrf_token = generate_human_csrf_token()
     browser_session = HumanSession(
         human_user_id=user.id,
         token_digest=digest_human_session_token(raw_token, settings),
+        csrf_token_digest=digest_human_csrf_token(raw_csrf_token, settings),
         created_at=now,
         expires_at=expires_at,
         last_seen_at=now,
@@ -73,7 +86,40 @@ def create_human_session(
         )
     )
     session.commit()
-    return CreatedHumanSession(raw_token=raw_token, expires_at=expires_at)
+    return CreatedHumanSession(
+        raw_token=raw_token,
+        raw_csrf_token=raw_csrf_token,
+        expires_at=expires_at,
+    )
+
+
+def rotate_human_csrf_token(
+    session: Session,
+    settings: Settings,
+    *,
+    browser_session: HumanSession,
+) -> str:
+    raw_csrf_token = generate_human_csrf_token()
+    browser_session.csrf_token_digest = digest_human_csrf_token(raw_csrf_token, settings)
+    session.commit()
+    return raw_csrf_token
+
+
+def verify_human_csrf_token(
+    settings: Settings,
+    *,
+    browser_session: HumanSession,
+    raw_csrf_token: str,
+) -> bool:
+    stored = browser_session.csrf_token_digest
+    if (
+        stored is None
+        or not raw_csrf_token.startswith(HUMAN_CSRF_MARKER)
+        or not 20 <= len(raw_csrf_token) <= 256
+    ):
+        return False
+    candidate = digest_human_csrf_token(raw_csrf_token, settings)
+    return secrets.compare_digest(stored, candidate)
 
 
 def resolve_human_session(

@@ -57,6 +57,7 @@ class HumanRegistrationResponse(ControlModel):
 class HumanSessionResponse(ControlModel):
     user: HumanProfile
     expires_at: datetime
+    csrf_token: str
     authentication: Literal["browser_session"] = "browser_session"
 
 

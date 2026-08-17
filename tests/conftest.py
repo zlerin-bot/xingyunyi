@@ -11,6 +11,8 @@ from agentpost.config import Settings
 from agentpost.control.models import (
     AgentOwnership,
     HumanAccessKey,
+    HumanActionAudit,
+    HumanActionConfirmation,
     HumanAgentGrant,
     HumanSession,
     HumanUser,
@@ -36,6 +38,8 @@ _MODELS = (
     AgentOwnership,
     HumanAgentGrant,
     HumanSession,
+    HumanActionConfirmation,
+    HumanActionAudit,
     Organization,
     OrganizationMembership,
     OrganizationAgent,

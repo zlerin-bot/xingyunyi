@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     admin_token: SecretStr | None = None
     max_attachment_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
     human_session_ttl_seconds: int = Field(default=12 * 60 * 60, ge=300, le=7 * 24 * 60 * 60)
+    human_confirmation_ttl_seconds: int = Field(default=5 * 60, ge=60, le=15 * 60)
 
     @field_validator("registration_token", "admin_token", mode="before")
     @classmethod

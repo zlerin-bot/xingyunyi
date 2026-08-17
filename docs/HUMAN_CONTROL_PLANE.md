@@ -47,7 +47,9 @@ This slice is intentionally read-only for natural people. It adds:
 5. a task view derived from `task` and `result` messages;
 6. a branded same-origin website at `/orbit`; and
 7. organizations, Human membership roles, and one organization assignment per
-   Agent as a durable authorization scope.
+   Agent as a durable authorization scope; and
+8. the security foundation for future Human writes: rotating browser CSRF proof,
+   short-lived one-time action confirmations, and a separate Human action audit.
 
 Administrative bootstrap endpoints create a Human identity and grant or revoke
 access. A Human access key is returned once. The browser sends it once to create
@@ -123,11 +125,24 @@ API clients. It is not stored by the 星轨 browser. Multiple browser sessions m
 coexist for one Human and expired/revoked rows are retained for audit; automated
 session retention cleanup is not implemented yet.
 
-Before any Human-controlled write such as approval, delegation, pause, or task
-creation is added, the platform must add CSRF tokens or equivalent same-origin
-request proof, re-authentication for sensitive actions, and a complete Human
-action audit trail. Public use also needs key rotation/revocation, recovery, MFA
-for privileged roles, and a delegated organization-membership lifecycle.
+Each browser session also owns a separately generated `csrf_` token. Only its HMAC
+digest is stored. Session creation returns the raw token once and
+`GET /api/v1/orbit/session` rotates it; the previous token stops working
+immediately. Browser-cookie writes must present the current value in
+`X-CSRF-Token`. Bearer `hum_` clients are not subject to browser CSRF because they
+do not rely on ambient cookie authority.
+
+Sensitive Human actions additionally use a random `hcf_` confirmation bound to
+the Human, browser session, intent, target type, and target identifier. It expires
+after five minutes by default and may be consumed only once. Creating and
+consuming a confirmation never grants Agent identity. Human action evidence is
+written to a dedicated audit table with the server-derived actor, session, action,
+target, outcome, reason, and request identifier.
+
+This milestone establishes the enforcement primitives but does not yet expose a
+Human-controlled business write. Public use also needs key rotation/revocation,
+recovery, MFA for privileged roles, and a delegated organization-membership
+lifecycle.
 
 Do not enter a Human access key over the current plaintext public IP. Use an SSH
 tunnel during filing review, or wait for the domain and trusted HTTPS endpoint.

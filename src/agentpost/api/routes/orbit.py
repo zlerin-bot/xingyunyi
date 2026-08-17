@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Query, Request, Response, status
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
 
 from agentpost.api.dependencies import SessionDep, SettingsDep
 from agentpost.control.auth import CurrentHumanDep, HumanAccessKeyDep
+from agentpost.control.models import HumanSession
 from agentpost.control.organization_service import list_orbit_organizations
 from agentpost.control.schemas import (
     HumanProfile,
@@ -27,6 +29,7 @@ from agentpost.control.sessions import (
     HUMAN_SESSION_COOKIE,
     create_human_session,
     revoke_human_session,
+    rotate_human_csrf_token,
 )
 
 router = APIRouter(tags=["human-control-plane"])
@@ -109,9 +112,45 @@ def create_orbit_session(
         httponly=True,
         samesite="strict",
     )
+    response.headers["Cache-Control"] = "no-store"
     return HumanSessionResponse(
         user=human_profile(access_key_user),
         expires_at=created.expires_at,
+        csrf_token=created.raw_csrf_token,
+    )
+
+
+@router.get(
+    "/api/v1/orbit/session",
+    response_model=HumanSessionResponse,
+)
+def refresh_orbit_session(
+    response: Response,
+    request: Request,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> HumanSessionResponse:
+    raw_session_id = getattr(request.state, "human_session_id", None)
+    browser_session = session.get(HumanSession, UUID(raw_session_id)) if raw_session_id else None
+    if browser_session is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "browser_session_required",
+                "message": "A browser session is required to refresh CSRF state",
+            },
+        )
+    csrf_token = rotate_human_csrf_token(
+        session,
+        settings,
+        browser_session=browser_session,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return HumanSessionResponse(
+        user=human_profile(current_human),
+        expires_at=browser_session.expires_at,
+        csrf_token=csrf_token,
     )
 
 

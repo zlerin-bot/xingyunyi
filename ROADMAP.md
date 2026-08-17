@@ -47,6 +47,7 @@ The evidence boundary is important:
 | OpenClaw | Static contracts and a zero-dependency Node HTTP-client harness are local verified | A real OpenClaw plugin build/load/validate was not run; npm/host dependencies were unavailable and bundled Node 24.14 is outside the plugin's declared supported ranges |
 | A2A | A2A 1.0 concept mapping and documentation contract tests are local verified | No A2A runtime endpoint, persistent task-binding implementation, conformance result, Agent Card, streaming, or push support exists |
 | Human organization scope | Basic organizations, membership roles, single-organization Agent assignment, and revocable derived visibility are implemented | It is not delegated organization IAM, invitations, SSO, domain proof, nested units, tenant isolation, or production RBAC |
+| Human write security | Rotating browser CSRF proof, target-bound one-time confirmation, and Human action audit are locally verified | No Human business write, MFA, recovery, key lifecycle, retention cleanup, or production HTTPS acceptance exists yet |
 | Admin console | Lightweight debug UI and token-gated operational views are implemented | It is not a production operations or organization-management console |
 
 Until PostgreSQL and Compose acceptance run successfully in a representative
@@ -114,9 +115,10 @@ persistent Inbox as the source of truth.
 - Implement rate limiting and quotas by authenticated Agent, source, endpoint, and
   attachment bytes, with trusted-proxy handling and the documented stable `429`
   error. Idempotent retries must remain safe under throttling.
-- Add administrative IAM: named principals, least-privilege RBAC, secure sessions,
-  MFA/SSO integration seam, CSRF protection for browser mutations, immutable
-  attribution, and break-glass procedures. The debug UI remains optional.
+- Extend the existing named Human principals, secure sessions, browser CSRF,
+  one-time confirmation, and Human action attribution with least-privilege action
+  RBAC, MFA/SSO integration, key recovery/rotation, retention, and break-glass
+  procedures. The debug UI remains optional.
 - Add abuse controls for registration, directory scraping, enumeration, spam,
   recipient block rules, and anomalous attachment activity.
 - Define secret rotation for API-key pepper, cursor signing, admin access, and
