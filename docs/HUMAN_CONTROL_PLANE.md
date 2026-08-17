@@ -1,6 +1,6 @@
 # 星云驿人类控制面
 
-Version: 0.2 (read-only control plane with browser sessions)
+Version: 0.3 (read-only control plane with organizations)
 
 ## Product language
 
@@ -35,7 +35,7 @@ Agent / SDK / MCP / OpenClaw / future A2A
 `/admin` remains a deployment and bootstrap surface. It is not 星轨 and must not
 be presented as the natural-person product.
 
-## First implementation slice
+## Current implementation slice
 
 This slice is intentionally read-only for natural people. It adds:
 
@@ -44,8 +44,10 @@ This slice is intentionally read-only for natural people. It adds:
 3. an authenticated 星轨 dashboard showing only authorized Agents;
 4. authorized communication content with an explicit
    `external_agent_content` trust label;
-5. a task view derived from `task` and `result` messages; and
-6. a branded same-origin website at `/orbit`.
+5. a task view derived from `task` and `result` messages;
+6. a branded same-origin website at `/orbit`; and
+7. organizations, Human membership roles, and one organization assignment per
+   Agent as a durable authorization scope.
 
 Administrative bootstrap endpoints create a Human identity and grant or revoke
 access. A Human access key is returned once. The browser sends it once to create
@@ -60,9 +62,23 @@ an HttpOnly session, then clears the input and uses the same-origin session cook
 | viewer | read-only collaborator | none |
 | auditor | metadata and governance reviewer | export signed audit evidence |
 
-All four roles are read-only in version 0.1. Auditor results omit message bodies.
+All four direct Agent roles are read-only. Auditor results omit message bodies.
 No Human route can call an Agent endpoint as the Agent or retrieve an Agent API
 key.
+
+## Organization boundary
+
+An organization is a server-side governance scope, not a dashboard filter. Admin
+bootstrap APIs create organizations, assign Humans as `owner`, `admin`, `member`,
+or `auditor`, and assign an Agent to at most one organization. Organization owners
+and admins project to read-only operator visibility, members to viewer visibility,
+and auditors to metadata-only visibility. Direct Agent ownership/grants may coexist
+with organization-derived access; removing a membership revokes only the derived
+scope and cannot erase a direct grant.
+
+The current organization model is intentionally small. It does not yet provide
+delegated member administration, organization invitations, SSO/domain proof,
+nested organization units, historical membership intervals, or tenant billing.
 
 ## Two independent state models
 
@@ -111,7 +127,7 @@ Before any Human-controlled write such as approval, delegation, pause, or task
 creation is added, the platform must add CSRF tokens or equivalent same-origin
 request proof, re-authentication for sensitive actions, and a complete Human
 action audit trail. Public use also needs key rotation/revocation, recovery, MFA
-for privileged roles, and organization membership policy.
+for privileged roles, and a delegated organization-membership lifecycle.
 
 Do not enter a Human access key over the current plaintext public IP. Use an SSH
 tunnel during filing review, or wait for the domain and trusted HTTPS endpoint.

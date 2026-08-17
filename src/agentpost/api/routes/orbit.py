@@ -7,12 +7,14 @@ from fastapi.responses import FileResponse
 
 from agentpost.api.dependencies import SessionDep, SettingsDep
 from agentpost.control.auth import CurrentHumanDep, HumanAccessKeyDep
+from agentpost.control.organization_service import list_orbit_organizations
 from agentpost.control.schemas import (
     HumanProfile,
     HumanSessionResponse,
     OrbitAgent,
     OrbitDashboard,
     OrbitMessage,
+    OrbitOrganization,
     OrbitTask,
 )
 from agentpost.control.service import (
@@ -154,6 +156,14 @@ def orbit_agents(
     session: SessionDep,
 ) -> list[OrbitAgent]:
     return build_orbit_dashboard(session, current_human).agents
+
+
+@router.get("/api/v1/orbit/organizations", response_model=list[OrbitOrganization])
+def orbit_organizations(
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+) -> list[OrbitOrganization]:
+    return list_orbit_organizations(session, current_human)
 
 
 @router.get("/api/v1/orbit/messages", response_model=list[OrbitMessage])

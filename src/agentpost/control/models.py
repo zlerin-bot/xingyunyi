@@ -42,6 +42,11 @@ class HumanUser(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    organization_memberships: Mapped[list[OrganizationMembership]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     ownerships: Mapped[list[AgentOwnership]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -96,6 +101,100 @@ class HumanSession(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped[HumanUser] = relationship(back_populates="sessions")
+
+
+class Organization(Base):
+    __tablename__ = "organizations"
+    __table_args__ = (
+        CheckConstraint("slug = lower(slug)", name="ck_organizations_slug_lowercase"),
+        CheckConstraint(
+            "status IN ('active', 'archived')",
+            name="ck_organizations_status",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    slug: Mapped[str] = mapped_column(String(63), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+    memberships: Mapped[list[OrganizationMembership]] = relationship(
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    agent_assignments: Mapped[list[OrganizationAgent]] = relationship(
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class OrganizationMembership(Base):
+    __tablename__ = "organization_memberships"
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('owner', 'admin', 'member', 'auditor')",
+            name="ck_organization_memberships_role",
+        ),
+        UniqueConstraint(
+            "organization_id",
+            "human_user_id",
+            name="uq_organization_memberships_org_user",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    human_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("human_users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    role: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+    organization: Mapped[Organization] = relationship(back_populates="memberships")
+    user: Mapped[HumanUser] = relationship(back_populates="organization_memberships")
+
+
+class OrganizationAgent(Base):
+    __tablename__ = "organization_agents"
+
+    agent_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    assigned_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+    organization: Mapped[Organization] = relationship(back_populates="agent_assignments")
 
 
 class AgentOwnership(Base):

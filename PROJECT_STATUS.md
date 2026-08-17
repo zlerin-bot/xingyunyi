@@ -17,7 +17,8 @@ The MVP implementation is locally runnable as a protocol-first modular monolith:
 - framework-neutral REST/JSON protocol
 - Python SDK, optional OpenClaw/MCP adapters, and an A2A compatibility mapping
 - 星轨 Human identity, Agent ownership/role grants, read-only control API, and
-  same-origin product website with revocable short-lived browser sessions
+  same-origin product website with revocable short-lived browser sessions and
+  organization-scoped visibility
 
 ## Verified local environment
 
@@ -57,6 +58,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 13 | A2A compatibility mapping and low-risk adapter surface | complete* |
 | 14 | 星云驿 naming and 星轨 read-only Human control plane | complete* |
 | 15 | 星轨 short-lived browser sessions and server-side revocation | complete* |
+| 16 | 星轨 organizations, memberships, and organization-scoped Agent visibility | complete* |
 
 ## Decisions already fixed
 
@@ -76,6 +78,9 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
    none is a core runtime dependency.
 9. 星轨 Human identity is separate from Agent and Admin credentials. Human views
    are authorization-scoped, and `ACK` never means a task completed.
+10. An organization is a server-side authorization scope, not a UI filter. One
+    Agent can belong to one organization in the current model; direct grants and
+    organization-derived visibility remain independent.
 
 ## 星轨 read-only control-plane evidence
 
@@ -92,6 +97,13 @@ Only the session HMAC digest is stored. Sessions have a configurable default
 server-side on sign-out. Bearer Human keys remain available for programmatic
 read-only clients.
 
+Organizations, Human membership roles (`owner`, `admin`, `member`, `auditor`),
+and single-organization Agent assignments are now durable server-side records.
+Organization owners/admins project to read-only operator visibility, members to
+viewer visibility, and auditors remain body-redacted. Direct ownership/grants are
+merged without being overwritten, so membership removal revokes only derived
+access. 星轨 renders these relationships in the new “组织星图” section.
+
 Six integration tests prove branding/security headers and no browser key
 persistence; Human/Agent credential separation; owner-only communication
 visibility; unrelated Agent isolation; auditor body redaction; grant revocation;
@@ -99,16 +111,22 @@ session creation/digest storage/revocation/expiry; production Secure-cookie
 behavior; and the critical distinction that an ACKed task remains `pending` until
 an explicit `result` changes its work state. The 0007 migration passed upgrade,
 schema check, downgrade to 0006, re-upgrade, and a second schema check against a
-fresh database. The full locally runnable regression now reports 235 passed and
-one expected loopback-sandbox skip, plus four MCP package tests; Ruff check/format
-and the dependency-free browser script syntax check also pass.
+fresh database. Three organization integration tests additionally cover Admin
+isolation, canonical and unique organization identities, the single-organization
+Agent invariant, membership-derived visibility, auditor redaction, immediate
+revocation, direct-grant preservation, and audit events. The 0008 migration also
+passed upgrade, schema check, downgrade to 0007, re-upgrade, and a second check.
+The full locally runnable regression now reports 238 passed and one expected
+loopback-sandbox skip, plus four MCP package tests; Ruff check/format and the
+dependency-free browser script syntax check also pass.
 
 This is a locally verified read-only control-plane slice, not public Human login.
 It has not been deployed to Alibaba Cloud or exercised against PostgreSQL. The
 current public IP remains plaintext HTTP and must not receive Human credentials.
-Trusted HTTPS, MFA, recovery, Human key rotation, organization membership,
-approvals, CSRF protection for future Human writes, and Human action audit are
-later gates.
+Trusted HTTPS, MFA, recovery, Human key rotation, approvals, CSRF protection for
+future Human writes, and Human action audit are later gates. Basic membership
+exists; delegated administration, invitations, membership history, SSO/domain
+proof, and nested organization units do not.
 
 ## Final local acceptance snapshot
 

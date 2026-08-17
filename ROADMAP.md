@@ -46,7 +46,8 @@ The evidence boundary is important:
 | MCP | In-process protocol and stdio subprocess checks are local verified | Deployment policy and each consuming host remain separate acceptance scopes |
 | OpenClaw | Static contracts and a zero-dependency Node HTTP-client harness are local verified | A real OpenClaw plugin build/load/validate was not run; npm/host dependencies were unavailable and bundled Node 24.14 is outside the plugin's declared supported ranges |
 | A2A | A2A 1.0 concept mapping and documentation contract tests are local verified | No A2A runtime endpoint, persistent task-binding implementation, conformance result, Agent Card, streaming, or push support exists |
-| Admin console | Lightweight debug UI and token-gated operational views are implemented | It is not organization IAM, RBAC, SSO, tenant isolation, or a production operations console |
+| Human organization scope | Basic organizations, membership roles, single-organization Agent assignment, and revocable derived visibility are implemented | It is not delegated organization IAM, invitations, SSO, domain proof, nested units, tenant isolation, or production RBAC |
+| Admin console | Lightweight debug UI and token-gated operational views are implemented | It is not a production operations or organization-management console |
 
 Until PostgreSQL and Compose acceptance run successfully in a representative
 environment, the durable design remains implemented and SQLite-fast-tested but
@@ -275,9 +276,9 @@ messages without discarding local mailbox semantics.
 Phase 4 adds optional network-level coordination after durable communication and
 federation have operational evidence.
 
-- Build an organization directory with delegated administration, verified domain
-  ownership, membership lifecycle, private/public visibility, and auditable
-  capability assertions.
+- Extend the basic local organization scope into a directory with delegated
+  administration, verified domain ownership, membership history, private/public
+  visibility, and auditable capability assertions.
 - Add capability verification with evidence provenance, issuer identity, expiry,
   revocation, and a clear distinction between self-declared, externally verified,
   and observed performance claims.

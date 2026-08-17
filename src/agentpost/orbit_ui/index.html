@@ -97,10 +97,11 @@
           </div>
           <nav aria-label="星轨导航">
             <a href="#overview" class="nav-item active"><span>01</span>星轨总览</a>
-            <a href="#agents" class="nav-item"><span>02</span>我的 Agent</a>
-            <a href="#tasks" class="nav-item"><span>03</span>任务进展</a>
-            <a href="#communications" class="nav-item"><span>04</span>云驿通信</a>
-            <a href="#governance" class="nav-item"><span>05</span>治理边界</a>
+            <a href="#organizations" class="nav-item"><span>02</span>组织星图</a>
+            <a href="#agents" class="nav-item"><span>03</span>我的 Agent</a>
+            <a href="#tasks" class="nav-item"><span>04</span>任务进展</a>
+            <a href="#communications" class="nav-item"><span>05</span>云驿通信</a>
+            <a href="#governance" class="nav-item"><span>06</span>治理边界</a>
           </nav>
           <div class="sidebar-actions">
             <button id="refresh-dashboard" type="button" class="quiet-button">刷新星轨</button>
@@ -142,6 +143,20 @@
               <strong id="metric-online">—</strong>
               <small>五分钟内有身份活动</small>
             </article>
+          </section>
+
+          <section id="organizations" class="content-section">
+            <div class="section-heading">
+              <div>
+                <p class="section-tag">Organization constellation</p>
+                <h2>组织星图</h2>
+              </div>
+              <span id="organization-count" class="count-pill">0 个</span>
+            </div>
+            <p class="section-intro">
+              组织是成员权限与 Agent 治理范围的服务端边界，不是前端筛选标签。
+            </p>
+            <div id="organization-list" class="organization-grid" aria-live="polite"></div>
           </section>
 
           <section id="agents" class="content-section">
@@ -186,7 +201,7 @@
                 <p class="section-tag">Human governance</p>
                 <h2>治理边界</h2>
               </div>
-              <span class="readonly-pill">V0.1 只读观察</span>
+              <span class="readonly-pill">V0.2 组织化只读观察</span>
             </div>
             <div class="governance-grid">
               <article>
@@ -200,9 +215,14 @@
                 <p>星轨不会读取 Agent API Key，也不会替 Agent 执行 send、read、ACK 或 reply。</p>
               </article>
               <article>
-                <span>即将建设</span>
+                <span>已经建立</span>
+                <strong>组织、成员与 Agent 归属</strong>
+                <p>组织权限由服务端关系决定；移除成员会立即撤销组织派生的观察范围。</p>
+              </article>
+              <article>
+                <span>下一阶段</span>
                 <strong>审批、暂停、授权与审计</strong>
-                <p>后续动作会有明确权限、二次确认、幂等键和人类审计记录。</p>
+                <p>人类写操作上线前必须具备 CSRF、二次确认、幂等键和逐动作审计。</p>
               </article>
             </div>
           </section>

@@ -21,6 +21,8 @@ const elements = {
   metricUnread: document.querySelector("#metric-unread"),
   metricPending: document.querySelector("#metric-pending"),
   metricOnline: document.querySelector("#metric-online"),
+  organizationCount: document.querySelector("#organization-count"),
+  organizationList: document.querySelector("#organization-list"),
   agentCount: document.querySelector("#agent-count"),
   agentList: document.querySelector("#agent-list"),
   taskList: document.querySelector("#task-list"),
@@ -112,6 +114,8 @@ function statusLabel(value) {
     operator: "操作员",
     viewer: "观察者",
     auditor: "审计者",
+    admin: "组织管理员",
+    member: "组织成员",
   };
   return labels[value] || safeText(value);
 }
@@ -123,13 +127,54 @@ function chip(value, type = "status") {
   return item;
 }
 
-function renderMetrics(metrics, agents) {
+function renderMetrics(metrics, agents, organizations) {
   elements.metricAgents.textContent = safeText(metrics.agent_count, "0");
   elements.metricUnread.textContent = safeText(metrics.unread_delivery_count, "0");
   elements.metricPending.textContent = safeText(metrics.pending_task_count, "0");
   elements.metricOnline.textContent = safeText(metrics.online_recently_count, "0");
   const active = agents.filter((agent) => agent.status === "active").length;
-  elements.overviewCopy.textContent = `当前可观察 ${agents.length} 个 Agent，其中 ${active} 个身份处于 active；通信状态和工作状态在星轨中分别呈现。`;
+  elements.overviewCopy.textContent = `当前进入 ${organizations.length} 个组织治理范围，可观察 ${agents.length} 个 Agent，其中 ${active} 个身份处于 active；通信状态和工作状态仍分别呈现。`;
+}
+
+function renderOrganizations(organizations) {
+  elements.organizationList.replaceChildren();
+  elements.organizationCount.textContent = `${organizations.length} 个`;
+  if (organizations.length === 0) {
+    elements.organizationList.append(emptyState("尚未加入组织。个人直接授权的 Agent 仍会显示在“我的 Agent”中。"));
+    return;
+  }
+  const fragment = document.createDocumentFragment();
+  organizations.forEach((organization) => {
+    const card = document.createElement("article");
+    card.className = "organization-card";
+
+    const header = document.createElement("div");
+    header.className = "organization-heading";
+    const identity = document.createElement("div");
+    const name = document.createElement("strong");
+    name.textContent = safeText(organization.name, organization.slug);
+    const slug = document.createElement("span");
+    slug.textContent = safeText(organization.slug);
+    identity.append(name, slug);
+    header.append(identity, chip(organization.membership_role, "role"));
+
+    const description = document.createElement("p");
+    description.textContent = safeText(organization.description, "该组织暂未填写说明。");
+
+    const stats = document.createElement("dl");
+    [["成员", organization.member_count], ["Agent", organization.agent_count]].forEach(([label, value]) => {
+      const cell = document.createElement("div");
+      const term = document.createElement("dt");
+      term.textContent = label;
+      const detail = document.createElement("dd");
+      detail.textContent = safeText(value, "0");
+      cell.append(term, detail);
+      stats.append(cell);
+    });
+    card.append(header, description, stats);
+    fragment.append(card);
+  });
+  elements.organizationList.append(fragment);
 }
 
 function renderAgents(agents) {
@@ -181,7 +226,14 @@ function renderAgents(agents) {
       cell.append(term, detail);
       stats.append(cell);
     });
-    card.append(top, capabilities, stats);
+    card.append(top);
+    if (agent.organization) {
+      const organization = document.createElement("div");
+      organization.className = "agent-organization";
+      organization.textContent = `${safeText(agent.organization.name)} · ${agent.access_source === "organization" ? "组织授权" : "直接授权"}`;
+      card.append(organization);
+    }
+    card.append(capabilities, stats);
     fragment.append(card);
   });
   elements.agentList.append(fragment);
@@ -274,13 +326,15 @@ function renderMessages(messages) {
 function renderDashboard(dashboard) {
   state.dashboard = dashboard;
   const user = dashboard.user || {};
+  const organizations = Array.isArray(dashboard.organizations) ? dashboard.organizations : [];
   const agents = Array.isArray(dashboard.agents) ? dashboard.agents : [];
   const tasks = Array.isArray(dashboard.tasks) ? dashboard.tasks : [];
   const messages = Array.isArray(dashboard.recent_messages) ? dashboard.recent_messages : [];
   elements.humanName.textContent = safeText(user.display_name, "星轨用户");
   elements.humanEmail.textContent = safeText(user.email);
   elements.humanAvatar.textContent = safeText(user.display_name, "星").slice(0, 1);
-  renderMetrics(dashboard.metrics || {}, agents);
+  renderMetrics(dashboard.metrics || {}, agents, organizations);
+  renderOrganizations(organizations);
   renderAgents(agents);
   renderTasks(tasks);
   renderMessages(messages);

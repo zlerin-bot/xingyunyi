@@ -19,6 +19,11 @@ from agentpost.control.models import (
     HumanAccessKey,
     HumanAgentGrant,
     HumanUser,
+    Organization,
+)
+from agentpost.control.organization_service import (
+    list_orbit_organizations,
+    list_organization_agent_access,
 )
 from agentpost.control.schemas import (
     AgentAccessResponse,
@@ -29,6 +34,7 @@ from agentpost.control.schemas import (
     OrbitDashboard,
     OrbitMessage,
     OrbitMetrics,
+    OrbitOrganizationReference,
     OrbitTask,
 )
 from agentpost.identity.models import Agent, utc_now
@@ -56,6 +62,9 @@ class AccessEntry:
     agent: Agent
     role: str
     granted_at: datetime
+    source: str = "direct"
+    organization: Organization | None = None
+    organization_role: str | None = None
 
 
 def human_profile(user: HumanUser) -> HumanProfile:
@@ -285,15 +294,49 @@ def list_agent_access(session: Session, user: HumanUser) -> list[AccessEntry]:
         .where(HumanAgentGrant.human_user_id == user.id)
         .order_by(Agent.address)
     ).all()
-    entries = [
+    direct_entries = [
         AccessEntry(agent=agent, role="owner", granted_at=assigned_at)
         for agent, assigned_at in owners
     ]
-    entries.extend(
+    direct_entries.extend(
         AccessEntry(agent=agent, role=role, granted_at=created_at)
         for agent, role, created_at in grants
     )
-    return sorted(entries, key=lambda entry: entry.agent.address)
+    priority = {"owner": 4, "operator": 3, "viewer": 2, "auditor": 1}
+    entries: dict[UUID, AccessEntry] = {}
+    for entry in direct_entries:
+        existing = entries.get(entry.agent.id)
+        if existing is None or priority[entry.role] > priority[existing.role]:
+            entries[entry.agent.id] = entry
+
+    organization_role_projection = {
+        "owner": "operator",
+        "admin": "operator",
+        "member": "viewer",
+        "auditor": "auditor",
+    }
+    for organization_access in list_organization_agent_access(session, user):
+        organization_entry = AccessEntry(
+            agent=organization_access.agent,
+            role=organization_role_projection[organization_access.membership_role],
+            granted_at=organization_access.granted_at,
+            source="organization",
+            organization=organization_access.organization,
+            organization_role=organization_access.membership_role,
+        )
+        existing = entries.get(organization_entry.agent.id)
+        if existing is None or priority[organization_entry.role] > priority[existing.role]:
+            entries[organization_entry.agent.id] = organization_entry
+        elif existing.organization is None:
+            entries[organization_entry.agent.id] = AccessEntry(
+                agent=existing.agent,
+                role=existing.role,
+                granted_at=existing.granted_at,
+                source=existing.source,
+                organization=organization_access.organization,
+                organization_role=organization_access.membership_role,
+            )
+    return sorted(entries.values(), key=lambda entry: entry.agent.address)
 
 
 def _message_rows(
@@ -529,6 +572,17 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
             description=entry.agent.description,
             status=entry.agent.status,
             role=entry.role,
+            access_source=entry.source,
+            organization=(
+                OrbitOrganizationReference(
+                    id=entry.organization.id,
+                    slug=entry.organization.slug,
+                    name=entry.organization.name,
+                    membership_role=entry.organization_role,
+                )
+                if entry.organization is not None
+                else None
+            ),
             capabilities=list(entry.agent.capabilities),
             last_seen_at=entry.agent.last_seen_at,
             unread_count=unread_by_agent.get(entry.agent.id, 0),
@@ -551,6 +605,7 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
             pending_task_count=pending_task_count,
             failed_task_count=failed_task_count,
         ),
+        organizations=list_orbit_organizations(session, user),
         agents=agents,
         recent_messages=recent_messages,
         tasks=tasks[:12],

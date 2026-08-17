@@ -79,6 +79,14 @@ relationships and do not accept an arbitrary owner or Agent scope from the brows
 Owners, operators, and viewers may inspect content involving an authorized Agent;
 auditors receive metadata with message bodies redacted.
 
+Organizations add a second explicit relationship chain:
+`Human -> organization_membership -> organization_agent -> Agent`. One Agent can
+belong to at most one organization. Organization owners/admins receive read-only
+operator visibility, members receive viewer visibility, and auditors remain
+body-redacted. Direct grants and organization access are evaluated independently;
+membership removal cannot delete a direct grant. All organization mutations are
+Admin-only bootstrap operations in this release.
+
 The 星轨 browser sends the `hum_` key once to create a random 256-bit `hss_`
 session. PostgreSQL stores only its HMAC digest. The cookie is HttpOnly,
 `SameSite=Strict`, scoped to `/api/v1/orbit`, and additionally `Secure` in
@@ -88,8 +96,9 @@ remains supported for programmatic read-only Human API clients.
 
 All Human roles are read-only in the current slice. No Human route can retrieve an
 Agent key or call send/read/ACK/reply as that Agent. Human key rotation, MFA,
-recovery, organization membership, and fine-grained action approval remain future
-production work. Expired/revoked browser-session cleanup is not automated yet.
+recovery, delegated organization administration, membership invitations/history,
+and fine-grained action approval remain future production work. Expired/revoked
+browser-session cleanup is not automated yet.
 
 ### Registration control
 
@@ -122,7 +131,8 @@ Authorization is enforced by the service, not by clients or adapters.
 | Read/change ACL | Owning Agent only; cross-Agent and missing objects use `404`. |
 | Admin data API | Dedicated Admin bearer token; missing, wrong, disabled, and overlong tokens receive the same `404` shape. |
 | Create Human / grant Agent access | Dedicated Admin bearer token; Human access key is returned once. |
-| 星轨 dashboard/messages/tasks | Authenticated active Human plus owner or explicit Agent grant. Auditor bodies are redacted. |
+| Create organization / set membership / assign Agent | Dedicated Admin bearer token. An Agent may belong to only one organization. |
+| 星轨 dashboard/organizations/messages/tasks | Authenticated active Human plus direct Agent access or active organization membership. Auditor bodies are redacted. |
 
 An already accepted message remains readable to its participants after an ACL
 change. A new reply is a new delivery and must pass the recipient's current ACL.

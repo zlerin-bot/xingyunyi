@@ -60,6 +60,82 @@ class HumanSessionResponse(ControlModel):
     authentication: Literal["browser_session"] = "browser_session"
 
 
+class OrganizationCreate(ControlModel):
+    slug: str = Field(min_length=2, max_length=63, pattern=r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
+    name: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("slug", mode="before")
+    @classmethod
+    def canonical_slug(cls, value: object) -> object:
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @field_validator("name")
+    @classmethod
+    def clean_name(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("name must not be blank")
+        return cleaned
+
+    @field_validator("description")
+    @classmethod
+    def clean_description(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
+
+
+class OrganizationResponse(ControlModel):
+    id: UUID
+    slug: str
+    name: str
+    description: str | None
+    status: Literal["active", "archived"]
+    member_count: int
+    agent_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class OrganizationMembershipCreate(ControlModel):
+    role: Literal["owner", "admin", "member", "auditor"]
+
+
+class OrganizationMembershipResponse(ControlModel):
+    organization_id: UUID
+    human_user_id: UUID
+    human_email: str
+    role: Literal["owner", "admin", "member", "auditor"]
+    created_at: datetime
+    updated_at: datetime
+
+
+class OrganizationAgentResponse(ControlModel):
+    organization_id: UUID
+    agent_id: UUID
+    agent_address: str
+    assigned_at: datetime
+
+
+class OrbitOrganization(ControlModel):
+    id: UUID
+    slug: str
+    name: str
+    description: str | None
+    membership_role: Literal["owner", "admin", "member", "auditor"]
+    member_count: int
+    agent_count: int
+
+
+class OrbitOrganizationReference(ControlModel):
+    id: UUID
+    slug: str
+    name: str
+    membership_role: Literal["owner", "admin", "member", "auditor"] | None
+
+
 class AgentAccessCreate(ControlModel):
     role: Literal["owner", "operator", "viewer", "auditor"]
 
@@ -79,6 +155,8 @@ class OrbitAgent(ControlModel):
     description: str | None
     status: str
     role: Literal["owner", "operator", "viewer", "auditor"]
+    access_source: Literal["direct", "organization"] = "direct"
+    organization: OrbitOrganizationReference | None = None
     capabilities: list[str]
     last_seen_at: datetime | None
     unread_count: int
@@ -130,6 +208,7 @@ class OrbitMetrics(ControlModel):
 class OrbitDashboard(ControlModel):
     user: HumanProfile
     metrics: OrbitMetrics
+    organizations: list[OrbitOrganization]
     agents: list[OrbitAgent]
     recent_messages: list[OrbitMessage]
     tasks: list[OrbitTask]

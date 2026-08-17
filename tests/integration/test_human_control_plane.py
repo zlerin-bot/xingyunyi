@@ -95,6 +95,8 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "document.cookie" not in combined
     assert "state.humankey" not in combined
     assert '"/api/v1/orbit/session"' in script.text
+    assert "组织星图" in orbit.text
+    assert "organization-list" in orbit.text
 
 
 def test_human_identity_uses_a_separate_one_time_key_and_admin_boundary(

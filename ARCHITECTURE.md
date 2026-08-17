@@ -94,6 +94,15 @@ is read-only for every role; auditors receive metadata with message bodies redac
 Admin bootstrap endpoints create Humans and grant/revoke access, but neither return
 nor retrieve an Agent API key.
 
+`organizations`, `organization_memberships`, and `organization_agents` add a
+second, server-authoritative access path. One Agent can belong to at most one
+organization in the current model. A Human may belong to many organizations.
+Direct access and organization-derived access are merged by the strongest visible
+role without mutating either source; removing a membership therefore cannot erase
+direct ownership or grants. Organization auditors remain body-redacted. Admin
+bootstrap owns organization writes until Human actions have CSRF, step-up
+authentication, and per-action audit semantics.
+
 Task work state is derived from `task` and explicit `result` messages. Delivery
 state remains independent: `acked` never projects to `completed`.
 

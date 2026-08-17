@@ -285,14 +285,35 @@ curl -fsS -X PUT "$API/admin/humans/$HUMAN_ID/agents/$ALICE_ID" \
   --data '{"role":"owner"}'
 ```
 
+如果需要组织视角，可由 Admin 建立组织、加入成员并分配 Agent。一个 Agent 当前只能归属
+一个组织：
+
+```bash
+curl -fsS -o /tmp/xinggui-org.json -X POST "$API/admin/organizations" \
+  -H "Authorization: Bearer $AGENTPOST_ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"slug":"fipay-research","name":"星海研究院","description":"银行研究 Agent 治理范围"}'
+
+ORG_ID="$(python3 -c 'import json; print(json.load(open("/tmp/xinggui-org.json"))["id"])')"
+
+curl -fsS -X PUT "$API/admin/organizations/$ORG_ID/members/$HUMAN_ID" \
+  -H "Authorization: Bearer $AGENTPOST_ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"role":"owner"}'
+
+curl -fsS -X PUT "$API/admin/organizations/$ORG_ID/agents/$ALICE_ID" \
+  -H "Authorization: Bearer $AGENTPOST_ADMIN_TOKEN"
+```
+
 然后打开 [http://localhost:8000/orbit](http://localhost:8000/orbit)，输入 `HUMAN_KEY`。
 页面只用它换取默认 12 小时的 HttpOnly 浏览器会话，成功后立即清除输入，不会写入
 local/session storage。刷新页面会恢复有效会话，“退出星轨”会在服务端撤销会话。当前公网
 IP 仍是明文 HTTP，不要在那里输入 Human、Agent 或 Admin 密钥；备案和可信 HTTPS 完成前
 应使用 SSH 隧道。
 
-第一版角色包括 `owner`、`operator`、`viewer`、`auditor`，全部只读；auditor 只能看到通信
-元数据，正文由服务端隐藏。详细边界见 `docs/HUMAN_CONTROL_PLANE.md`。
+直接 Agent 角色包括 `owner`、`operator`、`viewer`、`auditor`；组织成员角色包括
+`owner`、`admin`、`member`、`auditor`。当前全部只读，auditor 只能看到通信元数据，正文由
+服务端隐藏。详细边界见 `docs/HUMAN_CONTROL_PLANE.md`。
 
 ## Debug/Admin console
 

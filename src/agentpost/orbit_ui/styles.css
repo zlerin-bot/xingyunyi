@@ -671,6 +671,14 @@ footer {
   font-size: 0.72rem;
 }
 
+.section-intro {
+  max-width: 760px;
+  margin: -8px 0 20px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.65;
+}
+
 .count-pill,
 .trust-chip,
 .readonly-pill {
@@ -690,13 +698,15 @@ footer {
   color: var(--cyan);
 }
 
-.agent-grid {
+.agent-grid,
+.organization-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 13px;
 }
 
 .agent-card,
+.organization-card,
 .message-card,
 .governance-grid article,
 .empty-state {
@@ -705,10 +715,79 @@ footer {
   background: rgba(5, 14, 28, 0.48);
 }
 
+.organization-card {
+  display: grid;
+  gap: 16px;
+  padding: 19px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(172, 155, 255, 0.1), transparent 12rem),
+    rgba(5, 14, 28, 0.48);
+}
+
+.organization-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.organization-heading > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.organization-heading strong {
+  overflow-wrap: anywhere;
+}
+
+.organization-heading span:not(.data-chip) {
+  color: var(--muted);
+  font: 0.64rem ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+
+.organization-card > p {
+  min-height: 44px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.organization-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.organization-card dl div {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.organization-card dt {
+  color: var(--muted);
+  font-size: 0.6rem;
+}
+
+.organization-card dd {
+  margin: 5px 0 0;
+  font-size: 1rem;
+}
+
 .agent-card {
   display: grid;
   gap: 19px;
   padding: 19px;
+}
+
+.agent-organization {
+  border-left: 2px solid var(--violet);
+  color: #c1b8ff;
+  padding-left: 9px;
+  font-size: 0.66rem;
 }
 
 .agent-card-top,
@@ -767,6 +846,8 @@ footer {
 .data-chip.operator,
 .data-chip.viewer,
 .data-chip.auditor,
+.data-chip.admin,
+.data-chip.member,
 .data-chip.read {
   border-color: rgba(103, 216, 212, 0.35);
   color: var(--cyan);
@@ -922,7 +1003,7 @@ footer {
 
 .governance-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -1015,6 +1096,7 @@ footer {
   }
 
   .agent-grid,
+  .organization-grid,
   .governance-grid {
     grid-template-columns: 1fr;
   }
@@ -1083,4 +1165,3 @@ footer {
     transition: none !important;
   }
 }
-

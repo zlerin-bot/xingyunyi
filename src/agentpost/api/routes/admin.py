@@ -17,12 +17,32 @@ from agentpost.admin.service import (
     list_threads,
 )
 from agentpost.api.dependencies import SessionDep, SettingsDep
+from agentpost.control.organization_service import (
+    OrganizationAgentAlreadyAssignedError,
+    OrganizationAgentNotFoundError,
+    OrganizationMembershipNotFoundError,
+    OrganizationNotFoundError,
+    OrganizationSlugAlreadyRegisteredError,
+    assign_agent_to_organization,
+    create_organization,
+    list_organization_agents,
+    list_organization_memberships,
+    list_organizations,
+    remove_agent_from_organization,
+    remove_organization_membership,
+    set_organization_membership,
+)
 from agentpost.control.schemas import (
     AgentAccessCreate,
     AgentAccessResponse,
     HumanCreate,
     HumanProfile,
     HumanRegistrationResponse,
+    OrganizationAgentResponse,
+    OrganizationCreate,
+    OrganizationMembershipCreate,
+    OrganizationMembershipResponse,
+    OrganizationResponse,
 )
 from agentpost.control.service import (
     AgentAccessNotFoundError,
@@ -141,6 +161,62 @@ def admin_humans(_: AdminDep, session: SessionDep, limit: Limit = 50) -> dict[st
     return {"items": list_humans(session, limit=limit)}
 
 
+@router.get(
+    "/api/v1/admin/organizations",
+    response_model=dict[str, list[OrganizationResponse]],
+)
+def admin_organizations(
+    _: AdminDep,
+    session: SessionDep,
+    limit: Limit = 50,
+) -> dict[str, Any]:
+    return {"items": list_organizations(session, limit=limit)}
+
+
+@router.get(
+    "/api/v1/admin/organizations/{organization_id}/members",
+    response_model=dict[str, list[OrganizationMembershipResponse]],
+)
+def admin_organization_members(
+    organization_id: UUID,
+    _: AdminDep,
+    session: SessionDep,
+    limit: Limit = 50,
+) -> dict[str, Any]:
+    try:
+        return {
+            "items": list_organization_memberships(
+                session,
+                organization_id=organization_id,
+                limit=limit,
+            )
+        }
+    except OrganizationNotFoundError as exc:
+        raise _admin_denied() from exc
+
+
+@router.get(
+    "/api/v1/admin/organizations/{organization_id}/agents",
+    response_model=dict[str, list[OrganizationAgentResponse]],
+)
+def admin_organization_agents(
+    organization_id: UUID,
+    _: AdminDep,
+    session: SessionDep,
+    limit: Limit = 50,
+) -> dict[str, Any]:
+    try:
+        return {
+            "items": list_organization_agents(
+                session,
+                organization_id=organization_id,
+                limit=limit,
+            )
+        }
+    except OrganizationNotFoundError as exc:
+        raise _admin_denied() from exc
+
+
 @router.post(
     "/api/v1/admin/humans",
     response_model=HumanRegistrationResponse,
@@ -168,6 +244,131 @@ def admin_create_human(
                 "message": "The canonical Human email is already registered",
             },
         ) from exc
+
+
+@router.post(
+    "/api/v1/admin/organizations",
+    response_model=OrganizationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def admin_create_organization(
+    payload: OrganizationCreate,
+    request: Request,
+    _: AdminDep,
+    session: SessionDep,
+) -> OrganizationResponse:
+    try:
+        return create_organization(
+            session,
+            payload,
+            request_id=request.state.request_id,
+        )
+    except OrganizationSlugAlreadyRegisteredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "organization_slug_already_registered",
+                "message": "The canonical organization slug is already registered",
+            },
+        ) from exc
+
+
+@router.put(
+    "/api/v1/admin/organizations/{organization_id}/members/{human_user_id}",
+    response_model=OrganizationMembershipResponse,
+)
+def admin_set_organization_membership(
+    organization_id: UUID,
+    human_user_id: UUID,
+    payload: OrganizationMembershipCreate,
+    request: Request,
+    _: AdminDep,
+    session: SessionDep,
+) -> OrganizationMembershipResponse:
+    try:
+        return set_organization_membership(
+            session,
+            organization_id=organization_id,
+            human_user_id=human_user_id,
+            role=payload.role,
+            request_id=request.state.request_id,
+        )
+    except OrganizationNotFoundError as exc:
+        raise _admin_denied() from exc
+
+
+@router.delete(
+    "/api/v1/admin/organizations/{organization_id}/members/{human_user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def admin_remove_organization_membership(
+    organization_id: UUID,
+    human_user_id: UUID,
+    request: Request,
+    _: AdminDep,
+    session: SessionDep,
+) -> None:
+    try:
+        remove_organization_membership(
+            session,
+            organization_id=organization_id,
+            human_user_id=human_user_id,
+            request_id=request.state.request_id,
+        )
+    except (OrganizationNotFoundError, OrganizationMembershipNotFoundError) as exc:
+        raise _admin_denied() from exc
+
+
+@router.put(
+    "/api/v1/admin/organizations/{organization_id}/agents/{agent_id}",
+    response_model=OrganizationAgentResponse,
+)
+def admin_assign_organization_agent(
+    organization_id: UUID,
+    agent_id: UUID,
+    request: Request,
+    _: AdminDep,
+    session: SessionDep,
+) -> OrganizationAgentResponse:
+    try:
+        return assign_agent_to_organization(
+            session,
+            organization_id=organization_id,
+            agent_id=agent_id,
+            request_id=request.state.request_id,
+        )
+    except OrganizationNotFoundError as exc:
+        raise _admin_denied() from exc
+    except OrganizationAgentAlreadyAssignedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "agent_already_assigned_to_organization",
+                "message": "The Agent already belongs to another organization",
+            },
+        ) from exc
+
+
+@router.delete(
+    "/api/v1/admin/organizations/{organization_id}/agents/{agent_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def admin_remove_organization_agent(
+    organization_id: UUID,
+    agent_id: UUID,
+    request: Request,
+    _: AdminDep,
+    session: SessionDep,
+) -> None:
+    try:
+        remove_agent_from_organization(
+            session,
+            organization_id=organization_id,
+            agent_id=agent_id,
+            request_id=request.state.request_id,
+        )
+    except (OrganizationNotFoundError, OrganizationAgentNotFoundError) as exc:
+        raise _admin_denied() from exc
 
 
 @router.put(

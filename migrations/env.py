@@ -14,6 +14,9 @@ from agentpost.control.models import (
     HumanAgentGrant,
     HumanSession,
     HumanUser,
+    Organization,
+    OrganizationAgent,
+    OrganizationMembership,
 )
 from agentpost.db import Base
 from agentpost.identity.models import Agent, AgentApiKey
@@ -33,6 +36,9 @@ _MODELS = (
     AgentOwnership,
     HumanAgentGrant,
     HumanSession,
+    Organization,
+    OrganizationMembership,
+    OrganizationAgent,
 )
 
 config = context.config
