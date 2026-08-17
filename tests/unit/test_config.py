@@ -40,6 +40,14 @@ def test_human_confirmation_ttl_is_short_and_bounded() -> None:
         Settings(human_confirmation_ttl_seconds=901)
 
 
+def test_approval_default_ttl_is_bounded() -> None:
+    assert Settings().approval_default_ttl_seconds == 86_400
+    with pytest.raises(ValidationError):
+        Settings(approval_default_ttl_seconds=299)
+    with pytest.raises(ValidationError):
+        Settings(approval_default_ttl_seconds=7 * 24 * 60 * 60 + 1)
+
+
 def test_production_rejects_development_secrets() -> None:
     with pytest.raises(ValidationError):
         Settings(environment="production")

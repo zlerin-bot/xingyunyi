@@ -49,7 +49,7 @@ src/agentpost/
   admin_ui/     no-dependency debug console assets
   api/          FastAPI routes, dependencies, error mapping, middleware
   attachments/  metadata model, authorization, binding service
-  control/      Human identity, ownership, roles, and read-only projections
+  control/      Human identity, roles, projections, write security, and approvals
   directory/    authenticated search over public Agent profile fields
   identity/     address rules, API-key hashing, Agent models and service
   messaging/    messages, deliveries, cursors, audit, transaction service
@@ -94,10 +94,10 @@ server-derived Human actor and outcome. These primitives authorize Human control
 decisions only and never mint or proxy Agent credentials.
 
 `agent_ownerships` gives each Agent at most one accountable owner.
-`human_agent_grants` adds operator, viewer, or auditor access. The first 星轨 slice
-is read-only for every role; auditors receive metadata with message bodies redacted.
-Admin bootstrap endpoints create Humans and grant/revoke access, but neither return
-nor retrieve an Agent API key.
+`human_agent_grants` adds operator, viewer, or auditor access. Observation remains
+read-only; owners/operators may record approval decisions, while auditors receive
+metadata with Agent-supplied content redacted. Admin bootstrap endpoints create
+Humans and grant/revoke access, but neither return nor retrieve an Agent API key.
 
 `organizations`, `organization_memberships`, and `organization_agents` add a
 second, server-authoritative access path. One Agent can belong to at most one
@@ -111,6 +111,29 @@ been opened to Human roles.
 
 Task work state is derived from `task` and explicit `result` messages. Delivery
 state remains independent: `acked` never projects to `completed`.
+
+## Human approval transaction
+
+An Agent creates an `approval_request` under its authenticated UUID and a
+sender-scoped idempotency key. The durable request contains a constrained action
+type plus Agent-supplied summary, justification, risk, and JSON payload; all of
+those content fields remain `external_agent_content`. The Agent can list, poll, or
+cancel only its own requests.
+
+星轨 builds the Human queue from the same direct/organization Agent access graph
+used by observation. Owners/operators may decide; viewers may observe and auditors
+receive redacted metadata. A browser decision is split into two requests:
+
+1. current CSRF plus matching `hum_` key reauthentication creates a five-minute,
+   Human/session/intent/target-bound confirmation;
+2. current CSRF, the one-time confirmation, and a Human idempotency key atomically
+   lock the request, recheck authorization and state, consume the confirmation,
+   append the decision and Human audit, and commit the terminal status.
+
+The approval state machine is independent from Delivery and task work state:
+`pending -> approved | rejected | cancelled | expired`. An approved row has
+`execution_effect=none`; it is a governance fact for the requesting Agent to poll,
+not a proxy Agent credential or workflow executor.
 
 ## Durable message transaction
 

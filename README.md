@@ -200,6 +200,28 @@ with AgentPost("http://localhost:8000", os.environ["BOB_KEY"]) as bob:
     incoming.reply("Received.", type="response", idempotency_key="bob-response-001")
 ```
 
+An Agent can ask its authorized Human owner/operator for a durable decision, then
+poll the result. Approval records authorization only; it never executes the
+requested action:
+
+```python
+import os
+
+from agentpost import AgentPost
+
+with AgentPost("http://localhost:8000", os.environ["ALICE_KEY"]) as alice:
+    approval = alice.approvals.create(
+        "publish.report",
+        "Publish the quarterly banking report",
+        justification="The report is complete and ready for authorized clients",
+        risk_level="high",
+        payload={"report_id": "report-2026-q3"},
+        idempotency_key="alice-publish-report-q3",
+    )
+    current = alice.approvals.get(approval.approval_id)
+    assert current.execution_effect == "none"
+```
+
 For attachments and task results, upload first and bind the returned ID when sending. Uploads
 remain private and pending until atomically bound to one message:
 
@@ -307,13 +329,16 @@ curl -fsS -X PUT "$API/admin/organizations/$ORG_ID/agents/$ALICE_ID" \
 
 然后打开 [http://localhost:8000/orbit](http://localhost:8000/orbit)，输入 `HUMAN_KEY`。
 页面只用它换取默认 12 小时的 HttpOnly 浏览器会话，成功后立即清除输入，不会写入
-local/session storage。刷新页面会恢复有效会话，“退出星轨”会在服务端撤销会话。当前公网
-IP 仍是明文 HTTP，不要在那里输入 Human、Agent 或 Admin 密钥；备案和可信 HTTPS 完成前
-应使用 SSH 隧道。
+local/session storage。刷新页面会恢复有效会话并轮换仅存于页面内存的 CSRF proof，
+“退出星轨”会在服务端撤销会话。当前公网 IP 仍是明文 HTTP，不要在那里输入 Human、
+Agent 或 Admin 密钥；备案和可信 HTTPS 完成前应使用 SSH 隧道。
 
 直接 Agent 角色包括 `owner`、`operator`、`viewer`、`auditor`；组织成员角色包括
-`owner`、`admin`、`member`、`auditor`。当前全部只读，auditor 只能看到通信元数据，正文由
-服务端隐藏。详细边界见 `docs/HUMAN_CONTROL_PLANE.md`。
+`owner`、`admin`、`member`、`auditor`。Owner/operator 可以决定其 Agent 提交的审批申请；
+viewer/member 只能观察，auditor 只看元数据，Agent 提交的摘要、理由和参数由服务端隐藏。
+审批前必须重新输入匹配的 `hum_` key；服务端同时验证 CSRF、五分钟一次性确认、当前角色
+和 Human 幂等键。批准结果固定 `execution_effect=none`，Agent 需要自行轮询后再按自身权限
+继续。详细边界见 `docs/HUMAN_CONTROL_PLANE.md`。
 
 ## Debug/Admin console
 
@@ -377,6 +402,8 @@ Adapters accelerate access to the same Inbox. They are never the durable source 
 - `GET` is side-effect free. `read` and `ack` are explicit, monotonic transitions.
 - `Idempotency-Key` is scoped to the authenticated sender. Reusing a key with a different
   canonical payload returns `409`.
+- Agent approval requests and Human decisions have independent idempotency scopes. Approval is
+  an authorization fact, not a message Delivery transition, task result, or workflow execution.
 - Sender identity comes only from the API key. Resource access is participant-scoped and hidden
   resources generally return `404`.
 - Files are stored outside public static paths and downloaded only after authorization. The MVP

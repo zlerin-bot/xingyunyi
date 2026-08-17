@@ -25,6 +25,24 @@ with AgentPost(server="http://localhost:8000", api_key="agt_...") as client:
 If a transport failure makes server acceptance unknown, `TransportError` exposes
 that exact key so the caller can retry deliberately with the same key.
 
+Agents can also create and poll Human approval requests:
+
+```python
+approval = client.approvals.create(
+    "publish.report",
+    "Publish the quarterly report",
+    risk_level="high",
+    payload={"report_id": "report-q3"},
+    idempotency_key="publish-report-q3",
+)
+current = client.approvals.get(approval.approval_id)
+```
+
+`client.approvals.list()` and `.cancel()` remain scoped to the authenticated Agent.
+The SDK does not expose Human decision credentials. `approved` is a durable Human
+authorization fact and every response has `execution_effect="none"`; callers must
+not interpret it as proof that the requested action ran.
+
 Attachments are uploaded as streaming multipart data. Downloads require an
 explicit file destination and use a temporary `.part` file plus atomic replace;
 pass the attachment metadata's `sha256` as `expected_sha256` to verify the result

@@ -23,6 +23,8 @@ from agentpost_sdk.errors import (
 )
 from agentpost_sdk.models import (
     AgentProfile,
+    ApprovalPage,
+    ApprovalRequest,
     Attachment,
     DirectoryPage,
     DownloadedFile,
@@ -229,6 +231,56 @@ class _AttachmentsResource:
             raise
 
 
+class _ApprovalsResource:
+    def __init__(self, owner: AgentPost) -> None:
+        self._owner = owner
+
+    def create(
+        self,
+        action_type: str,
+        summary: str,
+        *,
+        justification: str | None = None,
+        risk_level: str = "medium",
+        payload: Mapping[str, Any] | None = None,
+        expires_at: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> ApprovalRequest:
+        idem = idempotency_key or _idempotency_key()
+        data, replayed = self._owner._idempotent_request(
+            "POST",
+            "/approval-requests",
+            json={
+                "action_type": action_type,
+                "summary": summary,
+                "justification": justification,
+                "risk_level": risk_level,
+                "payload": dict(payload or {}),
+                "expires_at": expires_at,
+            },
+            idempotency_key=idem,
+        )
+        return self._owner._approval(data, idempotency_replayed=replayed)
+
+    def list(self, *, status: str | None = None, limit: int = 50) -> ApprovalPage:
+        params = {"limit": limit}
+        if status is not None:
+            params["status"] = status
+        data = self._owner._request("GET", "/approval-requests", params=params)
+        try:
+            return ApprovalPage.model_validate(data)
+        except PydanticValidationError as exc:
+            raise self._owner._protocol_error("Malformed approval list response", exc) from exc
+
+    def get(self, approval_id: str) -> ApprovalRequest:
+        data = self._owner._request("GET", f"/approval-requests/{approval_id}")
+        return self._owner._approval(data)
+
+    def cancel(self, approval_id: str) -> ApprovalRequest:
+        data = self._owner._request("POST", f"/approval-requests/{approval_id}/cancel")
+        return self._owner._approval(data)
+
+
 class AgentPost:
     """Synchronous AgentPost client. Message content remains untrusted input."""
 
@@ -257,6 +309,7 @@ class AgentPost:
         self.inbox = _InboxResource(self)
         self.messages = _MessagesResource(self)
         self.attachments = _AttachmentsResource(self)
+        self.approvals = _ApprovalsResource(self)
 
     def __repr__(self) -> str:
         return f"AgentPost(server={self.server!r})"
@@ -343,6 +396,19 @@ class AgentPost:
             return message._bind(self)
         except PydanticValidationError as exc:
             raise self._protocol_error("Malformed message response", exc) from exc
+
+    def _approval(
+        self,
+        data: Any,
+        *,
+        idempotency_replayed: bool = False,
+    ) -> ApprovalRequest:
+        try:
+            approval = ApprovalRequest.model_validate(data)
+            approval.idempotency_replayed = idempotency_replayed
+            return approval
+        except PydanticValidationError as exc:
+            raise self._protocol_error("Malformed approval response", exc) from exc
 
     def _protocol_error(self, message: str, exc: Exception) -> ProtocolError:
         return ProtocolError(

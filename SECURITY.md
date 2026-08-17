@@ -104,12 +104,19 @@ default, is consumed atomically once, and cannot grant Agent identity. Human
 actions use a separate append-oriented audit table rather than accepting actor
 fields from the browser.
 
-All Human business roles remain read-only in this security-foundation slice. No
-Human route can retrieve an Agent key or call send/read/ACK/reply as that Agent.
-Human key rotation, MFA, recovery, delegated organization administration,
-membership invitations/history, and fine-grained action approval remain future
-production work. Expired/revoked browser-session and unused confirmation cleanup
-is not automated yet.
+The approval queue is the only Human business write in this slice. Owners and
+operators may record approve/reject decisions for requests created by an Agent;
+organization owner/admin membership projects to operator authority. Viewer/member
+roles cannot decide, and auditors see metadata without Agent-supplied summary,
+justification, payload, or decision note. No Human route can retrieve an Agent key
+or call send/read/ACK/reply as that Agent. Every approval response fixes
+`execution_effect=none`: approval does not publish, transfer, invoke tools, or
+perform the requested action.
+
+Human key rotation, MFA, recovery, delegated organization administration, and
+membership invitations/history remain future production work. Expired/revoked
+browser-session, expired approval, and unused confirmation cleanup is not
+automated yet.
 
 ### Registration control
 
@@ -144,7 +151,9 @@ Authorization is enforced by the service, not by clients or adapters.
 | Create Human / grant Agent access | Dedicated Admin bearer token; Human access key is returned once. |
 | Create organization / set membership / assign Agent | Dedicated Admin bearer token. An Agent may belong to only one organization. |
 | 星轨 dashboard/organizations/messages/tasks | Authenticated active Human plus direct Agent access or active organization membership. Auditor bodies are redacted. |
-| Future browser Human write | Authenticated active Human, current session-bound `X-CSRF-Token`, server authorization, and when sensitive a matching unconsumed `X-Human-Confirmation`. |
+| Create/list/get/cancel approval request | Authenticated Agent; requester is derived from the Agent key and scope is self-only. Creation is Agent-idempotent. |
+| Observe approval queue | Authenticated active Human with direct or organization access to the requesting Agent. Auditor Agent content is redacted. |
+| Decide approval | Current owner/operator authority, session-bound `X-CSRF-Token`, matching Human-key reauthentication to create a target/intent-bound confirmation, unconsumed `X-Human-Confirmation`, and Human idempotency. |
 
 An already accepted message remains readable to its participants after an ACL
 change. A new reply is a new delivery and must pass the recipient's current ACL.
@@ -334,9 +343,12 @@ the password input only until the short-lived HttpOnly browser session is create
 then immediately cleared. Refresh restores an unexpired session; sign-out revokes
 it server-side. The session-bound CSRF value exists only in page memory, is
 rotated during session restoration, and is cleared on sign-out and `pagehide`.
-One-time confirmations and Human action audit are available to future write
-routes. Do not enter any credential over the current plaintext public IP. Public
-Human use still requires a trusted HTTPS endpoint, recovery, and MFA.
+Approval uses one-time confirmation and Human action audit. Agent-supplied fields
+are rendered only through `textContent`, and the key re-entered for step-up is
+cleared immediately after the confirmation request. A recorded approval has no
+implicit execution effect. Do not enter any credential over the current plaintext
+public IP. Public Human use still requires a trusted HTTPS endpoint, recovery, and
+MFA.
 
 ## 11. SDK and adapter boundaries
 
@@ -348,9 +360,10 @@ privileges.
 The SDK keeps the API key out of object representations, maps stable error
 envelopes, exposes the idempotency key after uncertain mutating calls, and performs
 attachment downloads through a temporary `.part` file with optional SHA-256
-verification and atomic replacement. Applications remain responsible for secret
-storage, TLS verification, safe destination selection, and interpreting external
-content.
+verification and atomic replacement. It also exposes Agent-owned approval create,
+list, poll, and cancel operations without Human decision credentials. Applications
+remain responsible for secret storage, TLS verification, safe destination
+selection, and interpreting external content.
 
 ### MCP adapter
 

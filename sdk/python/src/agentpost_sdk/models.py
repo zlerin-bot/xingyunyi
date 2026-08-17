@@ -122,6 +122,30 @@ class DirectoryPage(APIModel):
     items: list[AgentProfile]
 
 
+class ApprovalRequest(APIModel):
+    approval_id: str
+    requester_agent_id: UUID
+    requester_address: str
+    action_type: str
+    summary: str
+    justification: str | None = None
+    risk_level: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    status: str
+    expires_at: datetime
+    created_at: datetime
+    updated_at: datetime
+    decided_at: datetime | None = None
+    decision_note: str | None = None
+    security_label: str = "external_agent_content"
+    execution_effect: str = "none"
+    idempotency_replayed: bool = False
+
+
+class ApprovalPage(APIModel):
+    items: list[ApprovalRequest]
+
+
 class DownloadedFile(APIModel):
     path: Path
     size: int

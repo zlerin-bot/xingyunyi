@@ -51,7 +51,8 @@ body::before {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -593,7 +594,7 @@ footer {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -624,6 +625,7 @@ footer {
 .metric-card.accent-gold { color: var(--gold); }
 .metric-card.accent-violet { color: var(--violet); }
 .metric-card.accent-green { color: var(--green); }
+.metric-card.accent-red { color: var(--red); }
 
 .metric-label,
 .metric-card small {
@@ -891,7 +893,8 @@ footer {
 }
 
 .timeline-list,
-.message-list {
+.message-list,
+.approval-list {
   display: grid;
   gap: 12px;
 }
@@ -964,6 +967,211 @@ footer {
 
 .message-card {
   padding: 18px;
+}
+
+.approval-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(230, 189, 114, 0.08), transparent 14rem),
+    rgba(5, 14, 28, 0.48);
+  padding: 19px;
+}
+
+.approval-heading,
+.approval-meta,
+.approval-actions,
+.dialog-heading,
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.approval-heading > div {
+  display: grid;
+  gap: 5px;
+}
+
+.approval-heading strong,
+.approval-summary,
+.approval-justification,
+.approval-payload {
+  overflow-wrap: anywhere;
+}
+
+.approval-action-type {
+  color: var(--cyan);
+  font: 0.62rem ui-monospace, monospace;
+  letter-spacing: 0.08em;
+}
+
+.approval-summary,
+.approval-justification {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.approval-summary {
+  color: #d7e2eb;
+  font-size: 0.84rem;
+}
+
+.approval-justification {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.approval-payload {
+  max-height: 180px;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(2, 8, 18, 0.65);
+  color: #a8bccd;
+  padding: 11px;
+  font: 0.66rem/1.55 ui-monospace, monospace;
+  white-space: pre-wrap;
+}
+
+.approval-meta {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  color: #718ba2;
+  font-size: 0.62rem;
+}
+
+.approval-actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
+  padding-top: 13px;
+}
+
+.approval-action,
+.approval-submit,
+.dialog-close {
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.approval-action {
+  min-height: 36px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 13px;
+  font-size: 0.7rem;
+}
+
+.approval-action.approve:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.approval-action.reject:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.approval-dialog {
+  width: min(560px, calc(100% - 32px));
+  border: 1px solid var(--line-strong);
+  border-radius: 22px;
+  background: #101c31;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  padding: 0;
+}
+
+.approval-dialog::backdrop {
+  background: rgba(2, 7, 15, 0.78);
+  backdrop-filter: blur(6px);
+}
+
+.approval-dialog form {
+  display: grid;
+  gap: 11px;
+  padding: 26px;
+}
+
+.dialog-heading {
+  align-items: flex-start;
+}
+
+.dialog-heading h2 {
+  margin: 0;
+  font-family: "Songti SC", "STSong", serif;
+  font-weight: 550;
+}
+
+.dialog-close {
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.25rem;
+}
+
+.dialog-summary {
+  margin: 5px 0;
+  color: #d7e2eb;
+  line-height: 1.65;
+}
+
+.approval-dialog label {
+  margin-top: 5px;
+  color: #cbd9e6;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.approval-dialog textarea,
+.approval-dialog input[type="password"] {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  outline: none;
+  background: rgba(3, 11, 23, 0.78);
+  color: var(--text);
+  padding: 12px;
+}
+
+.approval-dialog textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.approval-dialog textarea:focus,
+.approval-dialog input[type="password"]:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(103, 216, 212, 0.12);
+}
+
+.dialog-actions {
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.dialog-actions .quiet-button,
+.approval-submit {
+  min-height: 42px;
+  padding: 0 17px;
+}
+
+.approval-submit {
+  border-color: var(--cyan);
+  background: var(--cyan);
+  color: #081721;
+  font-weight: 760;
+}
+
+.approval-submit:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }
 
 .message-heading > div {

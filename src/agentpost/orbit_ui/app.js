@@ -22,12 +22,26 @@ const elements = {
   metricUnread: document.querySelector("#metric-unread"),
   metricPending: document.querySelector("#metric-pending"),
   metricOnline: document.querySelector("#metric-online"),
+  metricApprovals: document.querySelector("#metric-approvals"),
   organizationCount: document.querySelector("#organization-count"),
   organizationList: document.querySelector("#organization-list"),
   agentCount: document.querySelector("#agent-count"),
   agentList: document.querySelector("#agent-list"),
   taskList: document.querySelector("#task-list"),
+  approvalList: document.querySelector("#approval-list"),
   messageList: document.querySelector("#message-list"),
+  approvalDialog: document.querySelector("#approval-dialog"),
+  approvalForm: document.querySelector("#approval-form"),
+  approvalDialogTitle: document.querySelector("#approval-dialog-title"),
+  approvalDialogSummary: document.querySelector("#approval-dialog-summary"),
+  approvalId: document.querySelector("#approval-id"),
+  approvalDecision: document.querySelector("#approval-decision"),
+  approvalNote: document.querySelector("#approval-note"),
+  approvalAccessKey: document.querySelector("#approval-access-key"),
+  approvalResult: document.querySelector("#approval-result"),
+  approvalSubmit: document.querySelector("#approval-submit"),
+  approvalClose: document.querySelector("#approval-close"),
+  approvalCancel: document.querySelector("#approval-cancel"),
 };
 
 function setConnection(message, kind = "") {
@@ -46,9 +60,9 @@ function setFormStatus(message, kind = "") {
 function errorMessage(payload, status) {
   const error = payload && typeof payload === "object" ? payload.error : null;
   if (error && typeof error.message === "string") {
-    return `无法进入星轨（${status}）：${error.message}`;
+    return `星轨请求失败（${status}）：${error.message}`;
   }
-  return `无法进入星轨（${status}）。`;
+  return `星轨请求失败（${status}）。`;
 }
 
 async function requestJson(path, options = {}) {
@@ -59,6 +73,7 @@ async function requestJson(path, options = {}) {
     credentials: "same-origin",
     redirect: "error",
     referrerPolicy: "no-referrer",
+    body: options.body,
   });
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json") ? await response.json() : null;
@@ -103,6 +118,9 @@ function emptyState(message) {
 function statusLabel(value) {
   const labels = {
     pending: "进行中",
+    approved: "已批准",
+    rejected: "已拒绝",
+    expired: "已过期",
     completed: "已完成",
     partial: "部分完成",
     failed: "失败",
@@ -133,6 +151,7 @@ function renderMetrics(metrics, agents, organizations) {
   elements.metricUnread.textContent = safeText(metrics.unread_delivery_count, "0");
   elements.metricPending.textContent = safeText(metrics.pending_task_count, "0");
   elements.metricOnline.textContent = safeText(metrics.online_recently_count, "0");
+  elements.metricApprovals.textContent = safeText(metrics.pending_approval_count, "0");
   const active = agents.filter((agent) => agent.status === "active").length;
   elements.overviewCopy.textContent = `当前进入 ${organizations.length} 个组织治理范围，可观察 ${agents.length} 个 Agent，其中 ${active} 个身份处于 active；通信状态和工作状态仍分别呈现。`;
 }
@@ -283,6 +302,102 @@ function renderTasks(tasks) {
   elements.taskList.append(fragment);
 }
 
+function closeApprovalDialog() {
+  elements.approvalAccessKey.value = "";
+  elements.approvalNote.value = "";
+  elements.approvalResult.textContent = "";
+  elements.approvalId.value = "";
+  elements.approvalDecision.value = "";
+  if (elements.approvalDialog.open) {
+    elements.approvalDialog.close();
+  }
+}
+
+function openApprovalDialog(approval, decision) {
+  elements.approvalId.value = safeText(approval.approval_id, "");
+  elements.approvalDecision.value = decision;
+  elements.approvalDialogTitle.textContent = decision === "approved" ? "批准这项申请" : "拒绝这项申请";
+  elements.approvalDialogSummary.textContent = safeText(
+    approval.summary,
+    "申请内容因审计角色而隐藏。",
+  );
+  elements.approvalSubmit.textContent = decision === "approved" ? "确认批准" : "确认拒绝";
+  elements.approvalResult.textContent = "需要重新输入 hum_ 人类访问密钥；密钥验证后立即清除。";
+  elements.approvalDialog.showModal();
+  elements.approvalAccessKey.focus();
+}
+
+function renderApprovals(approvals) {
+  elements.approvalList.replaceChildren();
+  if (!approvals.length) {
+    elements.approvalList.append(emptyState("当前没有你可见的 Agent 审批申请。"));
+    return;
+  }
+  const fragment = document.createDocumentFragment();
+  approvals.forEach((approval) => {
+    const card = document.createElement("article");
+    card.className = "approval-card";
+    const heading = document.createElement("div");
+    heading.className = "approval-heading";
+    const identity = document.createElement("div");
+    const type = document.createElement("span");
+    type.className = "approval-action-type";
+    type.textContent = safeText(approval.action_type);
+    const title = document.createElement("strong");
+    title.textContent = safeText(approval.requester_address);
+    identity.append(type, title);
+    heading.append(identity, chip(approval.status));
+
+    const summary = document.createElement("p");
+    summary.className = "approval-summary";
+    summary.textContent = approval.content_redacted
+      ? "申请内容因审计角色而隐藏。"
+      : safeText(approval.summary, "无申请摘要");
+    const justification = document.createElement("p");
+    justification.className = "approval-justification";
+    justification.textContent = approval.content_redacted
+      ? "理由与参数不可见。"
+      : safeText(approval.justification, "Agent 未提供额外理由。");
+    const payload = document.createElement("pre");
+    payload.className = "approval-payload";
+    payload.textContent = approval.content_redacted
+      ? "external_agent_content · redacted"
+      : safeText(approval.payload, "{}");
+    const metadata = document.createElement("div");
+    metadata.className = "approval-meta";
+    [
+      `风险：${safeText(approval.risk_level)}`,
+      `角色：${statusLabel(approval.access_role)}`,
+      `申请：${dateText(approval.created_at)}`,
+      `到期：${dateText(approval.expires_at)}`,
+    ].forEach((value) => {
+      const item = document.createElement("span");
+      item.textContent = value;
+      metadata.append(item);
+    });
+    card.append(heading, summary, justification, payload, metadata);
+
+    if (approval.status === "pending" && approval.can_decide) {
+      const actions = document.createElement("div");
+      actions.className = "approval-actions";
+      const reject = document.createElement("button");
+      reject.type = "button";
+      reject.className = "approval-action reject";
+      reject.textContent = "拒绝";
+      reject.addEventListener("click", () => openApprovalDialog(approval, "rejected"));
+      const approve = document.createElement("button");
+      approve.type = "button";
+      approve.className = "approval-action approve";
+      approve.textContent = "批准";
+      approve.addEventListener("click", () => openApprovalDialog(approval, "approved"));
+      actions.append(reject, approve);
+      card.append(actions);
+    }
+    fragment.append(card);
+  });
+  elements.approvalList.append(fragment);
+}
+
 function renderMessages(messages) {
   elements.messageList.replaceChildren();
   if (!messages.length) {
@@ -330,6 +445,7 @@ function renderDashboard(dashboard) {
   const organizations = Array.isArray(dashboard.organizations) ? dashboard.organizations : [];
   const agents = Array.isArray(dashboard.agents) ? dashboard.agents : [];
   const tasks = Array.isArray(dashboard.tasks) ? dashboard.tasks : [];
+  const approvals = Array.isArray(dashboard.approvals) ? dashboard.approvals : [];
   const messages = Array.isArray(dashboard.recent_messages) ? dashboard.recent_messages : [];
   elements.humanName.textContent = safeText(user.display_name, "星轨用户");
   elements.humanEmail.textContent = safeText(user.email);
@@ -338,6 +454,7 @@ function renderDashboard(dashboard) {
   renderOrganizations(organizations);
   renderAgents(agents);
   renderTasks(tasks);
+  renderApprovals(approvals);
   renderMessages(messages);
 }
 
@@ -397,6 +514,7 @@ async function signOut() {
   } catch (_error) {
     // Closing the local view does not prove that the server revoked the session.
   } finally {
+    closeApprovalDialog();
     state.dashboard = null;
     state.csrfToken = "";
     elements.accessKey.value = "";
@@ -410,6 +528,69 @@ async function signOut() {
       setConnection("会话撤销未确认", "error");
     }
     elements.accessKey.focus();
+  }
+}
+
+async function decideApproval(event) {
+  event.preventDefault();
+  const approvalId = elements.approvalId.value;
+  const decision = elements.approvalDecision.value;
+  const candidate = elements.approvalAccessKey.value.trim();
+  if (!state.csrfToken || !approvalId || !["approved", "rejected"].includes(decision)) {
+    elements.approvalResult.textContent = "审批上下文已失效，请关闭窗口并刷新星轨。";
+    elements.approvalResult.className = "form-status error";
+    return;
+  }
+  if (!candidate.startsWith("hum_") || candidate.length < 20) {
+    elements.approvalResult.textContent = "请输入有效的 hum_ 人类访问密钥。";
+    elements.approvalResult.className = "form-status error";
+    return;
+  }
+  elements.approvalSubmit.disabled = true;
+  elements.approvalResult.textContent = "正在重新验证身份并签发一次性确认…";
+  elements.approvalResult.className = "form-status";
+  try {
+    let confirmation;
+    try {
+      confirmation = await requestJson(
+        `/api/v1/orbit/approval-requests/${encodeURIComponent(approvalId)}/confirmation`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${candidate}`,
+            "Content-Type": "application/json",
+            "X-CSRF-Token": state.csrfToken,
+          },
+          body: JSON.stringify({ intent: decision === "approved" ? "approve" : "reject" }),
+        },
+      );
+    } finally {
+      elements.approvalAccessKey.value = "";
+    }
+    elements.approvalResult.textContent = "身份已确认，正在原子写入审批决定…";
+    const note = elements.approvalNote.value.trim();
+    await requestJson(
+      `/api/v1/orbit/approval-requests/${encodeURIComponent(approvalId)}/decision`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": `xinggui-${crypto.randomUUID()}`,
+          "X-CSRF-Token": state.csrfToken,
+          "X-Human-Confirmation": confirmation.confirmation_token,
+        },
+        body: JSON.stringify({ decision, note: note || null }),
+      },
+    );
+    closeApprovalDialog();
+    await loadDashboard();
+    setConnection("审批决定已记录，等待 Agent 轮询", "success");
+  } catch (error) {
+    elements.approvalAccessKey.value = "";
+    elements.approvalResult.textContent = error.message;
+    elements.approvalResult.className = "form-status error";
+  } finally {
+    elements.approvalSubmit.disabled = false;
   }
 }
 
@@ -439,9 +620,14 @@ elements.refresh.addEventListener("click", async () => {
   }
 });
 elements.signOut.addEventListener("click", signOut);
+elements.approvalForm.addEventListener("submit", decideApproval);
+elements.approvalClose.addEventListener("click", closeApprovalDialog);
+elements.approvalCancel.addEventListener("click", closeApprovalDialog);
+elements.approvalDialog.addEventListener("close", closeApprovalDialog);
 
 window.addEventListener("pagehide", () => {
   elements.accessKey.value = "";
+  elements.approvalAccessKey.value = "";
   state.csrfToken = "";
 });
 

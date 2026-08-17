@@ -414,6 +414,101 @@ own policy and rules. Another Agent receives a non-enumerating `404`.
 A blocked or disallowed send returns `403 DELIVERY_NOT_ALLOWED`. The response
 SHOULD avoid disclosing private ACL contents.
 
+## 11A. Human approval queue
+
+The approval queue is a control-plane protocol layered beside messaging. It does
+not change the message envelope or delivery lifecycle and never lets a Human
+authenticate as an Agent.
+
+An authenticated Agent creates an approval request:
+
+```http
+POST /api/v1/approval-requests
+Authorization: Bearer agt_<agent-secret>
+Idempotency-Key: stable-agent-operation-id
+Content-Type: application/json
+
+{
+  "action_type": "publish.report",
+  "summary": "Publish the quarterly banking report",
+  "justification": "The report is complete and ready for authorized clients",
+  "risk_level": "high",
+  "payload": {"report_id": "report-2026-q3"},
+  "expires_at": null
+}
+```
+
+The authenticated Agent is always the requester; a client cannot submit a
+requester identity. `action_type` is a constrained application namespace, while
+summary, justification, and payload are untrusted `external_agent_content`.
+Requests default to a 24-hour expiry. Creation uses the same first-use/replay/
+conflict semantics as message idempotency, scoped to the authenticated Agent.
+
+The Agent polls only its own requests with:
+
+```http
+GET /api/v1/approval-requests?status=pending
+GET /api/v1/approval-requests/{approval_id}
+POST /api/v1/approval-requests/{approval_id}/cancel
+```
+
+The independent approval state machine is:
+
+```text
+pending -> approved | rejected | cancelled | expired
+```
+
+Only `pending` can be decided. Cancellation is an Agent-owned terminal transition.
+Expiry is projected on reads and persisted when a later command locks the row.
+Approval state is not Delivery state or task work state.
+
+An authenticated Human lists only requests for Agents visible through direct or
+organization authorization:
+
+```http
+GET /api/v1/orbit/approval-requests
+GET /api/v1/orbit/approval-requests/{approval_id}
+```
+
+Owners and operators may decide. Organization owner/admin membership projects to
+operator authority. Viewers and organization members may observe but not decide;
+auditors receive metadata with Agent-supplied content redacted. Unrelated Humans
+receive non-enumerating `404` responses.
+
+A browser decision is a two-command flow. First it re-enters the matching `hum_`
+key and requests a session/intent/target-bound confirmation while also presenting
+the current CSRF proof:
+
+```http
+POST /api/v1/orbit/approval-requests/{approval_id}/confirmation
+Authorization: Bearer hum_<human-secret>
+X-CSRF-Token: csrf_<session-secret>
+
+{"intent": "approve"}
+```
+
+The returned `hcf_` confirmation expires after five minutes by default. The final
+decision consumes it atomically and is Human-idempotent:
+
+```http
+POST /api/v1/orbit/approval-requests/{approval_id}/decision
+X-CSRF-Token: csrf_<session-secret>
+X-Human-Confirmation: hcf_<one-time-secret>
+Idempotency-Key: stable-human-decision-id
+
+{"decision": "approved", "note": "Scope checked"}
+```
+
+The service rechecks current authorization, state, Human/session/intent/target
+binding, expiration, and single use inside the decision transaction. Human action
+audit records use the server-derived Human and browser-session identities.
+
+Every approval response fixes `execution_effect` to `none`. `approved` means only
+that a durable authorization decision exists. AgentPost does not publish, send,
+transfer, invoke a tool, or otherwise execute the requested business action. The
+requesting Agent must poll, validate scope, and decide how to proceed under its
+own credentials and policy.
+
 ## 12. Error model
 
 Non-success responses use one stable envelope:
@@ -438,10 +533,17 @@ paths, or the existence of another Agent's private object.
 | `400` | `INVALID_IDEMPOTENCY_KEY` | Required idempotency key is invalid |
 | `400` | `INVALID_CURSOR` | Cursor is malformed, invalidly signed, or incompatible with the query |
 | `401` | `INVALID_API_KEY` | Bearer token is absent, invalid, or revoked |
+| `401` | `INVALID_HUMAN_ACCESS_KEY` | Human bearer/session authentication failed |
 | `403` | `DELIVERY_NOT_ALLOWED` | Sender is blocked or not permitted by recipient policy |
+| `403` | `INVALID_CSRF_TOKEN` | Browser Human write lacks the current session-bound proof |
+| `403` | `HUMAN_REAUTHENTICATION_FAILED` | Step-up Human key does not match the active session |
+| `403` | `HUMAN_CONFIRMATION_REQUIRED` | Sensitive Human write omitted its one-time confirmation |
+| `403` | `HUMAN_CONFIRMATION_INVALID` | Confirmation is expired, consumed, or bound to another action |
+| `403` | `APPROVAL_DECISION_NOT_ALLOWED` | Visible request cannot be decided by the current Human role |
 | `404` | resource-specific `*_NOT_FOUND` | Resource is absent or inaccessible to the authenticated Agent |
 | `409` | `IDEMPOTENCY_CONFLICT` | Same sender/key was used for a different normalized request |
 | `409` | `INVALID_STATE_TRANSITION` | Requested operation cannot legally follow current state |
+| `409` | `APPROVAL_INVALID_STATE` | Approval is already terminal or expired |
 | `413` | `ATTACHMENT_TOO_LARGE` | Upload exceeds configured size limit |
 | `422` | `SCHEMA_VALIDATION_FAILED` | JSON is malformed or the body/query violates its schema |
 | `503` | `DATABASE_UNAVAILABLE` | Readiness cannot reach the durable database |

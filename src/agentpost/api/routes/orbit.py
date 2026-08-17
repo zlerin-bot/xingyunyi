@@ -3,11 +3,12 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
 
 from agentpost.api.dependencies import SessionDep, SettingsDep
 from agentpost.control.auth import CurrentHumanDep, HumanAccessKeyDep
+from agentpost.control.human_security import HUMAN_CSRF_HEADER, add_human_action_audit
 from agentpost.control.models import HumanSession
 from agentpost.control.organization_service import list_orbit_organizations
 from agentpost.control.schemas import (
@@ -28,8 +29,10 @@ from agentpost.control.service import (
 from agentpost.control.sessions import (
     HUMAN_SESSION_COOKIE,
     create_human_session,
+    resolve_human_session,
     revoke_human_session,
     rotate_human_csrf_token,
+    verify_human_csrf_token,
 )
 
 router = APIRouter(tags=["human-control-plane"])
@@ -163,9 +166,37 @@ def delete_orbit_session(
     request: Request,
     session: SessionDep,
     settings: SettingsDep,
+    csrf_token: Annotated[str | None, Header(alias=HUMAN_CSRF_HEADER)] = None,
 ) -> None:
     raw_session = request.cookies.get(HUMAN_SESSION_COOKIE, "")
     if raw_session:
+        resolved = resolve_human_session(session, settings, raw_token=raw_session)
+        if resolved is not None:
+            user, browser_session = resolved
+            if csrf_token is None or not verify_human_csrf_token(
+                settings,
+                browser_session=browser_session,
+                raw_csrf_token=csrf_token,
+            ):
+                add_human_action_audit(
+                    session,
+                    human_user_id=user.id,
+                    human_session_id=browser_session.id,
+                    action="control.session_revocation_denied",
+                    target_type="human_session",
+                    target_id=str(browser_session.id),
+                    outcome="denied",
+                    reason_code="invalid_csrf_token",
+                    request_id=request.state.request_id,
+                )
+                session.commit()
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={
+                        "code": "invalid_csrf_token",
+                        "message": "A current same-origin CSRF token is required",
+                    },
+                )
         revoke_human_session(
             session,
             settings,

@@ -18,6 +18,8 @@ from agentpost_sdk.errors import (
 )
 from agentpost_sdk.models import (
     AgentProfile,
+    ApprovalPage,
+    ApprovalRequest,
     Attachment,
     DirectoryPage,
     DownloadedFile,
@@ -30,6 +32,8 @@ __all__ = [
     "AgentPostError",
     "ApiError",
     "AgentProfile",
+    "ApprovalPage",
+    "ApprovalRequest",
     "Attachment",
     "AuthenticationError",
     "AuthorizationError",

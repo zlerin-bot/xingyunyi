@@ -45,7 +45,7 @@ def _as_utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
-def _request_session_id(request: Request) -> UUID | None:
+def human_session_id_from_request(request: Request) -> UUID | None:
     raw_session_id = getattr(request.state, "human_session_id", None)
     return UUID(raw_session_id) if raw_session_id else None
 
@@ -96,9 +96,9 @@ def require_human_csrf(
     settings: SettingsDep,
     csrf_token: Annotated[str | None, Header(alias=HUMAN_CSRF_HEADER)] = None,
 ) -> None:
-    if getattr(request.state, "human_authentication", None) != "browser_session":
+    human_session_id = human_session_id_from_request(request)
+    if human_session_id is None:
         return
-    human_session_id = _request_session_id(request)
     browser_session = session.get(HumanSession, human_session_id)
     if (
         browser_session is None

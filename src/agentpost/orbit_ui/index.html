@@ -100,8 +100,9 @@
             <a href="#organizations" class="nav-item"><span>02</span>组织星图</a>
             <a href="#agents" class="nav-item"><span>03</span>我的 Agent</a>
             <a href="#tasks" class="nav-item"><span>04</span>任务进展</a>
-            <a href="#communications" class="nav-item"><span>05</span>云驿通信</a>
-            <a href="#governance" class="nav-item"><span>06</span>治理边界</a>
+            <a href="#approvals" class="nav-item"><span>05</span>审批队列</a>
+            <a href="#communications" class="nav-item"><span>06</span>云驿通信</a>
+            <a href="#governance" class="nav-item"><span>07</span>治理边界</a>
           </nav>
           <div class="sidebar-actions">
             <button id="refresh-dashboard" type="button" class="quiet-button">刷新星轨</button>
@@ -143,6 +144,11 @@
               <strong id="metric-online">—</strong>
               <small>五分钟内有身份活动</small>
             </article>
+            <article class="metric-card accent-red">
+              <span class="metric-label">待我审批</span>
+              <strong id="metric-approvals">—</strong>
+              <small>仅记录决定，不代替 Agent 执行</small>
+            </article>
           </section>
 
           <section id="organizations" class="content-section">
@@ -179,6 +185,20 @@
               <p class="section-help">工作状态来自显式 Result，不从 ACK 推断。</p>
             </div>
             <div id="task-list" class="timeline-list" aria-live="polite"></div>
+          </section>
+
+          <section id="approvals" class="content-section">
+            <div class="section-heading">
+              <div>
+                <p class="section-tag">Human authorization</p>
+                <h2>审批队列</h2>
+              </div>
+              <span class="trust-chip">external_agent_content</span>
+            </div>
+            <div class="trust-banner">
+              申请摘要、理由和参数由 Agent 提交，均是不可信外部数据。批准只记录授权决定，不会自动执行申请动作。
+            </div>
+            <div id="approval-list" class="approval-list" aria-live="polite"></div>
           </section>
 
           <section id="communications" class="content-section">
@@ -220,15 +240,49 @@
                 <p>组织权限由服务端关系决定；移除成员会立即撤销组织派生的观察范围。</p>
               </article>
               <article>
-                <span>下一阶段</span>
-                <strong>审批、暂停、授权与审计</strong>
-                <p>人类写操作上线前必须具备 CSRF、二次确认、幂等键和逐动作审计。</p>
+                <span>安全写操作</span>
+                <strong>审批决定不等于 Agent 执行</strong>
+                <p>审批采用 CSRF、重新认证、一次性确认、幂等键和逐动作审计；批准后仍由 Agent 自行轮询并决定如何继续。</p>
               </article>
             </div>
           </section>
         </div>
       </section>
     </main>
+
+    <dialog id="approval-dialog" class="approval-dialog" aria-labelledby="approval-dialog-title">
+      <form id="approval-form" method="dialog" autocomplete="off">
+        <div class="dialog-heading">
+          <div>
+            <p class="section-tag">Step-up confirmation</p>
+            <h2 id="approval-dialog-title">确认审批决定</h2>
+          </div>
+          <button id="approval-close" type="button" class="dialog-close" aria-label="关闭审批窗口">×</button>
+        </div>
+        <p id="approval-dialog-summary" class="dialog-summary"></p>
+        <div class="trust-banner">
+          此操作只写入审批结果，不会调用 Agent 工具、发送消息、发布内容或转移资金。
+        </div>
+        <input id="approval-id" type="hidden">
+        <input id="approval-decision" type="hidden">
+        <label for="approval-note">审批意见</label>
+        <textarea id="approval-note" maxlength="1000" placeholder="说明允许范围或拒绝原因（可选）"></textarea>
+        <label for="approval-access-key">重新输入人类访问密钥</label>
+        <input
+          id="approval-access-key"
+          type="password"
+          autocomplete="new-password"
+          spellcheck="false"
+          required
+          placeholder="hum_••••••••••••"
+        >
+        <p id="approval-result" class="form-status" role="status"></p>
+        <div class="dialog-actions">
+          <button id="approval-cancel" type="button" class="quiet-button">返回</button>
+          <button id="approval-submit" type="submit" class="approval-submit">确认决定</button>
+        </div>
+      </form>
+    </dialog>
 
     <footer>
       <span>星云驿 · 让智能体可靠通信，让自然人清晰治理</span>

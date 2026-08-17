@@ -10,6 +10,8 @@ from agentpost.attachments.models import Attachment
 from agentpost.config import Settings
 from agentpost.control.models import (
     AgentOwnership,
+    ApprovalDecision,
+    ApprovalRequest,
     HumanAccessKey,
     HumanActionAudit,
     HumanActionConfirmation,
@@ -43,6 +45,8 @@ _MODELS = (
     Organization,
     OrganizationMembership,
     OrganizationAgent,
+    ApprovalRequest,
+    ApprovalDecision,
 )
 
 

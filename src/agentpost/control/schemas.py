@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
+from agentpost.control.approval_schemas import OrbitApprovalRequest
+
 _EMAIL_PATTERN = re.compile(
     r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$",
     flags=re.ASCII,
@@ -204,6 +206,7 @@ class OrbitMetrics(ControlModel):
     unread_delivery_count: int
     pending_task_count: int
     failed_task_count: int
+    pending_approval_count: int
 
 
 class OrbitDashboard(ControlModel):
@@ -213,6 +216,7 @@ class OrbitDashboard(ControlModel):
     agents: list[OrbitAgent]
     recent_messages: list[OrbitMessage]
     tasks: list[OrbitTask]
+    approvals: list[OrbitApprovalRequest]
     plane: Literal["human_control_plane"] = "human_control_plane"
     product: Literal["星云驿"] = "星云驿"
     surface: Literal["星轨"] = "星轨"
@@ -221,6 +225,6 @@ class OrbitDashboard(ControlModel):
         default_factory=lambda: {
             "observation": True,
             "agent_actions": False,
-            "approvals": False,
+            "approvals": True,
         }
     )

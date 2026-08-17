@@ -11,6 +11,7 @@ from agentpost.api.middleware import request_context_middleware
 from agentpost.api.routes.access import router as access_router
 from agentpost.api.routes.admin import router as admin_router
 from agentpost.api.routes.agents import router as agents_router
+from agentpost.api.routes.approvals import router as approvals_router
 from agentpost.api.routes.attachments import router as attachments_router
 from agentpost.api.routes.directory import router as directory_router
 from agentpost.api.routes.messages import router as messages_router
@@ -45,6 +46,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(system_router)
     app.include_router(admin_router)
     app.include_router(orbit_router)
+    app.include_router(approvals_router)
     app.include_router(agents_router)
     app.include_router(access_router)
     app.include_router(attachments_router)

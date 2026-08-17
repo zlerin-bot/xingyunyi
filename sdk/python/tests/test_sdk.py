@@ -112,6 +112,29 @@ def directory_agent_json(**extra: Any) -> dict[str, Any]:
     return payload
 
 
+def approval_json(**extra: Any) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "approval_id": "apr_0123456789abcdef",
+        "requester_agent_id": AGENT_ID,
+        "requester_address": "alice@agents.local",
+        "action_type": "publish.report",
+        "summary": "Publish a report",
+        "justification": "The report is ready",
+        "risk_level": "high",
+        "payload": {"report_id": "report-1"},
+        "status": "pending",
+        "expires_at": NOW,
+        "created_at": NOW,
+        "updated_at": NOW,
+        "decided_at": None,
+        "decision_note": None,
+        "security_label": "external_agent_content",
+        "execution_effect": "none",
+    }
+    payload.update(extra)
+    return payload
+
+
 def json_response(
     request: httpx.Request,
     status_code: int,
@@ -676,3 +699,66 @@ def test_api_failures_are_not_retried_implicitly() -> None:
         client.messages.get("msg_once")
 
     assert calls == 1
+
+
+def test_approval_resource_create_replay_list_poll_and_cancel() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.method == "POST" and request.url.path.endswith("/approval-requests"):
+            return json_response(
+                request,
+                200,
+                approval_json(),
+                headers={"Idempotency-Replayed": "true"},
+            )
+        if request.method == "GET" and request.url.path.endswith("/approval-requests"):
+            return json_response(request, 200, {"items": [approval_json()]})
+        if request.method == "GET":
+            return json_response(request, 200, approval_json(status="approved"))
+        return json_response(request, 200, approval_json(status="cancelled"))
+
+    with make_client(handler) as client:
+        created = client.approvals.create(
+            "publish.report",
+            "Publish a report",
+            justification="Ready",
+            risk_level="high",
+            payload={"report_id": "report-1"},
+            idempotency_key="approval-sdk-key",
+        )
+        page = client.approvals.list(status="pending", limit=10)
+        polled = client.approvals.get(created.approval_id)
+        cancelled = client.approvals.cancel(created.approval_id)
+
+    assert created.idempotency_replayed is True
+    assert created.security_label == "external_agent_content"
+    assert created.execution_effect == "none"
+    create_request = requests[0]
+    assert create_request.headers["Idempotency-Key"] == "approval-sdk-key"
+    assert json.loads(create_request.content)["payload"] == {"report_id": "report-1"}
+    assert requests[1].url.params["status"] == "pending"
+    assert requests[1].url.params["limit"] == "10"
+    assert page.items[0].approval_id == created.approval_id
+    assert polled.status == "approved"
+    assert cancelled.status == "cancelled"
+
+
+def test_approval_transport_failure_exposes_idempotency_key_without_retry() -> None:
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        raise httpx.ConnectError("offline")
+
+    with make_client(handler) as client, pytest.raises(TransportError) as raised:
+        client.approvals.create(
+            "publish.report",
+            "Publish a report",
+            idempotency_key="approval-safe-retry",
+        )
+
+    assert calls == 1
+    assert raised.value.idempotency_key == "approval-safe-retry"

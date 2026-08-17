@@ -522,6 +522,11 @@ def list_orbit_tasks(
 
 
 def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
+    from agentpost.control.approval_service import (
+        list_human_approval_requests,
+        pending_human_approval_count,
+    )
+
     entries = list_agent_access(session, user)
     agent_ids = {entry.agent.id for entry in entries}
     role_map = {entry.agent.id: entry.role for entry in entries}
@@ -604,9 +609,16 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
             unread_delivery_count=sum(unread_by_agent.values()),
             pending_task_count=pending_task_count,
             failed_task_count=failed_task_count,
+            pending_approval_count=pending_human_approval_count(session, user=user),
         ),
         organizations=list_orbit_organizations(session, user),
         agents=agents,
         recent_messages=recent_messages,
         tasks=tasks[:12],
+        approvals=list_human_approval_requests(
+            session,
+            user=user,
+            limit=12,
+            approval_status=None,
+        ),
     )

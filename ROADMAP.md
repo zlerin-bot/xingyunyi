@@ -47,7 +47,7 @@ The evidence boundary is important:
 | OpenClaw | Static contracts and a zero-dependency Node HTTP-client harness are local verified | A real OpenClaw plugin build/load/validate was not run; npm/host dependencies were unavailable and bundled Node 24.14 is outside the plugin's declared supported ranges |
 | A2A | A2A 1.0 concept mapping and documentation contract tests are local verified | No A2A runtime endpoint, persistent task-binding implementation, conformance result, Agent Card, streaming, or push support exists |
 | Human organization scope | Basic organizations, membership roles, single-organization Agent assignment, and revocable derived visibility are implemented | It is not delegated organization IAM, invitations, SSO, domain proof, nested units, tenant isolation, or production RBAC |
-| Human write security | Rotating browser CSRF proof, target-bound one-time confirmation, and Human action audit are locally verified | No Human business write, MFA, recovery, key lifecycle, retention cleanup, or production HTTPS acceptance exists yet |
+| Human approval control | Rotating browser CSRF proof, target-bound one-time confirmation, Human action audit, and an approval-only Human write are locally verified | Approval has no execution effect; MFA, recovery, key lifecycle, retention cleanup, broader Human actions, and production HTTPS acceptance remain |
 | Admin console | Lightweight debug UI and token-gated operational views are implemented | It is not a production operations or organization-management console |
 
 Until PostgreSQL and Compose acceptance run successfully in a representative

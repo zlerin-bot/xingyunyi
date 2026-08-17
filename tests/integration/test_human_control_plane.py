@@ -95,6 +95,12 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "document.cookie" not in combined
     assert "state.humankey" not in combined
     assert '"/api/v1/orbit/session"' in script.text
+    assert "approval-access-key" in orbit.text
+    assert "approval-requests" in script.text
+    assert "X-CSRF-Token" in script.text
+    assert "X-Human-Confirmation" in script.text
+    assert "crypto.randomUUID()" in script.text
+    assert 'elements.approvalAccessKey.value = ""' in script.text
     assert "组织星图" in orbit.text
     assert "organization-list" in orbit.text
 
@@ -341,7 +347,12 @@ def test_human_key_creates_revocable_short_lived_browser_session(
             assert stored.csrf_token_digest != raw_csrf
             assert raw_csrf not in stored.csrf_token_digest
 
-        logout = client.delete("/api/v1/orbit/session")
+        denied_logout = client.delete("/api/v1/orbit/session")
+        assert denied_logout.status_code == 403
+        logout = client.delete(
+            "/api/v1/orbit/session",
+            headers={"X-CSRF-Token": raw_csrf},
+        )
         assert logout.status_code == 204
         client.cookies.set(
             "xinggui_session",

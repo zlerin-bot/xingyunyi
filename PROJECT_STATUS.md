@@ -16,9 +16,9 @@ The MVP implementation is locally runnable as a protocol-first modular monolith:
 - local filesystem attachment adapter with an S3-compatible boundary
 - framework-neutral REST/JSON protocol
 - Python SDK, optional OpenClaw/MCP adapters, and an A2A compatibility mapping
-- 星轨 Human identity, Agent ownership/role grants, read-only control API, and
+- 星轨 Human identity, Agent ownership/role grants, scoped observation API, and
   same-origin product website with revocable short-lived browser sessions and
-  organization-scoped visibility
+  organization-scoped visibility, plus a CSRF/step-up-protected approval queue
 
 ## Verified local environment
 
@@ -60,6 +60,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 15 | 星轨 short-lived browser sessions and server-side revocation | complete* |
 | 16 | 星轨 organizations, memberships, and organization-scoped Agent visibility | complete* |
 | 17 | 星轨 browser CSRF, one-time action confirmation, and Human action audit | complete* |
+| 18 | Agent-created, Human-decided approval queue and 星轨 approval UI | complete* |
 
 ## Decisions already fixed
 
@@ -85,8 +86,11 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 11. A Human control decision uses Human identity, session-bound CSRF, and when
     sensitive a target-bound one-time confirmation. It never impersonates an
     Agent or executes Agent business work implicitly.
+12. Approval state is independent from Delivery and task state. `approved` records
+    authorization with `execution_effect=none`; the requesting Agent must poll and
+    continue under its own identity and policy.
 
-## 星轨 read-only control-plane evidence
+## 星轨 Human control-plane evidence
 
 The first Human control-plane slice is implemented at `/orbit` and
 `/api/v1/orbit`. Admin-only bootstrap APIs create a Human identity, return a
@@ -111,10 +115,18 @@ access. 星轨 renders these relationships in the new “组织星图” section
 The Human write-security foundation is now durable. Browser sessions own a
 separate `csrf_` value stored only as an HMAC digest; login returns it under
 `no-store`, session refresh rotates it, and stale tokens fail immediately.
-Sensitive actions can require a five-minute, single-use `hcf_` confirmation bound
-to Human, session, intent, and target. Human security events use a dedicated audit
-record with server-derived actor and request context. No Human business write is
-exposed by this milestone.
+Sensitive actions require a five-minute, single-use `hcf_` confirmation bound to
+Human, session, intent, and target. Human security events use a dedicated audit
+record with server-derived actor and request context.
+
+The first narrow Human write is now implemented: an authenticated Agent creates
+an idempotent approval request, polls or cancels only its own request, and an
+authorized owner/operator can approve or reject it from 星轨. Organization
+owner/admin membership projects to operator authority; viewers cannot decide and
+auditors receive redacted Agent content. The decision transaction rechecks role
+and state, consumes the confirmation once, persists one decision and Human audit,
+and never creates a message or performs the requested action. The Python SDK
+exposes Agent-side create/list/get/cancel without Human decision credentials.
 
 Six integration tests prove branding/security headers and no browser key
 persistence; Human/Agent credential separation; owner-only communication
@@ -129,21 +141,31 @@ Agent invariant, membership-derived visibility, auditor redaction, immediate
 revocation, direct-grant preservation, and audit events. The 0008 migration also
 passed upgrade, schema check, downgrade to 0007, re-upgrade, and a second check.
 The 0009 migration passed fresh upgrade, schema check, downgrade to 0008,
-re-upgrade, and a second schema check against SQLite. The current fast regression
-reports 243 passed, one expected loopback-sandbox skip, and three explicitly
+re-upgrade, and a second schema check against SQLite. Migration 0010 adds the
+durable approval request/decision records and passed upgrade, schema check,
+downgrade to 0009, re-upgrade, and a second check. The Milestone 18 fast regression
+reports 253 passed, one expected loopback-sandbox skip, and three explicitly
 deselected PostgreSQL tests; the MCP package suite adds four passing tests. Ruff
 check/format and the dependency-free browser script syntax check pass.
 
-This is a locally verified read-only control-plane slice, not public Human login.
+This is a locally verified control-plane slice, not public Human login.
 It has not been deployed to Alibaba Cloud or exercised against PostgreSQL. The
 current public IP remains plaintext HTTP and must not receive Human credentials.
-Trusted HTTPS, MFA, recovery, Human key rotation, and approval business workflows
-remain later gates. CSRF, one-time confirmation, and Human action audit primitives
-are implemented locally. Basic membership exists; delegated administration,
-invitations, membership history, SSO/domain proof, and nested organization units
-do not.
+Trusted HTTPS, MFA, recovery, and Human key rotation remain later gates. Approval
+is implemented locally, while action execution, delegation, pause/resume, and
+retention workers remain closed. Basic membership exists; delegated
+administration, invitations, membership history, SSO/domain proof, and nested
+organization units do not.
 
 ## Final local acceptance snapshot
+
+The Human approval increment completed on 2026-08-17 with seven dedicated queue
+tests, including concurrent Agent idempotency, role/redaction/non-enumeration,
+CSRF and reauthentication, confirmation target/intent binding, cancellation,
+expiry, schema limits, zero implicit messages/actions, and organization-derived
+operator authority. The Python SDK approval contract adds create/list/get/cancel
+and uncertain-transport idempotency coverage. PostgreSQL execution and public
+HTTPS/browser acceptance remain separate gates.
 
 The final repository checks completed on 2026-08-12 with these results:
 

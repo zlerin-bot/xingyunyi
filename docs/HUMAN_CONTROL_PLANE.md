@@ -1,6 +1,6 @@
 # 星云驿人类控制面
 
-Version: 0.3 (read-only control plane with organizations)
+Version: 0.4 (organization-scoped observation and approval decisions)
 
 ## Product language
 
@@ -37,7 +37,8 @@ be presented as the natural-person product.
 
 ## Current implementation slice
 
-This slice is intentionally read-only for natural people. It adds:
+The observation surfaces remain read-only, while the first narrow Human command is
+a durable approval decision. The implementation adds:
 
 1. a Human identity with a separately prefixed and separately hashed access key;
 2. one authoritative owner per Agent plus operator/viewer/auditor grants;
@@ -48,8 +49,10 @@ This slice is intentionally read-only for natural people. It adds:
 6. a branded same-origin website at `/orbit`; and
 7. organizations, Human membership roles, and one organization assignment per
    Agent as a durable authorization scope; and
-8. the security foundation for future Human writes: rotating browser CSRF proof,
-   short-lived one-time action confirmations, and a separate Human action audit.
+8. rotating browser CSRF proof, short-lived one-time action confirmations, and a
+   separate Human action audit; and
+9. an Agent-created, Human-decided approval queue whose decisions have no implicit
+   execution effect.
 
 Administrative bootstrap endpoints create a Human identity and grant or revoke
 access. A Human access key is returned once. The browser sends it once to create
@@ -59,14 +62,14 @@ an HttpOnly session, then clears the input and uses the same-origin session cook
 
 | Role | Meaning now | Future controlled actions |
 | --- | --- | --- |
-| owner | accountable natural-person owner | approve high-risk actions, delegate roles |
-| operator | day-to-day operator | pause/resume, approve scoped actions |
+| owner | accountable natural-person owner | decide approval requests |
+| operator | day-to-day operator | decide approval requests |
 | viewer | read-only collaborator | none |
-| auditor | metadata and governance reviewer | export signed audit evidence |
+| auditor | metadata and governance reviewer | none; Agent content is redacted |
 
-All four direct Agent roles are read-only. Auditor results omit message bodies.
-No Human route can call an Agent endpoint as the Agent or retrieve an Agent API
-key.
+Owners and operators may now record approval decisions. Viewer and auditor roles
+remain read-only, and auditor results omit Agent-supplied content. No Human route
+can call an Agent endpoint as the Agent or retrieve an Agent API key.
 
 ## Organization boundary
 
@@ -82,7 +85,7 @@ The current organization model is intentionally small. It does not yet provide
 delegated member administration, organization invitations, SSO/domain proof,
 nested organization units, historical membership intervals, or tenant billing.
 
-## Two independent state models
+## Three independent state models
 
 Communication state remains a 云驿 Delivery fact:
 
@@ -98,6 +101,19 @@ pending -> completed | partial | failed | cancelled
 
 ACK means the recipient acknowledged a delivery. It never means the task was
 completed. Only an explicit `result` reply changes the work-state projection.
+
+Approval is a third independent state model:
+
+```text
+pending -> approved | rejected | cancelled | expired
+```
+
+An Agent submits and polls its own approval requests. An authorized owner/operator
+records a decision after CSRF validation, matching Human-key reauthentication, and
+one-time target-bound confirmation. Organization owner/admin membership projects
+to operator authority; members/viewers may observe and auditors receive redacted
+metadata. A request decision is durable and idempotent, but `approved` always has
+`execution_effect=none`: 星轨 does not publish, transfer, send, or invoke tools.
 
 ## Trust and content visibility
 
@@ -139,10 +155,10 @@ consuming a confirmation never grants Agent identity. Human action evidence is
 written to a dedicated audit table with the server-derived actor, session, action,
 target, outcome, reason, and request identifier.
 
-This milestone establishes the enforcement primitives but does not yet expose a
-Human-controlled business write. Public use also needs key rotation/revocation,
-recovery, MFA for privileged roles, and a delegated organization-membership
-lifecycle.
+The approval decision is the only Human-controlled business write in this slice.
+Delegation, pause/resume, task creation, and execution remain closed. Public use
+also needs key rotation/revocation, recovery, MFA for privileged roles, and a
+delegated organization-membership lifecycle.
 
 Do not enter a Human access key over the current plaintext public IP. Use an SSH
 tunnel during filing review, or wait for the domain and trusted HTTPS endpoint.
