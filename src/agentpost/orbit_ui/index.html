@@ -61,7 +61,7 @@
           <div class="card-stars" aria-hidden="true"></div>
           <p class="section-tag">星轨入口</p>
           <h2 id="entry-title">进入你的 Agent 运行空间</h2>
-          <p>第一阶段使用独立的人类访问密钥。它与 Agent API Key、系统 Admin Token 完全分离。</p>
+          <p>人类访问密钥只用于建立短期浏览器会话。它与 Agent API Key、系统 Admin Token 完全分离。</p>
           <form id="access-form" autocomplete="off">
             <label for="human-access-key">人类访问密钥</label>
             <div class="access-field">
@@ -77,7 +77,7 @@
             </div>
           </form>
           <p id="access-result" class="form-status" role="status">
-            密钥只保留在当前页面内存；关闭或刷新页面即清除。
+            密钥验证成功后立即从页面清除；后续请求使用服务端短期会话。
           </p>
           <div class="security-note">
             <strong>安全提示</strong>
@@ -104,7 +104,7 @@
           </nav>
           <div class="sidebar-actions">
             <button id="refresh-dashboard" type="button" class="quiet-button">刷新星轨</button>
-            <button id="sign-out" type="button" class="quiet-button danger">退出并清除密钥</button>
+            <button id="sign-out" type="button" class="quiet-button danger">退出并撤销会话</button>
           </div>
         </aside>
 
@@ -216,4 +216,3 @@
     </footer>
   </body>
 </html>
-

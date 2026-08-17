@@ -24,6 +24,14 @@ def test_attachment_limit_must_be_positive() -> None:
         Settings(max_attachment_bytes=0)
 
 
+def test_human_session_ttl_is_bounded() -> None:
+    assert Settings().human_session_ttl_seconds == 43_200
+    with pytest.raises(ValidationError):
+        Settings(human_session_ttl_seconds=299)
+    with pytest.raises(ValidationError):
+        Settings(human_session_ttl_seconds=7 * 24 * 60 * 60 + 1)
+
+
 def test_production_rejects_development_secrets() -> None:
     with pytest.raises(ValidationError):
         Settings(environment="production")

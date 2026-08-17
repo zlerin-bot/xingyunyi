@@ -54,6 +54,12 @@ class HumanRegistrationResponse(ControlModel):
     access_key_prefix: str
 
 
+class HumanSessionResponse(ControlModel):
+    user: HumanProfile
+    expires_at: datetime
+    authentication: Literal["browser_session"] = "browser_session"
+
+
 class AgentAccessCreate(ControlModel):
     role: Literal["owner", "operator", "viewer", "auditor"]
 

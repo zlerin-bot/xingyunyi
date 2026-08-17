@@ -17,7 +17,7 @@ The MVP implementation is locally runnable as a protocol-first modular monolith:
 - framework-neutral REST/JSON protocol
 - Python SDK, optional OpenClaw/MCP adapters, and an A2A compatibility mapping
 - 星轨 Human identity, Agent ownership/role grants, read-only control API, and
-  same-origin product website
+  same-origin product website with revocable short-lived browser sessions
 
 ## Verified local environment
 
@@ -56,6 +56,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 12 | MCP adapter | complete |
 | 13 | A2A compatibility mapping and low-risk adapter surface | complete* |
 | 14 | 星云驿 naming and 星轨 read-only Human control plane | complete* |
+| 15 | 星轨 short-lived browser sessions and server-side revocation | complete* |
 
 ## Decisions already fixed
 
@@ -76,7 +77,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 9. 星轨 Human identity is separate from Agent and Admin credentials. Human views
    are authorization-scoped, and `ACK` never means a task completed.
 
-## 星轨 first-slice evidence
+## 星轨 read-only control-plane evidence
 
 The first Human control-plane slice is implemented at `/orbit` and
 `/api/v1/orbit`. Admin-only bootstrap APIs create a Human identity, return a
@@ -84,21 +85,30 @@ one-time `hum_` key, and grant/revoke owner, operator, viewer, or auditor access
 an Agent. PostgreSQL models enforce one owner per Agent and explicit collaborator
 grants. Human keys use a separate HMAC pepper.
 
-Four integration tests prove branding/security headers and no browser credential
+The browser now sends the `hum_` key only to create a random short-lived `hss_`
+session, clears the key input, and continues with an HttpOnly, SameSite cookie.
+Only the session HMAC digest is stored. Sessions have a configurable default
+12-hour lifetime, use `Secure` in production, survive refresh, and are revoked
+server-side on sign-out. Bearer Human keys remain available for programmatic
+read-only clients.
+
+Six integration tests prove branding/security headers and no browser key
 persistence; Human/Agent credential separation; owner-only communication
-visibility; unrelated Agent isolation; auditor body redaction; revocation; and the
-critical distinction that an ACKed task remains `pending` until an explicit
-`result` changes its work state. The migration passed upgrade, schema check,
-downgrade, re-upgrade, and a second schema check against a fresh database.
-The full locally runnable regression now reports 232 passed and one expected
-loopback-sandbox skip; Ruff check/format and the dependency-free browser script
-syntax check also pass.
+visibility; unrelated Agent isolation; auditor body redaction; grant revocation;
+session creation/digest storage/revocation/expiry; production Secure-cookie
+behavior; and the critical distinction that an ACKed task remains `pending` until
+an explicit `result` changes its work state. The 0007 migration passed upgrade,
+schema check, downgrade to 0006, re-upgrade, and a second schema check against a
+fresh database. The full locally runnable regression now reports 235 passed and
+one expected loopback-sandbox skip, plus four MCP package tests; Ruff check/format
+and the dependency-free browser script syntax check also pass.
 
 This is a locally verified read-only control-plane slice, not public Human login.
-It has not been deployed to Alibaba Cloud. The current public IP remains plaintext
-HTTP and must not receive Human credentials. Trusted HTTPS, browser sessions, MFA,
-recovery, organization membership, approvals, and Human action audit are later
-gates.
+It has not been deployed to Alibaba Cloud or exercised against PostgreSQL. The
+current public IP remains plaintext HTTP and must not receive Human credentials.
+Trusted HTTPS, MFA, recovery, Human key rotation, organization membership,
+approvals, CSRF protection for future Human writes, and Human action audit are
+later gates.
 
 ## Final local acceptance snapshot
 

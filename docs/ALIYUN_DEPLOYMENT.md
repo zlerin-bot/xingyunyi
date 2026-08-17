@@ -56,15 +56,17 @@ static-asset copy:
 1. take a fresh database backup and provider snapshot;
 2. add an independently generated `AGENTPOST_HUMAN_API_KEY_PEPPER` to the
    root-protected environment file without printing it;
-3. install the release and run Alembic revision `0006_human_control_plane`;
+3. install the release and run Alembic through revision `0007_human_sessions`;
 4. restart AgentPost and verify `/health`, `/ready`, `/orbit`, and Human/Agent key
    separation through an SSH tunnel;
 5. run the Alice/Bob offline flow again to prove 云驿 behavior did not regress;
 6. do not enter a `hum_` key through the plaintext public IP.
 
-Public 星轨 use remains blocked on trusted HTTPS. Browser sessions, MFA, key
-recovery, and organization policy are not implemented in the first read-only
-slice.
+Short-lived browser sessions are implemented, but the production `Secure` cookie
+requires a trusted HTTPS origin and therefore cannot be accepted through the
+current plaintext IP. Public 星轨 use remains blocked on trusted HTTPS. MFA, key
+recovery, session-retention cleanup, and organization policy are not implemented
+in the current read-only slice.
 
 ## Rollback
 

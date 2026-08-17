@@ -79,10 +79,17 @@ relationships and do not accept an arbitrary owner or Agent scope from the brows
 Owners, operators, and viewers may inspect content involving an authorized Agent;
 auditors receive metadata with message bodies redacted.
 
+The 星轨 browser sends the `hum_` key once to create a random 256-bit `hss_`
+session. PostgreSQL stores only its HMAC digest. The cookie is HttpOnly,
+`SameSite=Strict`, scoped to `/api/v1/orbit`, and additionally `Secure` in
+production. Sessions expire after 12 hours by default, are rejected after Human
+deactivation, and can be individually revoked by signing out. Bearer `hum_` auth
+remains supported for programmatic read-only Human API clients.
+
 All Human roles are read-only in the current slice. No Human route can retrieve an
 Agent key or call send/read/ACK/reply as that Agent. Human key rotation, MFA,
-recovery, browser sessions, organization membership, and fine-grained action
-approval remain future production work.
+recovery, organization membership, and fine-grained action approval remain future
+production work. Expired/revoked browser-session cleanup is not automated yet.
 
 ### Registration control
 
@@ -300,11 +307,13 @@ direct API calls; loading the page does not confer Agent or registration rights.
 
 The `/orbit` page is the Human product surface and is intentionally separate from
 `/admin`. It uses only same-origin assets, a restrictive CSP, `no-store`,
-`no-referrer`, frame denial, and text-only DOM rendering. The initial Human key is
-kept only in page memory and a password input, then cleared on sign-out, refresh,
-or page close. Do not enter it over the current plaintext public IP. Public Human
-use requires a trusted HTTPS endpoint and should replace long-lived page-entered
-keys with short-lived secure sessions, CSRF protection, recovery, and MFA.
+`no-referrer`, frame denial, and text-only DOM rendering. The Human key is held in
+the password input only until the short-lived HttpOnly browser session is created,
+then immediately cleared. Refresh restores an unexpired session; sign-out revokes
+it server-side. Do not enter any credential over the current plaintext public IP.
+Public Human use requires a trusted HTTPS endpoint, recovery, and MFA. Before the
+read-only UI gains any state-changing Human action, add explicit CSRF protection,
+step-up authentication for sensitive operations, and per-action audit evidence.
 
 ## 11. SDK and adapter boundaries
 

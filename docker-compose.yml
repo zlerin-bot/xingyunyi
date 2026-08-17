@@ -26,6 +26,7 @@ services:
       AGENTPOST_CURSOR_SECRET: development-only-cursor-secret
       AGENTPOST_ADMIN_TOKEN: ${AGENTPOST_ADMIN_TOKEN:-}
       AGENTPOST_REGISTRATION_TOKEN: ${AGENTPOST_REGISTRATION_TOKEN:-}
+      AGENTPOST_HUMAN_SESSION_TTL_SECONDS: ${AGENTPOST_HUMAN_SESSION_TTL_SECONDS:-43200}
     depends_on:
       db:
         condition: service_healthy

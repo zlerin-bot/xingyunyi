@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request, Response, status
 from fastapi.responses import FileResponse
 
-from agentpost.api.dependencies import SessionDep
-from agentpost.control.auth import CurrentHumanDep
+from agentpost.api.dependencies import SessionDep, SettingsDep
+from agentpost.control.auth import CurrentHumanDep, HumanAccessKeyDep
 from agentpost.control.schemas import (
     HumanProfile,
+    HumanSessionResponse,
     OrbitAgent,
     OrbitDashboard,
     OrbitMessage,
@@ -19,6 +20,11 @@ from agentpost.control.service import (
     human_profile,
     list_orbit_messages,
     list_orbit_tasks,
+)
+from agentpost.control.sessions import (
+    HUMAN_SESSION_COOKIE,
+    create_human_session,
+    revoke_human_session,
 )
 
 router = APIRouter(tags=["human-control-plane"])
@@ -72,6 +78,66 @@ def orbit_script() -> FileResponse:
 @router.get("/api/v1/orbit/me", response_model=HumanProfile)
 def orbit_me(current_human: CurrentHumanDep) -> HumanProfile:
     return human_profile(current_human)
+
+
+@router.post(
+    "/api/v1/orbit/session",
+    response_model=HumanSessionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_orbit_session(
+    response: Response,
+    request: Request,
+    access_key_user: HumanAccessKeyDep,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> HumanSessionResponse:
+    created = create_human_session(
+        session,
+        settings,
+        user=access_key_user,
+        request_id=request.state.request_id,
+    )
+    response.set_cookie(
+        key=HUMAN_SESSION_COOKIE,
+        value=created.raw_token,
+        max_age=settings.human_session_ttl_seconds,
+        path="/api/v1/orbit",
+        secure=settings.is_production,
+        httponly=True,
+        samesite="strict",
+    )
+    return HumanSessionResponse(
+        user=human_profile(access_key_user),
+        expires_at=created.expires_at,
+    )
+
+
+@router.delete(
+    "/api/v1/orbit/session",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_orbit_session(
+    response: Response,
+    request: Request,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> None:
+    raw_session = request.cookies.get(HUMAN_SESSION_COOKIE, "")
+    if raw_session:
+        revoke_human_session(
+            session,
+            settings,
+            raw_token=raw_session,
+            request_id=request.state.request_id,
+        )
+    response.delete_cookie(
+        key=HUMAN_SESSION_COOKIE,
+        path="/api/v1/orbit",
+        secure=settings.is_production,
+        httponly=True,
+        samesite="strict",
+    )
 
 
 @router.get("/api/v1/orbit/dashboard", response_model=OrbitDashboard)

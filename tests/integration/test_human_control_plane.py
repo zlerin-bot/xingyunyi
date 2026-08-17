@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from agentpost.config import Settings
-from agentpost.control.models import HumanAccessKey, HumanUser
+from agentpost.control.models import HumanAccessKey, HumanSession, HumanUser
 from agentpost.db import Database
 from agentpost.main import create_app
 
@@ -91,6 +93,8 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "sessionstorage" not in combined
     assert "innerhtml" not in combined
     assert "document.cookie" not in combined
+    assert "state.humankey" not in combined
+    assert '"/api/v1/orbit/session"' in script.text
 
 
 def test_human_identity_uses_a_separate_one_time_key_and_admin_boundary(
@@ -290,3 +294,105 @@ def test_auditor_content_is_redacted_and_revocation_removes_all_visibility(
     assert after.status_code == 200
     assert after.json()["metrics"]["agent_count"] == 0
     assert after.json()["recent_messages"] == []
+
+
+def test_human_key_creates_revocable_short_lived_browser_session(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with _control_client(settings, database) as client:
+        human = _create_human(client, "session@example.com", "会话用户")
+        agent = _create_agent(client, "agent@agents.local", "Agent")
+        agent_rejected = client.post(
+            "/api/v1/orbit/session",
+            headers={"Authorization": f"Bearer {agent['api_key']}"},
+        )
+        login = client.post(
+            "/api/v1/orbit/session",
+            headers={"Authorization": f"Bearer {human['access_key']}"},
+        )
+        raw_session = client.cookies.get("xinggui_session")
+        dashboard = client.get("/api/v1/orbit/dashboard")
+
+        assert agent_rejected.status_code == 401
+        assert login.status_code == 201
+        assert login.json()["authentication"] == "browser_session"
+        assert login.json()["user"]["email"] == "session@example.com"
+        assert "access_key" not in login.text
+        assert raw_session is not None and raw_session.startswith("hss_")
+        cookie_header = login.headers["set-cookie"]
+        assert "HttpOnly" in cookie_header
+        assert "SameSite=strict" in cookie_header
+        assert "Path=/api/v1/orbit" in cookie_header
+        assert human["access_key"] not in cookie_header
+        assert dashboard.status_code == 200
+
+        with database.session_factory() as db_session:
+            stored = db_session.scalar(
+                select(HumanSession).where(HumanSession.revoked_at.is_(None))
+            )
+            assert stored is not None
+            assert stored.token_digest != raw_session
+            assert raw_session not in stored.token_digest
+
+        logout = client.delete("/api/v1/orbit/session")
+        assert logout.status_code == 204
+        client.cookies.set(
+            "xinggui_session",
+            raw_session,
+            path="/api/v1/orbit",
+        )
+        revoked = client.get("/api/v1/orbit/dashboard")
+        assert revoked.status_code == 401
+        client.cookies.delete(
+            "xinggui_session",
+            path="/api/v1/orbit",
+        )
+
+        second_login = client.post(
+            "/api/v1/orbit/session",
+            headers={"Authorization": f"Bearer {human['access_key']}"},
+        )
+        assert second_login.status_code == 201
+        second_raw = client.cookies.get("xinggui_session")
+        assert second_raw is not None and second_raw != raw_session
+
+        with database.session_factory() as db_session:
+            current = db_session.scalar(
+                select(HumanSession).where(HumanSession.revoked_at.is_(None))
+            )
+            assert current is not None
+            current.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+            db_session.commit()
+
+        expired = client.get("/api/v1/orbit/dashboard")
+        assert expired.status_code == 401
+        expired_logout = client.delete("/api/v1/orbit/session")
+        assert expired_logout.status_code == 204
+        assert "xinggui_session=" in expired_logout.headers["set-cookie"]
+
+
+def test_production_session_cookie_is_secure(
+    settings: Settings,
+    database: Database,
+) -> None:
+    production = Settings(
+        environment="production",
+        database_url=settings.database_url,
+        storage_path=settings.storage_path,
+        api_key_pepper="production-agent-pepper",
+        human_api_key_pepper="production-human-pepper",
+        cursor_secret="production-cursor-secret",
+        registration_token="registration-secret",
+        admin_token=ADMIN_KEY,
+        log_level="WARNING",
+    )
+    with TestClient(create_app(settings=production, database=database)) as client:
+        human = _create_human(client, "secure@example.com", "HTTPS 用户")
+        login = client.post(
+            "/api/v1/orbit/session",
+            headers={"Authorization": f"Bearer {human['access_key']}"},
+        )
+
+    assert login.status_code == 201
+    assert "Secure" in login.headers["set-cookie"]

@@ -286,8 +286,10 @@ curl -fsS -X PUT "$API/admin/humans/$HUMAN_ID/agents/$ALICE_ID" \
 ```
 
 然后打开 [http://localhost:8000/orbit](http://localhost:8000/orbit)，输入 `HUMAN_KEY`。
-页面不会把密钥写入 local/session storage，刷新或退出即清除。当前公网 IP 仍是明文 HTTP，
-不要在那里输入 Human、Agent 或 Admin 密钥；备案和可信 HTTPS 完成前应使用 SSH 隧道。
+页面只用它换取默认 12 小时的 HttpOnly 浏览器会话，成功后立即清除输入，不会写入
+local/session storage。刷新页面会恢复有效会话，“退出星轨”会在服务端撤销会话。当前公网
+IP 仍是明文 HTTP，不要在那里输入 Human、Agent 或 Admin 密钥；备案和可信 HTTPS 完成前
+应使用 SSH 隧道。
 
 第一版角色包括 `owner`、`operator`、`viewer`、`auditor`，全部只读；auditor 只能看到通信
 元数据，正文由服务端隐藏。详细边界见 `docs/HUMAN_CONTROL_PLANE.md`。

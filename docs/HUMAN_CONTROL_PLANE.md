@@ -1,6 +1,6 @@
 # 星云驿人类控制面
 
-Version: 0.1 (first implementation slice)
+Version: 0.2 (read-only control plane with browser sessions)
 
 ## Product language
 
@@ -16,7 +16,7 @@ The three names describe one product, not three independent systems.
 ```text
 Natural person
     |
-    | Human access key / later browser session
+    | Human access key -> short-lived browser session
     v
 星轨 /orbit + /api/v1/orbit
     |       observation, ownership, governance
@@ -48,8 +48,8 @@ This slice is intentionally read-only for natural people. It adds:
 6. a branded same-origin website at `/orbit`.
 
 Administrative bootstrap endpoints create a Human identity and grant or revoke
-access. A Human access key is returned once. The browser keeps it only in page
-memory and password input state.
+access. A Human access key is returned once. The browser sends it once to create
+an HttpOnly session, then clears the input and uses the same-origin session cookie.
 
 ## Roles in this slice
 
@@ -92,15 +92,26 @@ Agent. Auditors see communication metadata without the content body. A user with
 no relationship to an Agent receives no record, count, or existence signal about
 that Agent's private communications.
 
-## Authentication evolution
+## Authentication and session boundary
 
-The first slice uses a one-time Human access key so the ownership and
-authorization model can be validated without prematurely inventing password
-reset, email verification, OAuth, or session infrastructure. Before public Human
-use, replace the page-entered key flow with short-lived secure browser sessions,
-CSRF protection, key rotation/revocation, recovery, MFA for privileged roles, and
-organization membership policy.
+The Admin bootstrap API returns a long-lived `hum_` Human access key once. 星轨
+uses it only to call `POST /api/v1/orbit/session`. The server stores only an HMAC
+digest of a new 256-bit `hss_` session token and returns the raw token in an
+HttpOnly, `SameSite=Strict` cookie scoped to `/api/v1/orbit`. Production mode also
+sets `Secure`. The default lifetime is 12 hours and is configurable from 5 minutes
+to 7 days. `DELETE /api/v1/orbit/session` revokes the database session before
+clearing the cookie; expiration and Human deactivation also deny access.
+
+Bearer `hum_` authentication remains available for programmatic read-only Human
+API clients. It is not stored by the 星轨 browser. Multiple browser sessions may
+coexist for one Human and expired/revoked rows are retained for audit; automated
+session retention cleanup is not implemented yet.
+
+Before any Human-controlled write such as approval, delegation, pause, or task
+creation is added, the platform must add CSRF tokens or equivalent same-origin
+request proof, re-authentication for sensitive actions, and a complete Human
+action audit trail. Public use also needs key rotation/revocation, recovery, MFA
+for privileged roles, and organization membership policy.
 
 Do not enter a Human access key over the current plaintext public IP. Use an SSH
 tunnel during filing review, or wait for the domain and trusted HTTPS endpoint.
-

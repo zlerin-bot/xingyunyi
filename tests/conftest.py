@@ -8,7 +8,13 @@ from fastapi.testclient import TestClient
 
 from agentpost.attachments.models import Attachment
 from agentpost.config import Settings
-from agentpost.control.models import AgentOwnership, HumanAccessKey, HumanAgentGrant, HumanUser
+from agentpost.control.models import (
+    AgentOwnership,
+    HumanAccessKey,
+    HumanAgentGrant,
+    HumanSession,
+    HumanUser,
+)
 from agentpost.db import Base, Database
 from agentpost.identity.models import Agent, AgentApiKey
 from agentpost.main import create_app
@@ -26,6 +32,7 @@ _MODELS = (
     HumanAccessKey,
     AgentOwnership,
     HumanAgentGrant,
+    HumanSession,
 )
 
 

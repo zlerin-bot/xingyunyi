@@ -1,7 +1,6 @@
 "use strict";
 
 const state = {
-  humanKey: "",
   dashboard: null,
 };
 
@@ -41,10 +40,6 @@ function setFormStatus(message, kind = "") {
   elements.accessResult.textContent = message;
 }
 
-function humanHeaders() {
-  return { Authorization: `Bearer ${state.humanKey}` };
-}
-
 function errorMessage(payload, status) {
   const error = payload && typeof payload === "object" ? payload.error : null;
   if (error && typeof error.message === "string") {
@@ -53,10 +48,10 @@ function errorMessage(payload, status) {
   return `无法进入星轨（${status}）。`;
 }
 
-async function requestJson(path) {
+async function requestJson(path, options = {}) {
   const response = await fetch(path, {
-    method: "GET",
-    headers: humanHeaders(),
+    method: options.method || "GET",
+    headers: options.headers || {},
     cache: "no-store",
     credentials: "same-origin",
     redirect: "error",
@@ -65,7 +60,9 @@ async function requestJson(path) {
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json") ? await response.json() : null;
   if (!response.ok) {
-    throw new Error(errorMessage(payload, response.status));
+    const error = new Error(errorMessage(payload, response.status));
+    error.status = response.status;
+    throw error;
   }
   return payload;
 }
@@ -316,28 +313,58 @@ async function enterOrbit(event) {
     submit.disabled = false;
     return;
   }
-  state.humanKey = candidate;
-  setFormStatus("正在验证身份并读取授权关系…");
+  setFormStatus("正在验证身份并建立短期安全会话…");
   try {
+    await requestJson("/api/v1/orbit/session", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${candidate}` },
+    });
+    elements.accessKey.value = "";
     await loadDashboard();
-    setFormStatus("身份验证成功。", "success");
+    setFormStatus("身份验证成功，访问密钥已从页面清除。", "success");
   } catch (error) {
-    state.humanKey = "";
+    elements.accessKey.value = "";
     setFormStatus(error.message, "error");
   } finally {
     submit.disabled = false;
   }
 }
 
-function signOut() {
-  state.humanKey = "";
-  state.dashboard = null;
-  elements.accessKey.value = "";
-  elements.workspaceView.hidden = true;
-  elements.welcomeView.hidden = false;
-  setFormStatus("访问密钥已从页面内存清除。", "success");
-  setConnection("已退出星轨");
-  elements.accessKey.focus();
+async function signOut() {
+  let revoked = false;
+  try {
+    await requestJson("/api/v1/orbit/session", { method: "DELETE" });
+    revoked = true;
+  } catch (_error) {
+    // Closing the local view does not prove that the server revoked the session.
+  } finally {
+    state.dashboard = null;
+    elements.accessKey.value = "";
+    elements.workspaceView.hidden = true;
+    elements.welcomeView.hidden = false;
+    if (revoked) {
+      setFormStatus("浏览器会话已撤销。", "success");
+      setConnection("已退出星轨");
+    } else {
+      setFormStatus("当前视图已关闭，但服务器会话撤销未确认。恢复网络后请再次退出。", "error");
+      setConnection("会话撤销未确认", "error");
+    }
+    elements.accessKey.focus();
+  }
+}
+
+async function restoreSession() {
+  try {
+    await loadDashboard();
+  } catch (error) {
+    elements.workspaceView.hidden = true;
+    elements.welcomeView.hidden = false;
+    if (error.status === 401) {
+      setConnection("等待进入星轨");
+      return;
+    }
+    setFormStatus("暂时无法恢复星轨会话，请稍后重试。", "error");
+  }
 }
 
 elements.accessForm.addEventListener("submit", enterOrbit);
@@ -351,7 +378,7 @@ elements.refresh.addEventListener("click", async () => {
 elements.signOut.addEventListener("click", signOut);
 
 window.addEventListener("pagehide", () => {
-  state.humanKey = "";
   elements.accessKey.value = "";
 });
 
+restoreSession();

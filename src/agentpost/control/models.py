@@ -37,6 +37,11 @@ class HumanUser(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    sessions: Mapped[list[HumanSession]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     ownerships: Mapped[list[AgentOwnership]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -68,6 +73,29 @@ class HumanAccessKey(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped[HumanUser] = relationship(back_populates="access_keys")
+
+
+class HumanSession(Base):
+    __tablename__ = "human_sessions"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    human_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("human_users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_digest: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped[HumanUser] = relationship(back_populates="sessions")
 
 
 class AgentOwnership(Base):
