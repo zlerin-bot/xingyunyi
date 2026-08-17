@@ -1,6 +1,6 @@
-# AgentPost Project Status
+# 星云驿 Project Status
 
-Last updated: 2026-08-13
+Last updated: 2026-08-17
 
 ## Current state
 
@@ -16,6 +16,8 @@ The MVP implementation is locally runnable as a protocol-first modular monolith:
 - local filesystem attachment adapter with an S3-compatible boundary
 - framework-neutral REST/JSON protocol
 - Python SDK, optional OpenClaw/MCP adapters, and an A2A compatibility mapping
+- 星轨 Human identity, Agent ownership/role grants, read-only control API, and
+  same-origin product website
 
 ## Verified local environment
 
@@ -53,6 +55,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 11 | OpenClaw integration | complete* |
 | 12 | MCP adapter | complete |
 | 13 | A2A compatibility mapping and low-risk adapter surface | complete* |
+| 14 | 星云驿 naming and 星轨 read-only Human control plane | complete* |
 
 ## Decisions already fixed
 
@@ -70,6 +73,32 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
    mismatch on key reuse is a conflict.
 8. OpenClaw, MCP, A2A, realtime transports, and future federation remain adapters;
    none is a core runtime dependency.
+9. 星轨 Human identity is separate from Agent and Admin credentials. Human views
+   are authorization-scoped, and `ACK` never means a task completed.
+
+## 星轨 first-slice evidence
+
+The first Human control-plane slice is implemented at `/orbit` and
+`/api/v1/orbit`. Admin-only bootstrap APIs create a Human identity, return a
+one-time `hum_` key, and grant/revoke owner, operator, viewer, or auditor access to
+an Agent. PostgreSQL models enforce one owner per Agent and explicit collaborator
+grants. Human keys use a separate HMAC pepper.
+
+Four integration tests prove branding/security headers and no browser credential
+persistence; Human/Agent credential separation; owner-only communication
+visibility; unrelated Agent isolation; auditor body redaction; revocation; and the
+critical distinction that an ACKed task remains `pending` until an explicit
+`result` changes its work state. The migration passed upgrade, schema check,
+downgrade, re-upgrade, and a second schema check against a fresh database.
+The full locally runnable regression now reports 232 passed and one expected
+loopback-sandbox skip; Ruff check/format and the dependency-free browser script
+syntax check also pass.
+
+This is a locally verified read-only control-plane slice, not public Human login.
+It has not been deployed to Alibaba Cloud. The current public IP remains plaintext
+HTTP and must not receive Human credentials. Trusted HTTPS, browser sessions, MFA,
+recovery, organization membership, approvals, and Human action audit are later
+gates.
 
 ## Final local acceptance snapshot
 

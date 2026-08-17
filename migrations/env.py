@@ -8,6 +8,7 @@ from sqlalchemy import engine_from_config, pool
 
 from agentpost.access.models import AccessRule
 from agentpost.attachments.models import Attachment
+from agentpost.control.models import AgentOwnership, HumanAccessKey, HumanAgentGrant, HumanUser
 from agentpost.db import Base
 from agentpost.identity.models import Agent, AgentApiKey
 from agentpost.messaging.models import AuditLog, Delivery, IdempotencyRecord, Message
@@ -21,6 +22,10 @@ _MODELS = (
     AuditLog,
     Attachment,
     AccessRule,
+    HumanUser,
+    HumanAccessKey,
+    AgentOwnership,
+    HumanAgentGrant,
 )
 
 config = context.config

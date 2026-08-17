@@ -47,6 +47,25 @@ The real PostgreSQL acceptance performed on the origin proved:
 This is origin deployment evidence. It is not evidence that DNS, TLS, ICP,
 backups, alerting, or multi-node recovery have been accepted.
 
+## 星轨 update boundary
+
+The Human control-plane code introduced after the accepted origin has **not** been
+deployed. A future update must be treated as a schema-and-secret migration, not a
+static-asset copy:
+
+1. take a fresh database backup and provider snapshot;
+2. add an independently generated `AGENTPOST_HUMAN_API_KEY_PEPPER` to the
+   root-protected environment file without printing it;
+3. install the release and run Alembic revision `0006_human_control_plane`;
+4. restart AgentPost and verify `/health`, `/ready`, `/orbit`, and Human/Agent key
+   separation through an SSH tunnel;
+5. run the Alice/Bob offline flow again to prove 云驿 behavior did not regress;
+6. do not enter a `hum_` key through the plaintext public IP.
+
+Public 星轨 use remains blocked on trusted HTTPS. Browser sessions, MFA, key
+recovery, and organization policy are not implemented in the first read-only
+slice.
+
 ## Rollback
 
 The provider snapshot `agentpost-baseline-20260813` is the full-machine rollback

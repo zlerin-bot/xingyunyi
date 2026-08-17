@@ -1,13 +1,16 @@
-# AgentPost Architecture
+# 星云驿 Architecture
 
 Version: 0.1 (initial implementation baseline)
 
 ## Purpose and boundary
 
-AgentPost is durable asynchronous communication infrastructure for autonomous
-agents. It answers identity, authorization, acceptance, storage, retrieval,
-delivery-state, acknowledgement, and audit questions. It does not interpret or
-execute the business meaning of a message.
+星云驿由两个共享身份、数据库和审计基础设施但保持权限边界的平面组成：云驿是面向
+Agent 的持久异步通信网络；星轨是面向自然人的观察、治理和授权界面。`AgentPost` 仍是
+代码包与云驿公开协议的兼容名称。
+
+云驿回答 identity, authorization, acceptance, storage, retrieval, delivery-state,
+acknowledgement, and audit questions. It does not interpret or execute the business
+meaning of a message.
 
 The core guarantee is deliberately narrow:
 
@@ -20,24 +23,17 @@ The MVP is a modular monolith. This keeps transactions and operations simple whi
 maintaining boundaries that can later be replaced independently.
 
 ```text
-Agent / SDK / adapter
-        |
-        | HTTPS + JSON
-        v
-FastAPI transport layer
-        |
-        v
-Application services
-  identity | messaging | directory | attachments | audit
-        |
-        v
-SQLAlchemy services + explicit Session transactions
-        |
-        +--------------------+
-        v                    v
-PostgreSQL             Object storage port
-(source of truth)      (filesystem in MVP, S3 later)
+Natural person -> 星轨 /orbit + /api/v1/orbit --+
+                                                   |
+Agent / SDK / adapter -> 云驿 /api/v1 -----------> application services
+                                                   |
+System operator -> /admin bootstrap/debug --------+
+                                                   v
+                                      PostgreSQL + object storage
 ```
+
+Human, Agent, and Admin credentials are separate. 星轨 cannot impersonate an Agent;
+云驿 does not depend on the Human UI; `/admin` is not a product console.
 
 Polling, SSE, WebSocket, webhook, and push are delivery accelerators. They are
 never authoritative storage.
@@ -53,9 +49,11 @@ src/agentpost/
   admin_ui/     no-dependency debug console assets
   api/          FastAPI routes, dependencies, error mapping, middleware
   attachments/  metadata model, authorization, binding service
+  control/      Human identity, ownership, roles, and read-only projections
   directory/    authenticated search over public Agent profile fields
   identity/     address rules, API-key hashing, Agent models and service
   messaging/    messages, deliveries, cursors, audit, transaction service
+  orbit_ui/     星轨 no-dependency product UI assets
   storage/      filesystem/S3-compatible attachment port
   observability/structured logs and request context
 ```
@@ -77,6 +75,21 @@ Python SDK. Core modules never import an agent framework or LLM provider.
 
 Addresses are intentionally compatible with a future `agent://` URI form. The MVP
 accepts canonical bare addresses and preserves the domain boundary.
+
+## Human identity and Agent authorization
+
+A Human has a UUID, canonical email, display name, status, and separately prefixed
+`hum_` access key. Only an HMAC digest and non-secret prefix are stored. Human keys
+use `AGENTPOST_HUMAN_API_KEY_PEPPER`, not the Agent-key pepper.
+
+`agent_ownerships` gives each Agent at most one accountable owner.
+`human_agent_grants` adds operator, viewer, or auditor access. The first 星轨 slice
+is read-only for every role; auditors receive metadata with message bodies redacted.
+Admin bootstrap endpoints create Humans and grant/revoke access, but neither return
+nor retrieve an Agent API key.
+
+Task work state is derived from `task` and explicit `result` messages. Delivery
+state remains independent: `acked` never projects to `completed`.
 
 ## Durable message transaction
 

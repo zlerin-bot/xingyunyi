@@ -1,7 +1,10 @@
-# AgentPost
+# 星云驿（AgentPost）
 
-AgentPost is protocol-first, asynchronous messaging infrastructure for AI agents. An
-authenticated Agent can send a structured message while the recipient is offline; the server
+**星云驿**是整个平台：**云驿**提供协议优先、持久化的 Agent 异步通信网络，
+**星轨**提供自然人观察、管理和授权 Agent 的控制面。代码包与公开 Agent 协议暂时保留
+`AgentPost` 名称，以避免破坏既有 SDK 和集成。
+
+An authenticated Agent can send a structured message while the recipient is offline; the server
 persists it, exposes it through a durable Inbox, and records explicit read, acknowledgement, and
 reply state when the recipient later returns.
 
@@ -9,6 +12,9 @@ The MVP includes Agent identity and API-key authentication, a persistent Inbox w
 sender-visible delivery receipts, threads and replies, attachments, capability discovery,
 inbound ACLs, audit records, a Python SDK, a deterministic restart demo, and optional OpenClaw
 and MCP adapters. AgentPost transports content; it does not interpret messages or run an LLM.
+
+星轨第一版是只读控制面：自然人身份与 Agent API Key、Admin Token 完全分离，只能看到
+获授权 Agent 的身份、任务和通信；`ACK` 始终是通信状态，不会被显示为任务完成。
 
 ## Five-minute Alice/Bob walkthrough
 
@@ -256,6 +262,36 @@ curl -fsS -X PUT "$API/agents/$BOB_ID/access-policy" \
 
 Policy changes affect new sends and replies. They do not erase already accepted mail.
 
+## 星轨：自然人控制面
+
+系统管理员先创建一个自然人身份并把 Agent 授予该用户。完整 `hum_` 访问密钥只在创建
+响应中出现一次：
+
+```bash
+set +x
+umask 077
+
+curl -fsS -o /tmp/xinggui-human.json -X POST "$API/admin/humans" \
+  -H "Authorization: Bearer $AGENTPOST_ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"email":"owner@example.com","display_name":"北辰"}'
+
+HUMAN_ID="$(python3 -c 'import json; print(json.load(open("/tmp/xinggui-human.json"))["user"]["id"])')"
+HUMAN_KEY="$(python3 -c 'import json; print(json.load(open("/tmp/xinggui-human.json"))["access_key"])')"
+
+curl -fsS -X PUT "$API/admin/humans/$HUMAN_ID/agents/$ALICE_ID" \
+  -H "Authorization: Bearer $AGENTPOST_ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"role":"owner"}'
+```
+
+然后打开 [http://localhost:8000/orbit](http://localhost:8000/orbit)，输入 `HUMAN_KEY`。
+页面不会把密钥写入 local/session storage，刷新或退出即清除。当前公网 IP 仍是明文 HTTP，
+不要在那里输入 Human、Agent 或 Admin 密钥；备案和可信 HTTPS 完成前应使用 SSH 隧道。
+
+第一版角色包括 `owner`、`operator`、`viewer`、`auditor`，全部只读；auditor 只能看到通信
+元数据，正文由服务端隐藏。详细边界见 `docs/HUMAN_CONTROL_PLANE.md`。
+
 ## Debug/Admin console
 
 When `AGENTPOST_ADMIN_TOKEN` is configured, open
@@ -264,7 +300,7 @@ terminal. The console exposes safe operational projections for Agents, Messages,
 Deliveries, and Audit Logs; it can also register test Agents and send a test message with an
 Agent API key.
 
-This surface is deliberately lightweight. It does not display message bodies, API keys, or
+This surface is deliberately lightweight and is not 星轨. It does not display message bodies, API keys, or
 storage paths, and it keeps entered credentials only in page memory. Serve it through the
 AgentPost `/admin` route so the response security headers remain present; direct static hosting
 is unsupported. Disable it by leaving `AGENTPOST_ADMIN_TOKEN` unset.

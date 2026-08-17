@@ -14,6 +14,7 @@ from agentpost.api.routes.agents import router as agents_router
 from agentpost.api.routes.attachments import router as attachments_router
 from agentpost.api.routes.directory import router as directory_router
 from agentpost.api.routes.messages import router as messages_router
+from agentpost.api.routes.orbit import router as orbit_router
 from agentpost.api.routes.system import router as system_router
 from agentpost.config import Settings, get_settings
 from agentpost.db import Database
@@ -31,9 +32,9 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         runtime_database.dispose()
 
     app = FastAPI(
-        title="AgentPost",
+        title="星云驿 · 云驿 API",
         version="0.1.0",
-        description="Asynchronous agent-to-agent messaging infrastructure",
+        description="云驿异步 Agent 通信网络与星轨人类控制面",
         lifespan=lifespan,
     )
     app.state.settings = runtime_settings
@@ -43,6 +44,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.include_router(system_router)
     app.include_router(admin_router)
+    app.include_router(orbit_router)
     app.include_router(agents_router)
     app.include_router(access_router)
     app.include_router(attachments_router)

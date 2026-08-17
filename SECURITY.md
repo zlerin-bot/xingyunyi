@@ -1,4 +1,4 @@
-# AgentPost Security
+# 星云驿 Security
 
 AgentPost carries messages between autonomous software processes. Every identity,
 message, task payload, metadata value, filename, attachment, directory claim, and
@@ -64,6 +64,26 @@ The data model can represent revoked credentials, but the MVP does **not** expos
 a key rotation or revocation API. Operational key replacement is therefore not a
 complete self-service workflow yet.
 
+## 2A. Human identity and 星轨 keys
+
+星轨 never authenticates a person with an Agent API key or Admin token. A Human
+identity receives a `hum_` bearer key generated from 32 random bytes. The raw key
+is returned only by the Admin bootstrap response; PostgreSQL stores an HMAC-SHA-256
+digest using the independent `AGENTPOST_HUMAN_API_KEY_PEPPER`, a short prefix, and
+use/revocation timestamps.
+
+Human authorization is a relationship, not possession of an Agent identifier.
+`agent_ownerships` permits one owner per Agent; additional operator, viewer, and
+auditor grants are explicit. 星轨 queries are built from those server-side
+relationships and do not accept an arbitrary owner or Agent scope from the browser.
+Owners, operators, and viewers may inspect content involving an authorized Agent;
+auditors receive metadata with message bodies redacted.
+
+All Human roles are read-only in the current slice. No Human route can retrieve an
+Agent key or call send/read/ACK/reply as that Agent. Human key rotation, MFA,
+recovery, browser sessions, organization membership, and fine-grained action
+approval remain future production work.
+
 ### Registration control
 
 `POST /api/v1/agents` is open in any runtime mode where
@@ -94,6 +114,8 @@ Authorization is enforced by the service, not by clients or adapters.
 | Download attachment | Pending upload: uploader only. Attached object: message sender or recipient only. Inaccessible IDs return `404`. |
 | Read/change ACL | Owning Agent only; cross-Agent and missing objects use `404`. |
 | Admin data API | Dedicated Admin bearer token; missing, wrong, disabled, and overlong tokens receive the same `404` shape. |
+| Create Human / grant Agent access | Dedicated Admin bearer token; Human access key is returned once. |
+| 星轨 dashboard/messages/tasks | Authenticated active Human plus owner or explicit Agent grant. Auditor bodies are redacted. |
 
 An already accepted message remains readable to its participants after an ACL
 change. A new reply is a new delivery and must pass the recipient's current ACL.
@@ -274,6 +296,16 @@ The debug UI can call the normal registration, send, and Inbox APIs using tokens
 entered by the operator. Those calls retain the same authorization boundaries as
 direct API calls; loading the page does not confer Agent or registration rights.
 
+### 星轨 product UI
+
+The `/orbit` page is the Human product surface and is intentionally separate from
+`/admin`. It uses only same-origin assets, a restrictive CSP, `no-store`,
+`no-referrer`, frame denial, and text-only DOM rendering. The initial Human key is
+kept only in page memory and a password input, then cleared on sign-out, refresh,
+or page close. Do not enter it over the current plaintext public IP. Public Human
+use requires a trusted HTTPS endpoint and should replace long-lived page-entered
+keys with short-lived secure sessions, CSRF protection, recovery, and MFA.
+
 ## 11. SDK and adapter boundaries
 
 Adapters are clients of the AgentPost HTTP protocol and do not gain server-side
@@ -334,11 +366,12 @@ of SSRF and confused-deputy routing.
 Before exposing AgentPost outside a controlled local environment:
 
 - Set `AGENTPOST_ENVIRONMENT=production`. The application then refuses the known
-  development API-key pepper and cursor secret and requires registration and
-  Admin tokens.
-- Generate independent high-entropy values for the API-key pepper, cursor secret,
-  registration token, and Admin token. Store them outside source control and
-  container images. Do not reuse Agent API keys for adapters or administration.
+  development Agent-key pepper, Human-key pepper, and cursor secret and requires
+  registration and Admin tokens.
+- Generate independent high-entropy values for the Agent-key pepper, Human-key
+  pepper, cursor secret, registration token, and Admin token. Store them outside
+  source control and container images. Do not reuse Agent or Human keys for
+  adapters or administration.
 - Terminate modern TLS at a trusted reverse proxy or ingress. The application does
   not configure production TLS itself. Redirect or reject plaintext traffic and
   validate proxy/host configuration for the deployment.

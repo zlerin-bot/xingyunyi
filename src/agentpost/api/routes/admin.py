@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 from typing import Annotated, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
@@ -16,6 +17,23 @@ from agentpost.admin.service import (
     list_threads,
 )
 from agentpost.api.dependencies import SessionDep, SettingsDep
+from agentpost.control.schemas import (
+    AgentAccessCreate,
+    AgentAccessResponse,
+    HumanCreate,
+    HumanProfile,
+    HumanRegistrationResponse,
+)
+from agentpost.control.service import (
+    AgentAccessNotFoundError,
+    AgentAccessTargetNotFoundError,
+    HumanEmailAlreadyRegisteredError,
+    HumanNotFoundError,
+    grant_agent_access,
+    list_humans,
+    provision_human,
+    revoke_agent_access,
+)
 
 router = APIRouter(tags=["admin"])
 _bearer = HTTPBearer(auto_error=False)
@@ -116,3 +134,83 @@ def admin_deliveries(_: AdminDep, session: SessionDep, limit: Limit = 50) -> dic
 @router.get("/api/v1/admin/audit-logs")
 def admin_audit_logs(_: AdminDep, session: SessionDep, limit: Limit = 50) -> dict[str, Any]:
     return {"items": list_audit_logs(session, limit=limit)}
+
+
+@router.get("/api/v1/admin/humans", response_model=dict[str, list[HumanProfile]])
+def admin_humans(_: AdminDep, session: SessionDep, limit: Limit = 50) -> dict[str, Any]:
+    return {"items": list_humans(session, limit=limit)}
+
+
+@router.post(
+    "/api/v1/admin/humans",
+    response_model=HumanRegistrationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def admin_create_human(
+    payload: HumanCreate,
+    request: Request,
+    _: AdminDep,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> HumanRegistrationResponse:
+    try:
+        return provision_human(
+            session,
+            settings,
+            payload,
+            request_id=request.state.request_id,
+        )
+    except HumanEmailAlreadyRegisteredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "human_email_already_registered",
+                "message": "The canonical Human email is already registered",
+            },
+        ) from exc
+
+
+@router.put(
+    "/api/v1/admin/humans/{human_user_id}/agents/{agent_id}",
+    response_model=AgentAccessResponse,
+)
+def admin_grant_agent_access(
+    human_user_id: UUID,
+    agent_id: UUID,
+    payload: AgentAccessCreate,
+    request: Request,
+    _: AdminDep,
+    session: SessionDep,
+) -> AgentAccessResponse:
+    try:
+        return grant_agent_access(
+            session,
+            human_user_id=human_user_id,
+            agent_id=agent_id,
+            role=payload.role,
+            request_id=request.state.request_id,
+        )
+    except (HumanNotFoundError, AgentAccessTargetNotFoundError) as exc:
+        raise _admin_denied() from exc
+
+
+@router.delete(
+    "/api/v1/admin/humans/{human_user_id}/agents/{agent_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def admin_revoke_agent_access(
+    human_user_id: UUID,
+    agent_id: UUID,
+    request: Request,
+    _: AdminDep,
+    session: SessionDep,
+) -> None:
+    try:
+        revoke_agent_access(
+            session,
+            human_user_id=human_user_id,
+            agent_id=agent_id,
+            request_id=request.state.request_id,
+        )
+    except (HumanNotFoundError, AgentAccessTargetNotFoundError, AgentAccessNotFoundError) as exc:
+        raise _admin_denied() from exc

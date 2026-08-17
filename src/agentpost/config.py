@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     storage_path: Path = Path("data/attachments")
     log_level: str = "INFO"
     api_key_pepper: SecretStr = SecretStr("development-only-change-me")
+    human_api_key_pepper: SecretStr = SecretStr("development-only-human-key-pepper")
     cursor_secret: SecretStr = SecretStr("development-only-cursor-secret")
     registration_token: SecretStr | None = None
     admin_token: SecretStr | None = None
@@ -53,12 +54,15 @@ class Settings(BaseSettings):
             return self
         unsafe = {
             "development-only-change-me",
+            "development-only-human-key-pepper",
             "development-only-cursor-secret",
         }
         if self.api_key_pepper.get_secret_value() in unsafe:
             raise ValueError("AGENTPOST_API_KEY_PEPPER must be replaced in production")
         if self.cursor_secret.get_secret_value() in unsafe:
             raise ValueError("AGENTPOST_CURSOR_SECRET must be replaced in production")
+        if self.human_api_key_pepper.get_secret_value() in unsafe:
+            raise ValueError("AGENTPOST_HUMAN_API_KEY_PEPPER must be replaced in production")
         if self.registration_token is None:
             raise ValueError("AGENTPOST_REGISTRATION_TOKEN must be configured in production")
         if self.admin_token is None:

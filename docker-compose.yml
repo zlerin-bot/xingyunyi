@@ -22,6 +22,7 @@ services:
       AGENTPOST_DATABASE_URL: postgresql+psycopg://agentpost:agentpost@db:5432/agentpost
       AGENTPOST_STORAGE_PATH: /data/attachments
       AGENTPOST_API_KEY_PEPPER: development-only-change-me
+      AGENTPOST_HUMAN_API_KEY_PEPPER: development-only-human-key-pepper
       AGENTPOST_CURSOR_SECRET: development-only-cursor-secret
       AGENTPOST_ADMIN_TOKEN: ${AGENTPOST_ADMIN_TOKEN:-}
       AGENTPOST_REGISTRATION_TOKEN: ${AGENTPOST_REGISTRATION_TOKEN:-}

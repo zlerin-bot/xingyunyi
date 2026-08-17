@@ -34,6 +34,7 @@ def test_production_requires_registration_token() -> None:
         Settings(
             environment="production",
             api_key_pepper="production-pepper",
+            human_api_key_pepper="production-human-pepper",
             cursor_secret="production-cursor-secret",
         )
 
@@ -43,6 +44,7 @@ def test_production_requires_admin_token() -> None:
         Settings(
             environment="production",
             api_key_pepper="production-pepper",
+            human_api_key_pepper="production-human-pepper",
             cursor_secret="production-cursor-secret",
             registration_token="registration-secret",
         )
@@ -52,6 +54,7 @@ def test_production_accepts_all_required_secrets() -> None:
     settings = Settings(
         environment="production",
         api_key_pepper="production-pepper",
+        human_api_key_pepper="production-human-pepper",
         cursor_secret="production-cursor-secret",
         registration_token="registration-secret",
         admin_token="production-admin-token-at-least-32",
@@ -59,6 +62,17 @@ def test_production_accepts_all_required_secrets() -> None:
 
     assert settings.registration_token is not None
     assert settings.admin_token is not None
+
+
+def test_production_requires_a_separate_human_key_pepper() -> None:
+    with pytest.raises(ValidationError, match="HUMAN_API_KEY_PEPPER"):
+        Settings(
+            environment="production",
+            api_key_pepper="production-pepper",
+            cursor_secret="production-cursor-secret",
+            registration_token="registration-secret",
+            admin_token="production-admin-token-at-least-32",
+        )
 
 
 def test_admin_token_is_optional_but_must_be_strong_when_enabled() -> None:
