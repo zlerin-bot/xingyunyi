@@ -1,6 +1,14 @@
 """Framework-agnostic synchronous Python client for AgentPost."""
 
 from agentpost_sdk.client import AgentPost
+from agentpost_sdk.connector import (
+    ConnectorCredential,
+    ConnectorWorker,
+    JsonCursorStore,
+    KeyringCredentialStore,
+    ManagedConnector,
+    MemoryCursorStore,
+)
 from agentpost_sdk.errors import (
     AgentPostError,
     ApiError,
@@ -45,12 +53,18 @@ __all__ = [
     "AuthorizationError",
     "ConfigurationError",
     "ConnectorCredentialRotation",
+    "ConnectorCredential",
     "ConnectorHeartbeat",
+    "ConnectorWorker",
     "ConflictError",
     "DirectoryPage",
     "DownloadedFile",
     "ForbiddenError",
     "InboxPage",
+    "JsonCursorStore",
+    "KeyringCredentialStore",
+    "ManagedConnector",
+    "MemoryCursorStore",
     "Message",
     "NotFoundError",
     "PairingInstructions",

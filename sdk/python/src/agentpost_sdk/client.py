@@ -35,6 +35,7 @@ from agentpost_sdk.models import (
 )
 
 if TYPE_CHECKING:
+    from agentpost_sdk.connector import CredentialStore, ManagedConnector
     from agentpost_sdk.onboarding import PairingInstructions, PairingSession
 
 _BODY_FORMATS = {"text", "markdown", "json"}
@@ -424,6 +425,46 @@ class AgentPost:
         except Exception:
             pairing.close()
             raise
+
+    @classmethod
+    def connect_managed(
+        cls,
+        server: str,
+        *,
+        connector_type: str,
+        display_name: str,
+        profile: str | None = None,
+        device_name: str | None = None,
+        client_version: str | None = None,
+        capabilities: list[str] | None = None,
+        credential_store: CredentialStore | None = None,
+        open_browser: bool = True,
+        on_pairing: Callable[[PairingInstructions], None] | None = None,
+        timeout: float | httpx.Timeout = 30.0,
+        pairing_timeout: float = 15 * 60,
+        sleeper: Callable[[float], None] = time.sleep,
+        transport: httpx.BaseTransport | None = None,
+    ) -> ManagedConnector:
+        """Restore from the OS vault or perform Human-authorized pairing once."""
+
+        from agentpost_sdk.connector import connect_managed
+
+        return connect_managed(
+            server,
+            connector_type=connector_type,
+            display_name=display_name,
+            profile=profile,
+            device_name=device_name,
+            client_version=client_version,
+            capabilities=capabilities,
+            credential_store=credential_store,
+            open_browser=open_browser,
+            on_pairing=on_pairing,
+            timeout=timeout,
+            pairing_timeout=pairing_timeout,
+            sleeper=sleeper,
+            transport=transport,
+        )
 
     def __repr__(self) -> str:
         return f"AgentPost(server={self.server!r})"
