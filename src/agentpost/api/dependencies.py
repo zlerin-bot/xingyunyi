@@ -12,6 +12,9 @@ from agentpost.config import Settings
 from agentpost.db import Database
 from agentpost.identity.api_keys import API_KEY_MARKER, digest_api_key
 from agentpost.identity.models import Agent, AgentApiKey
+from agentpost.oauth.auth import resolve_access_token
+from agentpost.oauth.constants import MESSAGING_SCOPE
+from agentpost.oauth.crypto import ACCESS_TOKEN_MARKER
 from agentpost.onboarding.models import ConnectorInstance
 
 
@@ -42,6 +45,33 @@ def _authentication_error() -> HTTPException:
     )
 
 
+def _oauth_scope_error() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={"code": "insufficient_scope", "message": "The OAuth token lacks this scope"},
+        headers={"WWW-Authenticate": f'Bearer scope="{MESSAGING_SCOPE}"'},
+    )
+
+
+def _oauth_path_allowed(request: Request, scopes: set[str]) -> bool:
+    if MESSAGING_SCOPE not in scopes:
+        return False
+    path = request.url.path
+    method = request.method.upper()
+    if method == "GET" and path in {
+        "/api/v1/inbox",
+        "/api/v1/directory/search",
+        "/api/v1/oauth/token-info",
+    }:
+        return True
+    if path.startswith("/api/v1/messages/"):
+        if method == "GET" and path.count("/") == 4:
+            return True
+        if method == "POST" and path.rsplit("/", 1)[-1] in {"read", "ack", "reply"}:
+            return True
+    return method == "POST" and path == "/api/v1/messages"
+
+
 def get_current_agent(
     request: Request,
     session: SessionDep,
@@ -52,6 +82,28 @@ def get_current_agent(
         raise _authentication_error()
 
     raw_api_key = credentials.credentials
+    if raw_api_key.startswith(ACCESS_TOKEN_MARKER):
+        resolved = resolve_access_token(session, settings, raw_token=raw_api_key)
+        if resolved is None:
+            raise _authentication_error()
+        oauth_token, agent, connector = resolved
+        scopes = set(oauth_token.scope.split())
+        if not _oauth_path_allowed(request, scopes):
+            raise _oauth_scope_error()
+        now = datetime.now(UTC)
+        oauth_token.last_used_at = now
+        agent.last_seen_at = now
+        connector.last_seen_at = now
+        session.commit()
+        request.state.agent_id = str(agent.id)
+        request.state.agent_api_key_id = None
+        request.state.connector_instance_id = str(connector.id)
+        request.state.agent_credential_kind = "oauth_access"
+        request.state.oauth_client_id = oauth_token.client_id
+        request.state.oauth_scope = oauth_token.scope
+        request.state.oauth_resource = oauth_token.resource
+        request.state.oauth_expires_at = oauth_token.expires_at
+        return agent
     if (
         not raw_api_key.startswith(API_KEY_MARKER)
         or len(raw_api_key) < 20
@@ -83,6 +135,7 @@ def get_current_agent(
         if credential.connector_instance_id is not None
         else None
     )
+    request.state.agent_credential_kind = "agent_api_key"
     return credential.agent
 
 

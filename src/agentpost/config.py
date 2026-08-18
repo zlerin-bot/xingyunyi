@@ -28,11 +28,13 @@ class Settings(BaseSettings):
     pairing_secret: SecretStr = SecretStr("development-only-pairing-secret")
     human_auth_secret: SecretStr = SecretStr("development-only-human-auth-secret")
     human_mfa_encryption_key: SecretStr = SecretStr("development-only-human-mfa-encryption-key")
+    oauth_token_pepper: SecretStr = SecretStr("development-only-oauth-token-pepper")
     registration_token: SecretStr | None = None
     admin_token: SecretStr | None = None
     pairing_enabled: bool = True
     human_self_service_enabled: bool = False
     open_registration_enabled: bool = False
+    remote_mcp_oauth_enabled: bool = False
     email_delivery_mode: str = "test"
     smtp_host: str | None = None
     smtp_port: int = Field(default=587, ge=1, le=65535)
@@ -42,6 +44,7 @@ class Settings(BaseSettings):
     smtp_starttls: bool = True
     managed_agent_domain: str = "agents.local"
     public_base_url: str = "http://127.0.0.1:8000"
+    remote_mcp_resource_url: str | None = None
     pairing_ttl_seconds: int = Field(default=10 * 60, ge=5 * 60, le=15 * 60)
     pairing_poll_interval_seconds: int = Field(default=5, ge=3, le=30)
     email_challenge_ttl_seconds: int = Field(default=10 * 60, ge=5 * 60, le=30 * 60)
@@ -49,6 +52,10 @@ class Settings(BaseSettings):
     email_challenge_max_attempts: int = Field(default=5, ge=3, le=10)
     domain_verification_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     connector_heartbeat_interval_seconds: int = Field(default=30, ge=10, le=5 * 60)
+    oauth_access_token_ttl_seconds: int = Field(default=60 * 60, ge=5 * 60, le=24 * 60 * 60)
+    oauth_refresh_token_ttl_seconds: int = Field(
+        default=30 * 24 * 60 * 60, ge=24 * 60 * 60, le=180 * 24 * 60 * 60
+    )
     max_attachment_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
     human_session_ttl_seconds: int = Field(default=12 * 60 * 60, ge=300, le=7 * 24 * 60 * 60)
     human_confirmation_ttl_seconds: int = Field(default=5 * 60, ge=60, le=15 * 60)
@@ -125,6 +132,25 @@ class Settings(BaseSettings):
             raise ValueError("AGENTPOST_PUBLIC_BASE_URL must be an HTTP(S) origin")
         return cleaned
 
+    @field_validator("remote_mcp_resource_url")
+    @classmethod
+    def remote_mcp_resource_is_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        cleaned = value.strip().rstrip("/")
+        parsed = urlsplit(cleaned)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path != "/mcp"
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("AGENTPOST_REMOTE_MCP_RESOURCE_URL must end with /mcp")
+        return cleaned
+
     @property
     def is_production(self) -> bool:
         return self.environment.casefold() == "production"
@@ -145,6 +171,7 @@ class Settings(BaseSettings):
             "development-only-pairing-secret",
             "development-only-human-auth-secret",
             "development-only-human-mfa-encryption-key",
+            "development-only-oauth-token-pepper",
         }
         if self.api_key_pepper.get_secret_value() in unsafe:
             raise ValueError("AGENTPOST_API_KEY_PEPPER must be replaced in production")
@@ -180,6 +207,17 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "SMTP host and from address are required when Human self-service is enabled"
                 )
+        if self.remote_mcp_oauth_enabled:
+            if self.oauth_token_pepper.get_secret_value() in unsafe:
+                raise ValueError("AGENTPOST_OAUTH_TOKEN_PEPPER must be replaced in production")
+            if not self.public_base_url.startswith("https://"):
+                raise ValueError(
+                    "AGENTPOST_PUBLIC_BASE_URL must use HTTPS when Remote MCP OAuth is enabled"
+                )
+            if self.remote_mcp_resource_url is not None and not (
+                self.remote_mcp_resource_url.startswith("https://")
+            ):
+                raise ValueError("AGENTPOST_REMOTE_MCP_RESOURCE_URL must use HTTPS in production")
         return self
 
 

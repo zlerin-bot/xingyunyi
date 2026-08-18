@@ -31,6 +31,7 @@ from agentpost.db import Base, Database
 from agentpost.identity.models import Agent, AgentApiKey
 from agentpost.main import create_app
 from agentpost.messaging.models import AuditLog, Delivery, IdempotencyRecord, Message
+from agentpost.oauth.models import OAuthAccessToken, OAuthRefreshToken
 from agentpost.onboarding.models import (
     AgentConnectorBinding,
     AgentPairingSession,
@@ -66,6 +67,8 @@ _MODELS = (
     HumanTotpCredential,
     OrganizationInvitation,
     OrganizationDomain,
+    OAuthAccessToken,
+    OAuthRefreshToken,
 )
 
 

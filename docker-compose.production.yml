@@ -40,9 +40,23 @@ services:
       AGENTPOST_HUMAN_API_KEY_PEPPER: ${AGENTPOST_HUMAN_API_KEY_PEPPER:?AGENTPOST_HUMAN_API_KEY_PEPPER is required}
       AGENTPOST_CURSOR_SECRET: ${AGENTPOST_CURSOR_SECRET:?AGENTPOST_CURSOR_SECRET is required}
       AGENTPOST_PAIRING_SECRET: ${AGENTPOST_PAIRING_SECRET:?AGENTPOST_PAIRING_SECRET is required}
+      AGENTPOST_HUMAN_AUTH_SECRET: ${AGENTPOST_HUMAN_AUTH_SECRET:?AGENTPOST_HUMAN_AUTH_SECRET is required}
+      AGENTPOST_HUMAN_MFA_ENCRYPTION_KEY: ${AGENTPOST_HUMAN_MFA_ENCRYPTION_KEY:?AGENTPOST_HUMAN_MFA_ENCRYPTION_KEY is required}
+      AGENTPOST_OAUTH_TOKEN_PEPPER: ${AGENTPOST_OAUTH_TOKEN_PEPPER:?AGENTPOST_OAUTH_TOKEN_PEPPER is required}
       AGENTPOST_PAIRING_ENABLED: ${AGENTPOST_PAIRING_ENABLED:-false}
+      AGENTPOST_HUMAN_SELF_SERVICE_ENABLED: ${AGENTPOST_HUMAN_SELF_SERVICE_ENABLED:-false}
+      AGENTPOST_OPEN_REGISTRATION_ENABLED: ${AGENTPOST_OPEN_REGISTRATION_ENABLED:-false}
+      AGENTPOST_REMOTE_MCP_OAUTH_ENABLED: ${AGENTPOST_REMOTE_MCP_OAUTH_ENABLED:-false}
+      AGENTPOST_EMAIL_DELIVERY_MODE: ${AGENTPOST_EMAIL_DELIVERY_MODE:-smtp}
+      AGENTPOST_SMTP_HOST: ${AGENTPOST_SMTP_HOST:-}
+      AGENTPOST_SMTP_PORT: ${AGENTPOST_SMTP_PORT:-587}
+      AGENTPOST_SMTP_USERNAME: ${AGENTPOST_SMTP_USERNAME:-}
+      AGENTPOST_SMTP_PASSWORD: ${AGENTPOST_SMTP_PASSWORD:-}
+      AGENTPOST_SMTP_FROM_ADDRESS: ${AGENTPOST_SMTP_FROM_ADDRESS:-}
+      AGENTPOST_SMTP_STARTTLS: ${AGENTPOST_SMTP_STARTTLS:-true}
       AGENTPOST_MANAGED_AGENT_DOMAIN: ${AGENTPOST_MANAGED_AGENT_DOMAIN:-agentpost.me}
       AGENTPOST_PUBLIC_BASE_URL: ${AGENTPOST_PUBLIC_BASE_URL:-https://agentpost.me}
+      AGENTPOST_REMOTE_MCP_RESOURCE_URL: ${AGENTPOST_REMOTE_MCP_RESOURCE_URL:-https://agentpost.me/mcp}
       AGENTPOST_REGISTRATION_TOKEN: ${AGENTPOST_REGISTRATION_TOKEN:?AGENTPOST_REGISTRATION_TOKEN is required}
       AGENTPOST_ADMIN_TOKEN: ${AGENTPOST_ADMIN_TOKEN:?AGENTPOST_ADMIN_TOKEN is required}
       AGENTPOST_MAX_ATTACHMENT_BYTES: ${AGENTPOST_MAX_ATTACHMENT_BYTES:-10485760}
@@ -75,6 +89,43 @@ services:
       start_period: 30s
     logging: *default-logging
 
+  remote-mcp:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: ["agentpost-mcp-http"]
+    restart: unless-stopped
+    environment:
+      AGENTPOST_SERVER: http://api:8000
+      AGENTPOST_OAUTH_ISSUER: ${AGENTPOST_PUBLIC_BASE_URL:-https://agentpost.me}
+      AGENTPOST_MCP_RESOURCE_URL: ${AGENTPOST_REMOTE_MCP_RESOURCE_URL:-https://agentpost.me/mcp}
+      AGENTPOST_MCP_HOST: 0.0.0.0
+      AGENTPOST_MCP_PORT: 8001
+      AGENTPOST_MCP_ALLOWED_HOSTS: ${AGENTPOST_MCP_ALLOWED_HOSTS:?AGENTPOST_MCP_ALLOWED_HOSTS is required}
+      AGENTPOST_MCP_ALLOWED_ORIGINS: ${AGENTPOST_MCP_ALLOWED_ORIGINS:?AGENTPOST_MCP_ALLOWED_ORIGINS is required}
+      AGENTPOST_MCP_LOG_LEVEL: ${AGENTPOST_LOG_LEVEL:-INFO}
+    depends_on:
+      api:
+        condition: service_healthy
+    expose:
+      - "8001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    networks:
+      - backend
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import socket; socket.create_connection(('127.0.0.1', 8001), timeout=3).close()"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    logging: *default-logging
+
   caddy:
     image: caddy:2.10.2-alpine
     restart: unless-stopped
@@ -83,6 +134,8 @@ services:
       AGENTPOST_ACME_EMAIL: ${AGENTPOST_ACME_EMAIL:?AGENTPOST_ACME_EMAIL is required}
     depends_on:
       api:
+        condition: service_healthy
+      remote-mcp:
         condition: service_healthy
     ports:
       - "80:80"

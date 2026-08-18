@@ -101,6 +101,10 @@ class AgentPairingSession(Base):
             "decision_idempotency_key",
             name="uq_pairing_sessions_human_idempotency",
         ),
+        CheckConstraint(
+            "credential_mode IN ('agent_api_key', 'oauth')",
+            name="ck_agent_pairing_sessions_credential_mode",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
@@ -113,6 +117,12 @@ class AgentPairingSession(Base):
     device_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     client_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
     requested_capabilities: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    credential_mode: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="agent_api_key"
+    )
+    oauth_client_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    oauth_scope: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    oauth_resource: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True

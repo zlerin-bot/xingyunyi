@@ -29,14 +29,19 @@ def test_production_compose_keeps_database_and_api_off_public_ports() -> None:
     repository_root = Path(__file__).resolve().parents[2]
     manifest = yaml.safe_load((repository_root / "docker-compose.production.yml").read_text())
 
-    assert {"api", "caddy", "db"} == manifest["services"].keys()
+    assert {"api", "caddy", "db", "remote-mcp"} == manifest["services"].keys()
     assert "ports" not in manifest["services"]["api"]
     assert "ports" not in manifest["services"]["db"]
+    assert "ports" not in manifest["services"]["remote-mcp"]
     assert manifest["services"]["caddy"]["ports"] == ["80:80", "443:443", "443:443/udp"]
     assert manifest["services"]["api"]["environment"]["AGENTPOST_ENVIRONMENT"] == "production"
     assert manifest["services"]["api"]["read_only"] is True
+    assert manifest["services"]["remote-mcp"]["read_only"] is True
     assert manifest["services"]["api"]["depends_on"]["db"]["condition"] == "service_healthy"
     assert manifest["services"]["caddy"]["depends_on"]["api"]["condition"] == "service_healthy"
+    assert (
+        manifest["services"]["caddy"]["depends_on"]["remote-mcp"]["condition"] == "service_healthy"
+    )
 
 
 def test_production_compose_uses_durable_state_and_no_literal_secrets() -> None:
@@ -52,6 +57,7 @@ def test_production_compose_uses_durable_state_and_no_literal_secrets() -> None:
     assert "AGENTPOST_API_KEY_PEPPER: replace" not in manifest_text
     assert "AGENTPOST_HUMAN_API_KEY_PEPPER" in manifest_text
     assert "AGENTPOST_PAIRING_SECRET" in manifest_text
+    assert "AGENTPOST_OAUTH_TOKEN_PEPPER" in manifest_text
     assert manifest["services"]["api"]["environment"]["AGENTPOST_PAIRING_ENABLED"] == (
         "${AGENTPOST_PAIRING_ENABLED:-false}"
     )

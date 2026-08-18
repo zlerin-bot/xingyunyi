@@ -13,10 +13,25 @@
 		Referrer-Policy "no-referrer"
 	}
 
-	reverse_proxy api:8000 {
+	handle /mcp* {
+		reverse_proxy remote-mcp:8001 {
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 300s
+			}
+		}
+	}
+
+	handle /.well-known/oauth-protected-resource/mcp {
+		reverse_proxy remote-mcp:8001
+	}
+
+	handle {
+		reverse_proxy api:8000 {
 		transport http {
 			dial_timeout 5s
 			response_header_timeout 60s
+		}
 		}
 	}
 
@@ -25,4 +40,3 @@
 		format json
 	}
 }
-

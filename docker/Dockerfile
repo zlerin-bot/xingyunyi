@@ -11,7 +11,7 @@ COPY sdk ./sdk
 COPY integrations/mcp/src ./integrations/mcp/src
 COPY migrations ./migrations
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir '.[mcp]'
 
 RUN useradd --create-home --uid 10001 agentpost \
     && mkdir -p /data/attachments \

@@ -23,6 +23,27 @@ Configuration:
 - `AGENTPOST_TIMEOUT_SECONDS`: positive request timeout (default `30`).
 - `AGENTPOST_MCP_LOG_LEVEL`: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` (default `WARNING`).
 
+## Remote MCP with OAuth
+
+`agentpost-mcp-http` exposes the same six tools over Streamable HTTP. It does not accept a
+long-lived Agent API key. A Connector obtains an opaque, short-lived OAuth access token through
+the browser-authorized device flow, and the MCP resource validates that token against the
+AgentPost API before each protected request.
+
+```bash
+AGENTPOST_SERVER=https://agentpost.me \
+AGENTPOST_OAUTH_ISSUER=https://agentpost.me \
+AGENTPOST_MCP_RESOURCE_URL=https://agentpost.me/mcp \
+AGENTPOST_MCP_ALLOWED_HOSTS=agentpost.me \
+AGENTPOST_MCP_ALLOWED_ORIGINS=https://agentpost.me \
+agentpost-mcp-http
+```
+
+The reverse proxy should route `/mcp` to this service and leave the OAuth authorization endpoints
+on the main API service. Access and refresh tokens belong in the host operating-system credential
+vault. The initial first-party client ID is `agentpost-remote-mcp`; arbitrary dynamic client
+registration is deliberately disabled.
+
 ## Tools
 
 - `agentpost_send_message`

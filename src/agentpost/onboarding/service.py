@@ -202,6 +202,10 @@ def create_pairing(
     *,
     payload: PairingCreate,
     request_id: str,
+    credential_mode: str = "agent_api_key",
+    oauth_client_id: str | None = None,
+    oauth_scope: str | None = None,
+    oauth_resource: str | None = None,
 ) -> CreatedPairing:
     if not settings.pairing_enabled:
         raise PairingDisabledError
@@ -223,6 +227,10 @@ def create_pairing(
             device_name=payload.device_name,
             client_version=payload.client_version,
             requested_capabilities=payload.capabilities,
+            credential_mode=credential_mode,
+            oauth_client_id=oauth_client_id,
+            oauth_scope=oauth_scope,
+            oauth_resource=oauth_resource,
             status="pending",
             expires_at=now + timedelta(seconds=settings.pairing_ttl_seconds),
             created_at=now,
@@ -305,6 +313,8 @@ def issue_pairing_token(
         .with_for_update()
     )
     if pairing is None:
+        raise PairingNotFoundError
+    if pairing.credential_mode != "agent_api_key":
         raise PairingNotFoundError
     if _expire_if_needed(session, pairing):
         raise PairingExpiredError
@@ -538,6 +548,13 @@ def decide_pairing(
                 )
             ).all():
                 credential.revoked_at = credential.revoked_at or now
+            from agentpost.oauth.service import revoke_connector_oauth_tokens
+
+            revoke_connector_oauth_tokens(
+                session,
+                previous_connector.id,
+                reason="connector_replaced",
+            )
         pairing.agent_id = agent.id
         pairing.connector_instance_id = connector.id
         pairing.status = "approved"
@@ -681,6 +698,13 @@ def revoke_connector(
         select(AgentApiKey).where(AgentApiKey.connector_instance_id == connector.id)
     ).all():
         credential.revoked_at = credential.revoked_at or now
+    from agentpost.oauth.service import revoke_connector_oauth_tokens
+
+    revoke_connector_oauth_tokens(
+        session,
+        connector.id,
+        reason="connector_revoked",
+    )
 
     from agentpost.control.human_security import add_human_action_audit
 
