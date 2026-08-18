@@ -71,3 +71,37 @@ class OrganizationInvitation(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now, index=True
     )
+
+
+class OrganizationDomain(Base):
+    __tablename__ = "organization_domains"
+    __table_args__ = (
+        CheckConstraint("domain = lower(domain)", name="ck_organization_domains_lowercase"),
+        CheckConstraint(
+            "status IN ('pending', 'verified', 'revoked')",
+            name="ck_organization_domains_status",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    domain: Mapped[str] = mapped_column(String(253), nullable=False, unique=True, index=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
+    verification_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    verification_prefix: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_by_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("human_users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

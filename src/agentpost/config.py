@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     email_challenge_ttl_seconds: int = Field(default=10 * 60, ge=5 * 60, le=30 * 60)
     email_challenge_cooldown_seconds: int = Field(default=60, ge=10, le=10 * 60)
     email_challenge_max_attempts: int = Field(default=5, ge=3, le=10)
+    domain_verification_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     max_attachment_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
     human_session_ttl_seconds: int = Field(default=12 * 60 * 60, ge=300, le=7 * 24 * 60 * 60)
     human_confirmation_ttl_seconds: int = Field(default=5 * 60, ge=60, le=15 * 60)

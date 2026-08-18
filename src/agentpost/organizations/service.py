@@ -25,9 +25,12 @@ from agentpost.control.organization_service import (
 )
 from agentpost.control.schemas import OrganizationCreate, OrganizationMembershipResponse
 from agentpost.identity.models import utc_now
-from agentpost.organizations.models import OrganizationInvitation
+from agentpost.organizations.models import OrganizationDomain, OrganizationInvitation
 from agentpost.organizations.schemas import (
     OrganizationCreateResponse,
+    OrganizationDomainCreate,
+    OrganizationDomainCreated,
+    OrganizationDomainResponse,
     OrganizationInvitationAccepted,
     OrganizationInvitationCreate,
     OrganizationInvitationCreated,
@@ -60,6 +63,18 @@ class OrganizationAlreadyMemberError(Exception):
 
 
 class LastOrganizationOwnerError(Exception):
+    pass
+
+
+class OrganizationDomainConflictError(Exception):
+    pass
+
+
+class OrganizationDomainNotVerifiedError(Exception):
+    pass
+
+
+class OrganizationDomainLookupError(Exception):
     pass
 
 
@@ -140,6 +155,55 @@ def _load_context(
 def _require_manager(context: OrganizationContext) -> None:
     if context.membership.role not in {"owner", "admin"}:
         raise OrganizationAccessDeniedError
+
+
+def _require_owner(context: OrganizationContext) -> None:
+    if context.membership.role != "owner":
+        raise OrganizationAccessDeniedError
+
+
+def _domain_response(domain: OrganizationDomain) -> OrganizationDomainResponse:
+    return OrganizationDomainResponse(
+        domain_id=domain.id,
+        organization_id=domain.organization_id,
+        domain=domain.domain,
+        status=domain.status,
+        verification_record_name=f"_agentpost.{domain.domain}",
+        verification_prefix=domain.verification_prefix,
+        created_at=_as_utc(domain.created_at),
+        last_checked_at=(
+            _as_utc(domain.last_checked_at) if domain.last_checked_at is not None else None
+        ),
+        verified_at=_as_utc(domain.verified_at) if domain.verified_at is not None else None,
+    )
+
+
+def _domain_verification_digest(value: str, settings: Settings) -> str:
+    return hmac.new(
+        settings.human_auth_secret.get_secret_value().encode(),
+        f"organization-domain.{value}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def lookup_dns_txt(record_name: str, *, timeout: float) -> list[str]:
+    try:
+        import dns.exception
+        import dns.resolver
+
+        answers = dns.resolver.resolve(record_name, "TXT", lifetime=timeout)
+        values: list[str] = []
+        for answer in answers:
+            strings = getattr(answer, "strings", None)
+            if strings is not None:
+                values.append(b"".join(strings).decode("utf-8"))
+            else:
+                values.append(str(answer).strip('"').replace('" "', ""))
+        return values
+    except (ImportError, UnicodeDecodeError) as exc:
+        raise OrganizationDomainLookupError from exc
+    except (dns.exception.DNSException, OSError) as exc:
+        raise OrganizationDomainLookupError from exc
 
 
 def create_owned_organization(
@@ -276,7 +340,7 @@ def create_invitation(
     session.commit()
     return OrganizationInvitationCreated(
         invitation=_invitation_response(invitation),
-        verification_uri=verification_uri,
+        verification_uri=(verification_uri if settings.email_delivery_mode == "test" else None),
         test_acceptance_token=(raw_token if settings.email_delivery_mode == "test" else None),
     )
 
@@ -544,5 +608,201 @@ def remove_member(
         outcome="success",
         request_id=request_id,
         audit_metadata={"organization_id": str(organization_id)},
+    )
+    session.commit()
+
+
+def create_domain_claim(
+    session: Session,
+    settings: Settings,
+    *,
+    user: HumanUser,
+    organization_id: UUID,
+    payload: OrganizationDomainCreate,
+    human_session_id: UUID | None,
+    request_id: str,
+) -> OrganizationDomainCreated:
+    context = _load_context(
+        session,
+        organization_id=organization_id,
+        user=user,
+        lock=True,
+    )
+    _require_owner(context)
+    existing = session.scalar(
+        select(OrganizationDomain).where(OrganizationDomain.domain == payload.domain)
+    )
+    if (
+        existing is not None
+        and existing.status != "revoked"
+        and (existing.organization_id != organization_id or existing.status == "verified")
+    ):
+        raise OrganizationDomainConflictError
+    raw_value = f"agentpost-domain-verification={secrets.token_urlsafe(32)}"
+    now = utc_now()
+    if existing is None:
+        domain = OrganizationDomain(
+            organization_id=organization_id,
+            domain=payload.domain,
+            status="pending",
+            verification_digest=_domain_verification_digest(raw_value, settings),
+            verification_prefix=raw_value[-10:],
+            created_by_user_id=user.id,
+            created_at=now,
+        )
+        session.add(domain)
+    else:
+        domain = existing
+        domain.organization_id = organization_id
+        domain.status = "pending"
+        domain.verification_digest = _domain_verification_digest(raw_value, settings)
+        domain.verification_prefix = raw_value[-10:]
+        domain.created_by_user_id = user.id
+        domain.last_checked_at = None
+        domain.verified_at = None
+        domain.revoked_at = None
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        session.rollback()
+        raise OrganizationDomainConflictError from exc
+    add_human_action_audit(
+        session,
+        human_user_id=user.id,
+        human_session_id=human_session_id,
+        action="organization.domain_claim_created",
+        target_type="organization_domain",
+        target_id=str(domain.id),
+        outcome="success",
+        request_id=request_id,
+        audit_metadata={"organization_id": str(organization_id), "domain": domain.domain},
+    )
+    session.commit()
+    return OrganizationDomainCreated(
+        domain=_domain_response(domain),
+        verification_value=raw_value,
+    )
+
+
+def list_domains(
+    session: Session,
+    *,
+    user: HumanUser,
+    organization_id: UUID,
+) -> list[OrganizationDomainResponse]:
+    _load_context(session, organization_id=organization_id, user=user)
+    domains = session.scalars(
+        select(OrganizationDomain)
+        .where(
+            OrganizationDomain.organization_id == organization_id,
+            OrganizationDomain.status != "revoked",
+        )
+        .order_by(OrganizationDomain.domain)
+    ).all()
+    return [_domain_response(domain) for domain in domains]
+
+
+def verify_domain_claim(
+    session: Session,
+    settings: Settings,
+    *,
+    user: HumanUser,
+    organization_id: UUID,
+    domain_id: UUID,
+    human_session_id: UUID | None,
+    request_id: str,
+) -> OrganizationDomainResponse:
+    context = _load_context(
+        session,
+        organization_id=organization_id,
+        user=user,
+        lock=True,
+    )
+    _require_owner(context)
+    domain = session.scalar(
+        select(OrganizationDomain)
+        .where(
+            OrganizationDomain.id == domain_id,
+            OrganizationDomain.organization_id == organization_id,
+            OrganizationDomain.status != "revoked",
+        )
+        .with_for_update()
+    )
+    if domain is None:
+        raise OrganizationSelfGovernanceNotFoundError
+    if domain.status == "verified":
+        return _domain_response(domain)
+    values = lookup_dns_txt(
+        f"_agentpost.{domain.domain}",
+        timeout=settings.domain_verification_timeout_seconds,
+    )
+    now = utc_now()
+    domain.last_checked_at = now
+    matched = any(
+        hmac.compare_digest(
+            _domain_verification_digest(value, settings),
+            domain.verification_digest,
+        )
+        for value in values
+    )
+    if not matched:
+        session.commit()
+        raise OrganizationDomainNotVerifiedError
+    domain.status = "verified"
+    domain.verified_at = now
+    add_human_action_audit(
+        session,
+        human_user_id=user.id,
+        human_session_id=human_session_id,
+        action="organization.domain_verified",
+        target_type="organization_domain",
+        target_id=str(domain.id),
+        outcome="success",
+        request_id=request_id,
+        audit_metadata={"organization_id": str(organization_id), "domain": domain.domain},
+    )
+    session.commit()
+    return _domain_response(domain)
+
+
+def revoke_domain_claim(
+    session: Session,
+    *,
+    user: HumanUser,
+    organization_id: UUID,
+    domain_id: UUID,
+    human_session_id: UUID | None,
+    request_id: str,
+) -> None:
+    context = _load_context(
+        session,
+        organization_id=organization_id,
+        user=user,
+        lock=True,
+    )
+    _require_owner(context)
+    domain = session.scalar(
+        select(OrganizationDomain)
+        .where(
+            OrganizationDomain.id == domain_id,
+            OrganizationDomain.organization_id == organization_id,
+            OrganizationDomain.status != "revoked",
+        )
+        .with_for_update()
+    )
+    if domain is None:
+        raise OrganizationSelfGovernanceNotFoundError
+    domain.status = "revoked"
+    domain.revoked_at = utc_now()
+    add_human_action_audit(
+        session,
+        human_user_id=user.id,
+        human_session_id=human_session_id,
+        action="organization.domain_revoked",
+        target_type="organization_domain",
+        target_id=str(domain.id),
+        outcome="success",
+        request_id=request_id,
+        audit_metadata={"organization_id": str(organization_id), "domain": domain.domain},
     )
     session.commit()

@@ -10,6 +10,9 @@ const state = {
   registerChallengeId: "",
   recoveryChallengeId: "",
   mfaSetupStarted: false,
+  pendingOrganizationInvitation: "",
+  managedOrganization: null,
+  organizationDomainProofs: new Map(),
 };
 
 const elements = {
@@ -39,6 +42,7 @@ const elements = {
   metricApprovals: document.querySelector("#metric-approvals"),
   organizationCount: document.querySelector("#organization-count"),
   organizationList: document.querySelector("#organization-list"),
+  openOrganizationCreate: document.querySelector("#open-organization-create"),
   agentCount: document.querySelector("#agent-count"),
   agentList: document.querySelector("#agent-list"),
   taskList: document.querySelector("#task-list"),
@@ -126,6 +130,31 @@ const elements = {
   keyLabel: document.querySelector("#key-label"),
   keyOutput: document.querySelector("#key-output"),
   keyResult: document.querySelector("#key-result"),
+  organizationCreateDialog: document.querySelector("#organization-create-dialog"),
+  organizationCreateForm: document.querySelector("#organization-create-form"),
+  organizationCreateClose: document.querySelector("#organization-create-close"),
+  organizationCreateCancel: document.querySelector("#organization-create-cancel"),
+  organizationName: document.querySelector("#organization-name"),
+  organizationSlug: document.querySelector("#organization-slug"),
+  organizationDescription: document.querySelector("#organization-description"),
+  organizationCreateResult: document.querySelector("#organization-create-result"),
+  organizationManageDialog: document.querySelector("#organization-manage-dialog"),
+  organizationManageTitle: document.querySelector("#organization-manage-title"),
+  organizationInviteForm: document.querySelector("#organization-invite-form"),
+  organizationManageClose: document.querySelector("#organization-manage-close"),
+  organizationManageCancel: document.querySelector("#organization-manage-cancel"),
+  organizationManageId: document.querySelector("#organization-manage-id"),
+  organizationManageSummary: document.querySelector("#organization-manage-summary"),
+  organizationInviteEmail: document.querySelector("#organization-invite-email"),
+  organizationInviteRole: document.querySelector("#organization-invite-role"),
+  organizationManageResult: document.querySelector("#organization-manage-result"),
+  organizationMemberList: document.querySelector("#organization-member-list"),
+  organizationInvitationList: document.querySelector("#organization-invitation-list"),
+  organizationDomainSection: document.querySelector("#organization-domain-section"),
+  organizationDomainName: document.querySelector("#organization-domain-name"),
+  organizationDomainAdd: document.querySelector("#organization-domain-add"),
+  organizationDomainList: document.querySelector("#organization-domain-list"),
+  organizationLeave: document.querySelector("#organization-leave"),
 };
 
 function setConnection(message, kind = "") {
@@ -284,6 +313,7 @@ function statusLabel(value) {
     denied: "已拒绝",
     revoked: "已撤销",
     replaced: "已替换",
+    verified: "已验证",
   };
   return labels[value] || safeText(value);
 }
@@ -341,9 +371,440 @@ function renderOrganizations(organizations) {
       stats.append(cell);
     });
     card.append(header, description, stats);
+    if (["owner", "admin", "member", "auditor"].includes(organization.membership_role)) {
+      const actions = document.createElement("div");
+      actions.className = "organization-card-actions";
+      const manage = document.createElement("button");
+      manage.type = "button";
+      manage.className = "quiet-button";
+      manage.textContent = ["owner", "admin"].includes(organization.membership_role)
+        ? "治理组织"
+        : "查看成员";
+      manage.addEventListener("click", () => openOrganizationManagement(organization));
+      actions.append(manage);
+      card.append(actions);
+    }
     fragment.append(card);
   });
   elements.organizationList.append(fragment);
+}
+
+function closeOrganizationCreateDialog() {
+  elements.organizationName.value = "";
+  elements.organizationSlug.value = "";
+  elements.organizationDescription.value = "";
+  elements.organizationCreateResult.textContent = "";
+  if (elements.organizationCreateDialog.open) {
+    elements.organizationCreateDialog.close();
+  }
+}
+
+async function createOrganization(event) {
+  event.preventDefault();
+  const submit = elements.organizationCreateForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  try {
+    await requestJson("/api/v1/orbit/organizations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+      body: JSON.stringify({
+        slug: elements.organizationSlug.value.trim().toLowerCase(),
+        name: elements.organizationName.value.trim(),
+        description: elements.organizationDescription.value.trim() || null,
+      }),
+    });
+    closeOrganizationCreateDialog();
+    await loadDashboard();
+    setConnection("组织已创建，你是首位 Owner", "success");
+  } catch (error) {
+    elements.organizationCreateResult.textContent = error.message;
+    elements.organizationCreateResult.className = "form-status error";
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function closeOrganizationManagement() {
+  elements.organizationInviteEmail.value = "";
+  elements.organizationDomainName.value = "";
+  elements.organizationManageResult.textContent = "";
+  elements.organizationMemberList.replaceChildren();
+  elements.organizationInvitationList.replaceChildren();
+  elements.organizationDomainList.replaceChildren();
+  state.managedOrganization = null;
+  state.organizationDomainProofs.clear();
+  if (elements.organizationManageDialog.open) {
+    elements.organizationManageDialog.close();
+  }
+}
+
+function governanceRow(primary, secondary) {
+  const row = document.createElement("div");
+  row.className = "governance-row";
+  const identity = document.createElement("div");
+  const title = document.createElement("strong");
+  title.textContent = primary;
+  const detail = document.createElement("span");
+  detail.textContent = secondary;
+  identity.append(title, detail);
+  const actions = document.createElement("div");
+  actions.className = "governance-row-actions";
+  row.append(identity, actions);
+  return { row, actions };
+}
+
+async function changeOrganizationRole(memberId, role) {
+  const organization = state.managedOrganization;
+  if (!organization) {
+    return;
+  }
+  try {
+    await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/members/${encodeURIComponent(memberId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+        body: JSON.stringify({ role }),
+      },
+    );
+    await loadOrganizationManagement();
+    await loadDashboard();
+  } catch (error) {
+    elements.organizationManageResult.textContent = error.message;
+    elements.organizationManageResult.className = "form-status error";
+  }
+}
+
+async function removeOrganizationMember(memberId) {
+  const organization = state.managedOrganization;
+  if (!organization) {
+    return;
+  }
+  try {
+    await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/members/${encodeURIComponent(memberId)}`,
+      { method: "DELETE", headers: { "X-CSRF-Token": state.csrfToken } },
+    );
+    await loadOrganizationManagement();
+    await loadDashboard();
+  } catch (error) {
+    elements.organizationManageResult.textContent = error.message;
+    elements.organizationManageResult.className = "form-status error";
+  }
+}
+
+function renderOrganizationMembers(members) {
+  elements.organizationMemberList.replaceChildren();
+  const organization = state.managedOrganization;
+  const actorRole = organization?.membership_role;
+  const currentUserId = String(state.dashboard?.user?.id || "");
+  if (!members.length) {
+    elements.organizationMemberList.append(emptyState("暂无成员。"));
+    return;
+  }
+  members.forEach((member) => {
+    const { row, actions } = governanceRow(member.human_email, statusLabel(member.role));
+    const isSelf = String(member.human_user_id) === currentUserId;
+    const canManage = actorRole === "owner"
+      || (actorRole === "admin" && ["member", "auditor"].includes(member.role));
+    if (canManage && !isSelf) {
+      const roleSelect = document.createElement("select");
+      const allowedRoles = actorRole === "owner"
+        ? ["owner", "admin", "member", "auditor"]
+        : ["member", "auditor"];
+      allowedRoles.forEach((role) => {
+        const option = document.createElement("option");
+        option.value = role;
+        option.textContent = statusLabel(role);
+        option.selected = role === member.role;
+        roleSelect.append(option);
+      });
+      roleSelect.setAttribute("aria-label", `${member.human_email} 的角色`);
+      const save = document.createElement("button");
+      save.type = "button";
+      save.className = "quiet-button";
+      save.textContent = "保存";
+      save.addEventListener("click", () => changeOrganizationRole(member.human_user_id, roleSelect.value));
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "quiet-button danger";
+      remove.textContent = "移除";
+      remove.addEventListener("click", () => removeOrganizationMember(member.human_user_id));
+      actions.append(roleSelect, save, remove);
+    }
+    elements.organizationMemberList.append(row);
+  });
+}
+
+async function revokeOrganizationInvitation(invitationId) {
+  const organization = state.managedOrganization;
+  if (!organization) {
+    return;
+  }
+  try {
+    await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/invitations/${encodeURIComponent(invitationId)}`,
+      { method: "DELETE", headers: { "X-CSRF-Token": state.csrfToken } },
+    );
+    await loadOrganizationManagement();
+  } catch (error) {
+    elements.organizationManageResult.textContent = error.message;
+    elements.organizationManageResult.className = "form-status error";
+  }
+}
+
+function renderOrganizationInvitations(invitations) {
+  elements.organizationInvitationList.replaceChildren();
+  if (!invitations.length) {
+    elements.organizationInvitationList.append(emptyState("暂无邀请记录。"));
+    return;
+  }
+  invitations.forEach((invitation) => {
+    const { row, actions } = governanceRow(
+      invitation.email,
+      `${statusLabel(invitation.role)} · ${statusLabel(invitation.status)} · ${dateText(invitation.expires_at)}`,
+    );
+    if (invitation.status === "pending") {
+      const revoke = document.createElement("button");
+      revoke.type = "button";
+      revoke.className = "quiet-button danger";
+      revoke.textContent = "撤销";
+      revoke.addEventListener("click", () => revokeOrganizationInvitation(invitation.invitation_id));
+      actions.append(revoke);
+    }
+    elements.organizationInvitationList.append(row);
+  });
+}
+
+async function verifyOrganizationDomain(domainId) {
+  const organization = state.managedOrganization;
+  if (!organization) {
+    return;
+  }
+  try {
+    await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/domains/${encodeURIComponent(domainId)}/verify`,
+      { method: "POST", headers: { "X-CSRF-Token": state.csrfToken } },
+    );
+    state.organizationDomainProofs.delete(String(domainId));
+    elements.organizationManageResult.textContent = "域名 DNS 所有权已验证。";
+    elements.organizationManageResult.className = "form-status success";
+    await loadOrganizationManagement();
+  } catch (error) {
+    elements.organizationManageResult.textContent = `${error.message} 请确认 TXT 记录已生效。`;
+    elements.organizationManageResult.className = "form-status error";
+  }
+}
+
+async function revokeOrganizationDomain(domainId) {
+  const organization = state.managedOrganization;
+  if (!organization) {
+    return;
+  }
+  try {
+    await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/domains/${encodeURIComponent(domainId)}`,
+      { method: "DELETE", headers: { "X-CSRF-Token": state.csrfToken } },
+    );
+    state.organizationDomainProofs.delete(String(domainId));
+    elements.organizationManageResult.textContent = "域名认领已撤销。";
+    elements.organizationManageResult.className = "form-status success";
+    await loadOrganizationManagement();
+  } catch (error) {
+    elements.organizationManageResult.textContent = error.message;
+    elements.organizationManageResult.className = "form-status error";
+  }
+}
+
+function renderOrganizationDomains(domains) {
+  elements.organizationDomainList.replaceChildren();
+  const isOwner = state.managedOrganization?.membership_role === "owner";
+  if (!domains.length) {
+    elements.organizationDomainList.append(emptyState("尚未认领企业域名。"));
+    return;
+  }
+  domains.forEach((domain) => {
+    const detail = `${statusLabel(domain.status)} · TXT ${domain.verification_record_name}`;
+    const { row, actions } = governanceRow(domain.domain, detail);
+    const proof = state.organizationDomainProofs.get(String(domain.domain_id));
+    if (proof) {
+      const proofOutput = document.createElement("code");
+      proofOutput.className = "domain-proof";
+      proofOutput.textContent = `${domain.verification_record_name}\n${proof}`;
+      row.firstElementChild.append(proofOutput);
+    }
+    if (isOwner) {
+      if (domain.status === "pending") {
+        const verify = document.createElement("button");
+        verify.type = "button";
+        verify.className = "quiet-button";
+        verify.textContent = "验证 DNS";
+        verify.addEventListener("click", () => verifyOrganizationDomain(domain.domain_id));
+        actions.append(verify);
+      }
+      const revoke = document.createElement("button");
+      revoke.type = "button";
+      revoke.className = "quiet-button danger";
+      revoke.textContent = "撤销";
+      revoke.addEventListener("click", () => revokeOrganizationDomain(domain.domain_id));
+      actions.append(revoke);
+    }
+    elements.organizationDomainList.append(row);
+  });
+}
+
+async function addOrganizationDomain() {
+  const organization = state.managedOrganization;
+  const domain = elements.organizationDomainName.value.trim();
+  if (!organization || organization.membership_role !== "owner" || !domain) {
+    elements.organizationManageResult.textContent = "请输入要认领的企业域名。";
+    elements.organizationManageResult.className = "form-status error";
+    return;
+  }
+  elements.organizationDomainAdd.disabled = true;
+  try {
+    const created = await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/domains`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+        body: JSON.stringify({ domain }),
+      },
+    );
+    state.organizationDomainProofs.set(
+      String(created.domain.domain_id),
+      created.verification_value,
+    );
+    elements.organizationDomainName.value = "";
+    elements.organizationManageResult.textContent = "请立即复制下方 TXT 记录；验证值关闭窗口后不再显示。";
+    elements.organizationManageResult.className = "form-status success";
+    await loadOrganizationManagement();
+  } catch (error) {
+    elements.organizationManageResult.textContent = error.message;
+    elements.organizationManageResult.className = "form-status error";
+  } finally {
+    elements.organizationDomainAdd.disabled = false;
+  }
+}
+
+async function loadOrganizationManagement() {
+  const organization = state.managedOrganization;
+  if (!organization) {
+    return;
+  }
+  const isManager = ["owner", "admin"].includes(organization.membership_role);
+  elements.organizationInviteEmail.disabled = !isManager;
+  elements.organizationInviteRole.disabled = !isManager;
+  elements.organizationInviteForm.querySelector("button[type='submit']").hidden = !isManager;
+  elements.organizationInvitationList.hidden = !isManager;
+  const isOwner = organization.membership_role === "owner";
+  elements.organizationDomainName.disabled = !isOwner;
+  elements.organizationDomainAdd.hidden = !isOwner;
+  const members = await requestJson(
+    `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/members`,
+  );
+  renderOrganizationMembers(Array.isArray(members.items) ? members.items : []);
+  if (isManager) {
+    const invitations = await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/invitations`,
+    );
+    renderOrganizationInvitations(Array.isArray(invitations.items) ? invitations.items : []);
+  } else {
+    elements.organizationInvitationList.replaceChildren();
+  }
+  const domains = await requestJson(
+    `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/domains`,
+  );
+  renderOrganizationDomains(Array.isArray(domains.items) ? domains.items : []);
+}
+
+async function openOrganizationManagement(organization) {
+  state.managedOrganization = organization;
+  elements.organizationManageId.value = organization.id;
+  elements.organizationManageTitle.textContent = `${organization.name} · 组织治理`;
+  elements.organizationManageSummary.textContent = `${organization.slug} · 你的角色：${statusLabel(organization.membership_role)}`;
+  elements.organizationManageResult.textContent = "组织角色决定治理权限；最后一位 Owner 不能退出或降级。";
+  elements.organizationManageDialog.showModal();
+  try {
+    await loadOrganizationManagement();
+  } catch (error) {
+    elements.organizationManageResult.textContent = error.message;
+    elements.organizationManageResult.className = "form-status error";
+  }
+}
+
+async function inviteOrganizationMember(event) {
+  event.preventDefault();
+  const organization = state.managedOrganization;
+  if (!organization) {
+    return;
+  }
+  const submit = elements.organizationInviteForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  try {
+    await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/invitations`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+        body: JSON.stringify({
+          email: elements.organizationInviteEmail.value.trim(),
+          role: elements.organizationInviteRole.value,
+        }),
+      },
+    );
+    elements.organizationInviteEmail.value = "";
+    elements.organizationManageResult.textContent = "邀请已发送；令牌只通过目标邮箱交付。";
+    elements.organizationManageResult.className = "form-status success";
+    await loadOrganizationManagement();
+  } catch (error) {
+    elements.organizationManageResult.textContent = error.message;
+    elements.organizationManageResult.className = "form-status error";
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function leaveOrganization() {
+  const organization = state.managedOrganization;
+  if (!organization) {
+    return;
+  }
+  elements.organizationLeave.disabled = true;
+  try {
+    await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/membership`,
+      { method: "DELETE", headers: { "X-CSRF-Token": state.csrfToken } },
+    );
+    closeOrganizationManagement();
+    await loadDashboard();
+    setConnection("已退出组织", "success");
+  } catch (error) {
+    elements.organizationManageResult.textContent = error.message;
+    elements.organizationManageResult.className = "form-status error";
+  } finally {
+    elements.organizationLeave.disabled = false;
+  }
+}
+
+async function maybeAcceptOrganizationInvitation() {
+  const token = state.pendingOrganizationInvitation;
+  if (!token || !state.csrfToken) {
+    return;
+  }
+  state.pendingOrganizationInvitation = "";
+  try {
+    await requestJson("/api/v1/orbit/organization-invitations/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+      body: JSON.stringify({ token }),
+    });
+    await loadDashboard();
+    setConnection("组织邀请已接受", "success");
+  } catch (error) {
+    setConnection("组织邀请无法接受", "error");
+    setFormStatus(error.message, "error");
+  }
 }
 
 function renderAgents(agents) {
@@ -929,6 +1390,7 @@ async function loadDashboard() {
     elements.workspaceView.hidden = false;
     setConnection("星轨已连接", "success");
     await maybeOpenRequestedPairing();
+    await maybeAcceptOrganizationInvitation();
   } catch (error) {
     setConnection("星轨连接失败", "error");
     throw error;
@@ -1265,6 +1727,8 @@ async function signOut() {
     closeRevokeDialog();
     closeMfaDialog();
     closeKeyDialog();
+    closeOrganizationCreateDialog();
+    closeOrganizationManagement();
     state.dashboard = null;
     state.csrfToken = "";
     clearSensitiveInputs();
@@ -1408,6 +1872,21 @@ elements.revokeForm.addEventListener("submit", revokeConnector);
 elements.revokeClose.addEventListener("click", closeRevokeDialog);
 elements.revokeCancel.addEventListener("click", closeRevokeDialog);
 elements.revokeDialog.addEventListener("close", closeRevokeDialog);
+elements.openOrganizationCreate.addEventListener("click", () => {
+  elements.organizationCreateResult.textContent = "创建后你将成为首位 Owner。";
+  elements.organizationCreateDialog.showModal();
+  elements.organizationName.focus();
+});
+elements.organizationCreateForm.addEventListener("submit", createOrganization);
+elements.organizationCreateClose.addEventListener("click", closeOrganizationCreateDialog);
+elements.organizationCreateCancel.addEventListener("click", closeOrganizationCreateDialog);
+elements.organizationCreateDialog.addEventListener("close", closeOrganizationCreateDialog);
+elements.organizationInviteForm.addEventListener("submit", inviteOrganizationMember);
+elements.organizationManageClose.addEventListener("click", closeOrganizationManagement);
+elements.organizationManageCancel.addEventListener("click", closeOrganizationManagement);
+elements.organizationManageDialog.addEventListener("close", closeOrganizationManagement);
+elements.organizationLeave.addEventListener("click", leaveOrganization);
+elements.organizationDomainAdd.addEventListener("click", addOrganizationDomain);
 elements.openMfa.addEventListener("click", () => {
   elements.mfaResult.textContent = "重新验证后生成只在当前窗口显示的认证器密钥。";
   elements.mfaDialog.showModal();
@@ -1431,9 +1910,16 @@ elements.keyDialog.addEventListener("close", closeKeyDialog);
 window.addEventListener("pagehide", () => {
   clearSensitiveInputs();
   state.csrfToken = "";
+  state.pendingOrganizationInvitation = "";
+  state.organizationDomainProofs.clear();
 });
 
 async function initializeOrbit() {
+  const hashParameters = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  state.pendingOrganizationInvitation = hashParameters.get("organization-invitation") || "";
+  if (state.pendingOrganizationInvitation) {
+    history.replaceState(null, "", "/orbit");
+  }
   await loadAuthConfig();
   await restoreSession();
 }

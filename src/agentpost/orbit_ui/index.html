@@ -175,7 +175,10 @@
                 <p class="section-tag">Organization constellation</p>
                 <h2>组织星图</h2>
               </div>
-              <span id="organization-count" class="count-pill">0 个</span>
+              <div class="section-actions">
+                <span id="organization-count" class="count-pill">0 个</span>
+                <button id="open-organization-create" type="button" class="primary-action">创建组织</button>
+              </div>
             </div>
             <p class="section-intro">
               组织是成员权限与 Agent 治理范围的服务端边界，不是前端筛选标签。
@@ -366,6 +369,54 @@
         <pre id="key-output" class="secret-output" hidden></pre>
         <p id="key-result" class="form-status" role="status"></p>
         <div class="dialog-actions"><button id="key-cancel" type="button" class="quiet-button">返回</button><button type="submit" class="approval-submit">轮换并仅显示一次</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="organization-create-dialog" class="approval-dialog" aria-labelledby="organization-create-title">
+      <form id="organization-create-form" method="dialog" autocomplete="off">
+        <div class="dialog-heading">
+          <div><p class="section-tag">Organization</p><h2 id="organization-create-title">创建组织</h2></div>
+          <button id="organization-create-close" type="button" class="dialog-close" aria-label="关闭创建组织窗口">×</button>
+        </div>
+        <label for="organization-name">组织名称</label>
+        <input id="organization-name" type="text" required maxlength="200" placeholder="北辰研究团队">
+        <label for="organization-slug">组织标识</label>
+        <input id="organization-slug" type="text" required maxlength="63" pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?" placeholder="north-star">
+        <label for="organization-description">组织说明</label>
+        <textarea id="organization-description" maxlength="1000" placeholder="说明协作边界与用途（可选）"></textarea>
+        <p id="organization-create-result" class="form-status" role="status"></p>
+        <div class="dialog-actions"><button id="organization-create-cancel" type="button" class="quiet-button">返回</button><button type="submit" class="approval-submit">创建并成为 Owner</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="organization-manage-dialog" class="approval-dialog organization-dialog" aria-labelledby="organization-manage-title">
+      <form id="organization-invite-form" method="dialog" autocomplete="off">
+        <div class="dialog-heading">
+          <div><p class="section-tag">Organization governance</p><h2 id="organization-manage-title">组织治理</h2></div>
+          <button id="organization-manage-close" type="button" class="dialog-close" aria-label="关闭组织治理窗口">×</button>
+        </div>
+        <input id="organization-manage-id" type="hidden">
+        <p id="organization-manage-summary" class="dialog-summary"></p>
+        <div class="organization-invite-fields">
+          <div><label for="organization-invite-email">邀请邮箱</label><input id="organization-invite-email" type="email" autocomplete="email" required></div>
+          <div><label for="organization-invite-role">角色</label><select id="organization-invite-role"><option value="member">成员</option><option value="auditor">审计者</option><option value="admin">管理员</option></select></div>
+        </div>
+        <button type="submit" class="quiet-button">发送邀请</button>
+        <p id="organization-manage-result" class="form-status" role="status"></p>
+        <h3>成员</h3>
+        <div id="organization-member-list" class="governance-list"></div>
+        <h3>待处理与历史邀请</h3>
+        <div id="organization-invitation-list" class="governance-list"></div>
+        <section id="organization-domain-section" class="organization-domain-section">
+          <h3>企业域名验证</h3>
+          <p class="dialog-summary">Owner 可认领域名，并在 DNS 中配置一次性 TXT 记录。验证后可作为企业 SSO 与地址治理的信任基础。</p>
+          <div class="organization-domain-fields">
+            <input id="organization-domain-name" type="text" inputmode="url" maxlength="253" placeholder="company.example">
+            <button id="organization-domain-add" type="button" class="quiet-button">认领域名</button>
+          </div>
+          <div id="organization-domain-list" class="governance-list"></div>
+        </section>
+        <div class="dialog-actions"><button id="organization-leave" type="button" class="quiet-button danger">退出组织</button><button id="organization-manage-cancel" type="button" class="quiet-button">完成</button></div>
       </form>
     </dialog>
 

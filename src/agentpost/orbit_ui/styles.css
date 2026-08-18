@@ -737,6 +737,12 @@ footer {
   margin-bottom: 22px;
 }
 
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .section-heading .section-tag {
   margin-bottom: 7px;
 }
@@ -931,6 +937,16 @@ footer {
 
 .organization-heading strong {
   overflow-wrap: anywhere;
+}
+
+.organization-card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.organization-card-actions .quiet-button {
+  min-height: 36px;
+  padding-inline: 12px;
 }
 
 .organization-heading span:not(.data-chip) {
@@ -1324,7 +1340,8 @@ footer {
 .approval-dialog textarea,
 .approval-dialog input[type="email"],
 .approval-dialog input[type="text"],
-.approval-dialog input[type="password"] {
+.approval-dialog input[type="password"],
+.approval-dialog select {
   width: 100%;
   border: 1px solid var(--line-strong);
   border-radius: 11px;
@@ -1342,7 +1359,8 @@ footer {
 .approval-dialog textarea:focus,
 .approval-dialog input[type="email"]:focus,
 .approval-dialog input[type="text"]:focus,
-.approval-dialog input[type="password"]:focus {
+.approval-dialog input[type="password"]:focus,
+.approval-dialog select:focus {
   border-color: var(--cyan);
   box-shadow: 0 0 0 3px rgba(103, 216, 212, 0.12);
 }
@@ -1363,6 +1381,102 @@ footer {
 
 .secret-output[hidden] {
   display: none;
+}
+
+.organization-dialog {
+  width: min(760px, calc(100% - 32px));
+}
+
+.organization-dialog h3 {
+  margin: 12px 0 0;
+  color: var(--gold);
+  font-size: 0.82rem;
+}
+
+.organization-invite-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 12px;
+}
+
+.organization-invite-fields > div {
+  display: grid;
+  gap: 7px;
+}
+
+.organization-domain-section {
+  display: grid;
+  gap: 9px;
+  border-top: 1px solid var(--line);
+  margin-top: 5px;
+  padding-top: 4px;
+}
+
+.organization-domain-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+}
+
+.domain-proof {
+  display: block;
+  max-width: min(100%, 610px);
+  border: 1px solid rgba(230, 189, 114, 0.28);
+  border-radius: 8px;
+  background: rgba(230, 189, 114, 0.06);
+  color: var(--gold);
+  font-size: 0.66rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+}
+
+.governance-list {
+  display: grid;
+  gap: 8px;
+}
+
+.governance-list[hidden] {
+  display: none;
+}
+
+.governance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: rgba(3, 11, 23, 0.42);
+  padding: 11px 12px;
+}
+
+.governance-row > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.governance-row strong,
+.governance-row span {
+  overflow-wrap: anywhere;
+}
+
+.governance-row span {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.governance-row-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+.governance-row-actions .quiet-button {
+  min-height: 34px;
+  padding-inline: 10px;
 }
 
 .pairing-dialog {
@@ -1641,6 +1755,8 @@ footer {
   }
 
   .pairing-fields,
+  .organization-invite-fields,
+  .organization-domain-fields,
   .connector-card dl {
     grid-template-columns: 1fr;
   }

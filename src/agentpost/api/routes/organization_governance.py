@@ -12,6 +12,9 @@ from agentpost.control.human_security import HumanCsrfDep, human_session_id_from
 from agentpost.control.schemas import OrganizationCreate, OrganizationMembershipResponse
 from agentpost.organizations.schemas import (
     OrganizationCreateResponse,
+    OrganizationDomainCreate,
+    OrganizationDomainCreated,
+    OrganizationDomainResponse,
     OrganizationInvitationAccept,
     OrganizationInvitationAccepted,
     OrganizationInvitationCreate,
@@ -23,18 +26,25 @@ from agentpost.organizations.service import (
     LastOrganizationOwnerError,
     OrganizationAccessDeniedError,
     OrganizationAlreadyMemberError,
+    OrganizationDomainConflictError,
+    OrganizationDomainLookupError,
+    OrganizationDomainNotVerifiedError,
     OrganizationInvitationAlreadyPendingError,
     OrganizationInvitationInvalidError,
     OrganizationSelfGovernanceNotFoundError,
     OrganizationSlugConflictError,
     accept_invitation,
     change_member_role,
+    create_domain_claim,
     create_invitation,
     create_owned_organization,
+    list_domains,
     list_invitations,
     list_members,
     remove_member,
+    revoke_domain_claim,
     revoke_invitation,
+    verify_domain_claim,
 )
 
 router = APIRouter(prefix="/api/v1/orbit", tags=["organization-governance"])
@@ -331,3 +341,129 @@ def leave_organization(
         raise _not_found() from exc
     except LastOrganizationOwnerError as exc:
         raise HTTPException(status_code=409, detail={"code": "last_organization_owner"}) from exc
+
+
+@router.post(
+    "/organizations/{organization_id}/domains",
+    response_model=OrganizationDomainCreated,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_organization_domain(
+    organization_id: UUID,
+    payload: OrganizationDomainCreate,
+    request: Request,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    csrf_guard: HumanCsrfDep,
+) -> OrganizationDomainCreated:
+    del csrf_guard
+    try:
+        return create_domain_claim(
+            session,
+            settings,
+            user=current_human,
+            organization_id=organization_id,
+            payload=payload,
+            human_session_id=human_session_id_from_request(request),
+            request_id=request.state.request_id,
+        )
+    except OrganizationSelfGovernanceNotFoundError as exc:
+        raise _not_found() from exc
+    except OrganizationAccessDeniedError as exc:
+        raise _forbidden() from exc
+    except OrganizationDomainConflictError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "organization_domain_conflict"},
+        ) from exc
+
+
+@router.get(
+    "/organizations/{organization_id}/domains",
+    response_model=dict[str, list[OrganizationDomainResponse]],
+)
+def get_organization_domains(
+    organization_id: UUID,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+) -> dict[str, list[OrganizationDomainResponse]]:
+    try:
+        return {
+            "items": list_domains(
+                session,
+                user=current_human,
+                organization_id=organization_id,
+            )
+        }
+    except OrganizationSelfGovernanceNotFoundError as exc:
+        raise _not_found() from exc
+
+
+@router.post(
+    "/organizations/{organization_id}/domains/{domain_id}/verify",
+    response_model=OrganizationDomainResponse,
+)
+def verify_organization_domain(
+    organization_id: UUID,
+    domain_id: UUID,
+    request: Request,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    csrf_guard: HumanCsrfDep,
+) -> OrganizationDomainResponse:
+    del csrf_guard
+    try:
+        return verify_domain_claim(
+            session,
+            settings,
+            user=current_human,
+            organization_id=organization_id,
+            domain_id=domain_id,
+            human_session_id=human_session_id_from_request(request),
+            request_id=request.state.request_id,
+        )
+    except OrganizationSelfGovernanceNotFoundError as exc:
+        raise _not_found() from exc
+    except OrganizationAccessDeniedError as exc:
+        raise _forbidden() from exc
+    except OrganizationDomainNotVerifiedError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "organization_domain_not_verified"},
+        ) from exc
+    except OrganizationDomainLookupError as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "organization_domain_lookup_unavailable"},
+        ) from exc
+
+
+@router.delete(
+    "/organizations/{organization_id}/domains/{domain_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_organization_domain(
+    organization_id: UUID,
+    domain_id: UUID,
+    request: Request,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    csrf_guard: HumanCsrfDep,
+) -> None:
+    del csrf_guard
+    try:
+        revoke_domain_claim(
+            session,
+            user=current_human,
+            organization_id=organization_id,
+            domain_id=domain_id,
+            human_session_id=human_session_id_from_request(request),
+            request_id=request.state.request_id,
+        )
+    except OrganizationSelfGovernanceNotFoundError as exc:
+        raise _not_found() from exc
+    except OrganizationAccessDeniedError as exc:
+        raise _forbidden() from exc

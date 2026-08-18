@@ -6,7 +6,8 @@ from sqlalchemy import select
 from agentpost.config import Settings
 from agentpost.db import Database
 from agentpost.main import create_app
-from agentpost.organizations.models import OrganizationInvitation
+from agentpost.organizations import service as organization_service
+from agentpost.organizations.models import OrganizationDomain, OrganizationInvitation
 
 PASSWORD = "correct horse battery staple"
 
@@ -291,3 +292,111 @@ def test_owner_can_transfer_ownership_before_leaving(
         assert (
             client.get(f"/api/v1/orbit/organizations/{organization_id}/members").status_code == 404
         )
+
+
+def test_owner_verifies_domain_by_dns_txt_without_storing_raw_proof(
+    settings: Settings,
+    database: Database,
+    monkeypatch,
+) -> None:
+    with TestClient(create_app(settings=_runtime(settings), database=database)) as client:
+        owner = _register(client, "domain-owner@example.com")
+        organization = _create_organization(client, str(owner["csrf_token"]))
+        organization_id = str(organization["organization"]["id"])
+
+        created = client.post(
+            f"/api/v1/orbit/organizations/{organization_id}/domains",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+            json={"domain": "Example.COM."},
+        )
+        assert created.status_code == 201, created.text
+        payload = created.json()
+        domain_id = str(payload["domain"]["domain_id"])
+        raw_value = str(payload["verification_value"])
+        assert payload["domain"]["domain"] == "example.com"
+        assert payload["domain"]["verification_record_name"] == "_agentpost.example.com"
+        assert raw_value.startswith("agentpost-domain-verification=")
+
+        monkeypatch.setattr(
+            organization_service,
+            "lookup_dns_txt",
+            lambda _name, *, timeout: ["wrong-proof"],
+        )
+        not_verified = client.post(
+            f"/api/v1/orbit/organizations/{organization_id}/domains/{domain_id}/verify",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+        )
+        assert not_verified.status_code == 409
+
+        monkeypatch.setattr(
+            organization_service,
+            "lookup_dns_txt",
+            lambda _name, *, timeout: [raw_value],
+        )
+        verified = client.post(
+            f"/api/v1/orbit/organizations/{organization_id}/domains/{domain_id}/verify",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+        )
+        assert verified.status_code == 200, verified.text
+        assert verified.json()["status"] == "verified"
+
+    with database.session_factory() as session:
+        stored = session.scalar(select(OrganizationDomain))
+        assert stored is not None
+        assert stored.verification_digest != raw_value
+        assert raw_value not in stored.verification_digest
+
+
+def test_domain_claim_is_globally_unique_and_owner_only(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with TestClient(create_app(settings=_runtime(settings), database=database)) as client:
+        first = _register(client, "first-domain-owner@example.com")
+        first_org = _create_organization(client, str(first["csrf_token"]))
+        first_org_id = str(first_org["organization"]["id"])
+        claimed = client.post(
+            f"/api/v1/orbit/organizations/{first_org_id}/domains",
+            headers={"X-CSRF-Token": first["csrf_token"]},
+            json={"domain": "company.example"},
+        )
+        assert claimed.status_code == 201, claimed.text
+        _logout(client, str(first["csrf_token"]))
+
+        second = _register(client, "second-domain-owner@example.com")
+        second_org = client.post(
+            "/api/v1/orbit/organizations",
+            headers={"X-CSRF-Token": second["csrf_token"]},
+            json={"slug": "south-star", "name": "南辰组织"},
+        )
+        assert second_org.status_code == 201, second_org.text
+        second_org_id = str(second_org.json()["organization"]["id"])
+        conflict = client.post(
+            f"/api/v1/orbit/organizations/{second_org_id}/domains",
+            headers={"X-CSRF-Token": second["csrf_token"]},
+            json={"domain": "COMPANY.EXAMPLE"},
+        )
+        assert conflict.status_code == 409
+
+        invitation = _invite(
+            client,
+            organization_id=second_org_id,
+            csrf=str(second["csrf_token"]),
+            email="domain-member@example.com",
+        )
+        _logout(client, str(second["csrf_token"]))
+        member = _register(client, "domain-member@example.com")
+        assert (
+            client.post(
+                "/api/v1/orbit/organization-invitations/accept",
+                headers={"X-CSRF-Token": member["csrf_token"]},
+                json={"token": invitation["test_acceptance_token"]},
+            ).status_code
+            == 200
+        )
+        forbidden = client.post(
+            f"/api/v1/orbit/organizations/{second_org_id}/domains",
+            headers={"X-CSRF-Token": member["csrf_token"]},
+            json={"domain": "member.example"},
+        )
+        assert forbidden.status_code == 403

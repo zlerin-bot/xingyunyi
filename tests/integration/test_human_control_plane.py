@@ -113,6 +113,15 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "账户安全" in orbit.text
     assert "组织星图" in orbit.text
     assert "organization-list" in orbit.text
+    assert "open-organization-create" in orbit.text
+    assert "organization-manage-dialog" in orbit.text
+    assert '"/api/v1/orbit/organization-invitations/accept"' in script.text
+    assert "organization-invitation" in script.text
+    assert "history.replaceState" in script.text
+    assert "organization-domain-name" in orbit.text
+    assert "/domains/" in script.text
+    assert "organizationDomainProofs.clear()" in script.text
+    assert "TXT 记录" in orbit.text
     assert "Agent 连接" in orbit.text
     assert "pairing-dialog" in orbit.text
     assert "revoke-dialog" in orbit.text
