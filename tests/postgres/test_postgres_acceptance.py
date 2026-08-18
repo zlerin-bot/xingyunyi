@@ -11,11 +11,19 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, inspect, select, text
 
 from agentpost.config import Settings
+from agentpost.control.models import AgentOwnership
 from agentpost.db import Database
+from agentpost.identity.models import Agent, AgentApiKey
 from agentpost.main import create_app
 from agentpost.messaging.models import AuditLog, Delivery, IdempotencyRecord, Message
+from agentpost.onboarding.models import (
+    AgentConnectorBinding,
+    AgentPairingSession,
+    ConnectorInstance,
+)
 
 pytestmark = pytest.mark.postgres
+ADMIN_KEY = "postgres-admin-secret-postgres-admin-secret"
 
 
 def _settings(database_url: str, storage_path: Path) -> Settings:
@@ -24,7 +32,13 @@ def _settings(database_url: str, storage_path: Path) -> Settings:
         database_url=database_url,
         storage_path=storage_path,
         api_key_pepper="postgres-acceptance-pepper",
+        human_api_key_pepper="postgres-human-pepper",
         cursor_secret="postgres-acceptance-cursor",
+        pairing_secret="postgres-pairing-secret",
+        pairing_enabled=True,
+        managed_agent_domain="agents.local",
+        public_base_url="https://agentpost.test",
+        admin_token=ADMIN_KEY,
         log_level="WARNING",
     )
 
@@ -113,7 +127,100 @@ def test_alembic_upgrade_reaches_single_head_and_creates_expected_schema(
         "deliveries",
         "idempotency_records",
         "messages",
+        "agent_pairing_sessions",
+        "connector_instances",
+        "agent_connector_bindings",
     } <= table_names
+
+
+@pytest.mark.e2e
+@pytest.mark.concurrency
+def test_postgres_pairing_is_atomic_idempotent_and_restart_durable(
+    postgres_url: str,
+    migrated_database: Database,
+    tmp_path: Path,
+) -> None:
+    settings = _settings(postgres_url, tmp_path / "attachments")
+    with TestClient(create_app(settings=settings, database=migrated_database)) as client:
+        pairing_response = client.post(
+            "/api/v1/connect/pairings",
+            json={
+                "connector_type": "codex",
+                "display_name": "Codex PostgreSQL acceptance",
+                "device_name": "test host",
+                "capabilities": ["financial-research"],
+            },
+        )
+        assert pairing_response.status_code == 201, pairing_response.text
+        pairing = pairing_response.json()
+        human_response = client.post(
+            "/api/v1/admin/humans",
+            headers={"Authorization": f"Bearer {ADMIN_KEY}"},
+            json={"email": "pairing-owner@example.com", "display_name": "Pairing Owner"},
+        )
+        assert human_response.status_code == 201, human_response.text
+        human = human_response.json()
+        login = client.post(
+            "/api/v1/orbit/session",
+            headers={"Authorization": f"Bearer {human['access_key']}"},
+        )
+        assert login.status_code == 201, login.text
+        csrf = login.json()["csrf_token"]
+        confirmation = client.post(
+            f"/api/v1/orbit/pairings/{pairing['pairing_id']}/confirmation",
+            headers={
+                "Authorization": f"Bearer {human['access_key']}",
+                "X-CSRF-Token": csrf,
+            },
+            json={"intent": "approve", "user_code": pairing["user_code"]},
+        )
+        assert confirmation.status_code == 200, confirmation.text
+        decision_workers = 8
+        decision_barrier = Barrier(decision_workers)
+
+        def concurrent_decision(_: int):
+            decision_barrier.wait(timeout=10)
+            return client.post(
+                f"/api/v1/orbit/pairings/{pairing['pairing_id']}/decision",
+                headers={
+                    "Idempotency-Key": "postgres-pairing-decision",
+                    "X-CSRF-Token": csrf,
+                    "X-Human-Confirmation": confirmation.json()["confirmation_token"],
+                },
+                json={"decision": "approved", "local_agent_id": "postgres-pluto"},
+            )
+
+        with ThreadPoolExecutor(max_workers=decision_workers) as executor:
+            decisions = list(executor.map(concurrent_decision, range(decision_workers)))
+        assert [response.status_code for response in decisions] == [200] * decision_workers
+        assert {response.json()["pairing"]["agent"]["id"] for response in decisions} == {
+            decisions[0].json()["pairing"]["agent"]["id"]
+        }
+
+        claimed = client.post(
+            "/api/v1/connect/pairings/token",
+            json={"device_code": pairing["device_code"]},
+        )
+        assert claimed.status_code == 200, claimed.text
+        connector_key = claimed.json()["api_key"]
+
+    restarted_database = Database(postgres_url)
+    try:
+        with TestClient(create_app(settings=settings, database=restarted_database)) as restarted:
+            inbox = restarted.get(
+                "/api/v1/inbox?status=unread",
+                headers={"Authorization": f"Bearer {connector_key}"},
+            )
+            assert inbox.status_code == 200, inbox.text
+            assert inbox.json()["items"] == []
+        assert _count(restarted_database, Agent) == 1
+        assert _count(restarted_database, AgentOwnership) == 1
+        assert _count(restarted_database, AgentPairingSession) == 1
+        assert _count(restarted_database, ConnectorInstance) == 1
+        assert _count(restarted_database, AgentConnectorBinding) == 1
+        assert _count(restarted_database, AgentApiKey) == 1
+    finally:
+        restarted_database.dispose()
 
 
 @pytest.mark.e2e

@@ -90,6 +90,13 @@ class AgentApiKey(Base):
         nullable=False,
         index=True,
     )
+    connector_instance_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("connector_instances.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
     key_digest: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     key_prefix: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(

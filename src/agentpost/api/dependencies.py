@@ -12,6 +12,7 @@ from agentpost.config import Settings
 from agentpost.db import Database
 from agentpost.identity.api_keys import API_KEY_MARKER, digest_api_key
 from agentpost.identity.models import Agent, AgentApiKey
+from agentpost.onboarding.models import ConnectorInstance
 
 
 def get_database(request: Request) -> Database:
@@ -70,6 +71,10 @@ def get_current_agent(
     now = datetime.now(UTC)
     credential.last_used_at = now
     credential.agent.last_seen_at = now
+    if credential.connector_instance_id is not None:
+        connector = session.get(ConnectorInstance, credential.connector_instance_id)
+        if connector is not None and connector.status == "active":
+            connector.last_seen_at = now
     session.commit()
     request.state.agent_id = str(credential.agent.id)
     return credential.agent

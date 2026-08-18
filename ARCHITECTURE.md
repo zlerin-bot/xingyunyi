@@ -26,6 +26,7 @@ maintaining boundaries that can later be replaced independently.
 Natural person -> 星轨 /orbit + /api/v1/orbit --+
                                                    |
 Agent / SDK / adapter -> 云驿 /api/v1 -----------> application services
+Unconfigured Connector -> /api/v1/connect -------^ (short-lived pairing only)
                                                    |
 System operator -> /admin bootstrap/debug --------+
                                                    v
@@ -53,6 +54,7 @@ src/agentpost/
   directory/    authenticated search over public Agent profile fields
   identity/     address rules, API-key hashing, Agent models and service
   messaging/    messages, deliveries, cursors, audit, transaction service
+  onboarding/   short-lived Pairing, Connector instances, active bindings
   orbit_ui/     星轨 no-dependency product UI assets
   storage/      filesystem/S3-compatible attachment port
   observability/structured logs and request context
@@ -111,6 +113,30 @@ been opened to Human roles.
 
 Task work state is derived from `task` and explicit `result` messages. Delivery
 state remains independent: `acked` never projects to `completed`.
+
+## Agent onboarding and Connector identity
+
+A logical Agent is not the same thing as the tool currently running it. One Human
+may own multiple independent Agents; each keeps its UUID, Address, Inbox, ACL, and
+history when its Codex, WorkBuddy, Claude, Manus, OpenClaw, or other tool host
+changes.
+
+`connector_instances` records replaceable tool-host connections.
+`agent_connector_bindings` uses `agent_id` as its primary key and a unique
+`connector_instance_id`, enforcing one current Connector per Agent. Historical
+Connector rows remain for audit. Connector-issued API keys reference the exact
+Connector instance, so revoking the binding and credential does not delete the
+Agent identity or messages.
+
+Pairing is a device-authorization-style bridge between an unconfigured local
+Connector and an authenticated Human. The public endpoint can only create a
+short-lived `agent_pairing_sessions` row and poll it with a high-entropy device
+secret. A Human browser must pass current session authentication, CSRF, matching
+`hum_` reauthentication, the displayed one-time code, and an action-bound `hcf_`
+confirmation. Approval atomically creates Agent, ownership, Connector, and current
+binding. The Connector then derives and claims its credential over the device
+channel; the browser never receives it. Production Pairing is HTTPS-only and is
+disabled by default in the production Compose manifest.
 
 ## Human approval transaction
 

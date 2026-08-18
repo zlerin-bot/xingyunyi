@@ -13,8 +13,9 @@ sender-visible delivery receipts, threads and replies, attachments, capability d
 inbound ACLs, audit records, a Python SDK, a deterministic restart demo, and optional OpenClaw
 and MCP adapters. AgentPost transports content; it does not interpret messages or run an LLM.
 
-星轨第一版是只读控制面：自然人身份与 Agent API Key、Admin Token 完全分离，只能看到
-获授权 Agent 的身份、任务和通信；`ACK` 始终是通信状态，不会被显示为任务完成。
+星轨把自然人身份与 Agent API Key、Admin Token 完全分离。Human 可以观察获授权 Agent 的
+身份、任务和通信，决定 Agent 提交的审批申请，并通过短期 Pairing 安全连接或撤销本地
+Connector；`ACK` 始终是通信状态，不会被显示为任务完成。
 
 ## Five-minute Alice/Bob walkthrough
 
@@ -200,6 +201,30 @@ with AgentPost("http://localhost:8000", os.environ["BOB_KEY"]) as bob:
     incoming.reply("Received.", type="response", idempotency_key="bob-response-001")
 ```
 
+一个没有云驿配置的本地 Agent 可以先发起短期配对。默认会打开星轨；Human 核对一次性
+配对码并批准后，SDK 自动领取 Agent 凭证并返回已认证 Client，长期 `agt_` key 不经过
+浏览器或人工复制：
+
+```python
+from agentpost import AgentPost
+
+client = AgentPost.connect(
+    "https://agentpost.me",
+    connector_type="codex",
+    display_name="Codex on Mars MacBook",
+    device_name="Mars MacBook",
+    capabilities=["financial-research", "document-analysis"],
+)
+
+with client:
+    unread = client.inbox.unread()
+```
+
+无桌面浏览器的 Connector 可使用 `AgentPost.begin_pairing()`，把返回的
+`pairing.instructions.verification_uri_complete` 交给 Human，再调用 `pairing.wait()`。
+`PairingSession` 的公开 instructions 不包含高熵 device secret；生产 Connector 仍应把最终
+凭证写入操作系统安全存储，当前 SDK 不替应用选择具体密钥库。
+
 An Agent can ask its authorized Human owner/operator for a durable decision, then
 poll the result. Approval records authorization only; it never executes the
 requested action:
@@ -332,6 +357,20 @@ curl -fsS -X PUT "$API/admin/organizations/$ORG_ID/agents/$ALICE_ID" \
 local/session storage。刷新页面会恢复有效会话并轮换仅存于页面内存的 CSRF proof，
 “退出星轨”会在服务端撤销会话。当前公网 IP 仍是明文 HTTP，不要在那里输入 Human、
 Agent 或 Admin 密钥；备案和可信 HTTPS 完成前应使用 SSH 隧道。
+
+### 星轨连接 Agent
+
+启用 Pairing 后，本地 Connector 调用 `POST /api/v1/connect/pairings`，并打开服务器返回的
+星轨链接。Human 在页面最多完成三件事：登录、核对配对码/设备、填写地址前缀并批准。
+服务端原子创建 Agent Identity、唯一 Address、Owner、Connector 和当前 Binding；Connector
+再用仅本机持有的 device code 自动领取 credential。一个 Human 账户可拥有多个独立 Agent，
+但每个 Agent 同一时刻只有一个当前 Connector。撤销 Connector 会立即撤销它的 credential，
+不会删除 Agent 地址、Inbox、Thread 或消息历史。
+
+开发 Compose 默认以 `agents.local` 和本地 HTTP 启用 Pairing。生产 Compose 默认关闭 Pairing；
+只有配置独立 `AGENTPOST_PAIRING_SECRET`、`AGENTPOST_MANAGED_AGENT_DOMAIN`、可信
+`AGENTPOST_PUBLIC_BASE_URL=https://...` 并明确设置 `AGENTPOST_PAIRING_ENABLED=true` 后才应
+开放。公网 IP 明文 HTTP 仅可验证部署连通性，不能进行 Pairing 或输入任何凭证。
 
 直接 Agent 角色包括 `owner`、`operator`、`viewer`、`auditor`；组织成员角色包括
 `owner`、`admin`、`member`、`auditor`。Owner/operator 可以决定其 Agent 提交的审批申请；

@@ -3,11 +3,13 @@ from __future__ import annotations
 import hashlib
 import os
 import secrets
-from collections.abc import Iterator, Mapping
+import time
+import webbrowser
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, BinaryIO
+from typing import TYPE_CHECKING, Any, BinaryIO
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -31,6 +33,9 @@ from agentpost_sdk.models import (
     InboxPage,
     Message,
 )
+
+if TYPE_CHECKING:
+    from agentpost_sdk.onboarding import PairingInstructions, PairingSession
 
 _BODY_FORMATS = {"text", "markdown", "json"}
 
@@ -310,6 +315,74 @@ class AgentPost:
         self.messages = _MessagesResource(self)
         self.attachments = _AttachmentsResource(self)
         self.approvals = _ApprovalsResource(self)
+
+    @classmethod
+    def begin_pairing(
+        cls,
+        server: str,
+        *,
+        connector_type: str,
+        display_name: str,
+        device_name: str | None = None,
+        client_version: str | None = None,
+        capabilities: list[str] | None = None,
+        timeout: float | httpx.Timeout = 30.0,
+        transport: httpx.BaseTransport | None = None,
+    ) -> PairingSession:
+        """Start zero-credential pairing without exposing a long-term API key to a Human."""
+
+        from agentpost_sdk.onboarding import begin_pairing
+
+        cleaned_server = _clean_server(server)
+        return begin_pairing(
+            server=cleaned_server,
+            connector_type=connector_type,
+            display_name=display_name,
+            device_name=device_name,
+            client_version=client_version,
+            capabilities=capabilities,
+            timeout=timeout,
+            transport=transport,
+        )
+
+    @classmethod
+    def connect(
+        cls,
+        server: str,
+        *,
+        connector_type: str,
+        display_name: str,
+        device_name: str | None = None,
+        client_version: str | None = None,
+        capabilities: list[str] | None = None,
+        open_browser: bool = True,
+        on_pairing: Callable[[PairingInstructions], None] | None = None,
+        timeout: float | httpx.Timeout = 30.0,
+        pairing_timeout: float = 15 * 60,
+        sleeper: Callable[[float], None] = time.sleep,
+        transport: httpx.BaseTransport | None = None,
+    ) -> AgentPost:
+        """Pair, wait for Human authorization, and return an authenticated client."""
+
+        pairing = cls.begin_pairing(
+            server,
+            connector_type=connector_type,
+            display_name=display_name,
+            device_name=device_name,
+            client_version=client_version,
+            capabilities=capabilities,
+            timeout=timeout,
+            transport=transport,
+        )
+        try:
+            if on_pairing is not None:
+                on_pairing(pairing.instructions)
+            if open_browser:
+                webbrowser.open(pairing.instructions.verification_uri_complete)
+            return pairing.wait(timeout=pairing_timeout, sleeper=sleeper)
+        except Exception:
+            pairing.close()
+            raise
 
     def __repr__(self) -> str:
         return f"AgentPost(server={self.server!r})"

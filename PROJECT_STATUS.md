@@ -1,6 +1,6 @@
 # 星云驿 Project Status
 
-Last updated: 2026-08-17
+Last updated: 2026-08-18
 
 ## Current state
 
@@ -19,6 +19,8 @@ The MVP implementation is locally runnable as a protocol-first modular monolith:
 - 星轨 Human identity, Agent ownership/role grants, scoped observation API, and
   same-origin product website with revocable short-lived browser sessions and
   organization-scoped visibility, plus a CSRF/step-up-protected approval queue
+- Human-authorized Agent Pairing, one-current-Connector bindings, automatic
+  credential claim, Connector revocation, and Python SDK zero-credential connect
 
 ## Verified local environment
 
@@ -61,6 +63,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 16 | 星轨 organizations, memberships, and organization-scoped Agent visibility | complete* |
 | 17 | 星轨 browser CSRF, one-time action confirmation, and Human action audit | complete* |
 | 18 | Agent-created, Human-decided approval queue and 星轨 approval UI | complete* |
+| 19 | Human-authorized Agent Pairing, Connector identity, claim, and revocation | complete* |
 
 ## Decisions already fixed
 
@@ -89,6 +92,46 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 12. Approval state is independent from Delivery and task state. `approved` records
     authorization with `execution_effect=none`; the requesting Agent must poll and
     continue under its own identity and policy.
+13. A tool host is a replaceable Connector, not an Agent identity. One Human may
+    own many independent Agents; one Agent has one current Connector. Replacing or
+    revoking a Connector preserves Address, Inbox, ACL, Thread, and history.
+
+## Milestone 19 Agent onboarding evidence
+
+The first zero-configuration onboarding slice is implemented. An unconfigured
+Connector can create a short-lived Pairing and poll with a high-entropy device
+code. A logged-in Human previews external Connector metadata in 星轨, verifies the
+one-time user code, reauthenticates with the matching Human key, and approves or
+denies under CSRF, action-bound confirmation, and Human idempotency controls.
+
+Approval atomically creates a new Agent, unique managed Address, `AgentOwnership`,
+Connector instance, and single current Connector binding. The Connector claims a
+deterministically derived Agent credential over its private device channel; the
+database stores only its normal HMAC digest, and the browser never receives the
+credential. Repeated claim after response loss returns the same key. Human
+revocation removes the current binding and revokes the connector-bound key while
+leaving Agent identity and durable mail untouched.
+
+星轨 now has an “Agent 连接” section and safe step-up dialogs for Pairing and
+revocation. One account can display multiple independent Agents and historical
+Connectors. The Python SDK adds `AgentPost.begin_pairing()` and
+`AgentPost.connect()` so a local Connector can open the verification URL, wait at
+the advertised interval, and return an authenticated client without Human key
+copying.
+
+Six new service integration tests cover pending/slow-down/approved/replayed claim,
+wrong code, Human isolation, address-conflict rollback, denial, expiry, disabled
+surface, connector-bound credential, application restart, offline Inbox
+persistence, last-seen update, and revoke/401 behavior. Two SDK tests cover the
+Human-facing instruction boundary and authenticated connection. Migration 0011
+passed fresh upgrade, schema check, downgrade to 0010, re-upgrade, and a second
+schema check against SQLite.
+
+Latest locally runnable regression: 263 passed, one expected loopback sandbox
+skip, and four explicitly deselected PostgreSQL tests. The optional MCP suite and
+OpenClaw Node harness each add four passing tests. Ruff lint, whole-repository
+format check, JavaScript syntax check, and `git diff --check` pass. Real PostgreSQL
+execution remains a separate required gate.
 
 ## 星轨 Human control-plane evidence
 
@@ -214,7 +257,7 @@ acceptance asset exist but the required external runtime was unavailable.
   Docker nor PostgreSQL is installed.
 - [~] Docker Compose one-command API/PostgreSQL startup and persistent volumes are
   implemented but not executed on this host.
-- [~] All locally runnable automated tests pass; the three PostgreSQL cases must
+- [~] All locally runnable automated tests pass; the four PostgreSQL cases must
   pass with zero skips before a production-database acceptance claim.
 
 ## Milestone evidence trail
@@ -255,7 +298,7 @@ database. Fast acceptance covers two application restarts with task/result
 attachments, 100 concurrent Agents without lost delivery, 32-way idempotency,
 concurrent read/ACK, authorization isolation, forged state, malformed JSON, and
 log-secret canaries. The PostgreSQL suite and isolated Compose manifest exist and
-collect safely, but their three tests are **not locally executed** because this
+collect safely, but their four tests are **not locally executed** because this
 host has no Docker or PostgreSQL command. That remaining boundary is why the
 milestone carries an asterisk rather than a production acceptance claim.
 

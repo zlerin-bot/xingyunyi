@@ -93,14 +93,15 @@ Human 登录星轨并打开配对页，核对 Connector 类型、设备名和配
 3. 创建 `AgentOwnership`。
 4. 创建 Connector Instance。
 5. 设置该 Agent 的唯一当前 Connector。
-6. 创建只属于该 Connector 的 Agent API Credential。
+6. 将 Pairing 绑定到该 Agent 与 Connector，供持有 `device_code` 的
+   Connector 在私有轮询通道领取凭证。
 7. 写入安全审计并把 Pairing 标记为 approved。
 
 首个实现只允许“创建一个新 Agent”。把 Connector 迁移到既有 Agent 将在轮换/迁移里程碑中增加，并要求更强的重认证。
 
 ### 4.3 Connector 自动领取
 
-Connector 使用 `device_code` 轮询 token endpoint。批准后，服务器只通过此通道返回一次逻辑凭证结果。为抵抗响应丢失，配对有效期内的重复轮询返回同一个确定性派生凭证；服务器仍只保存 HMAC 摘要，不保存明文。
+Connector 使用 `device_code` 轮询 token endpoint。批准后，服务器在首次成功领取时创建只属于该 Connector 的凭证记录，并只通过此通道返回凭证结果。为抵抗响应丢失，配对有效期内的重复轮询返回同一个确定性派生凭证；服务器仍只保存 HMAC 摘要，不保存明文。
 
 Connector 保存凭证后开始普通 HTTPS polling：
 
@@ -169,10 +170,9 @@ Connector 是薄客户端，不包含云驿业务真相。最低行为：
 
 ### 星轨 Human 入口
 
-- `GET /api/v1/orbit/pairings/{user_code}`
-- `POST /api/v1/orbit/pairings/{user_code}/confirmation`
-- `POST /api/v1/orbit/pairings/{user_code}/approve`
-- `POST /api/v1/orbit/pairings/{user_code}/deny`
+- `GET /api/v1/orbit/pairings/{pairing_id}`
+- `POST /api/v1/orbit/pairings/{pairing_id}/confirmation`
+- `POST /api/v1/orbit/pairings/{pairing_id}/decision`
 - `GET /api/v1/orbit/connectors`
 - `POST /api/v1/orbit/connectors/{connector_id}/confirmation`
 - `DELETE /api/v1/orbit/connectors/{connector_id}`

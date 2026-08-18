@@ -25,6 +25,11 @@ from agentpost.control.models import (
 from agentpost.db import Base
 from agentpost.identity.models import Agent, AgentApiKey
 from agentpost.messaging.models import AuditLog, Delivery, IdempotencyRecord, Message
+from agentpost.onboarding.models import (
+    AgentConnectorBinding,
+    AgentPairingSession,
+    ConnectorInstance,
+)
 
 _MODELS = (
     Agent,
@@ -47,6 +52,9 @@ _MODELS = (
     OrganizationAgent,
     ApprovalRequest,
     ApprovalDecision,
+    ConnectorInstance,
+    AgentConnectorBinding,
+    AgentPairingSession,
 )
 
 config = context.config

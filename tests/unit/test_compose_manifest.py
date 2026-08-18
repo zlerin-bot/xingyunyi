@@ -51,3 +51,10 @@ def test_production_compose_uses_durable_state_and_no_literal_secrets() -> None:
     assert "POSTGRES_PASSWORD: agentpost" not in manifest_text
     assert "AGENTPOST_API_KEY_PEPPER: replace" not in manifest_text
     assert "AGENTPOST_HUMAN_API_KEY_PEPPER" in manifest_text
+    assert "AGENTPOST_PAIRING_SECRET" in manifest_text
+    assert manifest["services"]["api"]["environment"]["AGENTPOST_PAIRING_ENABLED"] == (
+        "${AGENTPOST_PAIRING_ENABLED:-false}"
+    )
+    assert manifest["services"]["api"]["environment"]["AGENTPOST_PUBLIC_BASE_URL"] == (
+        "${AGENTPOST_PUBLIC_BASE_URL:-https://agentpost.me}"
+    )

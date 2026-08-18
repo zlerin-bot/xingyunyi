@@ -98,11 +98,12 @@
           <nav aria-label="星轨导航">
             <a href="#overview" class="nav-item active"><span>01</span>星轨总览</a>
             <a href="#organizations" class="nav-item"><span>02</span>组织星图</a>
-            <a href="#agents" class="nav-item"><span>03</span>我的 Agent</a>
-            <a href="#tasks" class="nav-item"><span>04</span>任务进展</a>
-            <a href="#approvals" class="nav-item"><span>05</span>审批队列</a>
-            <a href="#communications" class="nav-item"><span>06</span>云驿通信</a>
-            <a href="#governance" class="nav-item"><span>07</span>治理边界</a>
+            <a href="#connections" class="nav-item"><span>03</span>Agent 连接</a>
+            <a href="#agents" class="nav-item"><span>04</span>我的 Agent</a>
+            <a href="#tasks" class="nav-item"><span>05</span>任务进展</a>
+            <a href="#approvals" class="nav-item"><span>06</span>审批队列</a>
+            <a href="#communications" class="nav-item"><span>07</span>云驿通信</a>
+            <a href="#governance" class="nav-item"><span>08</span>治理边界</a>
           </nav>
           <div class="sidebar-actions">
             <button id="refresh-dashboard" type="button" class="quiet-button">刷新星轨</button>
@@ -163,6 +164,20 @@
               组织是成员权限与 Agent 治理范围的服务端边界，不是前端筛选标签。
             </p>
             <div id="organization-list" class="organization-grid" aria-live="polite"></div>
+          </section>
+
+          <section id="connections" class="content-section">
+            <div class="section-heading">
+              <div>
+                <p class="section-tag">Agent onboarding</p>
+                <h2>Agent 连接</h2>
+              </div>
+              <button id="open-pairing" type="button" class="primary-action">连接 Agent</button>
+            </div>
+            <p class="section-intro">
+              一个账户可以拥有多个独立 Agent；每个 Agent 同一时刻只连接一个 Codex、WorkBuddy、Claude、Manus、OpenClaw 或其他 Connector。更换工具不会改变地址、Inbox 和历史。
+            </p>
+            <div id="connector-list" class="connector-grid" aria-live="polite"></div>
           </section>
 
           <section id="agents" class="content-section">
@@ -280,6 +295,89 @@
         <div class="dialog-actions">
           <button id="approval-cancel" type="button" class="quiet-button">返回</button>
           <button id="approval-submit" type="submit" class="approval-submit">确认决定</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="pairing-dialog" class="approval-dialog pairing-dialog" aria-labelledby="pairing-dialog-title">
+      <form id="pairing-form" method="dialog" autocomplete="off">
+        <div class="dialog-heading">
+          <div>
+            <p class="section-tag">云驿配对</p>
+            <h2 id="pairing-dialog-title">连接一个本地 Agent</h2>
+          </div>
+          <button id="pairing-close" type="button" class="dialog-close" aria-label="关闭配对窗口">×</button>
+        </div>
+        <p class="dialog-summary">
+          请从本地 Connector 获取配对链接或配对 ID/代码。批准后，长期凭证只由 Connector 自动领取，不会显示在星轨中。
+        </p>
+        <div id="pairing-preview" class="pairing-preview" hidden></div>
+        <label for="pairing-id">配对 ID</label>
+        <input id="pairing-id" type="text" autocomplete="off" spellcheck="false" required placeholder="pair_••••••••">
+        <label for="pairing-user-code">一次性配对码</label>
+        <input id="pairing-user-code" type="text" autocomplete="one-time-code" spellcheck="false" required placeholder="ABCD-EFGH" maxlength="16">
+        <div class="pairing-fields">
+          <div>
+            <label for="pairing-local-id">Agent 地址前缀</label>
+            <input id="pairing-local-id" type="text" autocomplete="off" spellcheck="false" required placeholder="pluto" maxlength="64">
+          </div>
+          <div>
+            <label for="pairing-display-name">Agent 名称</label>
+            <input id="pairing-display-name" type="text" autocomplete="off" maxlength="200" placeholder="我的研究 Agent">
+          </div>
+        </div>
+        <label for="pairing-capabilities">能力标签</label>
+        <input id="pairing-capabilities" type="text" autocomplete="off" maxlength="1000" placeholder="financial-research, document-analysis">
+        <label for="pairing-access-key">重新输入人类访问密钥</label>
+        <input
+          id="pairing-access-key"
+          type="password"
+          autocomplete="new-password"
+          spellcheck="false"
+          required
+          placeholder="hum_••••••••••••"
+        >
+        <div class="trust-banner">
+          Connector 名称、设备和能力是外部自声明数据。请核对配对码，只批准你刚刚主动连接的设备。
+        </div>
+        <p id="pairing-result" class="form-status" role="status"></p>
+        <div class="dialog-actions split-actions">
+          <button id="pairing-deny" type="button" class="quiet-button danger">拒绝配对</button>
+          <div>
+            <button id="pairing-cancel" type="button" class="quiet-button">返回</button>
+            <button id="pairing-submit" type="submit" class="approval-submit">确认连接</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="revoke-dialog" class="approval-dialog" aria-labelledby="revoke-dialog-title">
+      <form id="revoke-form" method="dialog" autocomplete="off">
+        <div class="dialog-heading">
+          <div>
+            <p class="section-tag">Connector revoke</p>
+            <h2 id="revoke-dialog-title">撤销当前连接</h2>
+          </div>
+          <button id="revoke-close" type="button" class="dialog-close" aria-label="关闭撤销窗口">×</button>
+        </div>
+        <p id="revoke-summary" class="dialog-summary"></p>
+        <input id="revoke-connector-id" type="hidden">
+        <label for="revoke-access-key">重新输入人类访问密钥</label>
+        <input
+          id="revoke-access-key"
+          type="password"
+          autocomplete="new-password"
+          spellcheck="false"
+          required
+          placeholder="hum_••••••••••••"
+        >
+        <div class="trust-banner">
+          撤销会立即使该 Connector 的凭证失效，但不会删除 Agent 地址、Inbox、Thread 或历史消息。
+        </div>
+        <p id="revoke-result" class="form-status" role="status"></p>
+        <div class="dialog-actions">
+          <button id="revoke-cancel" type="button" class="quiet-button">返回</button>
+          <button id="revoke-submit" type="submit" class="approval-submit danger-submit">确认撤销</button>
         </div>
       </form>
     </dialog>

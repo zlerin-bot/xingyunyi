@@ -48,6 +48,26 @@ def test_approval_default_ttl_is_bounded() -> None:
         Settings(approval_default_ttl_seconds=7 * 24 * 60 * 60 + 1)
 
 
+def test_pairing_configuration_is_bounded_and_canonical() -> None:
+    settings = Settings(
+        managed_agent_domain="AgentPost.Me",
+        public_base_url="https://agentpost.me/",
+    )
+
+    assert settings.managed_agent_domain == "agentpost.me"
+    assert settings.public_base_url == "https://agentpost.me"
+    assert settings.pairing_ttl_seconds == 600
+    assert settings.pairing_poll_interval_seconds == 5
+    with pytest.raises(ValidationError):
+        Settings(managed_agent_domain="not_a_domain!")
+    with pytest.raises(ValidationError):
+        Settings(public_base_url="https://user:secret@agentpost.me")
+    with pytest.raises(ValidationError):
+        Settings(pairing_ttl_seconds=299)
+    with pytest.raises(ValidationError):
+        Settings(pairing_poll_interval_seconds=2)
+
+
 def test_production_rejects_development_secrets() -> None:
     with pytest.raises(ValidationError):
         Settings(environment="production")
@@ -80,12 +100,38 @@ def test_production_accepts_all_required_secrets() -> None:
         api_key_pepper="production-pepper",
         human_api_key_pepper="production-human-pepper",
         cursor_secret="production-cursor-secret",
+        pairing_secret="production-pairing-secret",
         registration_token="registration-secret",
         admin_token="production-admin-token-at-least-32",
+        managed_agent_domain="agentpost.me",
+        public_base_url="https://agentpost.me",
     )
 
     assert settings.registration_token is not None
     assert settings.admin_token is not None
+
+
+def test_production_pairing_requires_separate_secret_and_https() -> None:
+    base = {
+        "environment": "production",
+        "api_key_pepper": "production-pepper",
+        "human_api_key_pepper": "production-human-pepper",
+        "cursor_secret": "production-cursor-secret",
+        "registration_token": "registration-secret",
+        "admin_token": "production-admin-token-at-least-32",
+        "managed_agent_domain": "agentpost.me",
+    }
+    with pytest.raises(ValidationError, match="PAIRING_SECRET"):
+        Settings(**base)
+    with pytest.raises(ValidationError, match="PUBLIC_BASE_URL"):
+        Settings(
+            **base,
+            pairing_secret="production-pairing-secret",
+            public_base_url="http://203.0.113.10",
+        )
+
+    disabled = Settings(**base, pairing_enabled=False)
+    assert disabled.pairing_enabled is False
 
 
 def test_production_requires_a_separate_human_key_pepper() -> None:

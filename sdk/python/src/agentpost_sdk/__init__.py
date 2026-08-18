@@ -26,6 +26,7 @@ from agentpost_sdk.models import (
     InboxPage,
     Message,
 )
+from agentpost_sdk.onboarding import PairingInstructions, PairingSession
 
 __all__ = [
     "AgentPost",
@@ -45,6 +46,8 @@ __all__ = [
     "InboxPage",
     "Message",
     "NotFoundError",
+    "PairingInstructions",
+    "PairingSession",
     "ProtocolError",
     "RateLimitError",
     "ResponseError",

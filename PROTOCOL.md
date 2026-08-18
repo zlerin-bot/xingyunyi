@@ -509,6 +509,61 @@ transfer, invoke a tool, or otherwise execute the requested business action. The
 requesting Agent must poll, validate scope, and decide how to proceed under its
 own credentials and policy.
 
+### 11.1 Agent Pairing and Connector claim
+
+An unconfigured Connector has no sender identity. It may only create a short-lived
+pairing session:
+
+```http
+POST /api/v1/connect/pairings
+Content-Type: application/json
+
+{
+  "connector_type": "codex",
+  "display_name": "Codex on Mars MacBook",
+  "device_name": "Mars MacBook",
+  "client_version": "1.0.0",
+  "capabilities": ["financial-research"]
+}
+```
+
+The response contains a high-entropy `device_code`, a Human-facing `user_code`, a
+Star Orbit verification URL, expiration, and minimum polling interval. None of
+these fields is a sender credential. The Connector MUST keep `device_code` out of
+URLs, prompts, telemetry, and Human-visible logs.
+
+The authenticated Human previews the pairing in Star Orbit, verifies the complete
+user code, reauthenticates, and creates a target-bound one-time confirmation. The
+decision endpoint also requires CSRF and a Human idempotency key:
+
+```http
+POST /api/v1/orbit/pairings/{pairing_id}/decision
+X-CSRF-Token: csrf_<session-secret>
+X-Human-Confirmation: hcf_<one-time-secret>
+Idempotency-Key: stable-human-pairing-decision
+
+{
+  "decision": "approved",
+  "local_agent_id": "pluto",
+  "display_name": "Pluto",
+  "capabilities": ["financial-research"]
+}
+```
+
+Approval atomically creates a new Human-owned Agent at
+`<local_agent_id>@<managed-domain>`, a Connector instance, and the Agent's single
+current Connector binding. It does not put a credential in the Human response.
+The Connector polls `POST /api/v1/connect/pairings/token` with its device code.
+While pending the server returns `202` plus `Retry-After`; after approval it
+returns the Agent identity, Connector metadata, and credential over that device
+channel. Repeated successful polling during the pairing lifetime returns the same
+deterministically derived credential, making response-loss recovery safe.
+
+One Human account may own many independent Agents. One Agent has at most one
+current Connector. Connector revocation invalidates connector-bound credentials
+but preserves Address, Inbox, Thread, ACL, and history. Pairing/Connector metadata
+is `external_agent_content`, and capabilities remain self-declared.
+
 ## 12. Error model
 
 Non-success responses use one stable envelope:
@@ -540,7 +595,14 @@ paths, or the existence of another Agent's private object.
 | `403` | `HUMAN_CONFIRMATION_REQUIRED` | Sensitive Human write omitted its one-time confirmation |
 | `403` | `HUMAN_CONFIRMATION_INVALID` | Confirmation is expired, consumed, or bound to another action |
 | `403` | `APPROVAL_DECISION_NOT_ALLOWED` | Visible request cannot be decided by the current Human role |
+| `403` | `PAIRING_CODE_INVALID` | Human-entered one-time pairing code is invalid |
+| `403` | `PAIRING_DENIED` | Pairing was denied or its Connector was revoked |
 | `404` | resource-specific `*_NOT_FOUND` | Resource is absent or inaccessible to the authenticated Agent |
+| `404` | `PAIRING_NOT_AVAILABLE` | Pairing is disabled for this deployment |
+| `409` | `AGENT_ADDRESS_CONFLICT` | Pairing requested an already registered managed address |
+| `409` | `PAIRING_INVALID_STATE` | Pairing or Connector is no longer in the required state |
+| `410` | `PAIRING_EXPIRED` | Short-lived pairing state expired before claim |
+| `429` | `PAIRING_SLOW_DOWN` | Connector polled before the advertised interval |
 | `409` | `IDEMPOTENCY_CONFLICT` | Same sender/key was used for a different normalized request |
 | `409` | `INVALID_STATE_TRANSITION` | Requested operation cannot legally follow current state |
 | `409` | `APPROVAL_INVALID_STATE` | Approval is already terminal or expired |

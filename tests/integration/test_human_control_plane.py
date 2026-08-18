@@ -103,6 +103,16 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert 'elements.approvalAccessKey.value = ""' in script.text
     assert "组织星图" in orbit.text
     assert "organization-list" in orbit.text
+    assert "Agent 连接" in orbit.text
+    assert "pairing-dialog" in orbit.text
+    assert "revoke-dialog" in orbit.text
+    assert "/api/v1/orbit/pairings/" in script.text
+    assert "/api/v1/orbit/connectors" in script.text
+    assert "长期凭证只由 Connector 自动领取" in orbit.text
+    assert 'elements.pairingAccessKey.value = ""' in script.text
+    assert 'elements.revokeAccessKey.value = ""' in script.text
+    assert ".welcome-shell[hidden]" in stylesheet.text
+    assert "max-height: calc(100dvh - 32px)" in stylesheet.text
 
 
 def test_human_identity_uses_a_separate_one_time_key_and_admin_boundary(
@@ -395,6 +405,7 @@ def test_production_session_cookie_is_secure(
 ) -> None:
     production = Settings(
         environment="production",
+        pairing_enabled=False,
         database_url=settings.database_url,
         storage_path=settings.storage_path,
         api_key_pepper="production-agent-pepper",

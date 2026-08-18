@@ -410,6 +410,10 @@ footer {
   color: var(--gold);
 }
 
+.welcome-shell[hidden] {
+  display: none;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr);
@@ -701,7 +705,8 @@ footer {
 }
 
 .agent-grid,
-.organization-grid {
+.organization-grid,
+.connector-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 13px;
@@ -715,6 +720,87 @@ footer {
   border: 1px solid var(--line);
   border-radius: 15px;
   background: rgba(5, 14, 28, 0.48);
+}
+
+.primary-action {
+  min-height: 40px;
+  border: 1px solid var(--cyan);
+  border-radius: 11px;
+  background: var(--cyan);
+  color: #081721;
+  padding: 0 17px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.connector-card {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(103, 216, 212, 0.08), transparent 13rem),
+    rgba(5, 14, 28, 0.48);
+  padding: 19px;
+}
+
+.connector-heading,
+.connector-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.connector-heading > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.connector-heading strong,
+.connector-heading span:not(.data-chip) {
+  overflow-wrap: anywhere;
+}
+
+.connector-heading span:not(.data-chip),
+.connector-actions span {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
+.connector-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.connector-card dl div {
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+}
+
+.connector-card dt {
+  color: var(--muted);
+  font-size: 0.58rem;
+}
+
+.connector-card dd {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.connector-actions {
+  align-items: center;
+}
+
+.connector-actions .quiet-button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding-inline: 12px;
 }
 
 .organization-card {
@@ -1079,6 +1165,8 @@ footer {
 
 .approval-dialog {
   width: min(560px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
   border: 1px solid var(--line-strong);
   border-radius: 22px;
   background: #101c31;
@@ -1130,6 +1218,7 @@ footer {
 }
 
 .approval-dialog textarea,
+.approval-dialog input[type="text"],
 .approval-dialog input[type="password"] {
   width: 100%;
   border: 1px solid var(--line-strong);
@@ -1146,9 +1235,73 @@ footer {
 }
 
 .approval-dialog textarea:focus,
+.approval-dialog input[type="text"]:focus,
 .approval-dialog input[type="password"]:focus {
   border-color: var(--cyan);
   box-shadow: 0 0 0 3px rgba(103, 216, 212, 0.12);
+}
+
+.pairing-dialog {
+  width: min(680px, calc(100% - 32px));
+}
+
+.pairing-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pairing-fields > div {
+  display: grid;
+  gap: 7px;
+}
+
+.pairing-preview {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(230, 189, 114, 0.3);
+  border-radius: 12px;
+  background: rgba(230, 189, 114, 0.05);
+  padding: 14px;
+}
+
+.pairing-preview[hidden] {
+  display: none;
+}
+
+.pairing-preview p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+.pairing-preview span {
+  color: var(--gold);
+  font: 0.64rem ui-monospace, monospace;
+}
+
+.split-actions > div {
+  display: flex;
+  gap: 12px;
+}
+
+.danger-submit {
+  border-color: var(--red);
+  background: var(--red);
+  color: #220907;
+}
+
+.data-chip.revoked,
+.data-chip.denied {
+  border-color: rgba(255, 147, 141, 0.4);
+  color: var(--red);
+}
+
+.data-chip.replaced,
+.data-chip.consumed {
+  border-color: rgba(172, 155, 255, 0.4);
+  color: var(--violet);
 }
 
 .dialog-actions {
@@ -1305,6 +1458,7 @@ footer {
 
   .agent-grid,
   .organization-grid,
+  .connector-grid,
   .governance-grid {
     grid-template-columns: 1fr;
   }
@@ -1359,6 +1513,17 @@ footer {
 
   .agent-stats {
     grid-template-columns: 1fr;
+  }
+
+  .pairing-fields,
+  .connector-card dl {
+    grid-template-columns: 1fr;
+  }
+
+  .split-actions,
+  .connector-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

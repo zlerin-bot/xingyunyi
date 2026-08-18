@@ -3,6 +3,9 @@
 const state = {
   dashboard: null,
   csrfToken: "",
+  pairingRequestSignature: "",
+  pairingIdempotencyKey: "",
+  requestedPairingOpened: false,
 };
 
 const elements = {
@@ -30,6 +33,8 @@ const elements = {
   taskList: document.querySelector("#task-list"),
   approvalList: document.querySelector("#approval-list"),
   messageList: document.querySelector("#message-list"),
+  connectorList: document.querySelector("#connector-list"),
+  openPairing: document.querySelector("#open-pairing"),
   approvalDialog: document.querySelector("#approval-dialog"),
   approvalForm: document.querySelector("#approval-form"),
   approvalDialogTitle: document.querySelector("#approval-dialog-title"),
@@ -42,6 +47,29 @@ const elements = {
   approvalSubmit: document.querySelector("#approval-submit"),
   approvalClose: document.querySelector("#approval-close"),
   approvalCancel: document.querySelector("#approval-cancel"),
+  pairingDialog: document.querySelector("#pairing-dialog"),
+  pairingForm: document.querySelector("#pairing-form"),
+  pairingClose: document.querySelector("#pairing-close"),
+  pairingCancel: document.querySelector("#pairing-cancel"),
+  pairingDeny: document.querySelector("#pairing-deny"),
+  pairingSubmit: document.querySelector("#pairing-submit"),
+  pairingId: document.querySelector("#pairing-id"),
+  pairingUserCode: document.querySelector("#pairing-user-code"),
+  pairingLocalId: document.querySelector("#pairing-local-id"),
+  pairingDisplayName: document.querySelector("#pairing-display-name"),
+  pairingCapabilities: document.querySelector("#pairing-capabilities"),
+  pairingAccessKey: document.querySelector("#pairing-access-key"),
+  pairingPreview: document.querySelector("#pairing-preview"),
+  pairingResult: document.querySelector("#pairing-result"),
+  revokeDialog: document.querySelector("#revoke-dialog"),
+  revokeForm: document.querySelector("#revoke-form"),
+  revokeClose: document.querySelector("#revoke-close"),
+  revokeCancel: document.querySelector("#revoke-cancel"),
+  revokeSubmit: document.querySelector("#revoke-submit"),
+  revokeConnectorId: document.querySelector("#revoke-connector-id"),
+  revokeAccessKey: document.querySelector("#revoke-access-key"),
+  revokeSummary: document.querySelector("#revoke-summary"),
+  revokeResult: document.querySelector("#revoke-result"),
 };
 
 function setConnection(message, kind = "") {
@@ -135,6 +163,10 @@ function statusLabel(value) {
     auditor: "审计者",
     admin: "组织管理员",
     member: "组织成员",
+    consumed: "已领取",
+    denied: "已拒绝",
+    revoked: "已撤销",
+    replaced: "已替换",
   };
   return labels[value] || safeText(value);
 }
@@ -257,6 +289,296 @@ function renderAgents(agents) {
     fragment.append(card);
   });
   elements.agentList.append(fragment);
+}
+
+function openRevokeDialog(connector) {
+  elements.revokeConnectorId.value = safeText(connector.connector_id, "");
+  elements.revokeSummary.textContent = `将撤销 ${safeText(connector.agent?.address)} 当前使用的 ${safeText(connector.display_name)} 连接。`;
+  elements.revokeResult.textContent = "需要重新输入 hum_ 人类访问密钥；密钥验证后立即清除。";
+  elements.revokeResult.className = "form-status";
+  elements.revokeDialog.showModal();
+  elements.revokeAccessKey.focus();
+}
+
+function renderConnectors(connectors) {
+  elements.connectorList.replaceChildren();
+  if (!connectors.length) {
+    elements.connectorList.append(emptyState("尚未通过星轨连接 Agent。点击“连接 Agent”并使用本地 Connector 生成的一次性配对信息。"));
+    return;
+  }
+  const fragment = document.createDocumentFragment();
+  connectors.forEach((connector) => {
+    const card = document.createElement("article");
+    card.className = "connector-card";
+    const heading = document.createElement("div");
+    heading.className = "connector-heading";
+    const identity = document.createElement("div");
+    const name = document.createElement("strong");
+    name.textContent = safeText(connector.display_name, connector.connector_type);
+    const address = document.createElement("span");
+    address.textContent = safeText(connector.agent?.address);
+    identity.append(name, address);
+    heading.append(identity, chip(connector.status));
+
+    const facts = document.createElement("dl");
+    [
+      ["宿主", connector.connector_type],
+      ["设备", connector.device_name],
+      ["版本", connector.client_version],
+      ["最近连接", dateText(connector.last_seen_at)],
+    ].forEach(([label, value]) => {
+      const cell = document.createElement("div");
+      const term = document.createElement("dt");
+      term.textContent = label;
+      const detail = document.createElement("dd");
+      detail.textContent = safeText(value);
+      cell.append(term, detail);
+      facts.append(cell);
+    });
+    card.append(heading, facts);
+    if (connector.is_current && connector.status === "active") {
+      const actions = document.createElement("div");
+      actions.className = "connector-actions";
+      const current = document.createElement("span");
+      current.textContent = "当前 Connector · Agent 身份与 Inbox 独立保留";
+      const revoke = document.createElement("button");
+      revoke.type = "button";
+      revoke.className = "quiet-button danger";
+      revoke.textContent = "撤销连接";
+      revoke.addEventListener("click", () => openRevokeDialog(connector));
+      actions.append(current, revoke);
+      card.append(actions);
+    }
+    fragment.append(card);
+  });
+  elements.connectorList.append(fragment);
+}
+
+function closePairingDialog({ clear = true } = {}) {
+  elements.pairingAccessKey.value = "";
+  elements.pairingResult.textContent = "";
+  if (clear) {
+    elements.pairingId.value = "";
+    elements.pairingUserCode.value = "";
+    elements.pairingLocalId.value = "";
+    elements.pairingDisplayName.value = "";
+    elements.pairingCapabilities.value = "";
+    elements.pairingPreview.replaceChildren();
+    elements.pairingPreview.hidden = true;
+    state.pairingRequestSignature = "";
+    state.pairingIdempotencyKey = "";
+  }
+  if (elements.pairingDialog.open) {
+    elements.pairingDialog.close();
+  }
+}
+
+function renderPairingPreview(pairing) {
+  elements.pairingPreview.replaceChildren();
+  const heading = document.createElement("strong");
+  heading.textContent = safeText(pairing.connector_display_name, pairing.connector_type);
+  const details = document.createElement("p");
+  details.textContent = `${safeText(pairing.connector_type)} · ${safeText(pairing.device_name, "未声明设备")} · ${safeText(pairing.client_version, "未声明版本")}`;
+  const capabilities = document.createElement("p");
+  const values = Array.isArray(pairing.requested_capabilities) ? pairing.requested_capabilities : [];
+  capabilities.textContent = `自声明能力：${values.length ? values.join("、") : "无"}`;
+  const warning = document.createElement("span");
+  warning.textContent = `校验尾码 ${safeText(pairing.user_code_hint)} · ${statusLabel(pairing.status)}`;
+  elements.pairingPreview.append(heading, details, capabilities, warning);
+  elements.pairingPreview.hidden = false;
+}
+
+async function loadPairingPreview() {
+  const pairingId = elements.pairingId.value.trim();
+  if (!pairingId.startsWith("pair_")) {
+    elements.pairingPreview.hidden = true;
+    return;
+  }
+  try {
+    const pairing = await requestJson(`/api/v1/orbit/pairings/${encodeURIComponent(pairingId)}`);
+    renderPairingPreview(pairing);
+    elements.pairingResult.textContent = "请核对本地 Connector 展示的完整配对码和以上设备信息。";
+    elements.pairingResult.className = "form-status";
+  } catch (error) {
+    elements.pairingPreview.hidden = true;
+    elements.pairingResult.textContent = error.message;
+    elements.pairingResult.className = "form-status error";
+  }
+}
+
+async function openPairingDialog(pairingId = "", userCode = "") {
+  elements.pairingId.value = pairingId;
+  elements.pairingUserCode.value = userCode;
+  elements.pairingResult.textContent = "长期凭证不会进入浏览器；批准后由发起配对的 Connector 自动领取。";
+  elements.pairingResult.className = "form-status";
+  elements.pairingDialog.showModal();
+  if (pairingId) {
+    await loadPairingPreview();
+  }
+  (pairingId ? elements.pairingLocalId : elements.pairingId).focus();
+}
+
+function pairingPayload(decision) {
+  if (decision === "denied") {
+    return { decision: "denied" };
+  }
+  const capabilities = [...new Set(
+    elements.pairingCapabilities.value
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  )];
+  return {
+    decision: "approved",
+    local_agent_id: elements.pairingLocalId.value.trim().toLowerCase(),
+    display_name: elements.pairingDisplayName.value.trim() || null,
+    capabilities: capabilities.length ? capabilities : null,
+  };
+}
+
+function pairingIdempotencyKey(pairingId, payload) {
+  const signature = JSON.stringify({ pairingId, payload });
+  if (signature !== state.pairingRequestSignature) {
+    state.pairingRequestSignature = signature;
+    state.pairingIdempotencyKey = `xinggui-pairing-${crypto.randomUUID()}`;
+  }
+  return state.pairingIdempotencyKey;
+}
+
+async function decidePairing(event, forcedDecision = null) {
+  event.preventDefault();
+  const decision = forcedDecision || "approved";
+  const pairingId = elements.pairingId.value.trim();
+  const userCode = elements.pairingUserCode.value.trim();
+  const humanKey = elements.pairingAccessKey.value.trim();
+  const payload = pairingPayload(decision);
+  if (!state.csrfToken || !pairingId.startsWith("pair_") || !userCode || !humanKey.startsWith("hum_")) {
+    elements.pairingResult.textContent = "请填写有效的配对 ID、一次性配对码和 hum_ 人类访问密钥。";
+    elements.pairingResult.className = "form-status error";
+    return;
+  }
+  if (decision === "approved" && !payload.local_agent_id) {
+    elements.pairingResult.textContent = "请填写 Agent 地址前缀。";
+    elements.pairingResult.className = "form-status error";
+    return;
+  }
+  elements.pairingSubmit.disabled = true;
+  elements.pairingDeny.disabled = true;
+  elements.pairingResult.textContent = "正在验证配对码和 Human 身份…";
+  elements.pairingResult.className = "form-status";
+  try {
+    let confirmation;
+    try {
+      confirmation = await requestJson(
+        `/api/v1/orbit/pairings/${encodeURIComponent(pairingId)}/confirmation`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${humanKey}`,
+            "Content-Type": "application/json",
+            "X-CSRF-Token": state.csrfToken,
+          },
+          body: JSON.stringify({ intent: decision === "approved" ? "approve" : "deny", user_code: userCode }),
+        },
+      );
+    } finally {
+      elements.pairingAccessKey.value = "";
+    }
+    elements.pairingResult.textContent = decision === "approved"
+      ? "身份已确认，正在创建 Agent 身份与当前 Connector…"
+      : "身份已确认，正在拒绝本次配对…";
+    await requestJson(`/api/v1/orbit/pairings/${encodeURIComponent(pairingId)}/decision`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": pairingIdempotencyKey(pairingId, payload),
+        "X-CSRF-Token": state.csrfToken,
+        "X-Human-Confirmation": confirmation.confirmation_token,
+      },
+      body: JSON.stringify(payload),
+    });
+    closePairingDialog();
+    history.replaceState(null, "", "/orbit");
+    await loadDashboard();
+    setConnection(
+      decision === "approved" ? "Agent 已加入云驿，等待 Connector 领取凭证" : "配对已拒绝",
+      "success",
+    );
+  } catch (error) {
+    elements.pairingAccessKey.value = "";
+    elements.pairingResult.textContent = error.message;
+    elements.pairingResult.className = "form-status error";
+  } finally {
+    elements.pairingSubmit.disabled = false;
+    elements.pairingDeny.disabled = false;
+  }
+}
+
+function closeRevokeDialog() {
+  elements.revokeAccessKey.value = "";
+  elements.revokeConnectorId.value = "";
+  elements.revokeResult.textContent = "";
+  if (elements.revokeDialog.open) {
+    elements.revokeDialog.close();
+  }
+}
+
+async function revokeConnector(event) {
+  event.preventDefault();
+  const connectorId = elements.revokeConnectorId.value.trim();
+  const humanKey = elements.revokeAccessKey.value.trim();
+  if (!state.csrfToken || !connectorId.startsWith("con_") || !humanKey.startsWith("hum_")) {
+    elements.revokeResult.textContent = "请重新输入有效的 hum_ 人类访问密钥。";
+    elements.revokeResult.className = "form-status error";
+    return;
+  }
+  elements.revokeSubmit.disabled = true;
+  try {
+    let confirmation;
+    try {
+      confirmation = await requestJson(
+        `/api/v1/orbit/connectors/${encodeURIComponent(connectorId)}/confirmation`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${humanKey}`,
+            "X-CSRF-Token": state.csrfToken,
+          },
+        },
+      );
+    } finally {
+      elements.revokeAccessKey.value = "";
+    }
+    await requestJson(`/api/v1/orbit/connectors/${encodeURIComponent(connectorId)}`, {
+      method: "DELETE",
+      headers: {
+        "X-CSRF-Token": state.csrfToken,
+        "X-Human-Confirmation": confirmation.confirmation_token,
+      },
+    });
+    closeRevokeDialog();
+    await loadDashboard();
+    setConnection("Connector 已撤销；Agent 身份与 Inbox 已保留", "success");
+  } catch (error) {
+    elements.revokeResult.textContent = error.message;
+    elements.revokeResult.className = "form-status error";
+  } finally {
+    elements.revokeSubmit.disabled = false;
+  }
+}
+
+async function maybeOpenRequestedPairing() {
+  if (state.requestedPairingOpened) {
+    return;
+  }
+  const parameters = new URLSearchParams(window.location.search);
+  const pairingId = parameters.get("pairing") || "";
+  const userCode = parameters.get("code") || "";
+  if (!pairingId) {
+    return;
+  }
+  state.requestedPairingOpened = true;
+  await openPairingDialog(pairingId, userCode);
 }
 
 function renderTasks(tasks) {
@@ -462,11 +784,16 @@ async function loadDashboard() {
   elements.refresh.disabled = true;
   setConnection("正在同步星轨", "loading");
   try {
-    const dashboard = await requestJson("/api/v1/orbit/dashboard");
+    const [dashboard, connectors] = await Promise.all([
+      requestJson("/api/v1/orbit/dashboard"),
+      requestJson("/api/v1/orbit/connectors"),
+    ]);
     renderDashboard(dashboard);
+    renderConnectors(Array.isArray(connectors.items) ? connectors.items : []);
     elements.welcomeView.hidden = true;
     elements.workspaceView.hidden = false;
     setConnection("星轨已连接", "success");
+    await maybeOpenRequestedPairing();
   } catch (error) {
     setConnection("星轨连接失败", "error");
     throw error;
@@ -624,10 +951,23 @@ elements.approvalForm.addEventListener("submit", decideApproval);
 elements.approvalClose.addEventListener("click", closeApprovalDialog);
 elements.approvalCancel.addEventListener("click", closeApprovalDialog);
 elements.approvalDialog.addEventListener("close", closeApprovalDialog);
+elements.openPairing.addEventListener("click", () => openPairingDialog());
+elements.pairingForm.addEventListener("submit", decidePairing);
+elements.pairingDeny.addEventListener("click", (event) => decidePairing(event, "denied"));
+elements.pairingClose.addEventListener("click", () => closePairingDialog());
+elements.pairingCancel.addEventListener("click", () => closePairingDialog());
+elements.pairingDialog.addEventListener("close", () => closePairingDialog());
+elements.pairingId.addEventListener("change", loadPairingPreview);
+elements.revokeForm.addEventListener("submit", revokeConnector);
+elements.revokeClose.addEventListener("click", closeRevokeDialog);
+elements.revokeCancel.addEventListener("click", closeRevokeDialog);
+elements.revokeDialog.addEventListener("close", closeRevokeDialog);
 
 window.addEventListener("pagehide", () => {
   elements.accessKey.value = "";
   elements.approvalAccessKey.value = "";
+  elements.pairingAccessKey.value = "";
+  elements.revokeAccessKey.value = "";
   state.csrfToken = "";
 });
 
