@@ -35,6 +35,7 @@ from agentpost.onboarding.models import (
     AgentPairingSession,
     ConnectorInstance,
 )
+from agentpost.organizations.models import OrganizationInvitation
 
 _MODELS = (
     Agent,
@@ -63,6 +64,7 @@ _MODELS = (
     HumanPasswordCredential,
     HumanEmailChallenge,
     HumanTotpCredential,
+    OrganizationInvitation,
 )
 
 config = context.config
