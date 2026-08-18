@@ -55,6 +55,8 @@ def create_human_session(
     *,
     user: HumanUser,
     request_id: str,
+    auth_method: str = "access_key",
+    mfa_authenticated: bool = False,
 ) -> CreatedHumanSession:
     now = utc_now()
     expires_at = now + timedelta(seconds=settings.human_session_ttl_seconds)
@@ -67,6 +69,8 @@ def create_human_session(
         created_at=now,
         expires_at=expires_at,
         last_seen_at=now,
+        auth_method=auth_method,
+        mfa_authenticated_at=now if mfa_authenticated else None,
     )
     session.add(browser_session)
     session.flush()

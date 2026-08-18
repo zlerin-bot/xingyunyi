@@ -61,27 +61,43 @@
           <div class="card-stars" aria-hidden="true"></div>
           <p class="section-tag">星轨入口</p>
           <h2 id="entry-title">进入你的 Agent 运行空间</h2>
-          <p>人类访问密钥只用于建立短期浏览器会话。它与 Agent API Key、系统 Admin Token 完全分离。</p>
-          <form id="access-form" autocomplete="off">
-            <label for="human-access-key">人类访问密钥</label>
-            <div class="access-field">
-              <input
-                id="human-access-key"
-                type="password"
-                autocomplete="new-password"
-                spellcheck="false"
-                required
-                placeholder="hum_••••••••••••"
-              >
-              <button type="submit">进入星轨</button>
-            </div>
+          <p>使用已验证邮箱登录。旧版 Human Key 仅保留给内部兼容工具，不再是普通用户的必经入口。</p>
+          <form id="login-form" class="entry-form" autocomplete="on">
+            <label for="login-email">邮箱</label>
+            <input id="login-email" type="email" autocomplete="email" required placeholder="you@example.com">
+            <label for="login-password">密码</label>
+            <input id="login-password" type="password" autocomplete="current-password" required minlength="12">
+            <label for="login-mfa">MFA 或恢复码（启用后填写）</label>
+            <input id="login-mfa" type="text" autocomplete="one-time-code" spellcheck="false" placeholder="6 位动态码或恢复码">
+            <button type="submit" class="entry-submit">进入星轨</button>
           </form>
+          <div class="entry-links">
+            <button id="open-register" type="button" class="text-button">创建账户</button>
+            <button id="open-recovery" type="button" class="text-button">找回账户</button>
+          </div>
+          <details id="legacy-entry" class="legacy-entry">
+            <summary>使用内部 Human Key</summary>
+            <form id="access-form" autocomplete="off">
+              <label for="human-access-key">人类访问密钥</label>
+              <div class="access-field">
+                <input
+                  id="human-access-key"
+                  type="password"
+                  autocomplete="new-password"
+                  spellcheck="false"
+                  required
+                  placeholder="hum_••••••••••••"
+                >
+                <button type="submit">兼容登录</button>
+              </div>
+            </form>
+          </details>
           <p id="access-result" class="form-status" role="status">
-            密钥验证成功后立即从页面清除；后续请求使用服务端短期会话。
+            登录凭证只用于建立服务端短期会话，页面不会持久保存。
           </p>
           <div class="security-note">
             <strong>安全提示</strong>
-            <span>请仅在可信 HTTPS 地址或 SSH 隧道中输入访问密钥。</span>
+            <span>请仅在可信 HTTPS 地址中输入密码、MFA 或恢复码。</span>
           </div>
         </aside>
       </section>
@@ -103,7 +119,8 @@
             <a href="#tasks" class="nav-item"><span>05</span>任务进展</a>
             <a href="#approvals" class="nav-item"><span>06</span>审批队列</a>
             <a href="#communications" class="nav-item"><span>07</span>云驿通信</a>
-            <a href="#governance" class="nav-item"><span>08</span>治理边界</a>
+            <a href="#security" class="nav-item"><span>08</span>账户安全</a>
+            <a href="#governance" class="nav-item"><span>09</span>治理边界</a>
           </nav>
           <div class="sidebar-actions">
             <button id="refresh-dashboard" type="button" class="quiet-button">刷新星轨</button>
@@ -230,6 +247,28 @@
             <div id="message-list" class="message-list" aria-live="polite"></div>
           </section>
 
+          <section id="security" class="content-section">
+            <div class="section-heading">
+              <div>
+                <p class="section-tag">Account security</p>
+                <h2>账户安全</h2>
+              </div>
+              <span id="security-status" class="readonly-pill">正在读取</span>
+            </div>
+            <div class="security-actions-grid">
+              <article>
+                <strong>双因素认证</strong>
+                <p>使用兼容认证器的 TOTP，并保存一次性恢复码。</p>
+                <button id="open-mfa" type="button" class="quiet-button">设置或更换 MFA</button>
+              </article>
+              <article>
+                <strong>兼容 Human Key</strong>
+                <p>仅供 CLI 和旧集成使用；轮换会立即撤销此前所有 Human Key。</p>
+                <button id="open-key-rotation" type="button" class="quiet-button">轮换 Human Key</button>
+              </article>
+            </div>
+          </section>
+
           <section id="governance" class="content-section governance-section">
             <div class="section-heading">
               <div>
@@ -265,6 +304,71 @@
       </section>
     </main>
 
+    <dialog id="register-dialog" class="approval-dialog" aria-labelledby="register-dialog-title">
+      <form id="register-form" method="dialog" autocomplete="on">
+        <div class="dialog-heading">
+          <div><p class="section-tag">Human account</p><h2 id="register-dialog-title">创建星轨账户</h2></div>
+          <button id="register-close" type="button" class="dialog-close" aria-label="关闭注册窗口">×</button>
+        </div>
+        <label for="register-email">邮箱</label>
+        <input id="register-email" type="email" autocomplete="email" required>
+        <button id="register-send-code" type="button" class="quiet-button">发送邮箱验证码</button>
+        <label for="register-code">邮箱验证码</label>
+        <input id="register-code" type="text" inputmode="numeric" autocomplete="one-time-code" required maxlength="8">
+        <label for="register-name">显示名称</label>
+        <input id="register-name" type="text" autocomplete="name" required maxlength="200">
+        <label for="register-password">密码（至少 12 个字符）</label>
+        <input id="register-password" type="password" autocomplete="new-password" required minlength="12" maxlength="256">
+        <p id="register-result" class="form-status" role="status"></p>
+        <div class="dialog-actions"><button id="register-cancel" type="button" class="quiet-button">返回</button><button type="submit" class="approval-submit">完成注册</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="recovery-dialog" class="approval-dialog" aria-labelledby="recovery-dialog-title">
+      <form id="recovery-form" method="dialog" autocomplete="on">
+        <div class="dialog-heading">
+          <div><p class="section-tag">Account recovery</p><h2 id="recovery-dialog-title">找回星轨账户</h2></div>
+          <button id="recovery-close" type="button" class="dialog-close" aria-label="关闭找回窗口">×</button>
+        </div>
+        <label for="recovery-email">邮箱</label>
+        <input id="recovery-email" type="email" autocomplete="email" required>
+        <button id="recovery-send-code" type="button" class="quiet-button">发送恢复验证码</button>
+        <label for="recovery-code">邮箱验证码</label>
+        <input id="recovery-code" type="text" inputmode="numeric" autocomplete="one-time-code" required maxlength="8">
+        <label for="recovery-password">新密码</label>
+        <input id="recovery-password" type="password" autocomplete="new-password" required minlength="12" maxlength="256">
+        <label for="recovery-mfa">当前 MFA 或恢复码（启用 MFA 时必填）</label>
+        <input id="recovery-mfa" type="text" autocomplete="one-time-code" spellcheck="false">
+        <p id="recovery-result" class="form-status" role="status"></p>
+        <div class="dialog-actions"><button id="recovery-cancel" type="button" class="quiet-button">返回</button><button type="submit" class="approval-submit">重设并登录</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="mfa-dialog" class="approval-dialog" aria-labelledby="mfa-dialog-title">
+      <form id="mfa-form" method="dialog" autocomplete="off">
+        <div class="dialog-heading"><div><p class="section-tag">TOTP MFA</p><h2 id="mfa-dialog-title">设置双因素认证</h2></div><button id="mfa-close" type="button" class="dialog-close" aria-label="关闭 MFA 窗口">×</button></div>
+        <label for="mfa-password">当前密码</label><input id="mfa-password" type="password" autocomplete="current-password" required>
+        <label for="mfa-current-proof">当前 MFA 或恢复码（更换时填写）</label><input id="mfa-current-proof" type="text" autocomplete="one-time-code">
+        <button id="mfa-create" type="button" class="quiet-button">生成认证器密钥</button>
+        <pre id="mfa-provisioning" class="secret-output" hidden></pre>
+        <label for="mfa-confirm-code">认证器生成的 6 位代码</label><input id="mfa-confirm-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+        <p id="mfa-result" class="form-status" role="status"></p>
+        <div class="dialog-actions"><button id="mfa-cancel" type="button" class="quiet-button">返回</button><button type="submit" class="approval-submit">启用 MFA</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="key-dialog" class="approval-dialog" aria-labelledby="key-dialog-title">
+      <form id="key-form" method="dialog" autocomplete="off">
+        <div class="dialog-heading"><div><p class="section-tag">Legacy credential</p><h2 id="key-dialog-title">轮换 Human Key</h2></div><button id="key-close" type="button" class="dialog-close" aria-label="关闭 Key 窗口">×</button></div>
+        <label for="key-password">当前密码</label><input id="key-password" type="password" autocomplete="current-password" required>
+        <label for="key-mfa">当前 MFA 或恢复码（启用后必填）</label><input id="key-mfa" type="text" autocomplete="one-time-code">
+        <label for="key-label">用途标签</label><input id="key-label" type="text" value="CLI compatibility" maxlength="100" required>
+        <pre id="key-output" class="secret-output" hidden></pre>
+        <p id="key-result" class="form-status" role="status"></p>
+        <div class="dialog-actions"><button id="key-cancel" type="button" class="quiet-button">返回</button><button type="submit" class="approval-submit">轮换并仅显示一次</button></div>
+      </form>
+    </dialog>
+
     <dialog id="approval-dialog" class="approval-dialog" aria-labelledby="approval-dialog-title">
       <form id="approval-form" method="dialog" autocomplete="off">
         <div class="dialog-heading">
@@ -282,15 +386,17 @@
         <input id="approval-decision" type="hidden">
         <label for="approval-note">审批意见</label>
         <textarea id="approval-note" maxlength="1000" placeholder="说明允许范围或拒绝原因（可选）"></textarea>
-        <label for="approval-access-key">重新输入人类访问密钥</label>
+        <label for="approval-access-key">重新输入密码或兼容 Human Key</label>
         <input
           id="approval-access-key"
           type="password"
           autocomplete="new-password"
           spellcheck="false"
           required
-          placeholder="hum_••••••••••••"
+          placeholder="密码或 hum_••••••••"
         >
+        <label for="approval-mfa">MFA 或恢复码（启用后必填）</label>
+        <input id="approval-mfa" type="text" autocomplete="one-time-code" spellcheck="false">
         <p id="approval-result" class="form-status" role="status"></p>
         <div class="dialog-actions">
           <button id="approval-cancel" type="button" class="quiet-button">返回</button>
@@ -328,15 +434,17 @@
         </div>
         <label for="pairing-capabilities">能力标签</label>
         <input id="pairing-capabilities" type="text" autocomplete="off" maxlength="1000" placeholder="financial-research, document-analysis">
-        <label for="pairing-access-key">重新输入人类访问密钥</label>
+        <label for="pairing-access-key">重新输入密码或兼容 Human Key</label>
         <input
           id="pairing-access-key"
           type="password"
           autocomplete="new-password"
           spellcheck="false"
           required
-          placeholder="hum_••••••••••••"
+          placeholder="密码或 hum_••••••••"
         >
+        <label for="pairing-mfa">MFA 或恢复码（启用后必填）</label>
+        <input id="pairing-mfa" type="text" autocomplete="one-time-code" spellcheck="false">
         <div class="trust-banner">
           Connector 名称、设备和能力是外部自声明数据。请核对配对码，只批准你刚刚主动连接的设备。
         </div>
@@ -362,15 +470,17 @@
         </div>
         <p id="revoke-summary" class="dialog-summary"></p>
         <input id="revoke-connector-id" type="hidden">
-        <label for="revoke-access-key">重新输入人类访问密钥</label>
+        <label for="revoke-access-key">重新输入密码或兼容 Human Key</label>
         <input
           id="revoke-access-key"
           type="password"
           autocomplete="new-password"
           spellcheck="false"
           required
-          placeholder="hum_••••••••••••"
+          placeholder="密码或 hum_••••••••"
         >
+        <label for="revoke-mfa">MFA 或恢复码（启用后必填）</label>
+        <input id="revoke-mfa" type="text" autocomplete="one-time-code" spellcheck="false">
         <div class="trust-banner">
           撤销会立即使该 Connector 的凭证失效，但不会删除 Agent 地址、Inbox、Thread 或历史消息。
         </div>

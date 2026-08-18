@@ -5,8 +5,15 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 
+from agentpost.accounts.service import (
+    AuthenticationFailedError,
+    MfaInvalidError,
+    MfaRequiredError,
+    PasswordNotConfiguredError,
+    verify_human_reauthentication,
+)
 from agentpost.api.dependencies import SessionDep, SettingsDep
-from agentpost.control.auth import CurrentHumanDep, HumanAccessKeyDep
+from agentpost.control.auth import CurrentHumanDep, OptionalHumanAccessKeyDep
 from agentpost.control.human_security import (
     HUMAN_CONFIRMATION_HEADER,
     HumanConfirmationInvalidError,
@@ -16,6 +23,7 @@ from agentpost.control.human_security import (
     human_session_id_from_request,
 )
 from agentpost.onboarding.schemas import (
+    ConnectorConfirmationCreate,
     ConnectorConfirmationResponse,
     OrbitConnectorList,
     PairingConfirmationCreate,
@@ -111,6 +119,68 @@ def _record_denied(
         request_id=request.state.request_id,
     )
     session.commit()
+
+
+def _verify_reauthentication(
+    request: Request,
+    session: SessionDep,
+    settings: SettingsDep,
+    current_human: CurrentHumanDep,
+    access_key_human: OptionalHumanAccessKeyDep,
+    *,
+    password: str | None,
+    totp_code: str | None,
+    recovery_code: str | None,
+    target_type: str,
+    target_id: str,
+) -> None:
+    if access_key_human is not None and access_key_human.id != current_human.id:
+        _record_denied(
+            request,
+            session,
+            current_human,
+            target_type=target_type,
+            target_id=target_id,
+            reason_code="human_reauthentication_mismatch",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "human_reauthentication_failed",
+                "message": "Current Human credentials and MFA proof are required",
+            },
+        )
+    try:
+        verify_human_reauthentication(
+            session,
+            settings,
+            user=current_human,
+            access_key_user=access_key_human,
+            password=password,
+            totp_code=totp_code,
+            recovery_code=recovery_code,
+        )
+    except (
+        AuthenticationFailedError,
+        MfaRequiredError,
+        MfaInvalidError,
+        PasswordNotConfiguredError,
+    ) as exc:
+        _record_denied(
+            request,
+            session,
+            current_human,
+            target_type=target_type,
+            target_id=target_id,
+            reason_code="human_reauthentication_failed",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "human_reauthentication_failed",
+                "message": "Current Human credentials and MFA proof are required",
+            },
+        ) from exc
 
 
 @router.post(
@@ -225,26 +295,22 @@ def orbit_create_pairing_confirmation(
     session: SessionDep,
     settings: SettingsDep,
     current_human: CurrentHumanDep,
-    reauthenticated_human: HumanAccessKeyDep,
+    reauthenticated_human: OptionalHumanAccessKeyDep,
     csrf_guard: HumanCsrfDep,
 ) -> PairingConfirmationResponse:
     del csrf_guard
-    if reauthenticated_human.id != current_human.id:
-        _record_denied(
-            request,
-            session,
-            current_human,
-            target_type="agent_pairing",
-            target_id=pairing_id,
-            reason_code="human_reauthentication_mismatch",
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "code": "human_reauthentication_failed",
-                "message": "The access key does not match the active Human session",
-            },
-        )
+    _verify_reauthentication(
+        request,
+        session,
+        settings,
+        current_human,
+        reauthenticated_human,
+        password=payload.password.get_secret_value() if payload.password else None,
+        totp_code=payload.totp_code,
+        recovery_code=payload.recovery_code,
+        target_type="agent_pairing",
+        target_id=pairing_id,
+    )
     try:
         pairing = get_pairing_for_human(
             session,
@@ -408,26 +474,24 @@ def orbit_create_connector_confirmation(
     session: SessionDep,
     settings: SettingsDep,
     current_human: CurrentHumanDep,
-    reauthenticated_human: HumanAccessKeyDep,
+    reauthenticated_human: OptionalHumanAccessKeyDep,
     csrf_guard: HumanCsrfDep,
+    payload: ConnectorConfirmationCreate | None = None,
 ) -> ConnectorConfirmationResponse:
     del csrf_guard
-    if reauthenticated_human.id != current_human.id:
-        _record_denied(
-            request,
-            session,
-            current_human,
-            target_type="connector_instance",
-            target_id=connector_id,
-            reason_code="human_reauthentication_mismatch",
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "code": "human_reauthentication_failed",
-                "message": "The access key does not match the active Human session",
-            },
-        )
+    proof = payload or ConnectorConfirmationCreate()
+    _verify_reauthentication(
+        request,
+        session,
+        settings,
+        current_human,
+        reauthenticated_human,
+        password=proof.password.get_secret_value() if proof.password else None,
+        totp_code=proof.totp_code,
+        recovery_code=proof.recovery_code,
+        target_type="connector_instance",
+        target_id=connector_id,
+    )
     try:
         connector = get_owned_connector(
             session,

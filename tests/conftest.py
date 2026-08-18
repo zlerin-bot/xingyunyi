@@ -6,6 +6,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from agentpost.accounts.models import (
+    HumanEmailChallenge,
+    HumanPasswordCredential,
+    HumanTotpCredential,
+)
 from agentpost.attachments.models import Attachment
 from agentpost.config import Settings
 from agentpost.control.models import (
@@ -55,6 +60,9 @@ _MODELS = (
     ConnectorInstance,
     AgentConnectorBinding,
     AgentPairingSession,
+    HumanPasswordCredential,
+    HumanEmailChallenge,
+    HumanTotpCredential,
 )
 
 

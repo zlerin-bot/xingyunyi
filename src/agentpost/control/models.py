@@ -31,6 +31,9 @@ class HumanUser(Base):
         DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
     )
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     access_keys: Mapped[list[HumanAccessKey]] = relationship(
         back_populates="user",
@@ -71,6 +74,7 @@ class HumanAccessKey(Base):
     )
     key_digest: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     key_prefix: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    label: Mapped[str] = mapped_column(String(100), nullable=False, default="legacy")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now
     )
@@ -100,6 +104,10 @@ class HumanSession(Base):
     )
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    auth_method: Mapped[str] = mapped_column(String(32), nullable=False, default="access_key")
+    mfa_authenticated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     user: Mapped[HumanUser] = relationship(back_populates="sessions")
 

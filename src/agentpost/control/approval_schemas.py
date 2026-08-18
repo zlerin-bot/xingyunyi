@@ -5,7 +5,15 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 
 
 class ApprovalModel(BaseModel):
@@ -104,6 +112,9 @@ class ApprovalDecisionCreate(ApprovalModel):
 
 class ApprovalConfirmationCreate(ApprovalModel):
     intent: Literal["approve", "reject"]
+    password: SecretStr | None = None
+    totp_code: str | None = Field(default=None, pattern=r"^[0-9]{6}$")
+    recovery_code: str | None = Field(default=None, min_length=8, max_length=32)
 
 
 class ApprovalConfirmationResponse(ApprovalModel):

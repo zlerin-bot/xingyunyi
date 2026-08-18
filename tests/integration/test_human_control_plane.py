@@ -101,6 +101,16 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "X-Human-Confirmation" in script.text
     assert "crypto.randomUUID()" in script.text
     assert 'elements.approvalAccessKey.value = ""' in script.text
+    assert '"/api/v1/auth/login"' in script.text
+    assert '"/api/v1/auth/register"' in script.text
+    assert '"/api/v1/auth/recover"' in script.text
+    assert '"/api/v1/orbit/security/totp/setup"' in script.text
+    assert '"/api/v1/orbit/security/human-keys/rotate"' in script.text
+    assert "clearSensitiveInputs();" in script.text
+    assert "login-password" in orbit.text
+    assert "recovery-dialog" in orbit.text
+    assert "mfa-dialog" in orbit.text
+    assert "账户安全" in orbit.text
     assert "组织星图" in orbit.text
     assert "organization-list" in orbit.text
     assert "Agent 连接" in orbit.text

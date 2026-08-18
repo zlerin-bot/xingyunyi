@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
 
 class OnboardingModel(BaseModel):
@@ -121,6 +121,9 @@ class PairingPreview(OnboardingModel):
 class PairingConfirmationCreate(OnboardingModel):
     intent: Literal["approve", "deny"]
     user_code: str = Field(min_length=8, max_length=16)
+    password: SecretStr | None = None
+    totp_code: str | None = Field(default=None, pattern=r"^[0-9]{6}$")
+    recovery_code: str | None = Field(default=None, min_length=8, max_length=32)
 
 
 class PairingConfirmationResponse(OnboardingModel):
@@ -194,3 +197,9 @@ class ConnectorConfirmationResponse(OnboardingModel):
     confirmation_token: str
     connector_id: str
     expires_at: datetime
+
+
+class ConnectorConfirmationCreate(OnboardingModel):
+    password: SecretStr | None = None
+    totp_code: str | None = Field(default=None, pattern=r"^[0-9]{6}$")
+    recovery_code: str | None = Field(default=None, min_length=8, max_length=32)

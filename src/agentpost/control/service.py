@@ -97,6 +97,7 @@ def provision_human(
         status="active",
         created_at=now,
         updated_at=now,
+        email_verified_at=now,
     )
     session.add(user)
     try:
@@ -107,6 +108,7 @@ def provision_human(
                     human_user_id=user.id,
                     key_digest=digest_human_key(raw_key, settings.human_api_key_pepper),
                     key_prefix=human_key_prefix(raw_key),
+                    label="admin bootstrap",
                     created_at=now,
                 ),
                 AuditLog(

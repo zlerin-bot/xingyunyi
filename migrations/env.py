@@ -7,6 +7,11 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from agentpost.access.models import AccessRule
+from agentpost.accounts.models import (
+    HumanEmailChallenge,
+    HumanPasswordCredential,
+    HumanTotpCredential,
+)
 from agentpost.attachments.models import Attachment
 from agentpost.control.models import (
     AgentOwnership,
@@ -55,6 +60,9 @@ _MODELS = (
     ConnectorInstance,
     AgentConnectorBinding,
     AgentPairingSession,
+    HumanPasswordCredential,
+    HumanEmailChallenge,
+    HumanTotpCredential,
 )
 
 config = context.config

@@ -4,6 +4,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, status
 
+from agentpost.accounts.service import (
+    AuthenticationFailedError,
+    MfaInvalidError,
+    MfaRequiredError,
+    PasswordNotConfiguredError,
+    verify_human_reauthentication,
+)
 from agentpost.api.dependencies import CurrentAgentDep, SessionDep, SettingsDep
 from agentpost.control.approval_schemas import (
     ApprovalConfirmationCreate,
@@ -32,7 +39,7 @@ from agentpost.control.approval_service import (
     list_agent_approval_requests,
     list_human_approval_requests,
 )
-from agentpost.control.auth import CurrentHumanDep, HumanAccessKeyDep
+from agentpost.control.auth import CurrentHumanDep, OptionalHumanAccessKeyDep
 from agentpost.control.human_security import (
     HUMAN_CONFIRMATION_HEADER,
     HumanConfirmationInvalidError,
@@ -248,11 +255,11 @@ def orbit_create_approval_confirmation(
     session: SessionDep,
     settings: SettingsDep,
     current_human: CurrentHumanDep,
-    reauthenticated_human: HumanAccessKeyDep,
+    reauthenticated_human: OptionalHumanAccessKeyDep,
     csrf_guard: HumanCsrfDep,
 ) -> ApprovalConfirmationResponse:
     del csrf_guard
-    if reauthenticated_human.id != current_human.id:
+    if reauthenticated_human is not None and reauthenticated_human.id != current_human.id:
         _record_denied(
             request,
             session,
@@ -264,9 +271,39 @@ def orbit_create_approval_confirmation(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "code": "human_reauthentication_failed",
-                "message": "The access key does not match the active Human session",
+                "message": "Current Human credentials and MFA proof are required",
             },
         )
+    try:
+        verify_human_reauthentication(
+            session,
+            settings,
+            user=current_human,
+            access_key_user=reauthenticated_human,
+            password=payload.password.get_secret_value() if payload.password else None,
+            totp_code=payload.totp_code,
+            recovery_code=payload.recovery_code,
+        )
+    except (
+        AuthenticationFailedError,
+        MfaRequiredError,
+        MfaInvalidError,
+        PasswordNotConfiguredError,
+    ) as exc:
+        _record_denied(
+            request,
+            session,
+            current_human,
+            approval_id=approval_id,
+            reason_code="human_reauthentication_failed",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "human_reauthentication_failed",
+                "message": "Current Human credentials and MFA proof are required",
+            },
+        ) from exc
     try:
         approval = authorize_human_approval_decision(
             session,

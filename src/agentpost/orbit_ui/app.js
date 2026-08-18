@@ -6,6 +6,10 @@ const state = {
   pairingRequestSignature: "",
   pairingIdempotencyKey: "",
   requestedPairingOpened: false,
+  authConfig: null,
+  registerChallengeId: "",
+  recoveryChallengeId: "",
+  mfaSetupStarted: false,
 };
 
 const elements = {
@@ -13,6 +17,13 @@ const elements = {
   workspaceView: document.querySelector("#workspace-view"),
   accessForm: document.querySelector("#access-form"),
   accessKey: document.querySelector("#human-access-key"),
+  loginForm: document.querySelector("#login-form"),
+  loginEmail: document.querySelector("#login-email"),
+  loginPassword: document.querySelector("#login-password"),
+  loginMfa: document.querySelector("#login-mfa"),
+  openRegister: document.querySelector("#open-register"),
+  openRecovery: document.querySelector("#open-recovery"),
+  legacyEntry: document.querySelector("#legacy-entry"),
   accessResult: document.querySelector("#access-result"),
   connectionState: document.querySelector("#connection-state"),
   refresh: document.querySelector("#refresh-dashboard"),
@@ -34,6 +45,9 @@ const elements = {
   approvalList: document.querySelector("#approval-list"),
   messageList: document.querySelector("#message-list"),
   connectorList: document.querySelector("#connector-list"),
+  securityStatus: document.querySelector("#security-status"),
+  openMfa: document.querySelector("#open-mfa"),
+  openKeyRotation: document.querySelector("#open-key-rotation"),
   openPairing: document.querySelector("#open-pairing"),
   approvalDialog: document.querySelector("#approval-dialog"),
   approvalForm: document.querySelector("#approval-form"),
@@ -43,6 +57,7 @@ const elements = {
   approvalDecision: document.querySelector("#approval-decision"),
   approvalNote: document.querySelector("#approval-note"),
   approvalAccessKey: document.querySelector("#approval-access-key"),
+  approvalMfa: document.querySelector("#approval-mfa"),
   approvalResult: document.querySelector("#approval-result"),
   approvalSubmit: document.querySelector("#approval-submit"),
   approvalClose: document.querySelector("#approval-close"),
@@ -59,6 +74,7 @@ const elements = {
   pairingDisplayName: document.querySelector("#pairing-display-name"),
   pairingCapabilities: document.querySelector("#pairing-capabilities"),
   pairingAccessKey: document.querySelector("#pairing-access-key"),
+  pairingMfa: document.querySelector("#pairing-mfa"),
   pairingPreview: document.querySelector("#pairing-preview"),
   pairingResult: document.querySelector("#pairing-result"),
   revokeDialog: document.querySelector("#revoke-dialog"),
@@ -68,8 +84,48 @@ const elements = {
   revokeSubmit: document.querySelector("#revoke-submit"),
   revokeConnectorId: document.querySelector("#revoke-connector-id"),
   revokeAccessKey: document.querySelector("#revoke-access-key"),
+  revokeMfa: document.querySelector("#revoke-mfa"),
   revokeSummary: document.querySelector("#revoke-summary"),
   revokeResult: document.querySelector("#revoke-result"),
+  registerDialog: document.querySelector("#register-dialog"),
+  registerForm: document.querySelector("#register-form"),
+  registerClose: document.querySelector("#register-close"),
+  registerCancel: document.querySelector("#register-cancel"),
+  registerEmail: document.querySelector("#register-email"),
+  registerCode: document.querySelector("#register-code"),
+  registerName: document.querySelector("#register-name"),
+  registerPassword: document.querySelector("#register-password"),
+  registerSendCode: document.querySelector("#register-send-code"),
+  registerResult: document.querySelector("#register-result"),
+  recoveryDialog: document.querySelector("#recovery-dialog"),
+  recoveryForm: document.querySelector("#recovery-form"),
+  recoveryClose: document.querySelector("#recovery-close"),
+  recoveryCancel: document.querySelector("#recovery-cancel"),
+  recoveryEmail: document.querySelector("#recovery-email"),
+  recoveryCode: document.querySelector("#recovery-code"),
+  recoveryPassword: document.querySelector("#recovery-password"),
+  recoveryMfa: document.querySelector("#recovery-mfa"),
+  recoverySendCode: document.querySelector("#recovery-send-code"),
+  recoveryResult: document.querySelector("#recovery-result"),
+  mfaDialog: document.querySelector("#mfa-dialog"),
+  mfaForm: document.querySelector("#mfa-form"),
+  mfaClose: document.querySelector("#mfa-close"),
+  mfaCancel: document.querySelector("#mfa-cancel"),
+  mfaCreate: document.querySelector("#mfa-create"),
+  mfaPassword: document.querySelector("#mfa-password"),
+  mfaCurrentProof: document.querySelector("#mfa-current-proof"),
+  mfaConfirmCode: document.querySelector("#mfa-confirm-code"),
+  mfaProvisioning: document.querySelector("#mfa-provisioning"),
+  mfaResult: document.querySelector("#mfa-result"),
+  keyDialog: document.querySelector("#key-dialog"),
+  keyForm: document.querySelector("#key-form"),
+  keyClose: document.querySelector("#key-close"),
+  keyCancel: document.querySelector("#key-cancel"),
+  keyPassword: document.querySelector("#key-password"),
+  keyMfa: document.querySelector("#key-mfa"),
+  keyLabel: document.querySelector("#key-label"),
+  keyOutput: document.querySelector("#key-output"),
+  keyResult: document.querySelector("#key-result"),
 };
 
 function setConnection(message, kind = "") {
@@ -134,6 +190,67 @@ function dateText(value) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(parsed);
+}
+
+function mfaProof(value) {
+  const candidate = value.trim();
+  if (!candidate) {
+    return { totp_code: null, recovery_code: null };
+  }
+  if (/^[0-9]{6}$/.test(candidate)) {
+    return { totp_code: candidate, recovery_code: null };
+  }
+  return { totp_code: null, recovery_code: candidate };
+}
+
+function reauthentication(candidate, mfaValue, extra = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    "X-CSRF-Token": state.csrfToken,
+  };
+  const payload = { ...extra, ...mfaProof(mfaValue) };
+  if (candidate.startsWith("hum_")) {
+    headers.Authorization = `Bearer ${candidate}`;
+  } else {
+    payload.password = candidate;
+  }
+  return { headers, payload };
+}
+
+function validReauthenticationCandidate(candidate) {
+  return candidate.startsWith("hum_") ? candidate.length >= 20 : candidate.length >= 12;
+}
+
+function clearSensitiveInputs() {
+  [
+    elements.accessKey,
+    elements.loginPassword,
+    elements.loginMfa,
+    elements.registerCode,
+    elements.registerPassword,
+    elements.recoveryCode,
+    elements.recoveryPassword,
+    elements.recoveryMfa,
+    elements.mfaPassword,
+    elements.mfaCurrentProof,
+    elements.mfaConfirmCode,
+    elements.keyPassword,
+    elements.keyMfa,
+    elements.approvalAccessKey,
+    elements.approvalMfa,
+    elements.pairingAccessKey,
+    elements.pairingMfa,
+    elements.revokeAccessKey,
+    elements.revokeMfa,
+  ].forEach((input) => {
+    if (input) {
+      input.value = "";
+    }
+  });
+  elements.mfaProvisioning.textContent = "";
+  elements.mfaProvisioning.hidden = true;
+  elements.keyOutput.textContent = "";
+  elements.keyOutput.hidden = true;
 }
 
 function emptyState(message) {
@@ -294,7 +411,7 @@ function renderAgents(agents) {
 function openRevokeDialog(connector) {
   elements.revokeConnectorId.value = safeText(connector.connector_id, "");
   elements.revokeSummary.textContent = `将撤销 ${safeText(connector.agent?.address)} 当前使用的 ${safeText(connector.display_name)} 连接。`;
-  elements.revokeResult.textContent = "需要重新输入 hum_ 人类访问密钥；密钥验证后立即清除。";
+  elements.revokeResult.textContent = "请重新输入当前密码（或兼容 Human Key）；凭证验证后立即清除。";
   elements.revokeResult.className = "form-status";
   elements.revokeDialog.showModal();
   elements.revokeAccessKey.focus();
@@ -356,6 +473,7 @@ function renderConnectors(connectors) {
 
 function closePairingDialog({ clear = true } = {}) {
   elements.pairingAccessKey.value = "";
+  elements.pairingMfa.value = "";
   elements.pairingResult.textContent = "";
   if (clear) {
     elements.pairingId.value = "";
@@ -451,9 +569,10 @@ async function decidePairing(event, forcedDecision = null) {
   const pairingId = elements.pairingId.value.trim();
   const userCode = elements.pairingUserCode.value.trim();
   const humanKey = elements.pairingAccessKey.value.trim();
+  const mfa = elements.pairingMfa.value.trim();
   const payload = pairingPayload(decision);
-  if (!state.csrfToken || !pairingId.startsWith("pair_") || !userCode || !humanKey.startsWith("hum_")) {
-    elements.pairingResult.textContent = "请填写有效的配对 ID、一次性配对码和 hum_ 人类访问密钥。";
+  if (!state.csrfToken || !pairingId.startsWith("pair_") || !userCode || !validReauthenticationCandidate(humanKey)) {
+    elements.pairingResult.textContent = "请填写有效的配对 ID、一次性配对码和当前密码（或兼容 Human Key）。";
     elements.pairingResult.className = "form-status error";
     return;
   }
@@ -469,20 +588,21 @@ async function decidePairing(event, forcedDecision = null) {
   try {
     let confirmation;
     try {
+      const proof = reauthentication(humanKey, mfa, {
+        intent: decision === "approved" ? "approve" : "deny",
+        user_code: userCode,
+      });
       confirmation = await requestJson(
         `/api/v1/orbit/pairings/${encodeURIComponent(pairingId)}/confirmation`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${humanKey}`,
-            "Content-Type": "application/json",
-            "X-CSRF-Token": state.csrfToken,
-          },
-          body: JSON.stringify({ intent: decision === "approved" ? "approve" : "deny", user_code: userCode }),
+          headers: proof.headers,
+          body: JSON.stringify(proof.payload),
         },
       );
     } finally {
       elements.pairingAccessKey.value = "";
+      elements.pairingMfa.value = "";
     }
     elements.pairingResult.textContent = decision === "approved"
       ? "身份已确认，正在创建 Agent 身份与当前 Connector…"
@@ -506,6 +626,7 @@ async function decidePairing(event, forcedDecision = null) {
     );
   } catch (error) {
     elements.pairingAccessKey.value = "";
+    elements.pairingMfa.value = "";
     elements.pairingResult.textContent = error.message;
     elements.pairingResult.className = "form-status error";
   } finally {
@@ -516,6 +637,7 @@ async function decidePairing(event, forcedDecision = null) {
 
 function closeRevokeDialog() {
   elements.revokeAccessKey.value = "";
+  elements.revokeMfa.value = "";
   elements.revokeConnectorId.value = "";
   elements.revokeResult.textContent = "";
   if (elements.revokeDialog.open) {
@@ -527,8 +649,9 @@ async function revokeConnector(event) {
   event.preventDefault();
   const connectorId = elements.revokeConnectorId.value.trim();
   const humanKey = elements.revokeAccessKey.value.trim();
-  if (!state.csrfToken || !connectorId.startsWith("con_") || !humanKey.startsWith("hum_")) {
-    elements.revokeResult.textContent = "请重新输入有效的 hum_ 人类访问密钥。";
+  const mfa = elements.revokeMfa.value.trim();
+  if (!state.csrfToken || !connectorId.startsWith("con_") || !validReauthenticationCandidate(humanKey)) {
+    elements.revokeResult.textContent = "请重新输入当前密码（或兼容 Human Key）。";
     elements.revokeResult.className = "form-status error";
     return;
   }
@@ -536,18 +659,18 @@ async function revokeConnector(event) {
   try {
     let confirmation;
     try {
+      const proof = reauthentication(humanKey, mfa);
       confirmation = await requestJson(
         `/api/v1/orbit/connectors/${encodeURIComponent(connectorId)}/confirmation`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${humanKey}`,
-            "X-CSRF-Token": state.csrfToken,
-          },
+          headers: proof.headers,
+          body: JSON.stringify(proof.payload),
         },
       );
     } finally {
       elements.revokeAccessKey.value = "";
+      elements.revokeMfa.value = "";
     }
     await requestJson(`/api/v1/orbit/connectors/${encodeURIComponent(connectorId)}`, {
       method: "DELETE",
@@ -626,6 +749,7 @@ function renderTasks(tasks) {
 
 function closeApprovalDialog() {
   elements.approvalAccessKey.value = "";
+  elements.approvalMfa.value = "";
   elements.approvalNote.value = "";
   elements.approvalResult.textContent = "";
   elements.approvalId.value = "";
@@ -644,7 +768,7 @@ function openApprovalDialog(approval, decision) {
     "申请内容因审计角色而隐藏。",
   );
   elements.approvalSubmit.textContent = decision === "approved" ? "确认批准" : "确认拒绝";
-  elements.approvalResult.textContent = "需要重新输入 hum_ 人类访问密钥；密钥验证后立即清除。";
+  elements.approvalResult.textContent = "请重新输入当前密码（或兼容 Human Key）；凭证验证后立即清除。";
   elements.approvalDialog.showModal();
   elements.approvalAccessKey.focus();
 }
@@ -761,6 +885,15 @@ function renderMessages(messages) {
   elements.messageList.append(fragment);
 }
 
+function renderSecurity(security) {
+  const password = security.password_configured ? "密码已设置" : "需先找回账户设置密码";
+  const mfa = security.mfa_enabled ? "MFA 已启用" : "MFA 未启用";
+  const keys = `${safeText(security.active_human_keys, "0")} 个兼容 Key`;
+  elements.securityStatus.textContent = `${password} · ${mfa} · ${keys}`;
+  elements.openMfa.disabled = !security.password_configured;
+  elements.openKeyRotation.disabled = !security.password_configured;
+}
+
 function renderDashboard(dashboard) {
   state.dashboard = dashboard;
   const user = dashboard.user || {};
@@ -784,12 +917,14 @@ async function loadDashboard() {
   elements.refresh.disabled = true;
   setConnection("正在同步星轨", "loading");
   try {
-    const [dashboard, connectors] = await Promise.all([
+    const [dashboard, connectors, security] = await Promise.all([
       requestJson("/api/v1/orbit/dashboard"),
       requestJson("/api/v1/orbit/connectors"),
+      requestJson("/api/v1/orbit/security"),
     ]);
     renderDashboard(dashboard);
     renderConnectors(Array.isArray(connectors.items) ? connectors.items : []);
+    renderSecurity(security);
     elements.welcomeView.hidden = true;
     elements.workspaceView.hidden = false;
     setConnection("星轨已连接", "success");
@@ -799,6 +934,290 @@ async function loadDashboard() {
     throw error;
   } finally {
     elements.refresh.disabled = false;
+  }
+}
+
+async function loadAuthConfig() {
+  try {
+    state.authConfig = await requestJson("/api/v1/auth/config");
+  } catch (_error) {
+    state.authConfig = { self_service_enabled: false, open_registration_enabled: false };
+  }
+  const selfService = Boolean(state.authConfig.self_service_enabled);
+  elements.loginForm.hidden = !selfService;
+  elements.openRecovery.hidden = !selfService;
+  elements.openRegister.hidden = !Boolean(state.authConfig.open_registration_enabled);
+  elements.legacyEntry.open = !selfService;
+}
+
+async function loginHuman(event) {
+  event.preventDefault();
+  const submit = elements.loginForm.querySelector("button[type='submit']");
+  const email = elements.loginEmail.value.trim();
+  const password = elements.loginPassword.value;
+  const proof = mfaProof(elements.loginMfa.value);
+  submit.disabled = true;
+  setFormStatus("正在验证邮箱、密码和 MFA…");
+  try {
+    const browserSession = await requestJson("/api/v1/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, ...proof }),
+    });
+    state.csrfToken = browserSession.csrf_token;
+    elements.loginPassword.value = "";
+    elements.loginMfa.value = "";
+    await loadDashboard();
+    setFormStatus("身份验证成功，敏感输入已从页面清除。", "success");
+  } catch (error) {
+    setFormStatus(error.message, "error");
+  } finally {
+    elements.loginPassword.value = "";
+    elements.loginMfa.value = "";
+    submit.disabled = false;
+  }
+}
+
+function closeRegisterDialog() {
+  elements.registerCode.value = "";
+  elements.registerPassword.value = "";
+  elements.registerResult.textContent = "";
+  state.registerChallengeId = "";
+  if (elements.registerDialog.open) {
+    elements.registerDialog.close();
+  }
+}
+
+function closeRecoveryDialog() {
+  elements.recoveryCode.value = "";
+  elements.recoveryPassword.value = "";
+  elements.recoveryMfa.value = "";
+  elements.recoveryResult.textContent = "";
+  state.recoveryChallengeId = "";
+  if (elements.recoveryDialog.open) {
+    elements.recoveryDialog.close();
+  }
+}
+
+async function sendEmailChallenge(purpose) {
+  const isRegister = purpose === "register";
+  const emailInput = isRegister ? elements.registerEmail : elements.recoveryEmail;
+  const codeInput = isRegister ? elements.registerCode : elements.recoveryCode;
+  const result = isRegister ? elements.registerResult : elements.recoveryResult;
+  const button = isRegister ? elements.registerSendCode : elements.recoverySendCode;
+  button.disabled = true;
+  result.textContent = "正在发送邮箱验证码…";
+  result.className = "form-status";
+  try {
+    const challenge = await requestJson("/api/v1/auth/email/challenges", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: emailInput.value.trim(), purpose }),
+    });
+    if (isRegister) {
+      state.registerChallengeId = challenge.challenge_id;
+    } else {
+      state.recoveryChallengeId = challenge.challenge_id;
+    }
+    if (challenge.test_verification_code) {
+      codeInput.value = challenge.test_verification_code;
+      result.textContent = "本地测试模式：验证码已填入；生产环境只通过邮件发送。";
+    } else {
+      result.textContent = "验证码已发送，请检查邮箱。";
+    }
+    result.className = "form-status success";
+    codeInput.focus();
+  } catch (error) {
+    result.textContent = error.message;
+    result.className = "form-status error";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function registerHuman(event) {
+  event.preventDefault();
+  if (!state.registerChallengeId) {
+    elements.registerResult.textContent = "请先获取邮箱验证码。";
+    elements.registerResult.className = "form-status error";
+    return;
+  }
+  const submit = elements.registerForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  try {
+    const browserSession = await requestJson("/api/v1/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        challenge_id: state.registerChallengeId,
+        code: elements.registerCode.value.trim(),
+        display_name: elements.registerName.value.trim(),
+        password: elements.registerPassword.value,
+      }),
+    });
+    state.csrfToken = browserSession.csrf_token;
+    closeRegisterDialog();
+    await loadDashboard();
+    setFormStatus("账户已创建。建议现在启用 MFA。", "success");
+  } catch (error) {
+    elements.registerResult.textContent = error.message;
+    elements.registerResult.className = "form-status error";
+  } finally {
+    elements.registerCode.value = "";
+    elements.registerPassword.value = "";
+    submit.disabled = false;
+  }
+}
+
+async function recoverHuman(event) {
+  event.preventDefault();
+  if (!state.recoveryChallengeId) {
+    elements.recoveryResult.textContent = "请先获取邮箱验证码。";
+    elements.recoveryResult.className = "form-status error";
+    return;
+  }
+  const submit = elements.recoveryForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  try {
+    const browserSession = await requestJson("/api/v1/auth/recover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        challenge_id: state.recoveryChallengeId,
+        code: elements.recoveryCode.value.trim(),
+        new_password: elements.recoveryPassword.value,
+        ...mfaProof(elements.recoveryMfa.value),
+      }),
+    });
+    state.csrfToken = browserSession.csrf_token;
+    closeRecoveryDialog();
+    await loadDashboard();
+    setFormStatus("密码已重设，旧会话与兼容 Human Key 已撤销。", "success");
+  } catch (error) {
+    elements.recoveryResult.textContent = error.message;
+    elements.recoveryResult.className = "form-status error";
+  } finally {
+    elements.recoveryCode.value = "";
+    elements.recoveryPassword.value = "";
+    elements.recoveryMfa.value = "";
+    submit.disabled = false;
+  }
+}
+
+function closeMfaDialog() {
+  elements.mfaPassword.value = "";
+  elements.mfaCurrentProof.value = "";
+  elements.mfaConfirmCode.value = "";
+  elements.mfaProvisioning.textContent = "";
+  elements.mfaProvisioning.hidden = true;
+  elements.mfaResult.textContent = "";
+  state.mfaSetupStarted = false;
+  if (elements.mfaDialog.open) {
+    elements.mfaDialog.close();
+  }
+}
+
+async function startMfaSetup() {
+  if (!state.csrfToken || elements.mfaPassword.value.length < 12) {
+    elements.mfaResult.textContent = "请输入当前密码。";
+    elements.mfaResult.className = "form-status error";
+    return;
+  }
+  elements.mfaCreate.disabled = true;
+  try {
+    const setup = await requestJson("/api/v1/orbit/security/totp/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+      body: JSON.stringify({
+        password: elements.mfaPassword.value,
+        ...mfaProof(elements.mfaCurrentProof.value),
+      }),
+    });
+    state.mfaSetupStarted = true;
+    elements.mfaProvisioning.hidden = false;
+    elements.mfaProvisioning.textContent = `手工密钥：${setup.secret}\n认证器 URI：${setup.provisioning_uri}`;
+    elements.mfaResult.textContent = "请将密钥加入认证器，再输入一枚新的 6 位动态码。";
+    elements.mfaResult.className = "form-status success";
+    elements.mfaConfirmCode.focus();
+  } catch (error) {
+    elements.mfaResult.textContent = error.message;
+    elements.mfaResult.className = "form-status error";
+  } finally {
+    elements.mfaPassword.value = "";
+    elements.mfaCurrentProof.value = "";
+    elements.mfaCreate.disabled = false;
+  }
+}
+
+async function confirmMfaSetup(event) {
+  event.preventDefault();
+  if (!state.mfaSetupStarted) {
+    elements.mfaResult.textContent = "请先生成认证器密钥。";
+    elements.mfaResult.className = "form-status error";
+    return;
+  }
+  const submit = elements.mfaForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  try {
+    const enabled = await requestJson("/api/v1/orbit/security/totp/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+      body: JSON.stringify({ code: elements.mfaConfirmCode.value.trim() }),
+    });
+    elements.mfaProvisioning.textContent = `恢复码（仅显示一次，请离线保存）：\n${enabled.recovery_codes.join("\n")}`;
+    elements.mfaResult.textContent = "MFA 已启用。保存恢复码后再关闭窗口。";
+    elements.mfaResult.className = "form-status success";
+    state.mfaSetupStarted = false;
+    elements.mfaConfirmCode.value = "";
+    await loadDashboard();
+  } catch (error) {
+    elements.mfaResult.textContent = error.message;
+    elements.mfaResult.className = "form-status error";
+  } finally {
+    elements.mfaConfirmCode.value = "";
+    submit.disabled = false;
+  }
+}
+
+function closeKeyDialog() {
+  elements.keyPassword.value = "";
+  elements.keyMfa.value = "";
+  elements.keyOutput.textContent = "";
+  elements.keyOutput.hidden = true;
+  elements.keyResult.textContent = "";
+  if (elements.keyDialog.open) {
+    elements.keyDialog.close();
+  }
+}
+
+async function rotateHumanKey(event) {
+  event.preventDefault();
+  const submit = elements.keyForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  try {
+    const rotated = await requestJson("/api/v1/orbit/security/human-keys/rotate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+      body: JSON.stringify({
+        password: elements.keyPassword.value,
+        ...mfaProof(elements.keyMfa.value),
+        label: elements.keyLabel.value.trim(),
+      }),
+    });
+    elements.keyOutput.hidden = false;
+    elements.keyOutput.textContent = rotated.access_key;
+    elements.keyResult.textContent = "新 Key 仅显示一次；旧 Human Key 已全部撤销。";
+    elements.keyResult.className = "form-status success";
+    elements.keyPassword.value = "";
+    elements.keyMfa.value = "";
+    await loadDashboard();
+  } catch (error) {
+    elements.keyResult.textContent = error.message;
+    elements.keyResult.className = "form-status error";
+  } finally {
+    elements.keyPassword.value = "";
+    elements.keyMfa.value = "";
+    submit.disabled = false;
   }
 }
 
@@ -842,9 +1261,13 @@ async function signOut() {
     // Closing the local view does not prove that the server revoked the session.
   } finally {
     closeApprovalDialog();
+    closePairingDialog();
+    closeRevokeDialog();
+    closeMfaDialog();
+    closeKeyDialog();
     state.dashboard = null;
     state.csrfToken = "";
-    elements.accessKey.value = "";
+    clearSensitiveInputs();
     elements.workspaceView.hidden = true;
     elements.welcomeView.hidden = false;
     if (revoked) {
@@ -854,7 +1277,7 @@ async function signOut() {
       setFormStatus("当前视图已关闭，但服务器会话撤销未确认。恢复网络后请再次退出。", "error");
       setConnection("会话撤销未确认", "error");
     }
-    elements.accessKey.focus();
+    (state.authConfig?.self_service_enabled ? elements.loginEmail : elements.accessKey).focus();
   }
 }
 
@@ -863,13 +1286,14 @@ async function decideApproval(event) {
   const approvalId = elements.approvalId.value;
   const decision = elements.approvalDecision.value;
   const candidate = elements.approvalAccessKey.value.trim();
+  const mfa = elements.approvalMfa.value.trim();
   if (!state.csrfToken || !approvalId || !["approved", "rejected"].includes(decision)) {
     elements.approvalResult.textContent = "审批上下文已失效，请关闭窗口并刷新星轨。";
     elements.approvalResult.className = "form-status error";
     return;
   }
-  if (!candidate.startsWith("hum_") || candidate.length < 20) {
-    elements.approvalResult.textContent = "请输入有效的 hum_ 人类访问密钥。";
+  if (!validReauthenticationCandidate(candidate)) {
+    elements.approvalResult.textContent = "请输入当前密码（或有效的兼容 Human Key）。";
     elements.approvalResult.className = "form-status error";
     return;
   }
@@ -879,20 +1303,20 @@ async function decideApproval(event) {
   try {
     let confirmation;
     try {
+      const proof = reauthentication(candidate, mfa, {
+        intent: decision === "approved" ? "approve" : "reject",
+      });
       confirmation = await requestJson(
         `/api/v1/orbit/approval-requests/${encodeURIComponent(approvalId)}/confirmation`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${candidate}`,
-            "Content-Type": "application/json",
-            "X-CSRF-Token": state.csrfToken,
-          },
-          body: JSON.stringify({ intent: decision === "approved" ? "approve" : "reject" }),
+          headers: proof.headers,
+          body: JSON.stringify(proof.payload),
         },
       );
     } finally {
       elements.approvalAccessKey.value = "";
+      elements.approvalMfa.value = "";
     }
     elements.approvalResult.textContent = "身份已确认，正在原子写入审批决定…";
     const note = elements.approvalNote.value.trim();
@@ -914,6 +1338,7 @@ async function decideApproval(event) {
     setConnection("审批决定已记录，等待 Agent 轮询", "success");
   } catch (error) {
     elements.approvalAccessKey.value = "";
+    elements.approvalMfa.value = "";
     elements.approvalResult.textContent = error.message;
     elements.approvalResult.className = "form-status error";
   } finally {
@@ -939,6 +1364,27 @@ async function restoreSession() {
 }
 
 elements.accessForm.addEventListener("submit", enterOrbit);
+elements.loginForm.addEventListener("submit", loginHuman);
+elements.openRegister.addEventListener("click", () => {
+  elements.registerResult.textContent = "邮箱验证码有效期有限，请在收到后及时完成注册。";
+  elements.registerDialog.showModal();
+  elements.registerEmail.focus();
+});
+elements.registerForm.addEventListener("submit", registerHuman);
+elements.registerSendCode.addEventListener("click", () => sendEmailChallenge("register"));
+elements.registerClose.addEventListener("click", closeRegisterDialog);
+elements.registerCancel.addEventListener("click", closeRegisterDialog);
+elements.registerDialog.addEventListener("close", closeRegisterDialog);
+elements.openRecovery.addEventListener("click", () => {
+  elements.recoveryResult.textContent = "重设密码将撤销旧浏览器会话与所有兼容 Human Key。";
+  elements.recoveryDialog.showModal();
+  elements.recoveryEmail.focus();
+});
+elements.recoveryForm.addEventListener("submit", recoverHuman);
+elements.recoverySendCode.addEventListener("click", () => sendEmailChallenge("recover"));
+elements.recoveryClose.addEventListener("click", closeRecoveryDialog);
+elements.recoveryCancel.addEventListener("click", closeRecoveryDialog);
+elements.recoveryDialog.addEventListener("close", closeRecoveryDialog);
 elements.refresh.addEventListener("click", async () => {
   try {
     await loadDashboard();
@@ -962,13 +1408,34 @@ elements.revokeForm.addEventListener("submit", revokeConnector);
 elements.revokeClose.addEventListener("click", closeRevokeDialog);
 elements.revokeCancel.addEventListener("click", closeRevokeDialog);
 elements.revokeDialog.addEventListener("close", closeRevokeDialog);
+elements.openMfa.addEventListener("click", () => {
+  elements.mfaResult.textContent = "重新验证后生成只在当前窗口显示的认证器密钥。";
+  elements.mfaDialog.showModal();
+  elements.mfaPassword.focus();
+});
+elements.mfaCreate.addEventListener("click", startMfaSetup);
+elements.mfaForm.addEventListener("submit", confirmMfaSetup);
+elements.mfaClose.addEventListener("click", closeMfaDialog);
+elements.mfaCancel.addEventListener("click", closeMfaDialog);
+elements.mfaDialog.addEventListener("close", closeMfaDialog);
+elements.openKeyRotation.addEventListener("click", () => {
+  elements.keyResult.textContent = "轮换后旧 Human Key 将立即失效。";
+  elements.keyDialog.showModal();
+  elements.keyPassword.focus();
+});
+elements.keyForm.addEventListener("submit", rotateHumanKey);
+elements.keyClose.addEventListener("click", closeKeyDialog);
+elements.keyCancel.addEventListener("click", closeKeyDialog);
+elements.keyDialog.addEventListener("close", closeKeyDialog);
 
 window.addEventListener("pagehide", () => {
-  elements.accessKey.value = "";
-  elements.approvalAccessKey.value = "";
-  elements.pairingAccessKey.value = "";
-  elements.revokeAccessKey.value = "";
+  clearSensitiveInputs();
   state.csrfToken = "";
 });
 
-restoreSession();
+async function initializeOrbit() {
+  await loadAuthConfig();
+  await restoreSession();
+}
+
+initializeOrbit();

@@ -70,6 +70,24 @@ def get_human_from_access_key(
     return user
 
 
+def get_optional_human_from_access_key(
+    request: Request,
+    session: SessionDep,
+    settings: SettingsDep,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_human_bearer)],
+) -> HumanUser | None:
+    resolved = _resolve_human_access_key(session, settings, credentials)
+    if resolved is None:
+        return None
+    user, credential = resolved
+    now = datetime.now(UTC)
+    credential.last_used_at = now
+    user.last_seen_at = now
+    session.commit()
+    request.state.human_reauthentication = "access_key"
+    return user
+
+
 def get_current_human(
     request: Request,
     session: SessionDep,
@@ -104,3 +122,7 @@ def get_current_human(
 
 CurrentHumanDep = Annotated[HumanUser, Depends(get_current_human)]
 HumanAccessKeyDep = Annotated[HumanUser, Depends(get_human_from_access_key)]
+OptionalHumanAccessKeyDep = Annotated[
+    HumanUser | None,
+    Depends(get_optional_human_from_access_key),
+]

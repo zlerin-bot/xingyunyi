@@ -154,3 +154,45 @@ def test_admin_token_is_optional_but_must_be_strong_when_enabled() -> None:
     settings = Settings(admin_token="admin-token-with-at-least-32-bytes")
     assert settings.admin_token is not None
     assert "admin-token-with-at-least-32-bytes" not in repr(settings)
+
+
+def test_open_registration_requires_human_self_service() -> None:
+    with pytest.raises(ValidationError, match="HUMAN_SELF_SERVICE_ENABLED"):
+        Settings(open_registration_enabled=True)
+
+
+def test_production_human_self_service_requires_https_smtp_and_secrets() -> None:
+    base = {
+        "environment": "production",
+        "api_key_pepper": "production-pepper",
+        "human_api_key_pepper": "production-human-pepper",
+        "cursor_secret": "production-cursor-secret",
+        "pairing_secret": "production-pairing-secret",
+        "registration_token": "registration-secret",
+        "admin_token": "production-admin-token-at-least-32",
+        "managed_agent_domain": "agentpost.me",
+        "public_base_url": "https://agentpost.me",
+        "human_self_service_enabled": True,
+        "open_registration_enabled": True,
+    }
+    with pytest.raises(ValidationError, match="HUMAN_AUTH_SECRET"):
+        Settings(**base)
+
+    with pytest.raises(ValidationError, match="EMAIL_DELIVERY_MODE"):
+        Settings(
+            **base,
+            human_auth_secret="production-human-auth-secret",
+            human_mfa_encryption_key="production-human-mfa-key",
+        )
+
+    configured = Settings(
+        **base,
+        human_auth_secret="production-human-auth-secret",
+        human_mfa_encryption_key="production-human-mfa-key",
+        email_delivery_mode="smtp",
+        smtp_host="smtp.example.com",
+        smtp_from_address="no-reply@agentpost.me",
+    )
+    assert configured.human_self_service_enabled is True
+    assert configured.open_registration_enabled is True
+    assert "production-human-auth-secret" not in repr(configured)
