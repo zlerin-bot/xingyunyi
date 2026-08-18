@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated
 from urllib.parse import quote
+from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 
@@ -12,7 +13,7 @@ from agentpost.accounts.service import (
     PasswordNotConfiguredError,
     verify_human_reauthentication,
 )
-from agentpost.api.dependencies import SessionDep, SettingsDep
+from agentpost.api.dependencies import CurrentAgentDep, SessionDep, SettingsDep
 from agentpost.control.auth import CurrentHumanDep, OptionalHumanAccessKeyDep
 from agentpost.control.human_security import (
     HUMAN_CONFIRMATION_HEADER,
@@ -25,6 +26,9 @@ from agentpost.control.human_security import (
 from agentpost.onboarding.schemas import (
     ConnectorConfirmationCreate,
     ConnectorConfirmationResponse,
+    ConnectorCredentialRotationResponse,
+    ConnectorHeartbeatCreate,
+    ConnectorHeartbeatResponse,
     OrbitConnectorList,
     PairingConfirmationCreate,
     PairingConfirmationResponse,
@@ -48,6 +52,7 @@ from agentpost.onboarding.service import (
     PairingInvalidStateError,
     PairingNotFoundError,
     PairingSlowDownError,
+    PairingTargetAgentNotFoundError,
     create_pairing,
     decide_pairing,
     get_owned_connector,
@@ -56,7 +61,9 @@ from agentpost.onboarding.service import (
     list_human_connectors,
     pairing_decision_response,
     pairing_preview,
+    record_connector_heartbeat,
     revoke_connector,
+    rotate_connector_credential,
     verify_pairing_user_code,
 )
 
@@ -93,6 +100,11 @@ def _pairing_invalid_state(state_value: str) -> HTTPException:
             "details": {"status": state_value},
         },
     )
+
+
+def _request_connector_instance_id(request: Request) -> UUID | None:
+    value = getattr(request.state, "connector_instance_id", None)
+    return UUID(value) if isinstance(value, str) else None
 
 
 def _record_denied(
@@ -264,6 +276,58 @@ def connector_poll_pairing(
     return result
 
 
+@router.post("/connect/heartbeat", response_model=ConnectorHeartbeatResponse)
+def connector_heartbeat(
+    payload: ConnectorHeartbeatCreate,
+    request: Request,
+    response: Response,
+    current_agent: CurrentAgentDep,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> ConnectorHeartbeatResponse:
+    try:
+        result = record_connector_heartbeat(
+            session,
+            settings,
+            agent=current_agent,
+            connector_instance_id=_request_connector_instance_id(request),
+            payload=payload,
+        )
+    except (ConnectorNotFoundError, ConnectorInvalidStateError) as exc:
+        raise _pairing_invalid_state("connector_not_current") from exc
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.post(
+    "/connect/credentials/rotate",
+    response_model=ConnectorCredentialRotationResponse,
+)
+def connector_rotate_credential(
+    request: Request,
+    response: Response,
+    current_agent: CurrentAgentDep,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> ConnectorCredentialRotationResponse:
+    credential_id = getattr(request.state, "agent_api_key_id", None)
+    if not isinstance(credential_id, str):
+        raise _pairing_invalid_state("credential_not_current")
+    try:
+        result = rotate_connector_credential(
+            session,
+            settings,
+            agent=current_agent,
+            connector_instance_id=_request_connector_instance_id(request),
+            agent_api_key_id=UUID(credential_id),
+            request_id=request.state.request_id,
+        )
+    except (ConnectorNotFoundError, ConnectorInvalidStateError) as exc:
+        raise _pairing_invalid_state("credential_not_current") from exc
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
 @router.get("/orbit/pairings/{pairing_id}", response_model=PairingPreview)
 def orbit_pairing_preview(
     pairing_id: str,
@@ -430,6 +494,14 @@ def orbit_decide_pairing(
             detail={
                 "code": "agent_address_conflict",
                 "message": "The requested Agent address is already registered",
+            },
+        ) from exc
+    except PairingTargetAgentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "agent_not_owned",
+                "message": "The selected Agent is not owned by the current Human",
             },
         ) from exc
     except PairingInvalidStateError as exc:

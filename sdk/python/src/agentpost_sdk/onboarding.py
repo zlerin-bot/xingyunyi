@@ -3,10 +3,10 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
 from agentpost_sdk.errors import ConfigurationError, ProtocolError, TransportError
 
@@ -25,6 +25,46 @@ class PairingInstructions(BaseModel):
     verification_uri_complete: str
     expires_at: datetime
     interval: int = Field(ge=1, le=60)
+
+
+class ConnectorAgent(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: str
+    address: str
+    display_name: str
+
+
+class ConnectorState(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    connector_id: str
+    connector_type: str
+    display_name: str
+    status: Literal["active", "replaced", "revoked"]
+    health_status: Literal["unknown", "healthy", "degraded", "error"]
+    last_heartbeat_at: datetime | None = None
+    last_error_code: str | None = None
+    credential_rotated_at: datetime | None = None
+
+
+class ConnectorHeartbeat(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    connector: ConnectorState
+    agent: ConnectorAgent
+    current: bool
+    server_time: datetime
+    recommended_interval_seconds: int = Field(ge=10, le=300)
+
+
+class ConnectorCredentialRotation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    connector_id: str
+    agent: ConnectorAgent
+    api_key: SecretStr
+    rotated_at: datetime
 
 
 class PairingSession:
@@ -113,12 +153,19 @@ class PairingSession:
                 request_id=response.headers.get("X-Request-ID"),
             )
         self.close()
-        return AgentPost(
+        client = AgentPost(
             self._server,
             api_key,
             timeout=self._request_timeout,
             transport=self._transport,
         )
+        connector = payload.get("connector")
+        agent = payload.get("agent")
+        if isinstance(connector, dict):
+            client._connector_id = str(connector.get("connector_id") or "") or None
+        if isinstance(agent, dict):
+            client._agent_address = str(agent.get("address") or "") or None
+        return client
 
     def wait(
         self,

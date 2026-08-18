@@ -528,3 +528,204 @@ def test_connector_api_key_is_bound_to_connector_record(
         assert credential is not None and credential.connector_instance_id == connector.id
         assert binding is not None and binding.connector_instance_id == connector.id
         assert ownership is not None and ownership.human_user_id == UUID(human["user"]["id"])
+
+
+def test_existing_agent_moves_to_new_connector_and_rotates_credential(
+    settings: Settings,
+    database: Database,
+) -> None:
+    runtime = _runtime_settings(settings)
+    with TestClient(create_app(settings=runtime, database=database)) as client:
+        human = _create_human(client, "migration-owner@example.com")
+        csrf = _login(client, human)
+
+        first_pairing = _start_pairing(client, connector_type="codex", name="Codex 旧宿主")
+        first_confirmation = _confirmation(
+            client,
+            human=human,
+            csrf=csrf,
+            pairing=first_pairing,
+        )
+        first_approved = _decide(
+            client,
+            pairing=first_pairing,
+            csrf=csrf,
+            confirmation=first_confirmation,
+            payload={"decision": "approved", "local_agent_id": "stable-researcher"},
+            idempotency_key="approve-first-connector",
+        )
+        assert first_approved.status_code == 200, first_approved.text
+        agent_id = first_approved.json()["pairing"]["agent"]["id"]
+        agent_address = first_approved.json()["pairing"]["agent"]["address"]
+        old_connector_id = first_approved.json()["connector"]["connector_id"]
+        old_key = client.post(
+            "/api/v1/connect/pairings/token",
+            json={"device_code": first_pairing["device_code"]},
+        ).json()["api_key"]
+
+        replacement = _start_pairing(
+            client,
+            connector_type="openclaw",
+            name="OpenClaw 新宿主",
+        )
+        replacement_confirmation = _confirmation(
+            client,
+            human=human,
+            csrf=csrf,
+            pairing=replacement,
+        )
+        migrated = _decide(
+            client,
+            pairing=replacement,
+            csrf=csrf,
+            confirmation=replacement_confirmation,
+            payload={"decision": "approved", "existing_agent_id": agent_id},
+            idempotency_key="replace-codex-with-openclaw",
+        )
+        assert migrated.status_code == 200, migrated.text
+        assert migrated.json()["pairing"]["agent"] == {
+            "id": agent_id,
+            "address": agent_address,
+            "display_name": "stable-researcher",
+        }
+        assert migrated.json()["connector"]["connector_id"] != old_connector_id
+        assert (
+            client.get(
+                "/api/v1/inbox",
+                headers={"Authorization": f"Bearer {old_key}"},
+            ).status_code
+            == 401
+        )
+
+        replacement_token = client.post(
+            "/api/v1/connect/pairings/token",
+            json={"device_code": replacement["device_code"]},
+        )
+        assert replacement_token.status_code == 200, replacement_token.text
+        replacement_key = replacement_token.json()["api_key"]
+        heartbeat = client.post(
+            "/api/v1/connect/heartbeat",
+            headers={"Authorization": f"Bearer {replacement_key}"},
+            json={"health_status": "degraded", "last_error_code": "POLL_TIMEOUT"},
+        )
+        assert heartbeat.status_code == 200, heartbeat.text
+        assert heartbeat.json()["current"] is True
+        assert heartbeat.json()["connector"]["health_status"] == "degraded"
+        assert heartbeat.json()["recommended_interval_seconds"] == 30
+
+        rotated = client.post(
+            "/api/v1/connect/credentials/rotate",
+            headers={"Authorization": f"Bearer {replacement_key}"},
+        )
+        assert rotated.status_code == 200, rotated.text
+        rotated_key = rotated.json()["api_key"]
+        assert rotated_key.startswith("agt_")
+        assert rotated_key != replacement_key
+        assert (
+            client.get(
+                "/api/v1/inbox",
+                headers={"Authorization": f"Bearer {replacement_key}"},
+            ).status_code
+            == 401
+        )
+        assert (
+            client.get(
+                "/api/v1/inbox",
+                headers={"Authorization": f"Bearer {rotated_key}"},
+            ).status_code
+            == 200
+        )
+        connectors = client.get("/api/v1/orbit/connectors").json()["items"]
+        assert [item["status"] for item in connectors] == ["active", "replaced"]
+        assert [item["is_current"] for item in connectors] == [True, False]
+
+    with database.session_factory() as session:
+        connectors = session.scalars(
+            select(ConnectorInstance).order_by(ConnectorInstance.created_at)
+        ).all()
+        assert session.scalar(select(func.count()).select_from(Agent)) == 1
+        assert session.scalar(select(func.count()).select_from(AgentOwnership)) == 1
+        assert session.scalar(select(func.count()).select_from(AgentConnectorBinding)) == 1
+        assert len(connectors) == 2
+        assert connectors[0].status == "replaced"
+        assert connectors[0].revocation_reason == "replaced_by_new_connector"
+        assert connectors[1].health_status == "degraded"
+        assert connectors[1].last_heartbeat_at is not None
+        assert connectors[1].credential_rotated_at is not None
+        current_credentials = session.scalars(
+            select(AgentApiKey).where(AgentApiKey.revoked_at.is_(None))
+        ).all()
+        assert len(current_credentials) == 1
+        assert current_credentials[0].key_digest != rotated_key
+
+
+def test_existing_agent_pairing_is_owner_only_and_profile_fields_are_immutable(
+    settings: Settings,
+    database: Database,
+) -> None:
+    runtime = _runtime_settings(settings)
+    with TestClient(create_app(settings=runtime, database=database)) as client:
+        owner = _create_human(client, "existing-owner@example.com")
+        owner_csrf = _login(client, owner)
+        original = _start_pairing(client)
+        original_confirmation = _confirmation(
+            client,
+            human=owner,
+            csrf=owner_csrf,
+            pairing=original,
+        )
+        approved = _decide(
+            client,
+            pairing=original,
+            csrf=owner_csrf,
+            confirmation=original_confirmation,
+            payload={"decision": "approved", "local_agent_id": "private-agent"},
+            idempotency_key="create-private-agent",
+        )
+        agent_id = approved.json()["pairing"]["agent"]["id"]
+        client.delete("/api/v1/orbit/session", headers={"X-CSRF-Token": owner_csrf})
+
+        outsider = _create_human(client, "existing-outsider@example.com")
+        outsider_csrf = _login(client, outsider)
+        attempt = _start_pairing(client, connector_type="manus")
+        attempt_confirmation = _confirmation(
+            client,
+            human=outsider,
+            csrf=outsider_csrf,
+            pairing=attempt,
+        )
+        hidden = _decide(
+            client,
+            pairing=attempt,
+            csrf=outsider_csrf,
+            confirmation=attempt_confirmation,
+            payload={"decision": "approved", "existing_agent_id": agent_id},
+            idempotency_key="outsider-cannot-bind",
+        )
+        assert hidden.status_code == 404
+        assert hidden.json()["error"]["code"] == "AGENT_NOT_OWNED"
+
+        invalid = _decide(
+            client,
+            pairing=attempt,
+            csrf=outsider_csrf,
+            confirmation=attempt_confirmation,
+            payload={
+                "decision": "approved",
+                "existing_agent_id": agent_id,
+                "display_name": "伪造改名",
+            },
+            idempotency_key="existing-profile-is-immutable",
+        )
+        assert invalid.status_code == 422
+
+        registered = _register_agent(client, "legacy@agents.local")
+        non_connector_rotation = client.post(
+            "/api/v1/connect/credentials/rotate",
+            headers={"Authorization": f"Bearer {registered['api_key']}"},
+        )
+        assert non_connector_rotation.status_code == 409
+
+    with database.session_factory() as session:
+        assert session.scalar(select(func.count()).select_from(Agent)) == 2
+        assert session.scalar(select(func.count()).select_from(ConnectorInstance)) == 1

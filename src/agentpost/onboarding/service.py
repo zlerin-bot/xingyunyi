@@ -21,7 +21,7 @@ from agentpost.identity.addressing import (
     address_local_id,
     canonicalize_agent_address,
 )
-from agentpost.identity.api_keys import api_key_prefix, digest_api_key
+from agentpost.identity.api_keys import api_key_prefix, digest_api_key, generate_api_key
 from agentpost.identity.models import Agent, AgentApiKey, utc_now
 from agentpost.messaging.models import AuditLog
 from agentpost.onboarding.crypto import (
@@ -39,6 +39,9 @@ from agentpost.onboarding.models import (
     ConnectorInstance,
 )
 from agentpost.onboarding.schemas import (
+    ConnectorCredentialRotationResponse,
+    ConnectorHeartbeatCreate,
+    ConnectorHeartbeatResponse,
     OrbitConnector,
     PairingAgentResponse,
     PairingConnectorResponse,
@@ -78,6 +81,10 @@ class PairingSlowDownError(Exception):
 
 
 class PairingAddressConflictError(Exception):
+    pass
+
+
+class PairingTargetAgentNotFoundError(Exception):
     pass
 
 
@@ -145,9 +152,13 @@ def _connector_response(connector: ConnectorInstance) -> PairingConnectorRespons
         device_name=connector.device_name,
         client_version=connector.client_version,
         status=connector.status,
+        health_status=connector.health_status,
         created_at=connector.created_at,
         activated_at=connector.activated_at,
         last_seen_at=connector.last_seen_at,
+        last_heartbeat_at=connector.last_heartbeat_at,
+        last_error_code=connector.last_error_code,
+        credential_rotated_at=connector.credential_rotated_at,
         revoked_at=connector.revoked_at,
     )
 
@@ -431,41 +442,66 @@ def decide_pairing(
     pairing.decision_idempotency_key = key
     pairing.decision_request_hash = request_hash
     connector: ConnectorInstance | None = None
+    previous_connector: ConnectorInstance | None = None
 
     if payload.decision == "denied":
         pairing.status = "denied"
     else:
-        assert payload.local_agent_id is not None
-        address = canonicalize_agent_address(
-            f"{payload.local_agent_id}@{settings.managed_agent_domain}"
-        )
-        if session.scalar(select(Agent.id).where(Agent.address == address)) is not None:
-            raise PairingAddressConflictError(address)
-        capabilities = (
-            payload.capabilities
-            if payload.capabilities is not None
-            else list(pairing.requested_capabilities)
-        )
-        agent = Agent(
-            address=address,
-            display_name=payload.display_name or address_local_id(address),
-            description=payload.description,
-            owner_id=str(user.id),
-            domain=address_domain(address),
-            status="active",
-            capabilities=capabilities,
-            endpoint=None,
-            created_at=now,
-            updated_at=now,
-        )
-        session.add(agent)
-        session.flush()
-        session.add(
-            AgentOwnership(
-                agent_id=agent.id,
-                human_user_id=user.id,
-                assigned_at=now,
+        if payload.existing_agent_id is not None:
+            agent = session.scalar(
+                select(Agent)
+                .join(AgentOwnership, AgentOwnership.agent_id == Agent.id)
+                .where(
+                    Agent.id == payload.existing_agent_id,
+                    AgentOwnership.human_user_id == user.id,
+                    Agent.status == "active",
+                )
+                .with_for_update()
             )
+            if agent is None:
+                raise PairingTargetAgentNotFoundError
+        else:
+            assert payload.local_agent_id is not None
+            address = canonicalize_agent_address(
+                f"{payload.local_agent_id}@{settings.managed_agent_domain}"
+            )
+            if session.scalar(select(Agent.id).where(Agent.address == address)) is not None:
+                raise PairingAddressConflictError(address)
+            capabilities = (
+                payload.capabilities
+                if payload.capabilities is not None
+                else list(pairing.requested_capabilities)
+            )
+            agent = Agent(
+                address=address,
+                display_name=payload.display_name or address_local_id(address),
+                description=payload.description,
+                owner_id=str(user.id),
+                domain=address_domain(address),
+                status="active",
+                capabilities=capabilities,
+                endpoint=None,
+                created_at=now,
+                updated_at=now,
+            )
+            session.add(agent)
+            session.flush()
+            session.add(
+                AgentOwnership(
+                    agent_id=agent.id,
+                    human_user_id=user.id,
+                    assigned_at=now,
+                )
+            )
+        current_binding = session.scalar(
+            select(AgentConnectorBinding)
+            .where(AgentConnectorBinding.agent_id == agent.id)
+            .with_for_update()
+        )
+        previous_connector = (
+            session.get(ConnectorInstance, current_binding.connector_instance_id)
+            if current_binding is not None
+            else None
         )
         connector = ConnectorInstance(
             connector_id=generate_connector_id(),
@@ -481,13 +517,27 @@ def decide_pairing(
         )
         session.add(connector)
         session.flush()
-        session.add(
-            AgentConnectorBinding(
-                agent_id=agent.id,
-                connector_instance_id=connector.id,
-                bound_at=now,
+        if current_binding is None:
+            session.add(
+                AgentConnectorBinding(
+                    agent_id=agent.id,
+                    connector_instance_id=connector.id,
+                    bound_at=now,
+                )
             )
-        )
+        else:
+            current_binding.connector_instance_id = connector.id
+            current_binding.bound_at = now
+        if previous_connector is not None:
+            previous_connector.status = "replaced"
+            previous_connector.revoked_at = now
+            previous_connector.revocation_reason = "replaced_by_new_connector"
+            for credential in session.scalars(
+                select(AgentApiKey).where(
+                    AgentApiKey.connector_instance_id == previous_connector.id
+                )
+            ).all():
+                credential.revoked_at = credential.revoked_at or now
         pairing.agent_id = agent.id
         pairing.connector_instance_id = connector.id
         pairing.status = "approved"
@@ -508,6 +558,9 @@ def decide_pairing(
             "decision": payload.decision,
             "agent_id": str(pairing.agent_id) if pairing.agent_id else None,
             "connector_id": connector.connector_id if connector else None,
+            "replaces_connector_id": (
+                previous_connector.connector_id if previous_connector else None
+            ),
         },
     )
     try:
@@ -643,3 +696,112 @@ def revoke_connector(
         audit_metadata={"agent_id": str(connector.agent_id)},
     )
     session.commit()
+
+
+def get_current_connector(
+    session: Session,
+    *,
+    agent: Agent,
+    connector_instance_id: UUID | None,
+    for_update: bool = False,
+) -> ConnectorInstance:
+    if connector_instance_id is None:
+        raise ConnectorNotFoundError
+    statement = select(ConnectorInstance).where(
+        ConnectorInstance.id == connector_instance_id,
+        ConnectorInstance.agent_id == agent.id,
+        ConnectorInstance.status == "active",
+    )
+    if for_update:
+        statement = statement.with_for_update()
+    connector = session.scalar(statement)
+    binding = session.get(AgentConnectorBinding, agent.id)
+    if connector is None or binding is None or binding.connector_instance_id != connector.id:
+        raise ConnectorInvalidStateError("not_current")
+    return connector
+
+
+def record_connector_heartbeat(
+    session: Session,
+    settings: Settings,
+    *,
+    agent: Agent,
+    connector_instance_id: UUID | None,
+    payload: ConnectorHeartbeatCreate,
+) -> ConnectorHeartbeatResponse:
+    connector = get_current_connector(
+        session,
+        agent=agent,
+        connector_instance_id=connector_instance_id,
+        for_update=True,
+    )
+    now = utc_now()
+    connector.health_status = payload.health_status
+    connector.last_heartbeat_at = now
+    connector.last_seen_at = now
+    connector.last_error_code = payload.last_error_code
+    connector.last_error_at = now if payload.last_error_code is not None else None
+    agent.last_seen_at = now
+    session.commit()
+    return ConnectorHeartbeatResponse(
+        connector=_connector_response(connector),
+        agent=_agent_response(agent),
+        server_time=now,
+        recommended_interval_seconds=settings.connector_heartbeat_interval_seconds,
+    )
+
+
+def rotate_connector_credential(
+    session: Session,
+    settings: Settings,
+    *,
+    agent: Agent,
+    connector_instance_id: UUID | None,
+    agent_api_key_id: UUID,
+    request_id: str,
+) -> ConnectorCredentialRotationResponse:
+    connector = get_current_connector(
+        session,
+        agent=agent,
+        connector_instance_id=connector_instance_id,
+        for_update=True,
+    )
+    credential = session.scalar(
+        select(AgentApiKey)
+        .where(
+            AgentApiKey.id == agent_api_key_id,
+            AgentApiKey.agent_id == agent.id,
+            AgentApiKey.connector_instance_id == connector.id,
+            AgentApiKey.revoked_at.is_(None),
+        )
+        .with_for_update()
+    )
+    if credential is None:
+        raise ConnectorInvalidStateError("credential_not_current")
+    raw_api_key = generate_api_key()
+    now = utc_now()
+    credential.key_digest = digest_api_key(raw_api_key, settings.api_key_pepper)
+    credential.key_prefix = api_key_prefix(raw_api_key)
+    credential.created_at = now
+    credential.last_used_at = None
+    connector.credential_rotated_at = now
+    connector.last_seen_at = now
+    session.add(
+        AuditLog(
+            actor_agent_id=agent.id,
+            action="onboarding.connector_credential_rotated",
+            target_type="connector_instance",
+            target_id=connector.connector_id,
+            outcome="success",
+            request_id=request_id,
+            audit_metadata={},
+            created_at=now,
+        )
+    )
+    session.commit()
+    return ConnectorCredentialRotationResponse(
+        connector_id=connector.connector_id,
+        agent=_agent_response(agent),
+        api_key=raw_api_key,
+        rotated_at=now,
+    )

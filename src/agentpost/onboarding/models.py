@@ -19,6 +19,10 @@ class ConnectorInstance(Base):
             "status IN ('active', 'replaced', 'revoked')",
             name="ck_connector_instances_status",
         ),
+        CheckConstraint(
+            "health_status IN ('unknown', 'healthy', 'degraded', 'error')",
+            name="ck_connector_instances_health_status",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
@@ -40,6 +44,9 @@ class ConnectorInstance(Base):
     device_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     client_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active", index=True)
+    health_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="unknown", index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now
     )
@@ -47,6 +54,14 @@ class ConnectorInstance(Base):
         DateTime(timezone=True), nullable=False, default=utc_now
     )
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_heartbeat_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    last_error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    credential_rotated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revocation_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
 

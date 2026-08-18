@@ -77,6 +77,12 @@ def get_current_agent(
             connector.last_seen_at = now
     session.commit()
     request.state.agent_id = str(credential.agent.id)
+    request.state.agent_api_key_id = str(credential.id)
+    request.state.connector_instance_id = (
+        str(credential.connector_instance_id)
+        if credential.connector_instance_id is not None
+        else None
+    )
     return credential.agent
 
 

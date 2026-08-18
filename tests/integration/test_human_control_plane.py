@@ -127,6 +127,10 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "revoke-dialog" in orbit.text
     assert "/api/v1/orbit/pairings/" in script.text
     assert "/api/v1/orbit/connectors" in script.text
+    assert "pairing-existing-agent" in orbit.text
+    assert "existing_agent_id" in script.text
+    assert "只替换当前 Connector" in orbit.text
+    assert "last_heartbeat_at" in script.text
     assert "长期凭证只由 Connector 自动领取" in orbit.text
     assert 'elements.pairingAccessKey.value = ""' in script.text
     assert 'elements.revokeAccessKey.value = ""' in script.text

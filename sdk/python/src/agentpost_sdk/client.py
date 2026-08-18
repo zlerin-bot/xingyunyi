@@ -286,6 +286,44 @@ class _ApprovalsResource:
         return self._owner._approval(data)
 
 
+class _ConnectorResource:
+    def __init__(self, owner: AgentPost) -> None:
+        self._owner = owner
+
+    def heartbeat(
+        self,
+        *,
+        health_status: str = "healthy",
+        last_error_code: str | None = None,
+    ):
+        from agentpost_sdk.onboarding import ConnectorHeartbeat
+
+        data = self._owner._request(
+            "POST",
+            "/connect/heartbeat",
+            json={"health_status": health_status, "last_error_code": last_error_code},
+        )
+        try:
+            return ConnectorHeartbeat.model_validate(data)
+        except PydanticValidationError as exc:
+            raise self._owner._protocol_error(
+                "Malformed Connector heartbeat response", exc
+            ) from exc
+
+    def rotate_credential(self):
+        from agentpost_sdk.onboarding import ConnectorCredentialRotation
+
+        data = self._owner._request("POST", "/connect/credentials/rotate")
+        try:
+            rotation = ConnectorCredentialRotation.model_validate(data)
+        except PydanticValidationError as exc:
+            raise self._owner._protocol_error(
+                "Malformed credential rotation response", exc
+            ) from exc
+        self._owner._replace_api_key(rotation.api_key.get_secret_value())
+        return rotation
+
+
 class AgentPost:
     """Synchronous AgentPost client. Message content remains untrusted input."""
 
@@ -301,6 +339,8 @@ class AgentPost:
         if not api_key or not api_key.strip():
             raise ConfigurationError("api_key must not be empty")
         self._api_key = api_key
+        self._connector_id: str | None = None
+        self._agent_address: str | None = None
         self._client = httpx.Client(
             base_url=f"{self.server}/api/v1",
             headers={
@@ -315,6 +355,7 @@ class AgentPost:
         self.messages = _MessagesResource(self)
         self.attachments = _AttachmentsResource(self)
         self.approvals = _ApprovalsResource(self)
+        self.connector = _ConnectorResource(self)
 
     @classmethod
     def begin_pairing(
@@ -395,6 +436,10 @@ class AgentPost:
 
     def close(self) -> None:
         self._client.close()
+
+    def _replace_api_key(self, api_key: str) -> None:
+        self._api_key = api_key
+        self._client.headers["Authorization"] = f"Bearer {api_key}"
 
     def send(
         self,

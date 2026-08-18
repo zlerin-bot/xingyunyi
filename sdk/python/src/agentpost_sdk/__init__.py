@@ -26,7 +26,12 @@ from agentpost_sdk.models import (
     InboxPage,
     Message,
 )
-from agentpost_sdk.onboarding import PairingInstructions, PairingSession
+from agentpost_sdk.onboarding import (
+    ConnectorCredentialRotation,
+    ConnectorHeartbeat,
+    PairingInstructions,
+    PairingSession,
+)
 
 __all__ = [
     "AgentPost",
@@ -39,6 +44,8 @@ __all__ = [
     "AuthenticationError",
     "AuthorizationError",
     "ConfigurationError",
+    "ConnectorCredentialRotation",
+    "ConnectorHeartbeat",
     "ConflictError",
     "DirectoryPage",
     "DownloadedFile",

@@ -90,9 +90,13 @@ class PairingConnectorResponse(OnboardingModel):
     device_name: str | None
     client_version: str | None
     status: Literal["active", "replaced", "revoked"]
+    health_status: Literal["unknown", "healthy", "degraded", "error"]
     created_at: datetime
     activated_at: datetime
     last_seen_at: datetime | None
+    last_heartbeat_at: datetime | None
+    last_error_code: str | None
+    credential_rotated_at: datetime | None
     revoked_at: datetime | None
 
 
@@ -141,6 +145,7 @@ class PairingDecisionCreate(OnboardingModel):
         max_length=64,
         pattern=r"^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$",
     )
+    existing_agent_id: UUID | None = None
     display_name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
     capabilities: list[str] | None = None
@@ -164,12 +169,28 @@ class PairingDecisionCreate(OnboardingModel):
 
     @model_validator(mode="after")
     def decision_fields_match_action(self) -> PairingDecisionCreate:
-        if self.decision == "approved" and self.local_agent_id is None:
-            raise ValueError("local_agent_id is required when approving a pairing")
+        if self.decision == "approved" and (self.local_agent_id is None) == (
+            self.existing_agent_id is None
+        ):
+            raise ValueError(
+                "approved pairing decisions require exactly one of local_agent_id or "
+                "existing_agent_id"
+            )
+        if self.existing_agent_id is not None and any(
+            value is not None
+            for value in (
+                self.local_agent_id,
+                self.display_name,
+                self.description,
+                self.capabilities,
+            )
+        ):
+            raise ValueError("existing Agent pairing must not modify Agent profile fields")
         if self.decision == "denied" and any(
             value is not None
             for value in (
                 self.local_agent_id,
+                self.existing_agent_id,
                 self.display_name,
                 self.description,
                 self.capabilities,
@@ -203,3 +224,36 @@ class ConnectorConfirmationCreate(OnboardingModel):
     password: SecretStr | None = None
     totp_code: str | None = Field(default=None, pattern=r"^[0-9]{6}$")
     recovery_code: str | None = Field(default=None, min_length=8, max_length=32)
+
+
+class ConnectorHeartbeatCreate(OnboardingModel):
+    health_status: Literal["healthy", "degraded", "error"] = "healthy"
+    last_error_code: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+        pattern=r"^[A-Z0-9][A-Z0-9_.-]{0,99}$",
+    )
+
+    @model_validator(mode="after")
+    def error_matches_health(self) -> ConnectorHeartbeatCreate:
+        if self.health_status == "healthy" and self.last_error_code is not None:
+            raise ValueError("healthy heartbeat must not report an error code")
+        if self.health_status == "error" and self.last_error_code is None:
+            raise ValueError("error heartbeat requires last_error_code")
+        return self
+
+
+class ConnectorHeartbeatResponse(OnboardingModel):
+    connector: PairingConnectorResponse
+    agent: PairingAgentResponse
+    current: Literal[True] = True
+    server_time: datetime
+    recommended_interval_seconds: int
+
+
+class ConnectorCredentialRotationResponse(OnboardingModel):
+    connector_id: str
+    agent: PairingAgentResponse
+    api_key: str
+    rotated_at: datetime

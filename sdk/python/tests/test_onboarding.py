@@ -126,3 +126,79 @@ def test_connect_waits_for_human_then_returns_authenticated_client_without_key_d
         assert inbox_authorization == ["Bearer agt_connector-private-key"]
     finally:
         client.close()
+
+
+def test_connector_heartbeat_and_rotation_switch_client_credential_atomically() -> None:
+    authorizations: list[str] = []
+    now = datetime.now(UTC).isoformat()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        authorization = request.headers.get("Authorization", "")
+        authorizations.append(authorization)
+        if request.url.path == "/api/v1/connect/heartbeat":
+            assert authorization == "Bearer agt_old-connector-key"
+            return httpx.Response(
+                200,
+                json={
+                    "connector": {
+                        "connector_id": "con_current",
+                        "connector_type": "codex",
+                        "display_name": "Codex",
+                        "status": "active",
+                        "health_status": "healthy",
+                        "last_heartbeat_at": now,
+                        "last_error_code": None,
+                        "credential_rotated_at": None,
+                    },
+                    "agent": {
+                        "id": "5a7044c7-6a5e-48e9-90dd-78680c91dcb9",
+                        "address": "pluto@agentpost.me",
+                        "display_name": "Pluto",
+                    },
+                    "current": True,
+                    "server_time": now,
+                    "recommended_interval_seconds": 30,
+                },
+            )
+        if request.url.path == "/api/v1/connect/credentials/rotate":
+            assert authorization == "Bearer agt_old-connector-key"
+            return httpx.Response(
+                200,
+                json={
+                    "connector_id": "con_current",
+                    "agent": {
+                        "id": "5a7044c7-6a5e-48e9-90dd-78680c91dcb9",
+                        "address": "pluto@agentpost.me",
+                        "display_name": "Pluto",
+                    },
+                    "api_key": "agt_new-connector-key",
+                    "rotated_at": now,
+                },
+            )
+        if request.url.path == "/api/v1/inbox":
+            assert authorization == "Bearer agt_new-connector-key"
+            return httpx.Response(
+                200,
+                json={"items": [], "next_cursor": None, "has_more": False},
+            )
+        raise AssertionError(request.url)
+
+    client = AgentPost(
+        "https://agentpost.me",
+        "agt_old-connector-key",
+        transport=httpx.MockTransport(handler),
+    )
+    try:
+        heartbeat = client.connector.heartbeat()
+        assert heartbeat.connector.health_status == "healthy"
+        rotation = client.connector.rotate_credential()
+        assert "agt_new-connector-key" not in repr(rotation)
+        assert rotation.api_key.get_secret_value() == "agt_new-connector-key"
+        assert client.inbox.unread().items == []
+    finally:
+        client.close()
+    assert authorizations == [
+        "Bearer agt_old-connector-key",
+        "Bearer agt_old-connector-key",
+        "Bearer agt_new-connector-key",
+    ]

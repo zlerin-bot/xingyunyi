@@ -74,6 +74,10 @@ const elements = {
   pairingSubmit: document.querySelector("#pairing-submit"),
   pairingId: document.querySelector("#pairing-id"),
   pairingUserCode: document.querySelector("#pairing-user-code"),
+  pairingTargetMode: document.querySelector("#pairing-target-mode"),
+  pairingExistingAgentField: document.querySelector("#pairing-existing-agent-field"),
+  pairingExistingAgent: document.querySelector("#pairing-existing-agent"),
+  pairingNewAgentFields: document.querySelector("#pairing-new-agent-fields"),
   pairingLocalId: document.querySelector("#pairing-local-id"),
   pairingDisplayName: document.querySelector("#pairing-display-name"),
   pairingCapabilities: document.querySelector("#pairing-capabilities"),
@@ -314,6 +318,10 @@ function statusLabel(value) {
     revoked: "已撤销",
     replaced: "已替换",
     verified: "已验证",
+    unknown: "尚未上报",
+    healthy: "健康",
+    degraded: "降级",
+    error: "故障",
   };
   return labels[value] || safeText(value);
 }
@@ -904,6 +912,8 @@ function renderConnectors(connectors) {
       ["设备", connector.device_name],
       ["版本", connector.client_version],
       ["最近连接", dateText(connector.last_seen_at)],
+      ["心跳", dateText(connector.last_heartbeat_at)],
+      ["健康", statusLabel(connector.health_status)],
     ].forEach(([label, value]) => {
       const cell = document.createElement("div");
       const term = document.createElement("dt");
@@ -939,6 +949,8 @@ function closePairingDialog({ clear = true } = {}) {
   if (clear) {
     elements.pairingId.value = "";
     elements.pairingUserCode.value = "";
+    elements.pairingTargetMode.value = "new";
+    elements.pairingExistingAgent.replaceChildren();
     elements.pairingLocalId.value = "";
     elements.pairingDisplayName.value = "";
     elements.pairingCapabilities.value = "";
@@ -946,10 +958,39 @@ function closePairingDialog({ clear = true } = {}) {
     elements.pairingPreview.hidden = true;
     state.pairingRequestSignature = "";
     state.pairingIdempotencyKey = "";
+    updatePairingTargetMode();
   }
   if (elements.pairingDialog.open) {
     elements.pairingDialog.close();
   }
+}
+
+function populateExistingAgentOptions() {
+  elements.pairingExistingAgent.replaceChildren();
+  const agents = Array.isArray(state.dashboard?.agents) ? state.dashboard.agents : [];
+  const owned = agents.filter(
+    (agent) => agent.access_source === "direct" && agent.role === "owner" && agent.status === "active",
+  );
+  owned.forEach((agent) => {
+    const option = document.createElement("option");
+    option.value = agent.id;
+    option.textContent = `${safeText(agent.display_name, agent.address)} · ${agent.address}`;
+    elements.pairingExistingAgent.append(option);
+  });
+  if (!owned.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "没有可迁移的自有 Agent";
+    elements.pairingExistingAgent.append(option);
+  }
+}
+
+function updatePairingTargetMode() {
+  const existing = elements.pairingTargetMode.value === "existing";
+  elements.pairingExistingAgentField.hidden = !existing;
+  elements.pairingNewAgentFields.hidden = existing;
+  elements.pairingLocalId.required = !existing;
+  elements.pairingExistingAgent.required = existing;
 }
 
 function renderPairingPreview(pairing) {
@@ -990,16 +1031,24 @@ async function openPairingDialog(pairingId = "", userCode = "") {
   elements.pairingUserCode.value = userCode;
   elements.pairingResult.textContent = "长期凭证不会进入浏览器；批准后由发起配对的 Connector 自动领取。";
   elements.pairingResult.className = "form-status";
+  populateExistingAgentOptions();
+  updatePairingTargetMode();
   elements.pairingDialog.showModal();
   if (pairingId) {
     await loadPairingPreview();
   }
-  (pairingId ? elements.pairingLocalId : elements.pairingId).focus();
+  (pairingId ? elements.pairingTargetMode : elements.pairingId).focus();
 }
 
 function pairingPayload(decision) {
   if (decision === "denied") {
     return { decision: "denied" };
+  }
+  if (elements.pairingTargetMode.value === "existing") {
+    return {
+      decision: "approved",
+      existing_agent_id: elements.pairingExistingAgent.value || null,
+    };
   }
   const capabilities = [...new Set(
     elements.pairingCapabilities.value
@@ -1037,8 +1086,8 @@ async function decidePairing(event, forcedDecision = null) {
     elements.pairingResult.className = "form-status error";
     return;
   }
-  if (decision === "approved" && !payload.local_agent_id) {
-    elements.pairingResult.textContent = "请填写 Agent 地址前缀。";
+  if (decision === "approved" && !payload.local_agent_id && !payload.existing_agent_id) {
+    elements.pairingResult.textContent = "请填写 Agent 地址前缀，或选择要迁移的已有 Agent。";
     elements.pairingResult.className = "form-status error";
     return;
   }
@@ -1066,7 +1115,9 @@ async function decidePairing(event, forcedDecision = null) {
       elements.pairingMfa.value = "";
     }
     elements.pairingResult.textContent = decision === "approved"
-      ? "身份已确认，正在创建 Agent 身份与当前 Connector…"
+      ? (payload.existing_agent_id
+        ? "身份已确认，正在迁移当前 Connector 并撤销旧凭证…"
+        : "身份已确认，正在创建 Agent 身份与当前 Connector…")
       : "身份已确认，正在拒绝本次配对…";
     await requestJson(`/api/v1/orbit/pairings/${encodeURIComponent(pairingId)}/decision`, {
       method: "POST",
@@ -1868,6 +1919,7 @@ elements.pairingClose.addEventListener("click", () => closePairingDialog());
 elements.pairingCancel.addEventListener("click", () => closePairingDialog());
 elements.pairingDialog.addEventListener("close", () => closePairingDialog());
 elements.pairingId.addEventListener("change", loadPairingPreview);
+elements.pairingTargetMode.addEventListener("change", updatePairingTargetMode);
 elements.revokeForm.addEventListener("submit", revokeConnector);
 elements.revokeClose.addEventListener("click", closeRevokeDialog);
 elements.revokeCancel.addEventListener("click", closeRevokeDialog);

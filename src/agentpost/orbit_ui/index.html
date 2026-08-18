@@ -473,18 +473,30 @@
         <input id="pairing-id" type="text" autocomplete="off" spellcheck="false" required placeholder="pair_••••••••">
         <label for="pairing-user-code">一次性配对码</label>
         <input id="pairing-user-code" type="text" autocomplete="one-time-code" spellcheck="false" required placeholder="ABCD-EFGH" maxlength="16">
-        <div class="pairing-fields">
-          <div>
-            <label for="pairing-local-id">Agent 地址前缀</label>
-            <input id="pairing-local-id" type="text" autocomplete="off" spellcheck="false" required placeholder="pluto" maxlength="64">
-          </div>
-          <div>
-            <label for="pairing-display-name">Agent 名称</label>
-            <input id="pairing-display-name" type="text" autocomplete="off" maxlength="200" placeholder="我的研究 Agent">
-          </div>
+        <label for="pairing-target-mode">连接方式</label>
+        <select id="pairing-target-mode">
+          <option value="new">创建新的独立 Agent</option>
+          <option value="existing">迁移到我已有的 Agent</option>
+        </select>
+        <div id="pairing-existing-agent-field" hidden>
+          <label for="pairing-existing-agent">选择已有 Agent</label>
+          <select id="pairing-existing-agent"></select>
+          <p class="dialog-summary">只替换当前 Connector；Agent 地址、Inbox、Thread、任务和历史均保留，旧 Connector 凭证立即失效。</p>
         </div>
-        <label for="pairing-capabilities">能力标签</label>
-        <input id="pairing-capabilities" type="text" autocomplete="off" maxlength="1000" placeholder="financial-research, document-analysis">
+        <div id="pairing-new-agent-fields">
+          <div class="pairing-fields">
+            <div>
+              <label for="pairing-local-id">Agent 地址前缀</label>
+              <input id="pairing-local-id" type="text" autocomplete="off" spellcheck="false" required placeholder="pluto" maxlength="64">
+            </div>
+            <div>
+              <label for="pairing-display-name">Agent 名称</label>
+              <input id="pairing-display-name" type="text" autocomplete="off" maxlength="200" placeholder="我的研究 Agent">
+            </div>
+          </div>
+          <label for="pairing-capabilities">能力标签</label>
+          <input id="pairing-capabilities" type="text" autocomplete="off" maxlength="1000" placeholder="financial-research, document-analysis">
+        </div>
         <label for="pairing-access-key">重新输入密码或兼容 Human Key</label>
         <input
           id="pairing-access-key"
