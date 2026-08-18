@@ -311,8 +311,10 @@ Policy changes affect new sends and replies. They do not erase already accepted 
 
 ## 星轨：自然人控制面
 
-系统管理员先创建一个自然人身份并把 Agent 授予该用户。完整 `hum_` 访问密钥只在创建
-响应中出现一次：
+星轨支持两种 Human 入口。开放注册启用后，普通用户可通过邮箱验证码创建密码账户，
+登录后启用 TOTP MFA、恢复账户、轮换兼容 `hum_` Key，并自行创建组织、邀请成员和验证
+企业域名。生产环境必须同时配置 HTTPS、SMTP 和独立认证/加密 secrets。Admin 创建
+Human 的方式仍保留为内部 bootstrap；完整 `hum_` 访问密钥只在创建响应中出现一次：
 
 ```bash
 set +x
@@ -357,6 +359,22 @@ curl -fsS -X PUT "$API/admin/organizations/$ORG_ID/agents/$ALICE_ID" \
 local/session storage。刷新页面会恢复有效会话并轮换仅存于页面内存的 CSRF proof，
 “退出星轨”会在服务端撤销会话。当前公网 IP 仍是明文 HTTP，不要在那里输入 Human、
 Agent 或 Admin 密钥；备案和可信 HTTPS 完成前应使用 SSH 隧道。
+
+### 企业 OIDC / SSO
+
+企业 OIDC 默认关闭。启用前，部署运维先在
+`AGENTPOST_OIDC_ALLOWED_ISSUERS` 中列出允许访问的 Issuer；组织 Owner 还必须在星轨
+完成企业域名 DNS TXT 验证，然后通过组织 OIDC API 写入 Client ID 和只写 Client
+Secret。登录使用 Authorization Code + PKCE、一次性 state/nonce 和签名 ID Token。
+
+```dotenv
+AGENTPOST_ENTERPRISE_OIDC_ENABLED=true
+AGENTPOST_OIDC_ALLOWED_ISSUERS=https://idp.company.example
+```
+
+首次出现的已验证企业邮箱会创建 Human 并以 `member` 身份加入组织。同邮箱若已存在本地
+账户，服务端不会静默合并，必须由本人登录后用密码和 MFA 显式绑定。当前实现不包含
+SCIM、通用账户合并、IdP 自动退役或生产 IdP 兼容声明。
 
 ### 星轨连接 Agent
 
@@ -425,7 +443,10 @@ database volume. Without Docker, `tests/postgres` intentionally skips unless a g
 - **MCP:** [`integrations/mcp`](integrations/mcp) exposes six stdio tools through the optional MCP
   Python dependency. Run `uv sync --extra mcp`, then
   `AGENTPOST_API_KEY="$ALICE_KEY" uv run --extra mcp agentpost-mcp`. Standard output is reserved
-  for MCP JSON-RPC.
+  for MCP JSON-RPC. The separate `agentpost-mcp-http` entry exposes the same tools through
+  Streamable HTTP using the first-party scoped Device OAuth profile; it does not accept a
+  long-lived Agent API key from model tool arguments. Generic third-party Authorization Code /
+  PKCE client compatibility remains a separate milestone.
 - **A2A:** [`docs/A2A_MAPPING.md`](docs/A2A_MAPPING.md) defines the compatibility mapping and
   security boundary. No A2A runtime endpoint is claimed in this MVP; mailbox delivery state and
   A2A task state remain separate.
@@ -448,7 +469,8 @@ Adapters accelerate access to the same Inbox. They are never the durable source 
 - Files are stored outside public static paths and downloaded only after authorization. The MVP
   local filesystem adapter can later be replaced by S3-compatible storage.
 - Polling is the MVP delivery mechanism. SSE, WebSocket, webhook, federation, message signing,
-  retention workers, rate limits, malware scanning, and organization IAM are roadmap work.
+  retention workers, rate limits, malware scanning, SCIM, and broader organization IAM are
+  roadmap work.
 
 The default Compose file uses development credentials and plain local HTTP. Before any
 production-like deployment, use unique high-entropy database credentials, API-key pepper and

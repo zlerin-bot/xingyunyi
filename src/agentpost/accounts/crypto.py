@@ -78,6 +78,14 @@ def _fernet(secret: SecretStr) -> Fernet:
     return Fernet(key)
 
 
+def encrypt_application_secret(raw_secret: str, encryption_key: SecretStr) -> str:
+    return _fernet(encryption_key).encrypt(raw_secret.encode()).decode()
+
+
+def decrypt_application_secret(encrypted_secret: str, encryption_key: SecretStr) -> str:
+    return _fernet(encryption_key).decrypt(encrypted_secret.encode()).decode()
+
+
 def encrypt_totp_secret(raw_secret: str, encryption_key: SecretStr) -> str:
     return _fernet(encryption_key).encrypt(raw_secret.encode()).decode()
 

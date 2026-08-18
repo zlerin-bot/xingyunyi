@@ -56,6 +56,7 @@ def human_auth_config(settings: SettingsDep) -> HumanAuthConfig:
     return HumanAuthConfig(
         self_service_enabled=settings.human_self_service_enabled,
         open_registration_enabled=settings.open_registration_enabled,
+        enterprise_oidc_enabled=settings.enterprise_oidc_enabled,
     )
 
 

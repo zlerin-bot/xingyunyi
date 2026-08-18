@@ -1,6 +1,6 @@
 # 星云驿 Agent Onboarding / Pairing 计划
 
-状态：M19–M22 第一方接入闭环已实现；企业 OIDC 与通用第三方 OAuth 待建（2026-08-18）
+状态：M19–M23 第一方接入与企业 OIDC 闭环已实现；通用第三方 MCP OAuth 待建（2026-08-18）
 
 ## 1. 产品决定
 
@@ -33,10 +33,12 @@
 - Python 与 TypeScript Connector SDK、后台轮询 Worker、安全存储抽象、
   OpenClaw Adapter、本地 stdio MCP Adapter 已存在。
 - 第一方 OAuth Device Authorization 与 OAuth-protected Remote MCP 已存在。
+- 企业 OIDC Authorization Code + PKCE、Issuer 运维白名单、已验证域名
+  auto-provision 和已有账户显式绑定已存在。
 
 ### 当前仍不支持
 
-- 企业 OIDC/SSO、SCIM、账户合并与 IdP 退役/紧急恢复流程。
+- SCIM、跨登录方式账户合并，以及完整 IdP 退役/紧急恢复流程。
 - 面向任意第三方 MCP Client 的 Authorization Code + PKCE、客户端元数据
   发现/注册与逐宿主兼容验收；当前只实现固定第一方 Device Client。
 - Pending Address / Invitation / Claim。
@@ -306,6 +308,18 @@ Codex/WorkBuddy/MiniMax/Claude/Manus 实机验收。
 - OpenClaw Pairing upgrade
 - Claude/Manus 仅基于官方扩展面适配
 
+### M23A：企业 OIDC（已完成，本地验证）
+
+- 组织 Owner 配置/禁用 allowlisted OIDC Provider
+- 已验证组织域名约束
+- Authorization Code + PKCE、state、nonce、签名 ID Token 校验
+- 新企业 Human 自动 provision 为 member
+- 已有同邮箱账户必须密码/MFA显式绑定
+- 星轨企业 SSO 发现与登录入口
+
+尚未完成：SCIM、IdP 自动证书/元数据变更治理、跨认证方式账户合并和
+生产 IdP 实机验收。
+
 ### M24：邀请与待认领身份
 
 - Invitation / Pending Address
@@ -331,5 +345,5 @@ Codex/WorkBuddy/MiniMax/Claude/Manus 实机验收。
 
 M19 当时只建立安全 Pairing 与 Connector 真值层。之后 M20–M22 已补充
 连接生命周期、后台 Worker、TypeScript SDK 与第一方 Remote MCP OAuth。
-当前仍不包含 A2A runtime、Pending Address/Claim、移动端 App、企业 OIDC/
-SCIM、通用 MCP Authorization Code 兼容或 marketplace。
+当前仍不包含 A2A runtime、Pending Address/Claim、移动端 App、SCIM、通用
+MCP Authorization Code 兼容或 marketplace。

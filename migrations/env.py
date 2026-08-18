@@ -37,6 +37,7 @@ from agentpost.onboarding.models import (
     ConnectorInstance,
 )
 from agentpost.organizations.models import OrganizationDomain, OrganizationInvitation
+from agentpost.sso.models import OidcLoginState, OrganizationOidcIdentity, OrganizationOidcProvider
 
 _MODELS = (
     Agent,
@@ -69,6 +70,9 @@ _MODELS = (
     OrganizationDomain,
     OAuthAccessToken,
     OAuthRefreshToken,
+    OrganizationOidcProvider,
+    OrganizationOidcIdentity,
+    OidcLoginState,
 )
 
 config = context.config

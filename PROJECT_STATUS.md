@@ -72,6 +72,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 20 | Human self-service authentication, MFA, recovery, key lifecycle, and organization governance | complete* |
 | 21 | Connector migration, heartbeat, credential lifecycle, Python/TypeScript runtimes, and secure-store boundary | complete* |
 | 22 | first-party Device OAuth and OAuth-protected Remote MCP | complete* |
+| 23 | verified-domain enterprise OIDC login and explicit account linking | complete* |
 
 ## Decisions already fixed
 
@@ -109,6 +110,36 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 15. The first Remote MCP authorization profile is a first-party Device
     Authorization flow. Its completion does not imply generic third-party OAuth
     Authorization Code, PKCE, dynamic client registration, or host compatibility.
+16. Enterprise OIDC trust requires both an operator-approved Issuer and a verified
+    organization email domain. Existing local accounts are never silently merged
+    solely because an IdP returns the same email address.
+
+## Milestone 23 enterprise OIDC evidence
+
+Organization owners can configure and disable an OIDC provider only after the
+organization has a verified DNS domain and only when the issuer appears in the
+deployment operator's allowlist. Discovery, authorization, token, and JWKS
+endpoints must remain on the approved issuer host; client secrets and PKCE
+verifiers are encrypted at rest. Login uses Authorization Code + PKCE with
+one-time HMAC-digested state, a nonce verified inside a signed ID token, strict
+issuer/audience/expiry checks, and an exact verified-email-domain match.
+
+A first-time enterprise identity can create a Human account and organization
+`member` membership. If the email already belongs to a local account, callback
+returns `oidc_account_link_required`; the existing Human must initiate a
+password/MFA-protected link from an authenticated 星轨 session. SSO sessions record
+`auth_method=enterprise_oidc`, and only trusted IdP `amr` values mark the local
+session as MFA-authenticated. Disabling the provider blocks new login starts but
+does not silently delete Human accounts or historical audit records.
+
+Four integration tests cover signed-token auto-provisioning, organization
+membership/session creation, state replay rejection, encrypted client-secret
+storage, explicit existing-account linking, CSRF/password reauthentication,
+verified-domain and issuer-allowlist gates, provider disable, and feature-off
+surface hiding. Migration 0017 passed fresh upgrade, schema check, downgrade to
+0016, re-upgrade, and a second check against SQLite. The full non-PostgreSQL
+regression now reports 292 passed, one expected loopback sandbox skip, and four
+deselected PostgreSQL tests; MCP and both Node harness selections also pass.
 
 ## Milestones 20–22 onboarding and open-access evidence
 
@@ -246,8 +277,10 @@ not a production-accepted public identity service. It has not been exercised
 against PostgreSQL in this environment. Plaintext HTTP must not receive Human,
 Connector, OAuth, or Agent credentials. Email registration, MFA, recovery, Human
 key rotation, delegated organization administration, invitations, self-exit, and
-DNS domain proof are implemented. Enterprise OIDC/SSO, nested organization units,
-SCIM provisioning, account merge, and production abuse controls remain open.
+DNS domain proof and an allowlisted verified-domain enterprise OIDC profile are
+implemented. SCIM provisioning, arbitrary IdP lifecycle automation, cross-method
+account merge, nested organization units, and production abuse controls remain
+open.
 Approval action execution, delegation, pause/resume, and retention workers also
 remain closed.
 
@@ -309,8 +342,10 @@ acceptance asset exist but the required external runtime was unavailable.
   Connector SDKs without a plaintext credential-store fallback.
 - [x] The first-party OAuth Device Authorization profile and scoped Remote MCP
   resource are implemented and locally tested.
-- [~] Enterprise OIDC and generic MCP Authorization Code + PKCE/client discovery
-  are not implemented and must not be advertised.
+- [x] Verified-domain enterprise OIDC Authorization Code + PKCE login and explicit
+  existing-account linking are locally exercised.
+- [~] SCIM and generic MCP Authorization Code + PKCE/client discovery are not
+  implemented and must not be advertised.
 - [x] `README.md`, `ARCHITECTURE.md`, `PROTOCOL.md`, `SECURITY.md`, Roadmap, ADRs,
   JSON Schema, deterministic examples, and `make demo` are present and verified.
 - [~] PostgreSQL durability, restart, idempotency, row-lock, and 100-Agent tests

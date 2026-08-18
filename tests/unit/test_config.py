@@ -161,6 +161,19 @@ def test_open_registration_requires_human_self_service() -> None:
         Settings(open_registration_enabled=True)
 
 
+def test_enterprise_oidc_requires_human_service_and_canonical_allowlist() -> None:
+    with pytest.raises(ValidationError, match="HUMAN_SELF_SERVICE_ENABLED"):
+        Settings(enterprise_oidc_enabled=True, oidc_allowed_issuers="https://idp.example")
+    settings = Settings(
+        human_self_service_enabled=True,
+        enterprise_oidc_enabled=True,
+        oidc_allowed_issuers=" https://idp.example/,https://idp.example ",
+    )
+    assert settings.allowed_oidc_issuers == frozenset({"https://idp.example"})
+    with pytest.raises(ValidationError, match="OIDC_ALLOWED_ISSUERS"):
+        Settings(oidc_allowed_issuers="https://user:secret@idp.example")
+
+
 def test_production_human_self_service_requires_https_smtp_and_secrets() -> None:
     base = {
         "environment": "production",

@@ -388,6 +388,17 @@ footer {
   margin-top: 12px;
 }
 
+.oidc-entry {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.8rem;
+}
+
+.oidc-options {
+  display: grid;
+  gap: 0.5rem;
+}
+
 .text-button {
   border: 0;
   background: transparent;
@@ -1418,6 +1429,16 @@ footer {
   gap: 9px;
 }
 
+.organization-oidc-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.organization-oidc-fields button {
+  grid-column: 1 / -1;
+}
+
 .domain-proof {
   display: block;
   max-width: min(100%, 610px);
@@ -1757,6 +1778,7 @@ footer {
   .pairing-fields,
   .organization-invite-fields,
   .organization-domain-fields,
+  .organization-oidc-fields,
   .connector-card dl {
     grid-template-columns: 1fr;
   }

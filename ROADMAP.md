@@ -48,8 +48,8 @@ The evidence boundary is important:
 | MCP | Local stdio and first-party Device-OAuth-protected Streamable HTTP profiles are locally verified | Generic Authorization Code + PKCE/client registration and each consuming host remain separate acceptance scopes |
 | OpenClaw | Static contracts and a zero-dependency Node HTTP-client harness are local verified | A real OpenClaw plugin build/load/validate was not run; npm/host dependencies were unavailable and bundled Node 24.14 is outside the plugin's declared supported ranges |
 | A2A | A2A 1.0 concept mapping and documentation contract tests are local verified | No A2A runtime endpoint, persistent task-binding implementation, conformance result, Agent Card, streaming, or push support exists |
-| Human organization scope | Self-created organizations, invitations, role changes, removal/self-exit, last-owner protection, DNS domain proof, single-organization Agent assignment, and revocable visibility are implemented | Enterprise OIDC/SCIM, nested units, account merge, tenant-isolation review, and production RBAC remain |
-| Human authentication/control | Email registration/login, TOTP MFA, recovery, Human-key rotation, secure sessions/CSRF, confirmation, audit, and approval-only writes are locally verified | Enterprise OIDC, abuse/rate controls, production email/HTTPS acceptance, and approval execution remain |
+| Human organization scope | Self-created organizations, invitations, role changes, removal/self-exit, last-owner protection, DNS domain proof, allowlisted enterprise OIDC, single-organization Agent assignment, and revocable visibility are implemented | SCIM, nested units, broad account merge, tenant-isolation review, and production RBAC remain |
+| Human authentication/control | Email registration/login, TOTP MFA, recovery, Human-key rotation, verified-domain OIDC Authorization Code + PKCE, secure sessions/CSRF, confirmation, audit, and approval-only writes are locally verified | Production IdP/email/HTTPS acceptance, abuse/rate controls, IdP lifecycle, and approval execution remain |
 | Connector onboarding | New/existing-Agent Pairing, migration, credential rotation/revocation, heartbeat, Python keyring Worker, and TypeScript secure-store boundary are locally verified | Real host install/update/OS-service acceptance and multi-connector claim/lease are not implemented |
 | Admin console | Lightweight debug UI and token-gated operational views are implemented | It is not a production operations or organization-management console |
 
@@ -78,9 +78,11 @@ The following items are explicit backlog, not silent promises:
 - PostgreSQL is the intended production source of truth, but current local
   execution evidence is SQLite-only. PostgreSQL row locking, transaction
   isolation, migration, restart, and concurrent idempotency must pass separately.
-- Enterprise OIDC/SSO, SCIM, IdP lifecycle, account-link/merge, and break-glass
-  recovery are not implemented. Verified organization domains exist, but are not
-  by themselves an SSO trust grant.
+- The first enterprise OIDC profile requires an operator allowlist plus verified
+  domain and supports explicit same-email account linking. SCIM, generic account
+  merge, IdP metadata/key change operations, deprovisioning, and break-glass
+  recovery are not implemented. A verified domain alone is never an SSO trust
+  grant.
 - The admin console uses one deployment-level static token. It does not provide
   named administrators, least-privilege roles, session lifecycle, MFA/SSO, or
   immutable administrative attribution.
@@ -123,9 +125,9 @@ persistent Inbox as the source of truth.
   error. Idempotent retries must remain safe under throttling.
 - Extend the existing named Human principals, email login, TOTP, recovery, key
   rotation, secure sessions, browser CSRF, one-time confirmation, and action
-  attribution with enterprise OIDC/SCIM, least-privilege action RBAC, retention,
-  account merge, IdP lifecycle, and break-glass procedures. The debug UI remains
-  optional.
+  attribution and verified-domain enterprise OIDC with SCIM, least-privilege
+  action RBAC, retention, broader account merge, IdP lifecycle, and break-glass
+  procedures. The debug UI remains optional.
 - Add abuse controls for registration, directory scraping, enumeration, spam,
   recipient block rules, and anomalous attachment activity.
 - Define secret rotation for API-key pepper, cursor signing, admin access, and

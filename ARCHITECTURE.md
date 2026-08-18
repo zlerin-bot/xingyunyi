@@ -55,6 +55,7 @@ src/agentpost/
   identity/     address rules, API-key hashing, Agent models and service
   messaging/    messages, deliveries, cursors, audit, transaction service
   onboarding/   short-lived Pairing, Connector instances, active bindings
+  sso/          enterprise OIDC providers, identity links, one-time login state
   orbit_ui/     星轨 no-dependency product UI assets
   storage/      filesystem/S3-compatible attachment port
   observability/structured logs and request context
@@ -137,6 +138,27 @@ confirmation. Approval atomically creates Agent, ownership, Connector, and curre
 binding. The Connector then derives and claims its credential over the device
 channel; the browser never receives it. Production Pairing is HTTPS-only and is
 disabled by default in the production Compose manifest.
+
+## Enterprise Human identity federation
+
+Enterprise OIDC is a Human authentication adapter, not an Agent identity source.
+An organization Owner may configure a provider only after DNS-verifying at least
+one organization domain, and the issuer must also appear in an operator-controlled
+deployment allowlist. Provider discovery, token, authorization, and JWKS endpoints
+are constrained to that issuer host; client secrets and PKCE verifiers are
+encrypted at rest.
+
+Login uses Authorization Code + PKCE with server-held one-time state and nonce.
+The callback validates the signed ID token's issuer, audience, timestamps, nonce,
+subject, verified email, and exact organization-domain membership. A new subject
+may provision a Human plus `member` membership. An existing local email is never
+silently linked: the Human must start an explicit password/MFA-protected link from
+星轨. The resulting `hss_` browser session remains the same revocable, CSRF-bound
+session used by email/password login.
+
+This layer does not implement SCIM, generic account merge, or automatic IdP
+deprovisioning. Disabling a provider blocks future logins without deleting Human
+identity, membership, Agent ownership, or audit history.
 
 ## Human approval transaction
 

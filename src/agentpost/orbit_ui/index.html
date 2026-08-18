@@ -71,6 +71,10 @@
             <input id="login-mfa" type="text" autocomplete="one-time-code" spellcheck="false" placeholder="6 位动态码或恢复码">
             <button type="submit" class="entry-submit">进入星轨</button>
           </form>
+          <div id="oidc-entry" class="oidc-entry" hidden>
+            <button id="discover-oidc" type="button" class="quiet-button">使用企业 SSO</button>
+            <div id="oidc-options" class="oidc-options" aria-live="polite"></div>
+          </div>
           <div class="entry-links">
             <button id="open-register" type="button" class="text-button">创建账户</button>
             <button id="open-recovery" type="button" class="text-button">找回账户</button>
@@ -269,6 +273,11 @@
                 <p>仅供 CLI 和旧集成使用；轮换会立即撤销此前所有 Human Key。</p>
                 <button id="open-key-rotation" type="button" class="quiet-button">轮换 Human Key</button>
               </article>
+              <article id="sso-security-card" hidden>
+                <strong>企业身份</strong>
+                <p>把当前邮箱账户显式绑定到已验证组织的企业 SSO。</p>
+                <button id="open-sso-link" type="button" class="quiet-button">绑定企业 SSO</button>
+              </article>
             </div>
           </section>
 
@@ -372,6 +381,18 @@
       </form>
     </dialog>
 
+    <dialog id="sso-link-dialog" class="approval-dialog" aria-labelledby="sso-link-title">
+      <form id="sso-link-form" method="dialog" autocomplete="off">
+        <div class="dialog-heading"><div><p class="section-tag">Enterprise identity</p><h2 id="sso-link-title">绑定企业 SSO</h2></div><button id="sso-link-close" type="button" class="dialog-close" aria-label="关闭企业 SSO 绑定窗口">×</button></div>
+        <p class="dialog-summary">绑定不会依据同邮箱自动发生；必须重新验证当前本地账户，再到企业身份提供方完成授权。</p>
+        <label for="sso-link-provider">身份提供方</label><select id="sso-link-provider" required></select>
+        <label for="sso-link-password">当前密码</label><input id="sso-link-password" type="password" autocomplete="current-password" required minlength="12">
+        <label for="sso-link-mfa">当前 MFA 或恢复码（启用后必填）</label><input id="sso-link-mfa" type="text" autocomplete="one-time-code">
+        <p id="sso-link-result" class="form-status" role="status"></p>
+        <div class="dialog-actions"><button id="sso-link-cancel" type="button" class="quiet-button">返回</button><button type="submit" class="approval-submit">验证并前往企业登录</button></div>
+      </form>
+    </dialog>
+
     <dialog id="organization-create-dialog" class="approval-dialog" aria-labelledby="organization-create-title">
       <form id="organization-create-form" method="dialog" autocomplete="off">
         <div class="dialog-heading">
@@ -415,6 +436,18 @@
             <button id="organization-domain-add" type="button" class="quiet-button">认领域名</button>
           </div>
           <div id="organization-domain-list" class="governance-list"></div>
+        </section>
+        <section id="organization-oidc-section" class="organization-domain-section" hidden>
+          <h3>企业 SSO</h3>
+          <p class="dialog-summary">仅 Owner 可配置运维白名单内的 OIDC Issuer；Client Secret 只写、加密保存且不会再次显示。</p>
+          <div class="organization-oidc-fields">
+            <input id="organization-oidc-name" type="text" maxlength="100" placeholder="企业统一登录">
+            <input id="organization-oidc-issuer" type="url" maxlength="1000" placeholder="https://idp.company.example">
+            <input id="organization-oidc-client-id" type="text" maxlength="255" autocomplete="off" placeholder="Client ID">
+            <input id="organization-oidc-client-secret" type="password" minlength="12" maxlength="2000" autocomplete="new-password" placeholder="Client Secret">
+            <button id="organization-oidc-add" type="button" class="quiet-button">启用企业 SSO</button>
+          </div>
+          <div id="organization-oidc-list" class="governance-list"></div>
         </section>
         <div class="dialog-actions"><button id="organization-leave" type="button" class="quiet-button danger">退出组织</button><button id="organization-manage-cancel" type="button" class="quiet-button">完成</button></div>
       </form>

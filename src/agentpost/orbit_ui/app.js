@@ -24,6 +24,9 @@ const elements = {
   loginEmail: document.querySelector("#login-email"),
   loginPassword: document.querySelector("#login-password"),
   loginMfa: document.querySelector("#login-mfa"),
+  oidcEntry: document.querySelector("#oidc-entry"),
+  discoverOidc: document.querySelector("#discover-oidc"),
+  oidcOptions: document.querySelector("#oidc-options"),
   openRegister: document.querySelector("#open-register"),
   openRecovery: document.querySelector("#open-recovery"),
   legacyEntry: document.querySelector("#legacy-entry"),
@@ -52,6 +55,8 @@ const elements = {
   securityStatus: document.querySelector("#security-status"),
   openMfa: document.querySelector("#open-mfa"),
   openKeyRotation: document.querySelector("#open-key-rotation"),
+  ssoSecurityCard: document.querySelector("#sso-security-card"),
+  openSsoLink: document.querySelector("#open-sso-link"),
   openPairing: document.querySelector("#open-pairing"),
   approvalDialog: document.querySelector("#approval-dialog"),
   approvalForm: document.querySelector("#approval-form"),
@@ -134,6 +139,14 @@ const elements = {
   keyLabel: document.querySelector("#key-label"),
   keyOutput: document.querySelector("#key-output"),
   keyResult: document.querySelector("#key-result"),
+  ssoLinkDialog: document.querySelector("#sso-link-dialog"),
+  ssoLinkForm: document.querySelector("#sso-link-form"),
+  ssoLinkClose: document.querySelector("#sso-link-close"),
+  ssoLinkCancel: document.querySelector("#sso-link-cancel"),
+  ssoLinkProvider: document.querySelector("#sso-link-provider"),
+  ssoLinkPassword: document.querySelector("#sso-link-password"),
+  ssoLinkMfa: document.querySelector("#sso-link-mfa"),
+  ssoLinkResult: document.querySelector("#sso-link-result"),
   organizationCreateDialog: document.querySelector("#organization-create-dialog"),
   organizationCreateForm: document.querySelector("#organization-create-form"),
   organizationCreateClose: document.querySelector("#organization-create-close"),
@@ -158,6 +171,13 @@ const elements = {
   organizationDomainName: document.querySelector("#organization-domain-name"),
   organizationDomainAdd: document.querySelector("#organization-domain-add"),
   organizationDomainList: document.querySelector("#organization-domain-list"),
+  organizationOidcSection: document.querySelector("#organization-oidc-section"),
+  organizationOidcName: document.querySelector("#organization-oidc-name"),
+  organizationOidcIssuer: document.querySelector("#organization-oidc-issuer"),
+  organizationOidcClientId: document.querySelector("#organization-oidc-client-id"),
+  organizationOidcClientSecret: document.querySelector("#organization-oidc-client-secret"),
+  organizationOidcAdd: document.querySelector("#organization-oidc-add"),
+  organizationOidcList: document.querySelector("#organization-oidc-list"),
   organizationLeave: document.querySelector("#organization-leave"),
 };
 
@@ -263,6 +283,9 @@ function clearSensitiveInputs() {
     elements.registerPassword,
     elements.recoveryCode,
     elements.recoveryPassword,
+    elements.organizationOidcClientSecret,
+    elements.ssoLinkPassword,
+    elements.ssoLinkMfa,
     elements.recoveryMfa,
     elements.mfaPassword,
     elements.mfaCurrentProof,
@@ -435,10 +458,15 @@ async function createOrganization(event) {
 function closeOrganizationManagement() {
   elements.organizationInviteEmail.value = "";
   elements.organizationDomainName.value = "";
+  elements.organizationOidcName.value = "";
+  elements.organizationOidcIssuer.value = "";
+  elements.organizationOidcClientId.value = "";
+  elements.organizationOidcClientSecret.value = "";
   elements.organizationManageResult.textContent = "";
   elements.organizationMemberList.replaceChildren();
   elements.organizationInvitationList.replaceChildren();
   elements.organizationDomainList.replaceChildren();
+  elements.organizationOidcList.replaceChildren();
   state.managedOrganization = null;
   state.organizationDomainProofs.clear();
   if (elements.organizationManageDialog.open) {
@@ -695,6 +723,94 @@ async function addOrganizationDomain() {
   }
 }
 
+async function disableOrganizationOidc(providerId) {
+  const organization = state.managedOrganization;
+  if (!organization || organization.membership_role !== "owner") {
+    return;
+  }
+  try {
+    await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/oidc-providers/${encodeURIComponent(providerId)}`,
+      { method: "DELETE", headers: { "X-CSRF-Token": state.csrfToken } },
+    );
+    elements.organizationManageResult.textContent = "企业 SSO 已停用；既有 Human 与审计记录保留。";
+    elements.organizationManageResult.className = "form-status success";
+    await loadOrganizationManagement();
+  } catch (error) {
+    elements.organizationManageResult.textContent = error.message;
+    elements.organizationManageResult.className = "form-status error";
+  }
+}
+
+function renderOrganizationOidcProviders(providers) {
+  elements.organizationOidcList.replaceChildren();
+  if (!providers.length) {
+    elements.organizationOidcList.append(emptyState("尚未配置企业 SSO。"));
+    return;
+  }
+  providers.forEach((provider) => {
+    const { row, actions } = governanceRow(
+      safeText(provider.display_name),
+      `${safeText(provider.issuer)} · ${statusLabel(provider.status)}`,
+    );
+    if (provider.status === "active") {
+      const disable = document.createElement("button");
+      disable.type = "button";
+      disable.className = "quiet-button danger";
+      disable.textContent = "停用";
+      disable.addEventListener("click", () => disableOrganizationOidc(provider.provider_id));
+      actions.append(disable);
+    }
+    elements.organizationOidcList.append(row);
+  });
+}
+
+async function addOrganizationOidcProvider() {
+  const organization = state.managedOrganization;
+  const payload = {
+    display_name: elements.organizationOidcName.value.trim(),
+    issuer: elements.organizationOidcIssuer.value.trim(),
+    client_id: elements.organizationOidcClientId.value.trim(),
+    client_secret: elements.organizationOidcClientSecret.value,
+  };
+  if (
+    !organization ||
+    organization.membership_role !== "owner" ||
+    !payload.display_name ||
+    !payload.issuer ||
+    !payload.client_id ||
+    payload.client_secret.length < 12
+  ) {
+    elements.organizationManageResult.textContent = "请完整填写企业 SSO 配置；Client Secret 至少 12 个字符。";
+    elements.organizationManageResult.className = "form-status error";
+    return;
+  }
+  elements.organizationOidcAdd.disabled = true;
+  try {
+    await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/oidc-providers`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+        body: JSON.stringify(payload),
+      },
+    );
+    elements.organizationOidcName.value = "";
+    elements.organizationOidcIssuer.value = "";
+    elements.organizationOidcClientId.value = "";
+    elements.organizationOidcClientSecret.value = "";
+    elements.organizationManageResult.textContent = "企业 SSO 已启用；Client Secret 不会再次显示。";
+    elements.organizationManageResult.className = "form-status success";
+    await loadOrganizationManagement();
+  } catch (error) {
+    elements.organizationOidcClientSecret.value = "";
+    elements.organizationManageResult.textContent = error.message;
+    elements.organizationManageResult.className = "form-status error";
+  } finally {
+    elements.organizationOidcAdd.disabled = false;
+  }
+}
+
 async function loadOrganizationManagement() {
   const organization = state.managedOrganization;
   if (!organization) {
@@ -708,6 +824,9 @@ async function loadOrganizationManagement() {
   const isOwner = organization.membership_role === "owner";
   elements.organizationDomainName.disabled = !isOwner;
   elements.organizationDomainAdd.hidden = !isOwner;
+  elements.organizationOidcSection.hidden = !(
+    isOwner && Boolean(state.authConfig?.enterprise_oidc_enabled)
+  );
   const members = await requestJson(
     `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/members`,
   );
@@ -724,6 +843,14 @@ async function loadOrganizationManagement() {
     `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/domains`,
   );
   renderOrganizationDomains(Array.isArray(domains.items) ? domains.items : []);
+  if (isOwner && state.authConfig?.enterprise_oidc_enabled) {
+    const providers = await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/oidc-providers`,
+    );
+    renderOrganizationOidcProviders(Array.isArray(providers.items) ? providers.items : []);
+  } else {
+    elements.organizationOidcList.replaceChildren();
+  }
 }
 
 async function openOrganizationManagement(organization) {
@@ -1404,6 +1531,86 @@ function renderSecurity(security) {
   elements.securityStatus.textContent = `${password} · ${mfa} · ${keys}`;
   elements.openMfa.disabled = !security.password_configured;
   elements.openKeyRotation.disabled = !security.password_configured;
+  elements.ssoSecurityCard.hidden = !Boolean(state.authConfig?.enterprise_oidc_enabled);
+  elements.openSsoLink.disabled = !security.password_configured;
+}
+
+function closeSsoLinkDialog() {
+  elements.ssoLinkPassword.value = "";
+  elements.ssoLinkMfa.value = "";
+  elements.ssoLinkProvider.replaceChildren();
+  elements.ssoLinkResult.textContent = "";
+  if (elements.ssoLinkDialog.open) {
+    elements.ssoLinkDialog.close();
+  }
+}
+
+async function openSsoLinkDialog() {
+  elements.ssoLinkProvider.replaceChildren();
+  elements.ssoLinkResult.textContent = "正在查找当前邮箱可用的企业 SSO…";
+  elements.ssoLinkDialog.showModal();
+  try {
+    const email = state.dashboard?.user?.email || "";
+    const discovered = await requestJson("/api/v1/auth/oidc/providers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const providers = Array.isArray(discovered.items) ? discovered.items : [];
+    providers.forEach((provider) => {
+      const option = document.createElement("option");
+      option.value = String(provider.provider_id);
+      option.dataset.organizationId = String(provider.organization_id);
+      option.textContent = `${safeText(provider.display_name)} · ${safeText(provider.issuer)}`;
+      elements.ssoLinkProvider.append(option);
+    });
+    elements.ssoLinkResult.textContent = providers.length
+      ? "请选择身份提供方并重新验证当前账户。"
+      : "当前邮箱域名尚未配置企业 SSO。";
+    elements.ssoLinkResult.className = `form-status ${providers.length ? "" : "error"}`.trim();
+  } catch (error) {
+    elements.ssoLinkResult.textContent = error.message;
+    elements.ssoLinkResult.className = "form-status error";
+  }
+}
+
+async function linkEnterpriseOidc(event) {
+  event.preventDefault();
+  const option = elements.ssoLinkProvider.selectedOptions[0];
+  if (!option) {
+    elements.ssoLinkResult.textContent = "没有可绑定的企业身份提供方。";
+    elements.ssoLinkResult.className = "form-status error";
+    return;
+  }
+  const proof = mfaProof(elements.ssoLinkMfa.value);
+  const submit = elements.ssoLinkForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  try {
+    const started = await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(option.dataset.organizationId)}/oidc-providers/${encodeURIComponent(option.value)}/link`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+        body: JSON.stringify({
+          password: elements.ssoLinkPassword.value,
+          ...proof,
+        }),
+      },
+    );
+    elements.ssoLinkPassword.value = "";
+    elements.ssoLinkMfa.value = "";
+    const authorizationUrl = new URL(started.authorization_url);
+    if (!["https:", "http:"].includes(authorizationUrl.protocol)) {
+      throw new Error("企业 SSO 返回了不安全的授权地址。" );
+    }
+    window.location.assign(authorizationUrl.href);
+  } catch (error) {
+    elements.ssoLinkPassword.value = "";
+    elements.ssoLinkMfa.value = "";
+    elements.ssoLinkResult.textContent = error.message;
+    elements.ssoLinkResult.className = "form-status error";
+    submit.disabled = false;
+  }
 }
 
 function renderDashboard(dashboard) {
@@ -1460,7 +1667,61 @@ async function loadAuthConfig() {
   elements.loginForm.hidden = !selfService;
   elements.openRecovery.hidden = !selfService;
   elements.openRegister.hidden = !Boolean(state.authConfig.open_registration_enabled);
+  elements.oidcEntry.hidden = !Boolean(state.authConfig.enterprise_oidc_enabled);
   elements.legacyEntry.open = !selfService;
+}
+
+async function discoverEnterpriseOidc() {
+  const email = elements.loginEmail.value.trim();
+  elements.oidcOptions.replaceChildren();
+  if (!email || !email.includes("@")) {
+    setFormStatus("请先填写企业邮箱，再选择企业 SSO。", "error");
+    elements.loginEmail.focus();
+    return;
+  }
+  elements.discoverOidc.disabled = true;
+  setFormStatus("正在查找已验证的企业身份提供方…");
+  try {
+    const discovered = await requestJson("/api/v1/auth/oidc/providers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const providers = Array.isArray(discovered.items) ? discovered.items : [];
+    if (providers.length === 0) {
+      setFormStatus("该邮箱域名尚未配置企业 SSO。", "error");
+      return;
+    }
+    providers.forEach((provider) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "quiet-button";
+      button.textContent = `通过 ${safeText(provider.display_name, "企业 SSO")} 登录`;
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          const started = await requestJson(
+            `/api/v1/auth/oidc/${encodeURIComponent(provider.provider_id)}/start`,
+            { method: "POST" },
+          );
+          const authorizationUrl = new URL(started.authorization_url);
+          if (!['https:', 'http:'].includes(authorizationUrl.protocol)) {
+            throw new Error("企业 SSO 返回了不安全的授权地址。");
+          }
+          window.location.assign(authorizationUrl.href);
+        } catch (error) {
+          button.disabled = false;
+          setFormStatus(error.message, "error");
+        }
+      });
+      elements.oidcOptions.append(button);
+    });
+    setFormStatus("请选择企业身份提供方继续。", "success");
+  } catch (error) {
+    setFormStatus(error.message, "error");
+  } finally {
+    elements.discoverOidc.disabled = false;
+  }
 }
 
 async function loginHuman(event) {
@@ -1880,6 +2141,7 @@ async function restoreSession() {
 
 elements.accessForm.addEventListener("submit", enterOrbit);
 elements.loginForm.addEventListener("submit", loginHuman);
+elements.discoverOidc.addEventListener("click", discoverEnterpriseOidc);
 elements.openRegister.addEventListener("click", () => {
   elements.registerResult.textContent = "邮箱验证码有效期有限，请在收到后及时完成注册。";
   elements.registerDialog.showModal();
@@ -1939,6 +2201,7 @@ elements.organizationManageCancel.addEventListener("click", closeOrganizationMan
 elements.organizationManageDialog.addEventListener("close", closeOrganizationManagement);
 elements.organizationLeave.addEventListener("click", leaveOrganization);
 elements.organizationDomainAdd.addEventListener("click", addOrganizationDomain);
+elements.organizationOidcAdd.addEventListener("click", addOrganizationOidcProvider);
 elements.openMfa.addEventListener("click", () => {
   elements.mfaResult.textContent = "重新验证后生成只在当前窗口显示的认证器密钥。";
   elements.mfaDialog.showModal();
@@ -1958,6 +2221,11 @@ elements.keyForm.addEventListener("submit", rotateHumanKey);
 elements.keyClose.addEventListener("click", closeKeyDialog);
 elements.keyCancel.addEventListener("click", closeKeyDialog);
 elements.keyDialog.addEventListener("close", closeKeyDialog);
+elements.openSsoLink.addEventListener("click", openSsoLinkDialog);
+elements.ssoLinkForm.addEventListener("submit", linkEnterpriseOidc);
+elements.ssoLinkClose.addEventListener("click", closeSsoLinkDialog);
+elements.ssoLinkCancel.addEventListener("click", closeSsoLinkDialog);
+elements.ssoLinkDialog.addEventListener("close", closeSsoLinkDialog);
 
 window.addEventListener("pagehide", () => {
   clearSensitiveInputs();

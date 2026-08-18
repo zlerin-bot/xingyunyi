@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     human_self_service_enabled: bool = False
     open_registration_enabled: bool = False
     remote_mcp_oauth_enabled: bool = False
+    enterprise_oidc_enabled: bool = False
+    oidc_allowed_issuers: str = ""
     email_delivery_mode: str = "test"
     smtp_host: str | None = None
     smtp_port: int = Field(default=587, ge=1, le=65535)
@@ -56,6 +58,8 @@ class Settings(BaseSettings):
     oauth_refresh_token_ttl_seconds: int = Field(
         default=30 * 24 * 60 * 60, ge=24 * 60 * 60, le=180 * 24 * 60 * 60
     )
+    oidc_state_ttl_seconds: int = Field(default=10 * 60, ge=5 * 60, le=15 * 60)
+    oidc_http_timeout_seconds: float = Field(default=10.0, gt=0, le=30)
     max_attachment_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
     human_session_ttl_seconds: int = Field(default=12 * 60 * 60, ge=300, le=7 * 24 * 60 * 60)
     human_confirmation_ttl_seconds: int = Field(default=5 * 60, ge=60, le=15 * 60)
@@ -151,6 +155,31 @@ class Settings(BaseSettings):
             raise ValueError("AGENTPOST_REMOTE_MCP_RESOURCE_URL must end with /mcp")
         return cleaned
 
+    @field_validator("oidc_allowed_issuers")
+    @classmethod
+    def oidc_issuers_are_origins_or_paths(cls, value: str) -> str:
+        canonical: list[str] = []
+        for raw in value.split(","):
+            cleaned = raw.strip().rstrip("/")
+            if not cleaned:
+                continue
+            parsed = urlsplit(cleaned)
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError("AGENTPOST_OIDC_ALLOWED_ISSUERS contains an invalid issuer")
+            canonical.append(cleaned)
+        return ",".join(dict.fromkeys(canonical))
+
+    @property
+    def allowed_oidc_issuers(self) -> frozenset[str]:
+        return frozenset(item for item in self.oidc_allowed_issuers.split(",") if item)
+
     @property
     def is_production(self) -> bool:
         return self.environment.casefold() == "production"
@@ -162,6 +191,16 @@ class Settings(BaseSettings):
                 "AGENTPOST_HUMAN_SELF_SERVICE_ENABLED must be true when open "
                 "registration is enabled"
             )
+        if self.enterprise_oidc_enabled:
+            if not self.human_self_service_enabled:
+                raise ValueError(
+                    "AGENTPOST_HUMAN_SELF_SERVICE_ENABLED must be true when "
+                    "enterprise OIDC is enabled"
+                )
+            if not self.allowed_oidc_issuers:
+                raise ValueError(
+                    "AGENTPOST_OIDC_ALLOWED_ISSUERS is required when enterprise OIDC is enabled"
+                )
         if not self.is_production:
             return self
         unsafe = {
@@ -218,6 +257,9 @@ class Settings(BaseSettings):
                 self.remote_mcp_resource_url.startswith("https://")
             ):
                 raise ValueError("AGENTPOST_REMOTE_MCP_RESOURCE_URL must use HTTPS in production")
+        if self.enterprise_oidc_enabled:
+            if any(not issuer.startswith("https://") for issuer in self.allowed_oidc_issuers):
+                raise ValueError("OIDC issuers must use HTTPS in production")
         return self
 
 
