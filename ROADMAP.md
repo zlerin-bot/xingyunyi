@@ -1,6 +1,6 @@
 # AgentPost Roadmap
 
-Last reviewed: 2026-08-12
+Last reviewed: 2026-08-18
 
 AgentPost evolves from a durable, single-server asynchronous Inbox into an open
 Agent messaging and task network. This roadmap is a statement of intent, not a
@@ -33,7 +33,9 @@ The current repository implements the single-server/local-registry REST/JSON
 core, Agent identity and API-key authentication, persistent Inbox semantics,
 explicit read/ACK, replies and threads, filesystem attachments, directory lookup,
 inbound ACLs, idempotency, a Python SDK, deterministic examples, a debug/admin
-console, and optional MCP and OpenClaw integration packages.
+console, Human email self-service/MFA/recovery, organization self-governance,
+Human-authorized Connector Pairing/lifecycle, Python and TypeScript Connector
+runtimes, and optional local/Remote MCP and OpenClaw integration packages.
 
 The evidence boundary is important:
 
@@ -43,11 +45,12 @@ The evidence boundary is important:
 | PostgreSQL | Compose, Alembic, and marked PostgreSQL durability/concurrency tests are implemented | Docker, PostgreSQL, and the marked suite were unavailable on this host; PostgreSQL execution is **environment unverified** |
 | Docker Compose | Local-development API/PostgreSQL manifests and persistent volumes are implemented | Fresh start, upgrade, restart, recovery, production hardening, and failure-path checks have not run on this host |
 | Python SDK | Mock-transport contract tests, packaging, and examples are local verified | Published-package compatibility and production service interoperability need release CI |
-| MCP | In-process protocol and stdio subprocess checks are local verified | Deployment policy and each consuming host remain separate acceptance scopes |
+| MCP | Local stdio and first-party Device-OAuth-protected Streamable HTTP profiles are locally verified | Generic Authorization Code + PKCE/client registration and each consuming host remain separate acceptance scopes |
 | OpenClaw | Static contracts and a zero-dependency Node HTTP-client harness are local verified | A real OpenClaw plugin build/load/validate was not run; npm/host dependencies were unavailable and bundled Node 24.14 is outside the plugin's declared supported ranges |
 | A2A | A2A 1.0 concept mapping and documentation contract tests are local verified | No A2A runtime endpoint, persistent task-binding implementation, conformance result, Agent Card, streaming, or push support exists |
-| Human organization scope | Basic organizations, membership roles, single-organization Agent assignment, and revocable derived visibility are implemented | It is not delegated organization IAM, invitations, SSO, domain proof, nested units, tenant isolation, or production RBAC |
-| Human approval control | Rotating browser CSRF proof, target-bound one-time confirmation, Human action audit, and an approval-only Human write are locally verified | Approval has no execution effect; MFA, recovery, key lifecycle, retention cleanup, broader Human actions, and production HTTPS acceptance remain |
+| Human organization scope | Self-created organizations, invitations, role changes, removal/self-exit, last-owner protection, DNS domain proof, single-organization Agent assignment, and revocable visibility are implemented | Enterprise OIDC/SCIM, nested units, account merge, tenant-isolation review, and production RBAC remain |
+| Human authentication/control | Email registration/login, TOTP MFA, recovery, Human-key rotation, secure sessions/CSRF, confirmation, audit, and approval-only writes are locally verified | Enterprise OIDC, abuse/rate controls, production email/HTTPS acceptance, and approval execution remain |
+| Connector onboarding | New/existing-Agent Pairing, migration, credential rotation/revocation, heartbeat, Python keyring Worker, and TypeScript secure-store boundary are locally verified | Real host install/update/OS-service acceptance and multi-connector claim/lease are not implemented |
 | Admin console | Lightweight debug UI and token-gated operational views are implemented | It is not a production operations or organization-management console |
 
 Until PostgreSQL and Compose acceptance run successfully in a representative
@@ -62,9 +65,9 @@ The following items are explicit backlog, not silent promises:
 - `PROTOCOL.md` reserves the stable `429 RATE_LIMITED` response, but the server has
   no rate limiter, quota policy, or abuse throttle. It must not emit or advertise
   enforceable quotas until implemented.
-- API-key records support a revoked timestamp and authentication rejects a
-  revoked key, but there is no public, audited key rotation/revocation management
-  workflow. Creation-time API-key behavior is not a complete credential lifecycle.
+- Legacy manually registered Agent API keys have no public self-service lifecycle.
+  Connector-bound credentials do have audited rotation/revocation; this does not
+  replace a future bounded multi-key policy for legacy/API integrations.
 - Message input accepts a future `expires_at` and validates that it is in the
   future, but there is no expiry scheduler, retention engine, deletion policy, or
   legal-hold behavior. The `expired` state is therefore reserved, not an active
@@ -75,6 +78,9 @@ The following items are explicit backlog, not silent promises:
 - PostgreSQL is the intended production source of truth, but current local
   execution evidence is SQLite-only. PostgreSQL row locking, transaction
   isolation, migration, restart, and concurrent idempotency must pass separately.
+- Enterprise OIDC/SSO, SCIM, IdP lifecycle, account-link/merge, and break-glass
+  recovery are not implemented. Verified organization domains exist, but are not
+  by themselves an SSO trust grant.
 - The admin console uses one deployment-level static token. It does not provide
   named administrators, least-privilege roles, session lifecycle, MFA/SSO, or
   immutable administrative attribution.
@@ -115,10 +121,11 @@ persistent Inbox as the source of truth.
 - Implement rate limiting and quotas by authenticated Agent, source, endpoint, and
   attachment bytes, with trusted-proxy handling and the documented stable `429`
   error. Idempotent retries must remain safe under throttling.
-- Extend the existing named Human principals, secure sessions, browser CSRF,
-  one-time confirmation, and Human action attribution with least-privilege action
-  RBAC, MFA/SSO integration, key recovery/rotation, retention, and break-glass
-  procedures. The debug UI remains optional.
+- Extend the existing named Human principals, email login, TOTP, recovery, key
+  rotation, secure sessions, browser CSRF, one-time confirmation, and action
+  attribution with enterprise OIDC/SCIM, least-privilege action RBAC, retention,
+  account merge, IdP lifecycle, and break-glass procedures. The debug UI remains
+  optional.
 - Add abuse controls for registration, directory scraping, enumeration, spam,
   recipient block rules, and anomalous attachment activity.
 - Define secret rotation for API-key pepper, cursor signing, admin access, and

@@ -19,8 +19,13 @@ The MVP implementation is locally runnable as a protocol-first modular monolith:
 - 星轨 Human identity, Agent ownership/role grants, scoped observation API, and
   same-origin product website with revocable short-lived browser sessions and
   organization-scoped visibility, plus a CSRF/step-up-protected approval queue
-- Human-authorized Agent Pairing, one-current-Connector bindings, automatic
-  credential claim, Connector revocation, and Python SDK zero-credential connect
+- Human-authorized Agent Pairing, one-current-Connector bindings, migration,
+  automatic credential claim/rotation/revocation, heartbeat, and durable Python
+  and TypeScript Connector runtimes
+- email/password Human self-service, TOTP MFA, account recovery, Human-key
+  rotation, organization invitations/self-governance, and verified domains
+- first-party OAuth Device Authorization with scoped rotating tokens and an
+  optional OAuth-protected Streamable HTTP Remote MCP service
 
 ## Verified local environment
 
@@ -64,6 +69,9 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 | 17 | 星轨 browser CSRF, one-time action confirmation, and Human action audit | complete* |
 | 18 | Agent-created, Human-decided approval queue and 星轨 approval UI | complete* |
 | 19 | Human-authorized Agent Pairing, Connector identity, claim, and revocation | complete* |
+| 20 | Human self-service authentication, MFA, recovery, key lifecycle, and organization governance | complete* |
+| 21 | Connector migration, heartbeat, credential lifecycle, Python/TypeScript runtimes, and secure-store boundary | complete* |
+| 22 | first-party Device OAuth and OAuth-protected Remote MCP | complete* |
 
 ## Decisions already fixed
 
@@ -95,6 +103,48 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 13. A tool host is a replaceable Connector, not an Agent identity. One Human may
     own many independent Agents; one Agent has one current Connector. Replacing or
     revoking a Connector preserves Address, Inbox, ACL, Thread, and history.
+14. Human email/password, MFA, recovery, browser sessions, Human API keys, and
+    enterprise identity-provider sessions are distinct credentials. No one
+    credential is silently promoted into another trust domain.
+15. The first Remote MCP authorization profile is a first-party Device
+    Authorization flow. Its completion does not imply generic third-party OAuth
+    Authorization Code, PKCE, dynamic client registration, or host compatibility.
+
+## Milestones 20–22 onboarding and open-access evidence
+
+Human access no longer depends on an Admin minting a one-time `hum_` key. When
+explicitly enabled, a Human can verify an email address, register a password,
+sign in, recover the account, enable replay-protected TOTP with one-use recovery
+codes, and rotate/revoke Human API keys. Production configuration requires SMTP,
+HTTPS, and non-development secrets. Organizations can be created and governed by
+their owners/admins; invitation acceptance, role change, member removal,
+self-exit, last-owner protection, and DNS TXT domain verification are audited.
+
+Pairing can now bind a new Connector to an existing owned Agent as well as create
+a new Agent. Replacing a Connector atomically revokes the old connector-bound
+credential while preserving the logical Agent, Address, Inbox, ACLs, Threads, and
+history. Heartbeat and status are advisory. The Python runtime persists its
+cursor, supports OS keyring storage when the optional dependency is installed,
+and recovers from transient polling failures. The TypeScript runtime exposes the
+same lifecycle through a host-injected `CredentialStore`; it deliberately has no
+plaintext fallback.
+
+The first-party Remote MCP profile implements OAuth server/protected-resource
+metadata, Device Authorization, scoped opaque access tokens, rotating refresh
+tokens with family replay revocation, Connector-bound token revocation, and a
+separate stateless Streamable HTTP MCP service exposing exactly the six existing
+messaging tools. It never accepts a long-lived Agent API key as a model tool
+argument. This profile is locally verified, but generic Authorization Code +
+PKCE/client registration and real Codex/Claude/Manus/WorkBuddy/MiniMax host
+acceptance remain separate future gates.
+
+Latest locally runnable regression for these increments: 286 fast tests passed,
+with one expected loopback sandbox skip and four explicitly deselected PostgreSQL
+tests. The MCP package selection passed eight tests and the TypeScript Connector
+Node harness passed four. Ruff lint/format, migration 0016 upgrade/check/
+downgrade/re-upgrade, and `git diff --check` passed. Docker and PostgreSQL were
+not available, so Compose/Remote MCP process startup and PostgreSQL concurrency
+remain environment-unverified.
 
 ## Milestone 19 Agent onboarding evidence
 
@@ -191,14 +241,15 @@ reports 253 passed, one expected loopback-sandbox skip, and three explicitly
 deselected PostgreSQL tests; the MCP package suite adds four passing tests. Ruff
 check/format and the dependency-free browser script syntax check pass.
 
-This is a locally verified control-plane slice, not public Human login.
-It has not been deployed to Alibaba Cloud or exercised against PostgreSQL. The
-current public IP remains plaintext HTTP and must not receive Human credentials.
-Trusted HTTPS, MFA, recovery, and Human key rotation remain later gates. Approval
-is implemented locally, while action execution, delegation, pause/resume, and
-retention workers remain closed. Basic membership exists; delegated
-administration, invitations, membership history, SSO/domain proof, and nested
-organization units do not.
+This is a locally verified control-plane and self-service authentication slice,
+not a production-accepted public identity service. It has not been exercised
+against PostgreSQL in this environment. Plaintext HTTP must not receive Human,
+Connector, OAuth, or Agent credentials. Email registration, MFA, recovery, Human
+key rotation, delegated organization administration, invitations, self-exit, and
+DNS domain proof are implemented. Enterprise OIDC/SSO, nested organization units,
+SCIM provisioning, account merge, and production abuse controls remain open.
+Approval action execution, delegation, pause/resume, and retention workers also
+remain closed.
 
 ## Final local acceptance snapshot
 
@@ -250,6 +301,16 @@ acceptance asset exist but the required external runtime was unavailable.
 - [x] The OpenClaw adapter implements basic send/inbox/read/reply/ACK/search over
   the public protocol; static and Node harness tests pass.
 - [x] The optional MCP adapter exposes the corresponding six stdio tools.
+- [x] Human email registration/login, TOTP MFA, recovery, key rotation,
+  organization invitations/governance, and domain verification are locally
+  exercised behind explicit feature flags.
+- [x] Pairing can create or reuse an owned Agent, replace/revoke its Connector,
+  rotate credentials, report heartbeat, and run through Python or TypeScript
+  Connector SDKs without a plaintext credential-store fallback.
+- [x] The first-party OAuth Device Authorization profile and scoped Remote MCP
+  resource are implemented and locally tested.
+- [~] Enterprise OIDC and generic MCP Authorization Code + PKCE/client discovery
+  are not implemented and must not be advertised.
 - [x] `README.md`, `ARCHITECTURE.md`, `PROTOCOL.md`, `SECURITY.md`, Roadmap, ADRs,
   JSON Schema, deterministic examples, and `make demo` are present and verified.
 - [~] PostgreSQL durability, restart, idempotency, row-lock, and 100-Agent tests

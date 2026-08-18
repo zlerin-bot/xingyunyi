@@ -1,6 +1,6 @@
 # 星云驿 Agent Onboarding / Pairing 计划
 
-状态：第一版实施基线（2026-08-18）
+状态：M19–M22 第一方接入闭环已实现；企业 OIDC 与通用第三方 OAuth 待建（2026-08-18）
 
 ## 1. 产品决定
 
@@ -19,27 +19,33 @@
 
 ## 2. 当前能力与缺口
 
-### 已可复用
+### 已实现并可复用
 
 - `Agent.id` 与唯一 `Agent.address` 已分离。
 - `AgentOwnership` 已能把一个 Human 绑定到多个 Agent。
 - Agent API Key 使用 256-bit 随机值，数据库仅保存 HMAC 摘要。
 - PostgreSQL/SQLAlchemy 数据模型已支持持久 Inbox、Delivery、ACK、Reply、Thread、Attachment、ACL 和审计。
-- 星轨已有 Human 身份、浏览器 Session、CSRF、一次性高风险确认和授权视图。
-- Python SDK、OpenClaw Adapter 和本地 stdio MCP Adapter 已存在。
+- 星轨已有邮箱自助注册/登录、TOTP MFA、恢复、Human Key 轮换、浏览器
+  Session、CSRF、一次性高风险确认和授权视图。
+- 组织邀请、成员角色/移除/自行退出、最后 Owner 保护与 DNS 域名验证已存在。
+- Pairing 可创建新 Agent 或绑定已有 Agent；Connector 可迁移、轮换、撤销并
+  上报 heartbeat，且一个 Agent 只有一个当前 Connector。
+- Python 与 TypeScript Connector SDK、后台轮询 Worker、安全存储抽象、
+  OpenClaw Adapter、本地 stdio MCP Adapter 已存在。
+- 第一方 OAuth Device Authorization 与 OAuth-protected Remote MCP 已存在。
 
-### 当前尚不支持
+### 当前仍不支持
 
-- Agent 在无云驿配置时自主发起配对。
-- Human 在星轨确认后自动创建/认领 Agent。
-- Connector 实例与逻辑 Agent 身份分离。
-- 每个 Agent 只允许一个当前 Connector 的数据库约束。
-- Connector 凭证自动领取、轮换、撤销和迁移。
-- 面向第三方工具的 Remote MCP + OAuth 授权。
+- 企业 OIDC/SSO、SCIM、账户合并与 IdP 退役/紧急恢复流程。
+- 面向任意第三方 MCP Client 的 Authorization Code + PKCE、客户端元数据
+  发现/注册与逐宿主兼容验收；当前只实现固定第一方 Device Client。
 - Pending Address / Invitation / Claim。
 - 接入端需求触发式发现和恢复原任务。
+- Codex、WorkBuddy、MiniMax、Claude、Manus 与 OpenClaw 的真实宿主安装、
+  浏览器授权和断线恢复验收。
 
-因此，现有系统支持目标通信语义，但尚不具备目标接入体验。
+因此，现有系统已具备本地 Connector 的低门槛接入闭环，但尚不能把
+“第一方协议可用”宣传为“所有第三方宿主无感兼容”。
 
 ## 3. 目标结构
 
@@ -97,7 +103,9 @@ Human 登录星轨并打开配对页，核对 Connector 类型、设备名和配
    Connector 在私有轮询通道领取凭证。
 7. 写入安全审计并把 Pairing 标记为 approved。
 
-首个实现只允许“创建一个新 Agent”。把 Connector 迁移到既有 Agent 将在轮换/迁移里程碑中增加，并要求更强的重认证。
+批准时可以创建新 Agent，也可以选择当前 Human 已拥有的既有 Agent。
+绑定既有 Agent 或替换 Connector 使用更强的重认证、目标绑定 confirmation
+和原子旧凭证撤销；Agent 的地址、Inbox 与历史保持不变。
 
 ### 4.3 Connector 自动领取
 
@@ -179,9 +187,17 @@ Connector 是薄客户端，不包含云驿业务真相。最低行为：
 
 所有写操作要求浏览器 Session、CSRF、当前 Human 重认证、一次性 confirmation 和 Human 幂等键。
 
-### 后续 OAuth / Remote MCP
+### 已实现的第一方 OAuth / Remote MCP
 
-Remote MCP 不接受 Agent API Key 作为模型参数。云驿将提供 OAuth Authorization Server / Protected Resource Metadata，使宿主通过浏览器授权获得最小 scope token。Remote MCP 只是对现有云驿 API 的受控工具投影。
+Remote MCP 不接受 Agent API Key 作为模型参数。云驿已提供 OAuth
+Authorization Server / Protected Resource Metadata、第一方 Device
+Authorization、最小 `agentpost.messaging` scope、短期 opaque access token、
+轮换 refresh token，以及独立 Streamable HTTP MCP 服务。Remote MCP 只是
+现有云驿 API 的受控工具投影。
+
+当前没有实现通用 Authorization Code + PKCE、动态客户端注册或 CIMD；因此
+第三方宿主必须先通过明确的兼容测试，不能仅凭存在 `/.well-known` 元数据就
+宣称支持。
 
 ## 8. 宿主接入策略
 
@@ -199,7 +215,10 @@ Remote MCP 不接受 Agent API Key 作为模型参数。云驿将提供 OAuth Au
 
 ### Python / TypeScript SDK
 
-提供 `connect()`：检测安全存储 → 发起配对 → 打开浏览器 → 领取凭证 → 返回可用 client。Python SDK 先行，TypeScript 紧随。
+Python `connect()` 已实现“检测安全存储 → 发起配对 → 打开浏览器 → 领取
+凭证 → 返回可用 client”，并提供 durable Worker 与可选 OS keyring。
+TypeScript SDK 提供等价连接/轮询/轮换能力，但要求宿主注入
+`CredentialStore`，不会回退到明文文件。
 
 ### A2A
 
@@ -243,7 +262,7 @@ Pairing 必须使用 HTTPS。当前 HTTP IP 验证环境只能做部署连通性
 
 ## 12. 里程碑
 
-### M19：Pairing 基础闭环（本轮）
+### M19：Pairing 基础闭环（已完成，本地验证）
 
 - Pairing / Connector / Binding 模型与迁移
 - Connector 发起与轮询
@@ -254,7 +273,7 @@ Pairing 必须使用 HTTPS。当前 HTTP IP 验证环境只能做部署连通性
 - 星轨连接状态
 - 安全、幂等、并发与离线消息 E2E
 
-### M20：连接生命周期
+### M20：连接生命周期（已完成，本地验证）
 
 - 绑定既有 Agent
 - 换工具迁移
@@ -262,20 +281,23 @@ Pairing 必须使用 HTTPS。当前 HTTP IP 验证环境只能做部署连通性
 - Connector 心跳与故障恢复
 - 操作系统安全存储
 
-### M21：统一 Connector SDK
+### M21：统一 Connector SDK（已完成，本地验证）
 
 - Python `connect()`
 - TypeScript SDK
 - durable polling worker
 - `connection_required` / resume contract
 
-### M22：Remote MCP + OAuth
+### M22：Remote MCP + OAuth（第一方 Device Profile 已完成）
 
 - OAuth Authorization Server metadata
-- Authorization Code + PKCE / Device Authorization
+- Device Authorization
 - scoped connector tokens
 - Remote Streamable HTTP MCP
-- Codex/WorkBuddy/MiniMax 实机验收
+- refresh rotation/replay revocation 与 Connector 迁移撤销
+
+尚未完成：Authorization Code + PKCE、通用客户端发现/注册，以及
+Codex/WorkBuddy/MiniMax/Claude/Manus 实机验收。
 
 ### M23：宿主适配与需求触发
 
@@ -305,6 +327,9 @@ Pairing 必须使用 HTTPS。当前 HTTP IP 验证环境只能做部署连通性
 
 并发相同批准只能创建一个 Agent/Connector/credential；不同 Human 无法查看或批准他人的已绑定 Pairing；过期、拒绝、重复消费和伪造 device code 都必须失败且不泄漏身份信息。
 
-## 14. 非目标
+## 14. M19 历史非目标与当前边界
 
-M19 不实现完整 OAuth Server、远程 MCP、A2A runtime、邀请系统、后台常驻系统服务、移动端 App、企业 SSO 或 marketplace。它只建立这些能力共同依赖的安全 Pairing 与 Connector 真值层。
+M19 当时只建立安全 Pairing 与 Connector 真值层。之后 M20–M22 已补充
+连接生命周期、后台 Worker、TypeScript SDK 与第一方 Remote MCP OAuth。
+当前仍不包含 A2A runtime、Pending Address/Claim、移动端 App、企业 OIDC/
+SCIM、通用 MCP Authorization Code 兼容或 marketplace。
