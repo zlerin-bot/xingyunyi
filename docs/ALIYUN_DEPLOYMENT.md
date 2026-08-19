@@ -1,7 +1,7 @@
 # Alibaba Cloud deployment runbook
 
-Status: origin deployed and verified on 2026-08-13; branded domain pending ICP,
-DNS, and HTTPS.
+Status: current release deployed and origin-verified on 2026-08-19; branded
+domain pending ICP, DNS, and HTTPS.
 
 ## Deployed topology
 
@@ -13,6 +13,11 @@ DNS, and HTTPS.
 - private local attachment storage at `/var/lib/agentpost/attachments`
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
+
+The active application release is Git commit `9f39342` at
+`/opt/agentpost/releases/9f39342`, with its independent Python environment at
+`/opt/agentpost/venvs/9f39342`. The database is at Alembic revision
+`0017_enterprise_oidc`.
 
 The environment file is root-readable only. Do not copy it into Git, command
 output, tickets, or chat. API keys remain one-time registration results and must
@@ -47,35 +52,46 @@ The real PostgreSQL acceptance performed on the origin proved:
 This is origin deployment evidence. It is not evidence that DNS, TLS, ICP,
 backups, alerting, or multi-node recovery have been accepted.
 
-## 星轨 update boundary
+## 星轨 and onboarding deployment boundary
 
-The Human control-plane code introduced after the accepted origin has **not** been
-deployed. A future update must be treated as a schema-and-secret migration, not a
-static-asset copy:
+The 2026-08-19 update deployed the Human control plane, organization governance,
+pairing/Connector data model, credential lifecycle, Remote MCP OAuth adapter,
+and enterprise OIDC schema through revision `0017_enterprise_oidc`. Independent
+server-only secrets were added to the root-protected environment file without
+printing their values.
 
-1. take a fresh database backup and provider snapshot;
-2. add an independently generated `AGENTPOST_HUMAN_API_KEY_PEPPER` to the
-   root-protected environment file without printing it;
-3. install the release and run Alembic through revision
-   `0010_approval_queue`;
-4. restart AgentPost and verify `/health`, `/ready`, `/orbit`, and Human/Agent key
-   separation through an SSH tunnel;
-5. run the Alice/Bob offline flow again to prove 云驿 behavior did not regress;
-6. do not enter a `hum_` key through the plaintext public IP.
+The public `/orbit` shell is reachable through the IP origin for rendering and
+diagnostics. It is **not** an accepted public login origin. Until a trusted HTTPS
+hostname is available, these production feature flags remain disabled:
 
-Short-lived browser sessions, rotating CSRF proof, one-time action confirmation,
-Human action audit, and the approval queue are implemented, but the production
-`Secure` cookie requires a trusted HTTPS origin and therefore cannot be accepted
-through the current plaintext IP. Public 星轨 use remains blocked on trusted
-HTTPS. MFA, key recovery, session/confirmation/approval-retention cleanup,
-delegated organization administration, and organization membership history are
-not implemented.
+- Human self-service and open registration
+- pairing and Connector authorization
+- Remote MCP OAuth Device Authorization
+- enterprise OIDC
+
+The existing controlled Admin surface remains configured and requires its Admin
+token for operational data/actions; loading its HTML shell does not grant data
+access. Never enter a `hum_`, `agt_`, Admin, pairing, OAuth, or IdP credential
+through the plaintext public IP.
+
+After HTTPS is accepted, enable features one at a time, beginning with Human
+authentication, then pairing, then Remote MCP/OIDC only after their provider-
+specific redirect and token flows pass acceptance. Secure browser cookies cannot
+be accepted through the current plaintext IP.
 
 ## Rollback
 
-The provider snapshot `agentpost-baseline-20260813` is the full-machine rollback
-point from immediately before deployment. Use snapshot rollback only after
-capturing any post-deployment PostgreSQL and attachment data that must be kept.
+The provider snapshot `agentpost-pre-8f3bfd0-20260819`
+(`s-bp14483a88wkwkpj47wd`) is the full-machine rollback point from immediately
+before the current-stage update. The older snapshot
+`agentpost-baseline-20260813` remains the original deployment baseline. Use
+snapshot rollback only after capturing any post-deployment PostgreSQL and
+attachment data that must be kept.
+
+Application backups for this update are under
+`/opt/agentpost/backups/20260819-0820/`: a PostgreSQL custom-format dump and an
+attachment archive. The pre-update systemd unit is stored at
+`/etc/systemd/system/agentpost.service.pre-8f3bfd0`.
 
 For an application-only incident:
 
@@ -121,3 +137,26 @@ After ICP approval:
 
 Until these and the domain gate are complete, label the result
 `deployed_origin_verified`, not `production_accepted`.
+
+## 2026-08-19 acceptance evidence
+
+The first upgrade attempt exposed a PostgreSQL-only Alembic bookkeeping limit:
+`alembic_version.version_num` was `VARCHAR(32)`, shorter than revision
+`0013_organization_self_governance`. Transactional DDL rolled the schema back to
+`0005_access_control`; the application unit and release symlink were restored,
+and all three services returned to `active` before proceeding.
+
+Commit `9f39342` widens that column to 128 before Alembic records revision 0013
+and adds a real-PostgreSQL regression assertion. Local validation passed 292
+fast tests (one sandbox-only loopback skip; four PostgreSQL tests deselected) and
+eight MCP adapter tests. The second cloud upgrade reached
+`0017_enterprise_oidc`, confirmed `version_column=128`, and retained the exact
+pre-upgrade counts of four Agents, two Messages, two Deliveries, and zero
+Attachments.
+
+Cloud acceptance then created isolated deployment-test Alice and Bob identities.
+Alice sent while no Bob client was running; the AgentPost service restarted; Bob
+retrieved the unread message, marked it read, ACKed it, and replied; Alice saw
+the ACK and reply; and the thread contained exactly two messages. Public-IP
+`/health`, `/ready`, and `/orbit` returned HTTP 200 after that restart. Only SSH
+and Nginx HTTP are public; AgentPost and PostgreSQL remain bound to loopback.

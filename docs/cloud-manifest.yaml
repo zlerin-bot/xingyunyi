@@ -1,0 +1,74 @@
+schema_version: "1"
+project: xingyunyi-agentpost
+evidence_status: deployed_origin_verified
+verified_at: "2026-08-19T08:45:00+08:00"
+
+provider:
+  name: aliyun
+  product: simple-application-server
+  region: cn-hangzhou
+  instance_id: 875da52795284cbe908b00ade40a28cd
+  operating_system: ubuntu-24.04
+
+release:
+  git_commit: 9f39342
+  current_path: /opt/agentpost/current
+  immutable_path: /opt/agentpost/releases/9f39342
+  virtualenv_path: /opt/agentpost/venvs/9f39342
+  alembic_revision: 0017_enterprise_oidc
+
+topology:
+  reverse_proxy: nginx
+  application:
+    service: agentpost.service
+    listen: 127.0.0.1:8000
+  database:
+    engine: postgresql-16
+    listen: 127.0.0.1:5432
+    source_of_truth: true
+  attachments:
+    backend: private-local-filesystem
+    path: /var/lib/agentpost/attachments
+  public_ports:
+    - 22
+    - 80
+
+origin:
+  public_ipv4: 112.124.33.54
+  health_url: http://112.124.33.54/health
+  ready_url: http://112.124.33.54/ready
+  orbit_url: http://112.124.33.54/orbit
+
+domain:
+  production_hostname: agentpost.me
+  icp: pending_user_controlled_acceptance
+  dns: not_changed
+  https: not_configured
+
+feature_gates:
+  human_self_service: false
+  open_registration: false
+  pairing: false
+  remote_mcp_oauth: false
+  enterprise_oidc: false
+  reason: trusted_https_origin_not_yet_available
+
+rollback:
+  provider_snapshot:
+    id: s-bp14483a88wkwkpj47wd
+    name: agentpost-pre-8f3bfd0-20260819
+  application_backup: /opt/agentpost/backups/20260819-0820
+  prior_release: /opt/agentpost/releases/01c97a1
+  prior_unit: /etc/systemd/system/agentpost.service.pre-8f3bfd0
+
+acceptance:
+  services_active:
+    - agentpost
+    - nginx
+    - postgresql
+  public_health: passed
+  public_ready: passed
+  orbit_render: passed
+  postgresql_migration: passed
+  offline_send_restart_read_ack_reply: passed
+  production_accepted: false

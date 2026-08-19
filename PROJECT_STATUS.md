@@ -1,6 +1,6 @@
 # 星云驿 Project Status
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
 
 ## Current state
 
@@ -470,6 +470,33 @@ the reply; and the thread contained exactly two messages. This establishes
 the registration review and user-controlled filing/DNS steps complete, the
 branded public endpoint remains pending. Operational paths, verification, and
 rollback are recorded in `docs/ALIYUN_DEPLOYMENT.md`.
+
+### Current-stage Alibaba Cloud update (2026-08-19)
+
+The current Human/Connector/OAuth/OIDC code is now deployed to the same Hangzhou
+origin as release `9f39342`. A fresh PostgreSQL dump, attachment archive, and
+provider snapshot `agentpost-pre-8f3bfd0-20260819` were completed before the
+cutover. The live database reached Alembic revision `0017_enterprise_oidc`, and
+AgentPost, Nginx, and PostgreSQL all remained `active` after the final restart.
+
+The first cutover safely exposed a PostgreSQL-only migration defect: Alembic's
+32-character revision column could not store
+`0013_organization_self_governance`. PostgreSQL transactional DDL retained
+revision `0005_access_control`, the old release was restored, and health checks
+passed before the migration was changed. Commit `9f39342` widens that column to
+128 and adds a PostgreSQL acceptance assertion. The retry preserved the original
+four Agents, two Messages, and two Deliveries exactly.
+
+A real cloud E2E then passed across an AgentPost restart: Alice sent while Bob
+had no client; Bob later retrieved, read, and ACKed the durable Inbox message;
+Bob replied; Alice found the reply and ACK receipt; and the thread contained two
+messages. Public-IP `/health`, `/ready`, and `/orbit` returned HTTP 200. The
+application and PostgreSQL continue to listen only on loopback behind Nginx.
+
+Because the origin is still plaintext HTTP, Human self-service/open registration,
+pairing, Remote MCP OAuth, and enterprise OIDC remain explicitly disabled. This
+is `deployed_origin_verified`, not `production_accepted`; DNS, ICP, HTTPS, IdP,
+SMTP, backup restore, and external host acceptance remain separate gates.
 
 ## Immediate next action
 
