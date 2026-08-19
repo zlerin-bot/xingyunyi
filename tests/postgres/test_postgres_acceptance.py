@@ -115,9 +115,20 @@ def test_alembic_upgrade_reaches_single_head_and_creates_expected_schema(
 
     with migrated_database.engine.connect() as connection:
         actual_revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
+        version_column_length = connection.scalar(
+            text(
+                "SELECT character_maximum_length "
+                "FROM information_schema.columns "
+                "WHERE table_schema = current_schema() "
+                "AND table_name = 'alembic_version' "
+                "AND column_name = 'version_num'"
+            )
+        )
         table_names = set(inspect(connection).get_table_names())
 
     assert actual_revision == expected_head
+    assert version_column_length is not None
+    assert version_column_length >= len(expected_head)
     assert {
         "access_rules",
         "agents",

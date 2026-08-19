@@ -17,6 +17,20 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    # Alembic creates ``alembic_version.version_num`` as VARCHAR(32) by
+    # default. This revision identifier is longer than that, which PostgreSQL
+    # enforces even though SQLite does not. Widen the bookkeeping column before
+    # Alembic records this revision so upgrades from existing installations do
+    # not fail after the migration body has run.
+    if op.get_bind().dialect.name == "postgresql":
+        op.alter_column(
+            "alembic_version",
+            "version_num",
+            existing_type=sa.String(length=32),
+            type_=sa.String(length=128),
+            existing_nullable=False,
+        )
+
     op.create_table(
         "organization_invitations",
         sa.Column("id", sa.Uuid(), nullable=False),
