@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from types import SimpleNamespace
+from uuid import UUID
 
 from agentpost_sdk import ConnectorCredentialRotation, ConnectorHeartbeat, cli
 from agentpost_sdk.codex_setup import CodexSetupResult
@@ -112,6 +114,140 @@ def test_result_reply_is_available_only_on_reply_command() -> None:
     parser = cli._parser()
     reply = parser.parse_args(["reply", "msg_test", "--body", "done", "--type", "result"])
     assert reply.type == "result"
+
+
+def _sent_message() -> SimpleNamespace:
+    return SimpleNamespace(
+        message_id="msg_test",
+        sender=SimpleNamespace(address="test@agentpost.me"),
+        message_type="message",
+        subject="季度报告",
+        delivery=SimpleNamespace(status="delivered"),
+        thread_id=UUID("20000000-0000-0000-0000-000000000001"),
+        created_at=datetime(2026, 8, 24, tzinfo=UTC),
+        content=SimpleNamespace(security_label="internal"),
+    )
+
+
+def test_send_can_resume_after_codex_setup_resolve_recipient_and_upload_attachment(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    connector = DummyConnector()
+    report = tmp_path / "report.pdf"
+    report.write_bytes(b"quarterly report")
+    calls: dict[str, object] = {}
+    recipient = SimpleNamespace(
+        address="zhangsan@agentpost.me",
+        display_name="张三的 Agent",
+        capabilities=["document-analysis"],
+    )
+
+    def connect(args):
+        calls["connector_type"] = args.connector_type
+        connector.profile = f"{args.connector_type}:test-device"
+        return connector
+
+    def search_agents(**kwargs):
+        calls["search"] = kwargs
+        return [recipient]
+
+    def upload(path, **kwargs):
+        calls["upload"] = (path, kwargs)
+        return SimpleNamespace(id=UUID("30000000-0000-0000-0000-000000000001"))
+
+    def send(*args, **kwargs):
+        calls["send"] = (args, kwargs)
+        return _sent_message()
+
+    connector.client.search_agents = search_agents
+    connector.client.attachments = SimpleNamespace(upload=upload)
+    connector.client.send = send
+    monkeypatch.setattr(cli, "_connect", connect)
+    monkeypatch.setattr(cli, "_mcp_command", lambda: tmp_path / "agentpost-mcp")
+    monkeypatch.setattr(
+        cli,
+        "configure_codex_mcp",
+        lambda **_kwargs: CodexSetupResult(
+            server_name="agentpost",
+            approval_mode="writes",
+            config_path=tmp_path / "config.toml",
+        ),
+    )
+
+    exit_code = cli.main(
+        [
+            "--device-name",
+            "test-device",
+            "send",
+            "--ensure-host",
+            "codex",
+            "--recipient",
+            "张三",
+            "--subject",
+            "季度报告",
+            "--body",
+            "请查收附件。",
+            "--attachment",
+            str(report),
+        ]
+    )
+
+    assert exit_code == 0
+    assert calls["connector_type"] == "codex"
+    assert calls["search"] == {"q": "张三", "limit": 10}
+    assert calls["upload"] == (report, {"content_type": "application/pdf"})
+    send_args, send_kwargs = calls["send"]
+    assert send_args == ("zhangsan@agentpost.me", "季度报告", "请查收附件。")
+    assert send_kwargs == {
+        "type": "message",
+        "attachments": ["30000000-0000-0000-0000-000000000001"],
+    }
+    output = capsys.readouterr().out
+    result = json.loads(output)
+    assert result["status"] == "accepted"
+    assert result["to"] == "zhangsan@agentpost.me"
+    assert result["attachment_count"] == 1
+    assert result["host_configured"] is True
+    assert result["restart_required"] is True
+    assert "agt_" not in output
+
+
+def test_send_returns_one_structured_clarification_without_sending(
+    monkeypatch,
+    capsys,
+) -> None:
+    connector = DummyConnector()
+    connector.client.search_agents = lambda **_kwargs: [
+        SimpleNamespace(
+            address="zhangsan-finance@agentpost.me",
+            display_name="张三财务 Agent",
+            capabilities=["finance"],
+        ),
+        SimpleNamespace(
+            address="zhangsan-research@agentpost.me",
+            display_name="张三研究 Agent",
+            capabilities=["research"],
+        ),
+    ]
+    connector.client.attachments = SimpleNamespace()
+
+    def should_not_send(*_args, **_kwargs):
+        raise AssertionError("ambiguous recipient must not send")
+
+    connector.client.send = should_not_send
+    monkeypatch.setattr(cli, "_connect", lambda _args: connector)
+
+    assert cli.main(["send", "--recipient", "张三", "--body", "请查收报告。"]) == 2
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "needs_clarification"
+    assert result["reason"] == "recipient_ambiguous"
+    assert result["external_agent_content"] is True
+    assert [item["address"] for item in result["candidates"]] == [
+        "zhangsan-finance@agentpost.me",
+        "zhangsan-research@agentpost.me",
+    ]
 
 
 def test_setup_codex_pairs_registers_profile_and_never_prints_credentials(

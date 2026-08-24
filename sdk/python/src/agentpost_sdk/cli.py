@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import mimetypes
 import os
 import platform
 import sys
@@ -14,8 +15,9 @@ from pathlib import Path
 from threading import Event
 from typing import Any
 
+from agentpost_sdk import __version__
 from agentpost_sdk.client import AgentPost
-from agentpost_sdk.codex_setup import configure_codex_mcp
+from agentpost_sdk.codex_setup import CodexSetupResult, configure_codex_mcp
 from agentpost_sdk.connector import ConnectorWorker, JsonCursorStore, ManagedConnector
 from agentpost_sdk.errors import AgentPostError, ConfigurationError, ResponseError
 from agentpost_sdk.models import Message
@@ -104,10 +106,27 @@ def _parser() -> argparse.ArgumentParser:
     setup.add_argument("host", choices=("codex",))
 
     send = commands.add_parser("send", help="send a message using the paired Agent identity")
-    send.add_argument("--to", required=True)
+    recipient = send.add_mutually_exclusive_group(required=True)
+    recipient.add_argument("--to", help="exact Agent address")
+    recipient.add_argument(
+        "--recipient",
+        help="natural recipient query; sends automatically only when exactly one Agent matches",
+    )
     send.add_argument("--subject", default="")
     send.add_argument("--body", required=True)
     send.add_argument("--type", choices=MESSAGE_TYPES, default="message")
+    send.add_argument(
+        "--attachment",
+        action="append",
+        default=[],
+        type=Path,
+        help="local file to upload and attach; repeat for multiple files",
+    )
+    send.add_argument(
+        "--ensure-host",
+        choices=("codex",),
+        help=argparse.SUPPRESS,
+    )
 
     inbox = commands.add_parser("inbox", help="list message metadata without marking messages read")
     inbox.add_argument("--status", choices=("unread", "read", "acked"), default="unread")
@@ -167,7 +186,7 @@ def _connect(args: argparse.Namespace) -> ManagedConnector:
         display_name=_display_name(args),
         profile=_profile(args),
         device_name=args.device_name,
-        client_version="agentpost-connect/0.1.0",
+        client_version=f"agentpost-connect/{__version__}",
         capabilities=args.capability,
         open_browser=not args.no_browser,
         on_pairing=_pairing_notice,
@@ -198,6 +217,54 @@ def _message_metadata(message: Message) -> dict[str, Any]:
         "created_at": message.created_at.isoformat(),
         "security_label": message.content.security_label,
     }
+
+
+def _recipient_candidate(profile: Any) -> dict[str, Any]:
+    return {
+        "address": profile.address,
+        "display_name": profile.display_name,
+        "capabilities": list(profile.capabilities),
+    }
+
+
+def _resolve_recipient(client: AgentPost, args: argparse.Namespace) -> str | None:
+    if args.to:
+        return args.to
+    matches = client.search_agents(q=args.recipient, limit=10)
+    if len(matches) == 1:
+        return matches[0].address
+    _json(
+        {
+            "status": "needs_clarification",
+            "reason": "recipient_not_found" if not matches else "recipient_ambiguous",
+            "query": args.recipient,
+            "candidates": [_recipient_candidate(profile) for profile in matches],
+            "external_agent_content": True,
+        }
+    )
+    return None
+
+
+def _upload_attachments(client: AgentPost, paths: list[Path]) -> list[str]:
+    attachment_ids: list[str] = []
+    for raw_path in paths:
+        path = raw_path.expanduser()
+        if not path.is_file():
+            raise ConfigurationError("attachment must be an existing local file")
+        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        attachment = client.attachments.upload(path, content_type=content_type)
+        attachment_ids.append(str(attachment.id))
+    return attachment_ids
+
+
+def _configure_host(connector: ManagedConnector, host: str) -> CodexSetupResult:
+    if host != "codex":  # pragma: no cover - argparse enforces supported hosts
+        raise ConfigurationError("unsupported host setup")
+    return configure_codex_mcp(
+        server=connector.client.server,
+        profile=connector.profile,
+        mcp_command=_mcp_command(),
+    )
 
 
 def _content_fingerprint(message: Message) -> str:
@@ -275,6 +342,8 @@ def _run_worker(args: argparse.Namespace, connector: ManagedConnector) -> int:
 def _run(args: argparse.Namespace) -> int:
     if args.command == "setup":
         args.connector_type = args.host
+    elif args.command == "send" and args.ensure_host:
+        args.connector_type = args.ensure_host
     with _connect(args) as connector:
         client = connector.client
         if args.command == "connect":
@@ -291,11 +360,7 @@ def _run(args: argparse.Namespace) -> int:
             _json(connector.heartbeat())
         elif args.command == "setup":
             heartbeat = connector.heartbeat()
-            configured = configure_codex_mcp(
-                server=client.server,
-                profile=connector.profile,
-                mcp_command=_mcp_command(),
-            )
+            configured = _configure_host(connector, args.host)
             _json(
                 {
                     "status": "configured",
@@ -309,8 +374,38 @@ def _run(args: argparse.Namespace) -> int:
                 }
             )
         elif args.command == "send":
-            sent = client.send(args.to, args.subject, args.body, type=args.type)
-            _json({"status": "accepted", **_message_metadata(sent)})
+            configured = None
+            if args.ensure_host:
+                connector.heartbeat()
+                configured = _configure_host(connector, args.ensure_host)
+            recipient_address = _resolve_recipient(client, args)
+            if recipient_address is None:
+                return 2
+            attachment_ids = _upload_attachments(client, args.attachment)
+            sent = client.send(
+                recipient_address,
+                args.subject,
+                args.body,
+                type=args.type,
+                attachments=attachment_ids,
+            )
+            metadata = _message_metadata(sent)
+            result = {
+                **metadata,
+                "status": "accepted",
+                "delivery_status": metadata["status"],
+                "to": recipient_address,
+                "attachment_count": len(attachment_ids),
+            }
+            if configured is not None:
+                result.update(
+                    {
+                        "host": args.ensure_host,
+                        "host_configured": True,
+                        "restart_required": configured.restart_required,
+                    }
+                )
+            _json(result)
         elif args.command == "inbox":
             page = client.inbox.list(status=args.status, limit=args.limit)
             _json(
