@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from agentpost.accounts.mailer import EmailDeliveryError
 from agentpost.accounts.schemas import (
     BrowserAuthenticationResponse,
+    ConnectorReleaseInfo,
     EmailChallengeResponse,
     EmailChallengeStart,
     HumanAuthConfig,
@@ -62,6 +63,11 @@ def human_auth_config(settings: SettingsDep) -> HumanAuthConfig:
         open_registration_enabled=settings.open_registration_enabled,
         enterprise_oidc_enabled=settings.enterprise_oidc_enabled,
         codex_setup_platforms=list(settings.enabled_codex_setup_platforms),
+        connector_release=ConnectorReleaseInfo(
+            version=settings.connector_release_version,
+            wheel_url=settings.connector_wheel_url,
+            wheel_sha256=settings.connector_wheel_sha256,
+        ),
         managed_agent_domain=settings.managed_agent_domain,
     )
 

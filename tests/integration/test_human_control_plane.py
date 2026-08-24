@@ -24,6 +24,9 @@ def _control_client(settings: Settings, database: Database) -> TestClient:
         registration_token="register-secret",
         admin_token=ADMIN_KEY,
         codex_setup_platforms=settings.codex_setup_platforms,
+        connector_release_version=settings.connector_release_version,
+        connector_wheel_url=settings.connector_wheel_url,
+        connector_wheel_sha256=settings.connector_wheel_sha256,
         log_level="WARNING",
     )
     return TestClient(create_app(settings=protected, database=database))
@@ -93,6 +96,11 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert auth_config.status_code == 200
     assert auth_config.json()["managed_agent_domain"] == "agents.local"
     assert auth_config.json()["codex_setup_platforms"] == []
+    assert auth_config.json()["connector_release"] == {
+        "version": "0.1.0",
+        "wheel_url": "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl",
+        "wheel_sha256": "1fc3f42e8c1141ce65481778587544fc9bf441438c852c0332594ab24a75fdf7",
+    }
     combined = f"{orbit.text}\n{script.text}".casefold()
     assert "localstorage" not in combined
     assert "sessionstorage" not in combined
@@ -127,7 +135,8 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert 'data-connector-type="workbuddy"' in orbit.text
     assert 'data-connector-type="openclaw"' in orbit.text
     assert "navigator.clipboard.writeText" in script.text
-    assert "CONNECTOR_WHEEL" in script.text
+    assert "FALLBACK_CONNECTOR_RELEASE" in script.text
+    assert "#sha256=" in script.text
     assert "codex_setup_platforms" in script.text
     assert 'const extras = nativeCodexSetup ? "mcp,connector" : "connector"' in script.text
     assert '"setup codex"' in script.text
@@ -175,6 +184,11 @@ def test_auth_config_exposes_only_release_enabled_codex_platforms(
         storage_path=settings.storage_path,
         api_key_pepper="test-agent-pepper",
         codex_setup_platforms="mac,linux",
+        connector_release_version="0.1.1",
+        connector_wheel_url=(
+            "https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl"
+        ),
+        connector_wheel_sha256="a" * 64,
         log_level="WARNING",
     )
     with _control_client(staged, database) as client:
@@ -182,6 +196,11 @@ def test_auth_config_exposes_only_release_enabled_codex_platforms(
 
     assert response.status_code == 200
     assert response.json()["codex_setup_platforms"] == ["mac", "linux"]
+    assert response.json()["connector_release"] == {
+        "version": "0.1.1",
+        "wheel_url": "https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl",
+        "wheel_sha256": "a" * 64,
+    }
 
 
 def test_human_identity_uses_a_separate_one_time_key_and_admin_boundary(

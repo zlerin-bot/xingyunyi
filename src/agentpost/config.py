@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -38,6 +39,13 @@ class Settings(BaseSettings):
     remote_mcp_oauth_enabled: bool = False
     enterprise_oidc_enabled: bool = False
     codex_setup_platforms: str = ""
+    connector_release_version: str = "0.1.0"
+    connector_wheel_url: str = (
+        "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl"
+    )
+    connector_wheel_sha256: str = (
+        "1fc3f42e8c1141ce65481778587544fc9bf441438c852c0332594ab24a75fdf7"
+    )
     rate_limit_enabled: bool = True
     oidc_allowed_issuers: str = ""
     email_delivery_mode: str = "test"
@@ -121,6 +129,33 @@ class Settings(BaseSettings):
                 "AGENTPOST_CODEX_SETUP_PLATFORMS may contain only mac, windows, or linux"
             )
         return ",".join(dict.fromkeys(canonical))
+
+    @field_validator("connector_release_version")
+    @classmethod
+    def connector_release_version_is_supported(cls, value: str) -> str:
+        canonical = value.strip()
+        if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", canonical):
+            raise ValueError("AGENTPOST_CONNECTOR_RELEASE_VERSION must use major.minor.patch")
+        return canonical
+
+    @field_validator("connector_wheel_url")
+    @classmethod
+    def connector_wheel_url_is_safe(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not re.fullmatch(
+            r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?/[A-Za-z0-9._~/-]+\.whl",
+            cleaned,
+        ):
+            raise ValueError("AGENTPOST_CONNECTOR_WHEEL_URL must be a safe HTTPS wheel URL")
+        return cleaned
+
+    @field_validator("connector_wheel_sha256")
+    @classmethod
+    def connector_wheel_sha256_is_valid(cls, value: str) -> str:
+        canonical = value.strip().lower()
+        if not re.fullmatch(r"[0-9a-f]{64}", canonical):
+            raise ValueError("AGENTPOST_CONNECTOR_WHEEL_SHA256 must be 64 hexadecimal characters")
+        return canonical
 
     @field_validator("managed_agent_domain")
     @classmethod
@@ -211,6 +246,31 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment.casefold() == "production"
+
+    @model_validator(mode="after")
+    def connector_release_is_consistent(self) -> Settings:
+        expected_filename = f"agentpost-{self.connector_release_version}-"
+        if expected_filename not in self.connector_wheel_url.rsplit("/", maxsplit=1)[-1]:
+            raise ValueError(
+                "AGENTPOST_CONNECTOR_WHEEL_URL must contain the configured release version"
+            )
+        if self.enabled_codex_setup_platforms:
+            version = tuple(int(part) for part in self.connector_release_version.split("."))
+            if version < (0, 1, 1):
+                raise ValueError(
+                    "AGENTPOST_CODEX_SETUP_PLATFORMS requires Connector release 0.1.1 or newer"
+                )
+        if self.is_production and self.enabled_codex_setup_platforms:
+            release_origin = urlsplit(self.connector_wheel_url)
+            public_origin = urlsplit(self.public_base_url)
+            if (release_origin.scheme, release_origin.netloc) != (
+                public_origin.scheme,
+                public_origin.netloc,
+            ):
+                raise ValueError(
+                    "AGENTPOST_CONNECTOR_WHEEL_URL must use the production public origin"
+                )
+        return self
 
     @model_validator(mode="after")
     def require_production_secrets(self) -> Settings:

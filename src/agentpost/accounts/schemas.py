@@ -132,11 +132,18 @@ class SecurityOverview(AccountModel):
     active_human_keys: int
 
 
+class ConnectorReleaseInfo(AccountModel):
+    version: str
+    wheel_url: str
+    wheel_sha256: str
+
+
 class HumanAuthConfig(AccountModel):
     self_service_enabled: bool
     open_registration_enabled: bool
     enterprise_oidc_enabled: bool = False
     codex_setup_platforms: list[str] = Field(default_factory=list)
+    connector_release: ConnectorReleaseInfo
     managed_agent_domain: str
     password_min_length: int = 12
     mfa_supported: bool = True

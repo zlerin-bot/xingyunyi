@@ -53,12 +53,19 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
         managed_agent_domain="AgentPost.Me",
         public_base_url="https://agentpost.me/",
         codex_setup_platforms="mac,LINUX,mac",
+        connector_release_version="0.1.1",
+        connector_wheel_url=(
+            "https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl"
+        ),
+        connector_wheel_sha256="A" * 64,
     )
 
     assert settings.managed_agent_domain == "agentpost.me"
     assert settings.public_base_url == "https://agentpost.me"
     assert settings.codex_setup_platforms == "mac,linux"
     assert settings.enabled_codex_setup_platforms == ("mac", "linux")
+    assert settings.connector_release_version == "0.1.1"
+    assert settings.connector_wheel_sha256 == "a" * 64
     assert settings.pairing_ttl_seconds == 600
     assert settings.pairing_poll_interval_seconds == 5
     with pytest.raises(ValidationError):
@@ -71,6 +78,19 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
         Settings(pairing_poll_interval_seconds=2)
     with pytest.raises(ValidationError, match="CODEX_SETUP_PLATFORMS"):
         Settings(codex_setup_platforms="mac,android")
+    with pytest.raises(ValidationError, match="release 0.1.1"):
+        Settings(codex_setup_platforms="mac")
+    with pytest.raises(ValidationError, match="safe HTTPS wheel URL"):
+        Settings(connector_wheel_url="https://agentpost.me/downloads/pkg.whl';touch x")
+    with pytest.raises(ValidationError, match="64 hexadecimal"):
+        Settings(connector_wheel_sha256="not-a-digest")
+    with pytest.raises(ValidationError, match="configured release version"):
+        Settings(
+            connector_release_version="0.1.1",
+            connector_wheel_url=(
+                "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl"
+            ),
+        )
 
 
 def test_production_rejects_development_secrets() -> None:

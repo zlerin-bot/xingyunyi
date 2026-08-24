@@ -23,7 +23,11 @@ const CONNECTOR_GUIDES = {
   },
 };
 
-const CONNECTOR_WHEEL = "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl";
+const FALLBACK_CONNECTOR_RELEASE = Object.freeze({
+  version: "0.1.0",
+  wheel_url: "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl",
+  wheel_sha256: "1fc3f42e8c1141ce65481778587544fc9bf441438c852c0332594ab24a75fdf7",
+});
 const LOCAL_AGENT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/;
 
 const state = {
@@ -1152,20 +1156,37 @@ function codexSetupAvailable() {
   );
 }
 
+function connectorRelease() {
+  const release = state.authConfig?.connector_release;
+  if (
+    release &&
+    /^[0-9]+\.[0-9]+\.[0-9]+$/.test(release.version) &&
+    /^https:\/\/[A-Za-z0-9.-]+(?::[0-9]{1,5})?\/[A-Za-z0-9._~/-]+\.whl$/.test(
+      release.wheel_url,
+    ) &&
+    /^[0-9a-f]{64}$/.test(release.wheel_sha256)
+  ) {
+    return release;
+  }
+  return FALLBACK_CONNECTOR_RELEASE;
+}
+
 function pairingCommands() {
   const connector = CONNECTOR_GUIDES[state.pairingConnectorType] || CONNECTOR_GUIDES.generic;
   const nativeCodexSetup = codexSetupAvailable();
   const extras = nativeCodexSetup ? "mcp,connector" : "connector";
+  const release = connectorRelease();
+  const wheel = `${release.wheel_url}#sha256=${release.wheel_sha256}`;
   const operation = nativeCodexSetup
     ? "setup codex"
     : `--connector-type ${state.pairingConnectorType} connect`;
   if (state.pairingPlatform === "windows") {
     return {
-      install: `py -3.11 -m venv "$env:USERPROFILE\\.agentpost\\runtime"; & "$env:USERPROFILE\\.agentpost\\runtime\\Scripts\\python.exe" -m pip install --upgrade "agentpost[${extras}] @ ${CONNECTOR_WHEEL}"`,
+      install: `py -3.11 -m venv "$env:USERPROFILE\\.agentpost\\runtime"; & "$env:USERPROFILE\\.agentpost\\runtime\\Scripts\\python.exe" -m pip install --upgrade "agentpost[${extras}] @ ${wheel}"`,
       connect: `& "$env:USERPROFILE\\.agentpost\\runtime\\Scripts\\agentpost-connect.exe" --server https://agentpost.me --display-name "${connector.displayName}" ${operation}`,
     };
   }
-  const install = `PY="$(command -v python3.12 || command -v python3.11 || command -v python3)" && "$PY" -c 'import sys; assert sys.version_info >= (3, 11), "需要 Python 3.11 或更高版本"' && "$PY" -m venv "$HOME/.agentpost/runtime" && "$HOME/.agentpost/runtime/bin/python" -m pip install --upgrade 'agentpost[${extras}] @ ${CONNECTOR_WHEEL}'`;
+  const install = `PY="$(command -v python3.12 || command -v python3.11 || command -v python3)" && "$PY" -c 'import sys; assert sys.version_info >= (3, 11), "需要 Python 3.11 或更高版本"' && "$PY" -m venv "$HOME/.agentpost/runtime" && "$HOME/.agentpost/runtime/bin/python" -m pip install --upgrade 'agentpost[${extras}] @ ${wheel}'`;
   return {
     install,
     connect: `"$HOME/.agentpost/runtime/bin/agentpost-connect" --server https://agentpost.me --display-name "${connector.displayName}" ${operation}`,
@@ -1879,6 +1900,7 @@ async function loadAuthConfig() {
       self_service_enabled: false,
       open_registration_enabled: false,
       codex_setup_platforms: [],
+      connector_release: FALLBACK_CONNECTOR_RELEASE,
       managed_agent_domain: "agents.local",
     };
   }
