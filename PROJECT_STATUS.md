@@ -542,13 +542,35 @@ HTTPS removed the plaintext-origin blocker but did not automatically accept the
 identity and abuse-control dependencies. Human self-service/open registration,
 pairing, Remote MCP OAuth, and enterprise OIDC remain explicitly disabled.
 
+### Controlled-experience release update (2026-08-24)
+
+Commits `fa37448`, `51e3336`, and `67593b8` are deployed as release `67593b8`.
+The production database reached `0018_rate_limit_buckets`; encrypted SMTP modes,
+durable Human/Pairing rate limits, and the zero-credential Connector CLI are in
+the running code while their feature gates remain controlled. The root-only
+pre-cutover backup is `/opt/agentpost/backups/20260824-0300-67593b8/`.
+
+All five real-PostgreSQL acceptance tests passed in an isolated database. After
+cutover, all three services and HTTPS health/readiness passed, and a fresh offline
+send survived an AgentPost restart before explicit read, ACK, reply, and two-message
+Thread verification. The pinned Connector wheel is publicly downloadable over
+HTTPS and a clean virtual environment installed its `connector` extra, imported
+the OS-keyring dependency, and executed its console entry point. Chrome rendered
+the production 星轨 shell after the release.
+
+The remaining blocker for a real two-Human experience is external and user-
+controlled: Alibaba Cloud DirectMail is not activated, so the system cannot yet
+deliver registration/recovery emails. Human self-service and Pairing remain off;
+public open registration, Remote MCP OAuth, and enterprise OIDC also remain off.
+No Human or Agent secret has been issued for this pending test.
+
 ## Immediate next action
 
-Deploy the SMTP/TLS, durable onboarding rate-limit migration, and Connector CLI
-release behind the current disabled production gates. Run all five PostgreSQL
-tests and HTTPS/offline-message regression. Then activate and verify a production
-mail provider, enable Human self-service and Pairing while keeping public open
-registration off, bootstrap two controlled Human accounts, and run two-device
-browser/Connector acceptance. Remote MCP, enterprise OIDC, and generic host
-compatibility remain separate gates. Production hardening and later phases remain
-governed by `SECURITY.md` and `ROADMAP.md`.
+The user must activate Alibaba Cloud DirectMail and create a verified sender; no
+agent should accept the provider agreement or commercial activation on the user's
+behalf. After that handoff, configure SMTP without printing its credential, run a
+real recovery-email round trip, enable Human self-service and Pairing while keeping
+public open registration off, bootstrap two controlled Human accounts, and execute
+`docs/CONTROLLED_EXPERIENCE_TEST.md`. Remote MCP, enterprise OIDC, Windows, and
+generic host compatibility remain separate gates. Production hardening and later
+phases remain governed by `SECURITY.md` and `ROADMAP.md`.

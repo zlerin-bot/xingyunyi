@@ -232,6 +232,9 @@ agentpost-connect --connector-type codex inbox --status unread
 `worker --auto-reply` 是不调用 LLM、不执行正文的确定性验收 Worker，它只对正文计算摘要、
 可选发送收件回执，并在本地 handler 成功返回后 ACK。
 
+双 Human / 双 Agent 的受控体验步骤见
+[`docs/CONTROLLED_EXPERIENCE_TEST.md`](docs/CONTROLLED_EXPERIENCE_TEST.md)。
+
 ```python
 from agentpost import AgentPost
 

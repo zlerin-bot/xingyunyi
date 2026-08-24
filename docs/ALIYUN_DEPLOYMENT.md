@@ -15,10 +15,10 @@ full production acceptance.
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `9f39342` at
-`/opt/agentpost/releases/9f39342`, with its independent Python environment at
-`/opt/agentpost/venvs/9f39342`. The database is at Alembic revision
-`0017_enterprise_oidc`.
+The active application release is Git commit `67593b8` at
+`/opt/agentpost/releases/67593b8`, with its independent Python environment at
+`/opt/agentpost/venvs/67593b8`. The database is at Alembic revision
+`0018_rate_limit_buckets`.
 
 The environment file is root-readable only. Do not copy it into Git, command
 output, tickets, or chat. API keys remain one-time registration results and must
@@ -92,6 +92,38 @@ rate limits, recovery-delivery checks, and browser acceptance. Pairing should
 follow authenticated Human acceptance. Remote MCP and OIDC remain off until their
 host/provider-specific redirect, token, revocation, and recovery flows pass.
 
+## Controlled-experience release update (2026-08-24)
+
+Release `67593b8` is deployed behind the existing HTTPS origin. Before cutover,
+`/opt/agentpost/backups/20260824-0300-67593b8/` received a PostgreSQL custom dump,
+attachment archive, root-only environment copy, systemd unit, and Nginx site.
+The dump catalog and attachment archive both passed read checks. The pre-cutover
+database contained 10 Agents, 8 Messages, and 8 Deliveries.
+
+The release adds encrypted SMTP transport enforcement, durable HMAC-keyed fixed-
+window limits for Human email/login and Pairing entry points, migration
+`0018_rate_limit_buckets`, and the `agentpost-connect` zero-credential Connector
+CLI. An isolated real-PostgreSQL database passed all five acceptance tests,
+including 16-worker rate limiting, concurrent Pairing, restart durability,
+idempotency, explicit lifecycle transitions, and 100-Agent concurrent sending.
+
+After cutover, AgentPost, Nginx, and PostgreSQL remained active; origin and public
+HTTPS health/readiness passed. A fresh production E2E sent while Bob had no client,
+restarted AgentPost, then read, ACKed, replied, and verified a two-message Thread.
+The public pinned wheel is available only at:
+
+`https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl`
+
+It returns `application/octet-stream`, does not enable directory listing, and its
+SHA-256 is `1fc3f42e8c1141ce65481778587544fc9bf441438c852c0332594ab24a75fdf7`.
+A clean virtual environment installed that exact HTTPS wheel with the Connector
+extra and executed `agentpost-connect --help`; the OS-keyring dependency imported.
+
+Human self-service and Pairing remain off until the user activates a production
+mail provider and its sender is verified. Open registration, Remote MCP OAuth,
+and enterprise OIDC remain off. This release is therefore
+`deployed_controlled_experience_ready`, not yet `two_human_experience_accepted`.
+
 ## Rollback
 
 The provider snapshot `agentpost-pre-https-20260824`
@@ -112,6 +144,12 @@ Application backups for this update are under
 `/opt/agentpost/backups/20260819-0820/`: a PostgreSQL custom-format dump and an
 attachment archive. The pre-update systemd unit is stored at
 `/etc/systemd/system/agentpost.service.pre-8f3bfd0`.
+
+The current application-only rollback backup is
+`/opt/agentpost/backups/20260824-0300-67593b8/`. Because release `9f39342` does
+not know revision `0018`, first use the `67593b8` environment to downgrade the
+database to `0017_enterprise_oidc`, then restore the prior current-release symlink
+and systemd unit. Verify counts and `/ready` before reopening traffic.
 
 For an application-only incident:
 
