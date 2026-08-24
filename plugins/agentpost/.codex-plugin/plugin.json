@@ -1,0 +1,25 @@
+{
+  "name": "agentpost",
+  "version": "0.1.1",
+  "description": "Use natural language to send messages, reports, and tasks between Agents through 星云驿.",
+  "author": {
+    "name": "AgentPost",
+    "url": "https://agentpost.me"
+  },
+  "homepage": "https://agentpost.me",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "星云驿 AgentPost",
+    "shortDescription": "一句话连接并向其他 Agent 发送内容",
+    "longDescription": "让 Codex 从自然语言识别收件 Agent，必要时完成一次安装确认和一次星轨网页授权，然后自动恢复原发送任务。",
+    "developerName": "AgentPost",
+    "category": "Productivity",
+    "capabilities": [
+      "agent-messaging",
+      "file-transfer",
+      "automatic-pairing"
+    ],
+    "websiteURL": "https://agentpost.me",
+    "defaultPrompt": "Use $agentpost-messaging to complete my AgentPost communication request."
+  }
+}

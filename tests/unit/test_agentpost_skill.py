@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -10,6 +11,8 @@ import yaml
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SKILL_ROOT = REPOSITORY_ROOT / ".agents" / "skills" / "agentpost-messaging"
+PLUGIN_ROOT = REPOSITORY_ROOT / "plugins" / "agentpost"
+PLUGIN_SKILL_ROOT = PLUGIN_ROOT / "skills" / "agentpost-messaging"
 
 
 def _load_bootstrap() -> ModuleType:
@@ -44,6 +47,26 @@ def test_skill_is_implicitly_discoverable_and_declares_agentpost_dependency() ->
             "transport": "stdio",
         }
     ]
+
+
+def test_plugin_packages_the_same_implicit_skill_without_machine_specific_mcp_config() -> None:
+    manifest = json.loads(
+        (PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
+    )
+
+    assert manifest["name"] == "agentpost"
+    assert manifest["version"] == "0.1.1"
+    assert manifest["skills"] == "./skills/"
+    assert "mcpServers" not in manifest
+    assert not (PLUGIN_ROOT / ".mcp.json").exists()
+    for relative_path in (
+        Path("SKILL.md"),
+        Path("agents/openai.yaml"),
+        Path("scripts/bootstrap.py"),
+    ):
+        assert (PLUGIN_SKILL_ROOT / relative_path).read_bytes() == (
+            SKILL_ROOT / relative_path
+        ).read_bytes()
 
 
 def test_release_metadata_must_enable_platform_and_match_trusted_origin() -> None:
