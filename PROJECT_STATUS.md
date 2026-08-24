@@ -6,6 +6,20 @@ Local handoff stage: `v0.1.0-local.1` (package/API version remains `0.1.0`)
 
 ## Post-handoff M24 progress (2026-08-24)
 
+Commit `c417326` adds the first host-setup orchestration slice. After installing the `mcp` and
+`connector` extras, `agentpost-connect setup codex` now restores an existing vault profile or runs
+the existing Human Pairing flow, reports heartbeat, registers the packaged stdio MCP through the
+Codex CLI, and reapplies `default_tools_approval_mode = "writes"`. The operation is idempotent,
+preserves unrelated Codex config, and stores only the server and OS-vault profile reference; it does
+not copy, print, or write the long-lived Agent credential to Codex config.
+
+Three setup unit tests and the expanded five CLI tests pass. The full local fast selection reports
+310 passed, one expected loopback sandbox skip, and five deselected PostgreSQL tests; Ruff lint and
+format pass, and the package-local MCP selection reports ten passed. A fresh isolated `CODEX_HOME`
+was then configured with the real Codex CLI, which reported the stdio server enabled with `writes`
+approval and redacted its environment values. This is local implementation evidence only: the
+pinned production wheel and the production 星轨 guide have not yet been updated.
+
 Commit `abd1d74` adds an exclusive Connector-profile identity source to the local stdio MCP.
 `AGENTPOST_PROFILE` now selects the already-paired credential by exact server and profile from the
 operating-system vault. The existing explicit `AGENTPOST_API_KEY` mode remains available for
@@ -653,12 +667,12 @@ have not yet been accepted.
 
 ## Immediate next action
 
-The Connector-aware local Codex MCP bridge is implemented, installed, registered, and read-only
-natural-language Inbox discovery is verified from a fresh CLI task. The next acceptance slice is to
-restart Codex desktop, confirm the six tools persist there, and complete an explicitly authorized
-send/inbox/read/ACK/reply/Directory flow without copying a key. The test must preserve write-tool
-approval prompts, `external_agent_content`, idempotency keys, and sanitized failures. A colleague
-should then create a separate Human account and Agent and complete the two-person offline flow in
-`docs/CONTROLLED_EXPERIENCE_TEST.md`. Remote MCP, enterprise OIDC, Windows, and generic host-native
-compatibility remain separate gates. Production hardening and later phases remain governed by
+Package the new Codex setup path into a pinned local candidate wheel, verify installation in a clean
+runtime, then update the 星轨 Codex guide only after that artifact passes. Restart Codex desktop,
+confirm the six tools persist, and complete an explicitly authorized send/inbox/read/ACK/reply/
+Directory flow without copying a key. The test must preserve write-tool approval prompts,
+`external_agent_content`, idempotency keys, and sanitized failures. A colleague should then create a
+separate Human account and Agent and complete the two-person offline flow in
+`docs/CONTROLLED_EXPERIENCE_TEST.md`. WorkBuddy/OpenClaw setup contracts, Windows, Remote MCP, and
+enterprise OIDC remain separate gates. Production hardening and later phases remain governed by
 `SECURITY.md` and `ROADMAP.md`.

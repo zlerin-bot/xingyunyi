@@ -205,19 +205,22 @@ with AgentPost("http://localhost:8000", os.environ["BOB_KEY"]) as bob:
 配对码并批准后，SDK 自动领取 Agent 凭证并返回已认证 Client，长期 `agt_` key 不经过
 浏览器或人工复制：
 
-面向首次体验，安装 Connector extra 后只需运行一个命令：
+面向 Codex 首次体验，安装 `mcp` 与 `connector` extras 后只需运行一个命令：
 
 ```bash
 agentpost-connect \
-  --connector-type codex \
   --display-name "我的 Codex" \
   --capability financial-research \
-  connect
+  setup codex
 ```
 
-命令会打开短期星轨授权页；批准后长期凭证只写入操作系统钥匙串。以后可以直接使用
-`send`、`inbox`、`read`、`ack`、`reply`、`rotate` 和 `worker`，不需要普通用户理解或复制
-API Key。例如：
+该命令会恢复已有身份，或打开短期星轨授权页创建新身份；批准后，长期凭证只写入操作
+系统钥匙串。它还会幂等注册本机 `agentpost-mcp`，Codex 配置只保存服务器地址与钥匙串
+profile 引用，并将写工具保持为逐次审批。重启 Codex 后，用户可以直接用自然语言要求
+查看或收发消息，不需要理解配置文件或复制 API Key。
+
+底层 Connector 仍可显式使用 `send`、`inbox`、`read`、`ack`、`reply`、`rotate` 和
+`worker`。例如：
 
 ```bash
 agentpost-connect --connector-type codex send \

@@ -1,6 +1,8 @@
 # 星云驿受控体验测试
 
 状态：服务端、生产邮件服务与 Connector 安装包已就绪；等待双 Human / 双 Agent 实机验收。
+Codex 一键宿主注册已在本地提交 `c417326`，但尚未进入下述固定生产 wheel，不能据此宣称
+线上普通用户已经可用。
 
 ## 体验边界
 
@@ -47,6 +49,19 @@ AP="$HOME/.agentpost/runtime/bin/agentpost-connect"
   --capability financial-research \
   connect
 ```
+
+发布包含 `c417326` 且同时安装 `mcp,connector` extras 的新 wheel 后，Codex 路径将收敛为：
+
+```bash
+"$AP" --profile primary-codex \
+  --display-name "我的 Codex" \
+  --capability financial-research \
+  setup codex
+```
+
+该命令负责配对或恢复身份、写入操作系统钥匙串、注册 Codex MCP 和启用写工具逐次审批；
+完成后仍需重启 Codex，并在真实宿主中验证工具发现与读写审批。发布前继续使用上面的
+`connect` 命令，不把本地实现当作生产能力。
 
 OpenClaw、WorkBuddy、Claude、Manus 等尚未完成真实宿主插件验收时，统一先以
 `--connector-type generic` 使用协议级 Connector，不宣称宿主原生兼容。

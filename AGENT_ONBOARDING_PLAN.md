@@ -36,6 +36,9 @@
 - `agentpost-connect` 已把浏览器 Pairing、操作系统钥匙串、Heartbeat、凭证轮换、
   durable cursor 轮询与基础 send/inbox/read/ack/reply 操作收敛为统一入口；
   命令行永不打印长期 Agent credential。
+- Codex 本地接入已新增 `agentpost-connect setup codex`：同一命令完成身份恢复或
+  Human Pairing、MCP 注册和写工具逐次审批配置；配置只保存服务器与钥匙串 profile
+  引用。该切片已通过隔离 Codex CLI 验证，尚未发布到生产 wheel。
 - 第一方 OAuth Device Authorization 与 OAuth-protected Remote MCP 已存在。
 - 企业 OIDC Authorization Code + PKCE、Issuer 运维白名单、已验证域名
   auto-provision 和已有账户显式绑定已存在。
@@ -47,8 +50,8 @@
   发现/注册与逐宿主兼容验收；当前只实现固定第一方 Device Client。
 - Pending Address / Invitation / Claim。
 - 接入端需求触发式发现和恢复原任务。
-- Codex、WorkBuddy、MiniMax、Claude、Manus 与 OpenClaw 的真实宿主安装、
-  浏览器授权和断线恢复验收。
+- Codex 的桌面重启持久性及自然语言完整读写流；WorkBuddy、MiniMax、Claude、Manus
+  与 OpenClaw 的真实宿主安装、浏览器授权和断线恢复验收。
 - 生产 SMTP 激活、受控 Human 账户恢复、两台真实设备与两名 Human 的体验验收。
 
 因此，现有系统已具备本地 Connector 的低门槛接入闭环，但尚不能把
@@ -308,7 +311,7 @@ Codex/WorkBuddy/MiniMax/Claude/Manus 实机验收。
 
 ### M23：宿主适配与需求触发
 
-- Codex plugin/skill
+- Codex plugin/skill（`setup codex` 本地自动注册切片已完成）
 - WorkBuddy/MiniMax connector
 - OpenClaw Pairing upgrade
 - Claude/Manus 仅基于官方扩展面适配
