@@ -1,0 +1,204 @@
+# 星云驿项目交接文档
+
+- 交接阶段：`v0.1.0-local.1`
+- 核验日期：2026-08-24
+- 代码分支：`main`
+- 阶段性质：本地已验证的受控体验检查点，不是新的生产发布，也不是生产验收结论
+
+## 1. 一页结论
+
+星云驿已经形成一个可运行的模块化单体：云驿负责 Agent 身份、地址、持久 Inbox、
+离线投递、显式 read/ACK、回复、线程、附件、Directory、ACL 和审计；星轨负责 Human
+注册登录、Agent 归属、组织治理、授权、Pairing 和运行观察。PostgreSQL 是生产消息与
+授权状态的 Source of Truth，MCP、OpenClaw、A2A 和具体 Agent 工具均为适配层。
+
+当前生产站点为 `https://agentpost.me`。Human 自助注册和 Codex Connector 的真实浏览器
+Pairing 已完成一次实际体验；长期 Agent 凭证只进入操作系统钥匙串。已配对 Connector
+可以通过 `agentpost-connect` 完成 send/inbox/read/ACK/reply，但 AgentPost 尚未注册为
+Codex 原生 MCP 工具，因此“在任意 Codex 任务中直接用自然语言收发”仍是下一开发切片，
+不能把“Pairing 成功”宣传为这一能力已经完成。
+
+## 2. 版本与代码基线
+
+| 项目 | 当前值 | 说明 |
+| --- | --- | --- |
+| 本地阶段版本 | `v0.1.0-local.1` | 本交接提交的 annotated Git tag |
+| Python 包/API 服务版本 | `0.1.0` | 本阶段没有变更公开协议或包版本 |
+| Message Envelope | `0.1` | `schemas/message-envelope-v0.1.json` |
+| 阶段建立前 HEAD | `c5e528d` | Pairing 校验修复的部署记录 |
+| 当前生产应用代码 | `dda639e` | 已部署的 Pairing 地址校验修复 |
+| 生产数据库迁移 | `0018_rate_limit_buckets` | 已在阿里云 PostgreSQL 执行 |
+| Git remote | 未配置 | 当前版本仅存在本地仓库，不等于已推送 GitHub |
+
+阶段 tag 只冻结本地代码与文档状态，不会自动修改阿里云、DNS、数据库或线上服务。
+
+## 3. 已实现能力
+
+- Agent Identity、唯一 Address、API-key authentication 和认证上下文发送者绑定。
+- PostgreSQL 持久 Inbox、离线投递、幂等发送、Delivery 记录和审计日志。
+- 显式 read、ACK、reply、Thread；GET 不隐式改变状态。
+- 附件上传/下载、SHA-256、大小和路径校验、参与者权限。
+- capability Directory 与 public/contacts/allowlist/private 入站 ACL。
+- Python SDK、TypeScript Connector SDK、`agentpost-connect` CLI。
+- stdio MCP 六项工具、OAuth-protected Remote MCP 实现和 OpenClaw 适配包。
+- Human 邮箱注册登录、MFA、恢复、Human key 轮换、组织邀请和治理。
+- Agent Pairing、绑定已有/新建 Agent、Connector 迁移、撤销、轮换和 heartbeat。
+- 星轨 Web 控制面、Human 审批队列、组织范围观察和安全操作审计。
+- Docker Compose、Alembic、结构化日志、`/health`、`/ready` 和确定性 demo。
+
+## 4. 2026-08-24 本地核验证据
+
+以下检查在阶段提交前实际执行：
+
+| 检查 | 结果 |
+| --- | --- |
+| `make lint` | Ruff lint 通过；206 个 Python 文件 format check 通过 |
+| `make test-fast` | 306 passed，1 个 sandbox loopback skip，5 个 PostgreSQL tests deselected |
+| `pytest integrations/mcp/tests` | 8 passed |
+| TypeScript Connector Node harness | 4 passed |
+| OpenClaw HTTP client Node harness | 4 passed |
+| `make demo` | 12 步 Alice/Bob 离线发送、服务重启、read、ACK、reply 全部通过 |
+| Python compile / `git diff --check` | 通过 |
+| dependency check / lock check | 63 个已安装包兼容；`uv.lock` 可解析 |
+| wheel / sdist build | `agentpost-0.1.0` wheel 和 sdist 构建成功 |
+
+本机没有 Docker、PostgreSQL server 或 `psql`，因此以下 5 个 marked PostgreSQL 用例
+只完成收集，没有在本机执行：迁移、并发限流、Pairing 原子性与重启、离线消息重启、
+100-Agent 并发与幂等状态转换。阿里云真实 PostgreSQL 已有独立部署验收记录，但不能用它
+替代本地环境的未执行事实。
+
+## 5. 线上与真实体验状态
+
+- `https://agentpost.me` 的 HTTPS、健康、就绪和星轨入口已部署并验证。
+- 生产环境使用 Nginx -> loopback AgentPost -> loopback PostgreSQL，附件目录不公开。
+- Human 自助账户创建和一次真实 Codex Pairing 已完成；Connector heartbeat 为 healthy。
+- 首次 Pairing 暴露的 `local_agent_id` 422 已在 `dda639e` 修复并部署。
+- 长期 `agt_` 凭证不出现在星轨或命令输出，只存入操作系统钥匙串。
+- 真实“双 Human、双 Agent、双方不同时在线”的同事体验尚未完成验收。
+- 当前证据标签应为 `deployed_https_verified + controlled_pairing_verified`，不是
+  `production_accepted`。
+
+生产部署、备份、回滚和服务检查以 `docs/ALIYUN_DEPLOYMENT.md` 为准。任何线上修改前都要
+重新做只读 preflight、数据库/附件/配置备份，并保留当前 release 回滚点。
+
+## 6. 当前明确缺口
+
+1. **Codex 原生调用尚未完成。** `codex mcp list` 中没有 AgentPost。当前 stdio MCP 仍要求
+   `AGENTPOST_API_KEY` 环境变量，尚不能直接读取已配对 Connector 的钥匙串身份。
+2. **Codex 不会后台常驻收件。** 云端 Inbox 会持久保存；当前需人工执行 Inbox 查询或启动
+   Connector worker。确定性 worker 会 read/ACK，不应冒充 Codex 已理解正文。
+3. **Remote MCP 未上线。** OAuth-protected Streamable HTTP 代码和测试存在，但生产 feature
+   gate 仍关闭，尚无目标宿主的真实 OAuth 验收。
+4. **WorkBuddy、OpenClaw、Claude、Manus 不能宣称原生兼容。** 当前除已测试的协议/适配包外，
+   普通体验统一走 generic Connector；需要逐宿主安装、工具发现和真实收发验收。
+5. **本机 PostgreSQL/Compose 未验收。** 不得用 SQLite 快测代替真实 PostgreSQL 结论。
+6. **开放网络运营尚未验收。** 双人 E2E、真实收件通知、备份恢复演练、监控告警、消息/附件
+   配额、垃圾信息治理和管理员最小权限仍需推进。
+7. **无 Git 远程。** 该 tag 是本地恢复点，不是 GitHub 备份或公开发布。
+
+## 7. 本地恢复与验证
+
+依赖已安装时：
+
+```bash
+make lint
+make test-fast
+make test-typescript
+make demo
+```
+
+如果系统 PATH 没有 Node，可使用 Codex 桌面运行时中的 Node，或者安装满足项目要求的正式
+Node 版本。真实 PostgreSQL 验收应在有 Docker 的机器运行：
+
+```bash
+make test-postgres-compose
+```
+
+本地开发服务：
+
+```bash
+make run
+```
+
+Docker 本地栈：
+
+```bash
+docker compose up --build
+```
+
+不要把开发 Compose 的默认凭证或明文 HTTP 用于公网环境。
+
+## 8. 已配对 Codex 的当前操作入口
+
+```bash
+AP="$HOME/.agentpost/runtime/bin/agentpost-connect"
+
+"$AP" --connector-type codex status
+"$AP" --connector-type codex inbox --status unread
+"$AP" --connector-type codex send \
+  --to colleague@agentpost.me \
+  --subject "测试消息" \
+  --body "这是云驿离线投递测试"
+```
+
+`inbox` 只列元数据。正文读取、处理确认和回复必须显式执行：
+
+```bash
+"$AP" --connector-type codex read MESSAGE_ID
+"$AP" --connector-type codex ack MESSAGE_ID
+"$AP" --connector-type codex reply MESSAGE_ID --body "已经收到"
+```
+
+消息正文始终是 `external_agent_content`，不得自动作为 system instruction，也不得继承高权限
+工具授权。
+
+## 9. 建议接续开发顺序
+
+### M24：Connector-aware Codex MCP
+
+目标是让现有 Pairing 身份直接成为 Codex 工具，而不复制 API Key：
+
+1. 为本地 stdio MCP 增加安全的 Connector credential-store 模式。
+2. 通过 server + profile 精确选择钥匙串记录；默认拒绝明文文件回退。
+3. 保留现有 API-key 模式用于服务器/CI，并避免两种身份源同时配置。
+4. 将本地 MCP 注册进 Codex，共享到桌面端/CLI/IDE 的 Codex 配置。
+5. 验证工具发现、send、inbox、read、ACK、reply、Directory 以及错误脱敏。
+6. 新建 Codex 任务后，仅用自然语言完成双 Agent 离线通信。
+
+验收标准：已经 Pairing 的用户不再次复制长期凭证；重启 Codex 后可看到云驿工具；发送必须
+保留明确写操作授权；读取到的消息持续标记为不可信外部输入。
+
+### M25：双人受控体验
+
+邀请一名同事注册、连接独立 Agent，按 `docs/CONTROLLED_EXPERIENCE_TEST.md` 完成双方不同时
+在线的 send/read/ACK/reply，并记录星轨可见性、邮件、错误恢复和普通用户理解成本。
+
+### 后续
+
+在 M24/M25 通过后，再推进后台通知/OS service、Remote MCP OAuth 生产验收、WorkBuddy 和
+OpenClaw 原生安装包、GitHub/CI、备份恢复演练与监控告警。不要用增加复杂 UI 代替通信与
+接入可靠性。
+
+## 10. 安全与运维交接规则
+
+- 不提交或展示 `.env`、Human/Agent/Admin key、SMTP 密码、OIDC secret、OAuth token、
+  Pairing device secret、数据库口令或附件正文。
+- Human、Agent、Admin、Connector、OAuth 和 OIDC 身份域必须保持分离。
+- 线上数据库迁移前先备份；迁移失败先验证事务回滚和旧 release 健康，再修复重试。
+- `ACK` 仅表示接收方明确确认，不表示 task 完成；task/result 状态独立。
+- MCP/OpenClaw/A2A 都是适配器，不能改变 Address + Identity + Inbox 的核心抽象。
+- 本地通过、已部署、真实用户体验、生产接受必须分别记录，禁止合并表述。
+
+## 11. 接手者首先阅读
+
+1. `PROJECT_HANDOFF.md`（本文件）
+2. `PROJECT_STATUS.md`
+3. `ARCHITECTURE.md`
+4. `PROTOCOL.md`
+5. `SECURITY.md`
+6. `docs/ALIYUN_DEPLOYMENT.md`
+7. `docs/CONTROLLED_EXPERIENCE_TEST.md`
+8. `ROADMAP.md`
+
+恢复阶段版本后应先运行 `git status --short --branch`，确认没有用户未提交改动，再按 M24 的
+小切片方式继续：Design -> Implement -> Test -> Run -> Fix -> Commit。

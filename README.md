@@ -516,6 +516,8 @@ configure backups and restore drills; and address the remaining controls in
 - [`PROTOCOL.md`](PROTOCOL.md) — public REST/JSON contract and lifecycle
 - [`SECURITY.md`](SECURITY.md) — trust model, authorization matrix, and production checklist
 - [`ROADMAP.md`](ROADMAP.md) — deferred work and release gates
+- [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md) — current local stage, verification evidence, gaps,
+  and takeover order
 - [`PROJECT_STATUS.md`](PROJECT_STATUS.md) — milestone evidence and environment limitations
 - [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) — build sequence and acceptance strategy
 - [`schemas/message-envelope-v0.1.json`](schemas/message-envelope-v0.1.json) — versioned envelope

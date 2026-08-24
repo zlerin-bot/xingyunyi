@@ -2,6 +2,8 @@
 
 Last updated: 2026-08-24
 
+Local handoff stage: `v0.1.0-local.1` (package/API version remains `0.1.0`)
+
 ## Current state
 
 This repository started as an empty directory. There was no existing application,
@@ -115,9 +117,11 @@ the safe validation details. Release `dda639e` is deployed with a fixed managed-
 domain suffix, same-domain full-address normalization, pre-confirmation input
 checks, Chinese/ASCII capability separators, and field-specific Chinese schema
 errors. The regression also proves that a schema-rejected decision does not
-consume its one-time Human confirmation. The production Connector process had
-already ended, so a fresh connection command is still required for end-user
-completion evidence.
+consume its one-time Human confirmation. A fresh end-user command subsequently
+completed real Codex Pairing: the Connector claimed its credential into the macOS
+credential vault and reported active/healthy heartbeat state without displaying
+the long-lived key. AgentPost is not yet registered in Codex's MCP configuration,
+so native natural-language tool invocation remains a separate next milestone.
 
 ## Decisions already fixed
 
@@ -330,6 +334,23 @@ Approval action execution, delegation, pause/resume, and retention workers also
 remain closed.
 
 ## Final local acceptance snapshot
+
+### Local handoff stage `v0.1.0-local.1` (2026-08-24)
+
+The current local stage was rechecked from clean `main` before handoff. Ruff lint
+and format checks passed across 206 Python files. The fast suite reported 306
+passed, one expected sandbox-only loopback skip, and five deselected PostgreSQL
+tests; the package-local MCP suite reported eight passed. The TypeScript Connector
+and OpenClaw Node harnesses each passed four tests. The 12-step real-process demo
+passed with offline send, AgentPost restart, later retrieval, explicit read/ACK,
+reply, and Alice receiving the reply. Python compilation, dependency compatibility,
+lock resolution, and `git diff --check` passed; wheel and sdist
+`agentpost-0.1.0` artifacts built successfully.
+
+The five marked PostgreSQL tests were collected but not executed locally because
+this Mac has no Docker or PostgreSQL runtime. The stage is therefore a local
+code/documentation recovery point, not a new cloud release or production
+acceptance claim. The authoritative takeover summary is `PROJECT_HANDOFF.md`.
 
 The Human approval increment completed on 2026-08-17 with seven dedicated queue
 tests, including concurrent Agent idempotency, role/redaction/non-enumeration,
@@ -609,11 +630,12 @@ have not yet been accepted.
 
 ## Immediate next action
 
-The user should now create their own Human account at
-`https://agentpost.me/orbit`, receive the first real registration email, and set
-their password without handling a Human API key. A colleague should repeat the
-same flow, after which both users can execute
-`docs/CONTROLLED_EXPERIENCE_TEST.md`. Admin-created Humans remain an operational
-fallback, not the normal product path. Remote MCP, enterprise OIDC, Windows, and
-generic host compatibility remain separate gates. Production hardening and later
-phases remain governed by `SECURITY.md` and `ROADMAP.md`.
+Human self-registration and one real Codex Pairing have now completed. The next
+implementation slice is a Connector-aware local Codex MCP bridge that reads the
+already-paired identity from the operating-system vault without exposing or
+copying the Agent API key. After MCP registration and Codex restart, a fresh task
+must prove natural-language send/inbox/read/ACK/reply. A colleague should then
+create a separate Human account and Agent and complete the two-person offline flow
+in `docs/CONTROLLED_EXPERIENCE_TEST.md`. Remote MCP, enterprise OIDC, Windows, and
+generic host-native compatibility remain separate gates. Production hardening and
+later phases remain governed by `SECURITY.md` and `ROADMAP.md`.
