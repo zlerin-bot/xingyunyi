@@ -1,0 +1,337 @@
+"""Human-friendly entry point for pairing and testing a local AgentPost Connector."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import platform
+import sys
+import time
+from pathlib import Path
+from threading import Event
+from typing import Any
+
+from agentpost_sdk.client import AgentPost
+from agentpost_sdk.connector import ConnectorWorker, JsonCursorStore, ManagedConnector
+from agentpost_sdk.errors import AgentPostError, ResponseError
+from agentpost_sdk.models import Message
+from agentpost_sdk.onboarding import PairingInstructions
+
+DEFAULT_SERVER = "https://agentpost.me"
+MESSAGE_TYPES = (
+    "message",
+    "task",
+    "request",
+    "response",
+    "notification",
+    "event",
+    "error",
+    "system",
+)
+REPLY_TYPES = (*MESSAGE_TYPES, "result")
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return parsed
+
+
+def _positive_float(value: str) -> float:
+    parsed = float(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be positive")
+    return parsed
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="agentpost-connect",
+        description=(
+            "Pair a local Agent with 云驿 without copying a long-lived API key, then test "
+            "persistent asynchronous messaging."
+        ),
+    )
+    parser.add_argument(
+        "--server",
+        default=os.getenv("AGENTPOST_SERVER", DEFAULT_SERVER),
+        help=f"AgentPost server (default: {DEFAULT_SERVER})",
+    )
+    parser.add_argument(
+        "--profile",
+        default=os.getenv("AGENTPOST_PROFILE"),
+        help="local credential-vault profile; defaults to connector-type and device name",
+    )
+    parser.add_argument(
+        "--connector-type",
+        default=os.getenv("AGENTPOST_CONNECTOR_TYPE", "generic"),
+        help="host type, for example codex, openclaw, workbuddy, or generic",
+    )
+    parser.add_argument(
+        "--display-name",
+        default=os.getenv("AGENTPOST_DISPLAY_NAME"),
+        help="name shown to the Human during pairing",
+    )
+    parser.add_argument(
+        "--device-name",
+        default=os.getenv("AGENTPOST_DEVICE_NAME", platform.node() or "local-device"),
+    )
+    parser.add_argument(
+        "--capability",
+        action="append",
+        default=[],
+        help="structured capability; repeat for multiple values",
+    )
+    parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="print the short-lived authorization URL without opening a browser",
+    )
+
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("connect", help="pair once or restore the Connector from the OS vault")
+    commands.add_parser("status", help="connect if needed, then report heartbeat state")
+
+    send = commands.add_parser("send", help="send a message using the paired Agent identity")
+    send.add_argument("--to", required=True)
+    send.add_argument("--subject", default="")
+    send.add_argument("--body", required=True)
+    send.add_argument("--type", choices=MESSAGE_TYPES, default="message")
+
+    inbox = commands.add_parser("inbox", help="list message metadata without marking messages read")
+    inbox.add_argument("--status", choices=("unread", "read", "acked"), default="unread")
+    inbox.add_argument("--limit", type=_positive_int, default=50)
+
+    read = commands.add_parser(
+        "read",
+        help="explicitly mark a message read and return its envelope",
+    )
+    read.add_argument("message_id")
+
+    ack = commands.add_parser("ack", help="explicitly acknowledge a processed message")
+    ack.add_argument("message_id")
+
+    reply = commands.add_parser("reply", help="reply in the existing thread")
+    reply.add_argument("message_id")
+    reply.add_argument("--subject", default="")
+    reply.add_argument("--body", required=True)
+    reply.add_argument("--type", choices=REPLY_TYPES, default="response")
+
+    commands.add_parser("rotate", help="rotate the Connector credential inside the OS vault")
+
+    worker = commands.add_parser(
+        "worker",
+        help="run the durable polling worker; ACK occurs only after the local handler returns",
+    )
+    worker.add_argument("--once", action="store_true")
+    worker.add_argument("--poll-seconds", type=_positive_float, default=30.0)
+    worker.add_argument("--limit", type=_positive_int, default=50)
+    worker.add_argument(
+        "--auto-reply",
+        action="store_true",
+        help="send a deterministic receipt before ACK; never executes message content",
+    )
+    return parser
+
+
+def _pairing_notice(instructions: PairingInstructions) -> None:
+    print("authorization_required")
+    print(f"user_code={instructions.user_code}")
+    print(f"verification_url={instructions.verification_uri_complete}")
+    print("Complete approval in 星轨. This code is short-lived; no API key will be printed.")
+
+
+def _profile(args: argparse.Namespace) -> str:
+    return args.profile or f"{args.connector_type}:{args.device_name}"
+
+
+def _display_name(args: argparse.Namespace) -> str:
+    return args.display_name or f"{args.connector_type} on {args.device_name}"
+
+
+def _connect(args: argparse.Namespace) -> ManagedConnector:
+    return AgentPost.connect_managed(
+        args.server,
+        connector_type=args.connector_type,
+        display_name=_display_name(args),
+        profile=_profile(args),
+        device_name=args.device_name,
+        client_version="agentpost-connect/0.1.0",
+        capabilities=args.capability,
+        open_browser=not args.no_browser,
+        on_pairing=_pairing_notice,
+    )
+
+
+def _json(value: Any) -> None:
+    if hasattr(value, "model_dump"):
+        value = value.model_dump(mode="json", by_alias=True)
+    print(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+
+
+def _message_metadata(message: Message) -> dict[str, Any]:
+    return {
+        "message_id": message.message_id,
+        "from": message.sender.address,
+        "type": message.message_type,
+        "subject": message.subject,
+        "status": message.delivery.status,
+        "thread_id": str(message.thread_id),
+        "created_at": message.created_at.isoformat(),
+        "security_label": message.content.security_label,
+    }
+
+
+def _content_fingerprint(message: Message) -> str:
+    encoded = json.dumps(
+        message.content.body,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _worker_handler(*, auto_reply: bool):
+    def handle(message: Message) -> None:
+        fingerprint = _content_fingerprint(message)
+        _json(
+            {
+                "event": "external_message_processed",
+                **_message_metadata(message),
+                "content_sha256": fingerprint,
+            }
+        )
+        if not auto_reply or message.message_type not in {"message", "request", "task"}:
+            return
+        if message.message_type == "task":
+            message.reply(
+                "The deterministic Connector worker recorded this task without executing it.",
+                subject="Deterministic task receipt",
+                type="result",
+                result={"status": "partial", "content_sha256": fingerprint},
+                idempotency_key=f"connector-worker-reply-{message.message_id}",
+            )
+        else:
+            message.reply(
+                f"Message received; content SHA-256 is {fingerprint}.",
+                subject="Deterministic receipt",
+                type="response",
+                idempotency_key=f"connector-worker-reply-{message.message_id}",
+            )
+
+    return handle
+
+
+def _cursor_path(profile: str) -> Path:
+    digest = hashlib.sha256(profile.encode()).hexdigest()[:24]
+    return Path.home() / ".agentpost" / "cursors" / f"{digest}.json"
+
+
+def _run_worker(args: argparse.Namespace, connector: ManagedConnector) -> int:
+    worker = ConnectorWorker(
+        connector,
+        handler=_worker_handler(auto_reply=args.auto_reply),
+        cursor_store=JsonCursorStore(_cursor_path(_profile(args))),
+    )
+    if args.once:
+        processed = worker.run_once(max_messages=args.limit)
+        _json({"event": "worker_cycle_complete", "processed": processed})
+        return 0
+    _json(
+        {
+            "event": "worker_started",
+            "poll_seconds": args.poll_seconds,
+            "security": "external_message_content_is_untrusted",
+        }
+    )
+    worker.run_forever(
+        stop_event=Event(),
+        poll_interval_seconds=args.poll_seconds,
+        sleeper=time.sleep,
+    )
+    return 0
+
+
+def _run(args: argparse.Namespace) -> int:
+    with _connect(args) as connector:
+        client = connector.client
+        if args.command == "connect":
+            heartbeat = connector.heartbeat()
+            _json(
+                {
+                    "status": "connected",
+                    "address": heartbeat.agent.address,
+                    "profile": connector.profile,
+                    "credential_storage": "operating_system_vault",
+                }
+            )
+        elif args.command == "status":
+            _json(connector.heartbeat())
+        elif args.command == "send":
+            sent = client.send(args.to, args.subject, args.body, type=args.type)
+            _json({"status": "accepted", **_message_metadata(sent)})
+        elif args.command == "inbox":
+            page = client.inbox.list(status=args.status, limit=args.limit)
+            _json(
+                {
+                    "items": [_message_metadata(message) for message in page.items],
+                    "has_more": page.has_more,
+                    "next_cursor": page.next_cursor,
+                }
+            )
+        elif args.command == "read":
+            _json(client.messages.read(args.message_id))
+        elif args.command == "ack":
+            _json(_message_metadata(client.messages.ack(args.message_id)))
+        elif args.command == "reply":
+            reply_options: dict[str, Any] = {}
+            if args.type == "result":
+                reply_options["result"] = {"status": "completed"}
+            replied = client.messages.reply(
+                args.message_id,
+                body=args.body,
+                subject=args.subject,
+                type=args.type,
+                **reply_options,
+            )
+            _json({"status": "accepted", **_message_metadata(replied)})
+        elif args.command == "rotate":
+            rotation = connector.rotate_credential()
+            _json(
+                {
+                    "status": "rotated",
+                    "connector_id": rotation.connector_id,
+                    "address": rotation.agent.address,
+                    "rotated_at": rotation.rotated_at.isoformat(),
+                    "credential_storage": "operating_system_vault",
+                }
+            )
+        elif args.command == "worker":
+            return _run_worker(args, connector)
+        else:  # pragma: no cover - argparse enforces the command set
+            raise RuntimeError(f"unsupported command: {args.command}")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    try:
+        return _run(_parser().parse_args(argv))
+    except KeyboardInterrupt:
+        print("stopped", file=sys.stderr)
+        return 130
+    except AgentPostError as exc:
+        code = exc.code if isinstance(exc, ResponseError) else type(exc).__name__
+        print(f"agentpost_error code={code}", file=sys.stderr)
+        return 1
+    except OSError:
+        print("local_runtime_error", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

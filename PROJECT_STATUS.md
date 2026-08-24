@@ -22,6 +22,8 @@ The MVP implementation is locally runnable as a protocol-first modular monolith:
 - Human-authorized Agent Pairing, one-current-Connector bindings, migration,
   automatic credential claim/rotation/revocation, heartbeat, and durable Python
   and TypeScript Connector runtimes
+- official `agentpost-connect` CLI for browser Pairing, operating-system vault
+  credentials, send/inbox/read/ACK/reply, rotation, and durable polling
 - email/password Human self-service, TOTP MFA, account recovery, Human-key
   rotation, organization invitations/self-governance, and verified domains
 - first-party OAuth Device Authorization with scoped rotating tokens and an
@@ -444,6 +446,24 @@ existing registration boundary, reads an Agent Inbox, and sends idempotent test
 messages; credentials stay in password inputs/page memory and external data is
 rendered only as text. A real wheel build includes all HTML/CSS/JS assets.
 
+### Connector CLI evidence (2026-08-24)
+
+The first Human-testable Connector command is packaged as `agentpost-connect`.
+It can initiate browser Pairing or restore an existing identity from the operating-
+system credential vault, and exposes explicit connect/status/send/inbox/read/ACK/
+reply/rotate/worker operations without printing a long-lived `agt_` credential.
+The Inbox command is metadata-only; read and ACK remain explicit. The deterministic
+Worker treats bodies as untrusted data, advances its durable cursor only after its
+handler succeeds, and uses the runtime's transient-failure backoff.
+
+Four CLI tests and the existing seven onboarding/runtime tests pass. The full local
+fast selection reports 305 passed, one expected loopback sandbox skip, and five
+deselected PostgreSQL tests. The separate MCP selection reports eight passed and
+the TypeScript Connector harness reports four passed. Ruff lint/format and wheel
+entry-point inspection pass; the wheel contains both the CLI module and its console
+script metadata. Real OS-keychain/browser pairing remains a production experience
+gate until Human email authentication and Pairing are safely enabled.
+
 ## Alibaba Cloud deployment evidence
 
 On 2026-08-13, the committed service was installed on a dedicated Alibaba Cloud
@@ -524,10 +544,11 @@ pairing, Remote MCP OAuth, and enterprise OIDC remain explicitly disabled.
 
 ## Immediate next action
 
-The next safe slice is production Human authentication: configure and verify SMTP,
-add registration/login/recovery rate limits and abuse controls, then run external
-browser acceptance before enabling Human self-service. Pairing follows Human
-authentication; Remote MCP and enterprise OIDC require separate host/provider
-acceptance. Also run the OpenClaw plugin's build/load/validate commands in a
-supported host before claiming host compatibility. Production hardening and later
-phases remain governed by `SECURITY.md` and `ROADMAP.md`.
+Deploy the SMTP/TLS, durable onboarding rate-limit migration, and Connector CLI
+release behind the current disabled production gates. Run all five PostgreSQL
+tests and HTTPS/offline-message regression. Then activate and verify a production
+mail provider, enable Human self-service and Pairing while keeping public open
+registration off, bootstrap two controlled Human accounts, and run two-device
+browser/Connector acceptance. Remote MCP, enterprise OIDC, and generic host
+compatibility remain separate gates. Production hardening and later phases remain
+governed by `SECURITY.md` and `ROADMAP.md`.

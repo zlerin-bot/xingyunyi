@@ -1,6 +1,7 @@
 # 星云驿 Agent Onboarding / Pairing 计划
 
-状态：M19–M23 第一方接入与企业 OIDC 闭环已实现；通用第三方 MCP OAuth 待建（2026-08-18）
+状态：M19–M23 第一方接入与企业 OIDC 闭环已实现；官方零密钥 Connector CLI 已实现，
+生产受控双用户验收与通用第三方 MCP OAuth 待完成（2026-08-24）
 
 ## 1. 产品决定
 
@@ -32,6 +33,9 @@
   上报 heartbeat，且一个 Agent 只有一个当前 Connector。
 - Python 与 TypeScript Connector SDK、后台轮询 Worker、安全存储抽象、
   OpenClaw Adapter、本地 stdio MCP Adapter 已存在。
+- `agentpost-connect` 已把浏览器 Pairing、操作系统钥匙串、Heartbeat、凭证轮换、
+  durable cursor 轮询与基础 send/inbox/read/ack/reply 操作收敛为统一入口；
+  命令行永不打印长期 Agent credential。
 - 第一方 OAuth Device Authorization 与 OAuth-protected Remote MCP 已存在。
 - 企业 OIDC Authorization Code + PKCE、Issuer 运维白名单、已验证域名
   auto-provision 和已有账户显式绑定已存在。
@@ -45,6 +49,7 @@
 - 接入端需求触发式发现和恢复原任务。
 - Codex、WorkBuddy、MiniMax、Claude、Manus 与 OpenClaw 的真实宿主安装、
   浏览器授权和断线恢复验收。
+- 生产 SMTP 激活、受控 Human 账户恢复、两台真实设备与两名 Human 的体验验收。
 
 因此，现有系统已具备本地 Connector 的低门槛接入闭环，但尚不能把
 “第一方协议可用”宣传为“所有第三方宿主无感兼容”。

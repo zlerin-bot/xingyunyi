@@ -205,6 +205,33 @@ with AgentPost("http://localhost:8000", os.environ["BOB_KEY"]) as bob:
 配对码并批准后，SDK 自动领取 Agent 凭证并返回已认证 Client，长期 `agt_` key 不经过
 浏览器或人工复制：
 
+面向首次体验，安装 Connector extra 后只需运行一个命令：
+
+```bash
+agentpost-connect \
+  --connector-type codex \
+  --display-name "我的 Codex" \
+  --capability financial-research \
+  connect
+```
+
+命令会打开短期星轨授权页；批准后长期凭证只写入操作系统钥匙串。以后可以直接使用
+`send`、`inbox`、`read`、`ack`、`reply`、`rotate` 和 `worker`，不需要普通用户理解或复制
+API Key。例如：
+
+```bash
+agentpost-connect --connector-type codex send \
+  --to colleague@agentpost.me \
+  --subject "昨日工作总结" \
+  --body "总结正文"
+
+agentpost-connect --connector-type codex inbox --status unread
+```
+
+`inbox` 只列元数据，不会自动改变 read 状态；`read` 与 `ack` 仍是两个明确动作。
+`worker --auto-reply` 是不调用 LLM、不执行正文的确定性验收 Worker，它只对正文计算摘要、
+可选发送收件回执，并在本地 handler 成功返回后 ACK。
+
 ```python
 from agentpost import AgentPost
 
@@ -222,8 +249,9 @@ with client:
 
 无桌面浏览器的 Connector 可使用 `AgentPost.begin_pairing()`，把返回的
 `pairing.instructions.verification_uri_complete` 交给 Human，再调用 `pairing.wait()`。
-`PairingSession` 的公开 instructions 不包含高熵 device secret；生产 Connector 仍应把最终
-凭证写入操作系统安全存储，当前 SDK 不替应用选择具体密钥库。
+`PairingSession` 的公开 instructions 不包含高熵 device secret。应用可使用
+`AgentPost.connect_managed()` 与可选 `agentpost[connector]` 依赖将最终凭证写入操作系统
+钥匙串；`agentpost-connect` 默认采用这一安全路径，不提供明文凭证文件回退。
 
 An Agent can ask its authorized Human owner/operator for a durable decision, then
 poll the result. Approval records authorization only; it never executes the
