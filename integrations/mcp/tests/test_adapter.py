@@ -7,7 +7,7 @@ import pytest
 from agentpost_mcp.config import Settings
 from agentpost_mcp.results import failure, success
 from agentpost_mcp.server import create_server
-from agentpost_sdk import ProtocolError
+from agentpost_sdk import ConfigurationError, ConnectorCredential, ProtocolError
 from mcp import Client
 
 
@@ -103,6 +103,56 @@ async def test_v2_tool_contract_and_calls(adapter: tuple[object, list[tuple[str,
 def test_api_key_is_excluded_from_settings_repr() -> None:
     settings = Settings("http://example.test", "agt_top_secret", 30, "WARNING")
     assert "agt_top_secret" not in repr(settings)
+
+
+class MemoryCredentialStore:
+    def __init__(self, credential: ConnectorCredential | None) -> None:
+        self.credential = credential
+        self.loads: list[tuple[str, str]] = []
+
+    def load(self, *, server: str, profile: str) -> ConnectorCredential | None:
+        self.loads.append((server, profile))
+        return self.credential
+
+
+def test_settings_load_exact_connector_profile_from_os_store(monkeypatch) -> None:
+    monkeypatch.delenv("AGENTPOST_API_KEY", raising=False)
+    monkeypatch.setenv("AGENTPOST_SERVER", " https://agentpost.me/ ")
+    monkeypatch.setenv("AGENTPOST_PROFILE", "codex:mars-mac")
+    credential = ConnectorCredential(
+        server="https://agentpost.me",
+        profile="codex:mars-mac",
+        connector_id="con_codex",
+        agent_address="mars@agentpost.me",
+        api_key="agt_vault_secret",
+    )
+    store = MemoryCredentialStore(credential)
+
+    settings = Settings.from_env(credential_store=store)
+
+    assert settings.server == "https://agentpost.me"
+    assert settings.api_key == "agt_vault_secret"
+    assert store.loads == [("https://agentpost.me", "codex:mars-mac")]
+    assert "agt_vault_secret" not in repr(settings)
+
+
+def test_settings_reject_ambiguous_or_missing_identity_source(monkeypatch) -> None:
+    monkeypatch.setenv("AGENTPOST_API_KEY", "agt_explicit")
+    monkeypatch.setenv("AGENTPOST_PROFILE", "codex:mars-mac")
+    store = MemoryCredentialStore(None)
+
+    with pytest.raises(ConfigurationError, match="mutually exclusive"):
+        Settings.from_env(credential_store=store)
+    assert store.loads == []
+
+    monkeypatch.delenv("AGENTPOST_API_KEY")
+    with pytest.raises(ConfigurationError, match="No OS credential was found"):
+        Settings.from_env(credential_store=store)
+    assert store.loads == [("http://127.0.0.1:8000", "codex:mars-mac")]
+
+    monkeypatch.delenv("AGENTPOST_PROFILE")
+    with pytest.raises(ConfigurationError, match="API_KEY or AGENTPOST_PROFILE is required"):
+        Settings.from_env(credential_store=store)
 
 
 def test_external_business_payload_is_opaque_while_reserved_top_level_fields_are_removed() -> None:

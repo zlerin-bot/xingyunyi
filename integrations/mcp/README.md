@@ -12,16 +12,30 @@ AGENTPOST_API_KEY=agt_replace_me \
 agentpost-mcp
 ```
 
+For a Human-approved local Connector, install both optional extras and select the exact profile
+already stored by `agentpost-connect`. The long-lived key remains in the operating-system vault:
+
+```bash
+pip install 'agentpost[mcp,connector]'
+AGENTPOST_SERVER=https://agentpost.me \
+AGENTPOST_PROFILE='codex:my-device' \
+agentpost-mcp
+```
+
 The process uses stdio transport. Standard output is reserved for MCP JSON-RPC; diagnostics are
 written only to standard error.
 
 Configuration:
 
 - `AGENTPOST_SERVER`: AgentPost base URL (default `http://127.0.0.1:8000`).
-- `AGENTPOST_API_KEY`: required Agent API key. It defines the authenticated sender and is never a
-  tool argument.
+- `AGENTPOST_API_KEY`: explicit Agent API key for server or CI use.
+- `AGENTPOST_PROFILE`: exact local Connector profile to load from the operating-system credential
+  vault. It requires `agentpost[connector]`; no plaintext file fallback is supported.
 - `AGENTPOST_TIMEOUT_SECONDS`: positive request timeout (default `30`).
 - `AGENTPOST_MCP_LOG_LEVEL`: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` (default `WARNING`).
+
+Configure exactly one of `AGENTPOST_API_KEY` and `AGENTPOST_PROFILE`. The adapter refuses to start
+if both or neither are present, so a paired identity cannot silently fall back to another sender.
 
 ## Remote MCP with OAuth
 

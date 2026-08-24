@@ -383,7 +383,7 @@ def test_stdio_configuration_failure_never_pollutes_stdout_or_echoes_secrets() -
     )
     assert completed.returncode == 2
     assert completed.stdout == ""
-    assert "AGENTPOST_API_KEY is required" in completed.stderr
+    assert "AGENTPOST_API_KEY or AGENTPOST_PROFILE is required" in completed.stderr
     assert "agt_" not in completed.stderr
 
 
