@@ -15,9 +15,9 @@ full production acceptance.
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `dda639e` at
-`/opt/agentpost/releases/dda639e`, with its independent Python environment at
-`/opt/agentpost/venvs/dda639e`. The database is at Alembic revision
+The active application release is Git commit `9f27d36` at
+`/opt/agentpost/releases/9f27d36`, with its independent Python environment at
+`/opt/agentpost/venvs/9f27d36`. The database is at Alembic revision
 `0018_rate_limit_buckets`.
 
 The environment file is root-readable only. Do not copy it into Git, command
@@ -94,7 +94,7 @@ host/provider-specific redirect, token, revocation, and recovery flows pass.
 
 ## Controlled-experience release update (2026-08-24)
 
-Release `67593b8` is deployed behind the existing HTTPS origin. Before cutover,
+Release `67593b8` was the earlier controlled-experience baseline behind the HTTPS origin. Before cutover,
 `/opt/agentpost/backups/20260824-0300-67593b8/` received a PostgreSQL custom dump,
 attachment archive, root-only environment copy, systemd unit, and Nginx site.
 The dump catalog and attachment archive both passed read checks. The pre-cutover
@@ -181,6 +181,32 @@ the fixed `@agentpost.me` suffix and address guidance. The expired Connector
 process was not restarted automatically; the Human must run the existing
 connection command once to create a fresh short-lived Pairing.
 
+## Natural-language Codex release 0.1.1 (2026-08-24)
+
+Release `9f27d36` is deployed at `/opt/agentpost/releases/9f27d36` with an isolated
+runtime at `/opt/agentpost/venvs/9f27d36`. Before cutover,
+`/opt/agentpost/backups/20260824-172210-9f27d36/` received a PostgreSQL custom dump,
+attachment archive, root-only environment copy, systemd unit, Nginx site, and the
+previous release pointer. The database dump catalog and attachment archive both
+passed read checks.
+
+The public 0.1.1 wheel is pinned at
+`https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl` with SHA-256
+`908558e6c9c83401f5b2ca0ed0da645721d06789ed803b82c21be97b0c7b16b8`. The prior
+0.1.0 wheel remains available for rollback. Production advertises Codex automatic
+setup only for macOS; Windows and Linux gates remain closed.
+
+The systemd unit and `/opt/agentpost/current` pointer now select `9f27d36`. After
+restart, AgentPost, Nginx, and PostgreSQL remained active; local and public health
+and readiness returned version 0.1.1; and PostgreSQL remained at
+`0018_rate_limit_buckets`. An authenticated production Chrome session rendered the
+existing Agent and all 星轨 observation areas, opened the 0.1.1 Codex guide with the
+correct fixed hash, and reported no frontend errors.
+
+This state is `natural_language_web_experience_ready`. It is not final end-user
+acceptance: the Human must still observe one clean first-use request resuming after
+web authorization and one connected reuse request entering write approval directly.
+
 ## Rollback
 
 The provider snapshot `agentpost-pre-https-20260824`
@@ -202,13 +228,13 @@ Application backups for this update are under
 attachment archive. The pre-update systemd unit is stored at
 `/etc/systemd/system/agentpost.service.pre-8f3bfd0`.
 
-The current application-only rollback backup is
-`/opt/agentpost/backups/20260824-dda639e/`. The current update did not change the
-database. To roll it back, point `/opt/agentpost/current` to
-`/opt/agentpost/releases/b7d51b0`, restore the backed-up systemd unit, reload
-systemd, restart AgentPost, and verify `/health`, `/ready`, and `/orbit`. The
-earlier database-aware backup remains at
-`/opt/agentpost/backups/20260824-0300-67593b8/` for the revision-0018 upgrade.
+The current rollback backup is
+`/opt/agentpost/backups/20260824-172210-9f27d36/`. To roll back 0.1.1, restore its
+environment, Nginx site, and systemd unit; point `/opt/agentpost/current` to
+`/opt/agentpost/releases/dda639e`; reload systemd and Nginx; restart only AgentPost;
+then verify `/health`, `/ready`, `/orbit`, and the protected services. The backup
+also contains a PostgreSQL custom dump and attachment archive, although release
+0.1.1 did not add a migration and the database remains at revision 0018.
 
 For an application-only incident:
 

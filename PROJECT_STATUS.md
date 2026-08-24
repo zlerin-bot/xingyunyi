@@ -2,16 +2,14 @@
 
 Last updated: 2026-08-24
 
-Frozen handoff stage: `v0.1.0-local.1`; current source candidate: `0.1.1`; pinned production
-release: `0.1.0`
+Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.1`
 
 ## Post-handoff natural-language onboarding progress (2026-08-24)
 
 Commits `30f8bc5` through `4b7eb68` implement the first Codex path against the agreed final
-acceptance contract. The source package is now `0.1.1`, while production remains pinned to the
-published `0.1.0` wheel. The server exposes immutable Connector release metadata (version, HTTPS
-wheel URL, and SHA-256); Codex setup stays disabled per platform until an operator explicitly opens
-the release gate.
+acceptance contract. Release `0.1.1` is deployed at `https://agentpost.me`; the server exposes its
+immutable Connector version, HTTPS wheel URL, and SHA-256, and the Codex setup gate is enabled for
+macOS only. Windows and Linux remain closed until their own real-device acceptance runs.
 
 The repository now contains an implicitly invocable AgentPost messaging skill and a validated
 repository-local Codex plugin under `plugins/agentpost`. A request such as “把这份报告发给张三的
@@ -37,22 +35,25 @@ compatible for administrative and legacy clients.
 | --- | --- | --- |
 | One natural-language request starts first use | implicit skill and plugin contract validated | run through a clean real Codex UI |
 | At most one system install confirmation | one bootstrap execution and one pinned runtime install path | observe the actual desktop approval count |
-| At most one web authorization | one Pairing verification URL, one reauthentication/decision transaction | run against staged `0.1.1` HTTPS service |
+| At most one web authorization | one Pairing verification URL, one reauthentication/decision transaction; production 0.1.1 metadata and 星轨 UI verified | observe the complete first-use return in Codex |
 | No technical parameters or long-lived key | enforced in skill, bootstrap, vault, and auto-created identity tests | user-observation acceptance |
 | Unambiguous recipient/Agent is not queried | one Directory result and zero/one owned-Agent branches are automatic | real multi-account fixture |
 | Ambiguity is asked once | one structured recipient clarification or one combined 星轨 Agent choice | real multiple-Agent fixture |
 | Original task resumes after authorization | composite pair/configure/search/upload/send CLI test passes | real browser-return send with attachment |
 | Reuse enters write approval directly | connected text flow uses MCP `writes`; attachment flow reuses runtime/profile | real second-request Codex UI acceptance |
 
-The current local regression reports 318 passed, one expected sandbox loopback skip, and five
-deselected PostgreSQL tests; the package-local MCP suite adds ten passing tests. Ruff lint/format,
+The current full local regression reports 318 passed and six explicit skips: one expected sandbox
+loopback case plus five opt-in PostgreSQL tests; the package-local MCP suite adds ten passing tests. The deployment-day
+focused skill/config/onboarding/control-plane selection adds 39 passing tests. Ruff lint/format,
 plugin validation, skill validation, browser JavaScript syntax, a clean-wheel `0.1.1` install, and an
-isolated real Codex MCP registration pass. Candidate wheel SHA-256 is
-`f78fafda046b048b6fdfdcf7430e999335c945da3e1ca674cb2ff84d40c0fbe6`.
+isolated real Codex MCP registration pass. The published wheel SHA-256 is
+`908558e6c9c83401f5b2ca0ed0da645721d06789ed803b82c21be97b0c7b16b8`.
 
-This is code and local packaging evidence, not a production or end-user acceptance claim. The
-`0.1.1` wheel is not published, the production release gate is closed, and the complete real
-first-use/reuse flow has not run. WorkBuddy/OpenClaw and Windows/Linux remain separate host/device
+Production now serves 0.1.1 and advertises macOS one-sentence bootstrap metadata. Current public
+health/readiness, pinned-wheel digest, authenticated 星轨 rendering, the existing Agent view, and the
+0.1.1 Codex connection guide passed. This is `natural_language_web_experience_ready`, not final
+end-user acceptance: the complete real first-use send and connected reuse send still require the
+Human's Codex UI observation. WorkBuddy/OpenClaw and Windows/Linux remain separate host/device
 acceptance gates. `PROJECT_HANDOFF.md` remains the frozen `v0.1.0-local.1` takeover record.
 
 ## Post-handoff M24 progress (2026-08-24)
@@ -190,7 +191,7 @@ Until it has run on a machine with Docker/PostgreSQL, that acceptance item remai
 
 ## Human-friendly Agent connection evidence
 
-Commit `b7d51b0` is deployed at `https://agentpost.me`. The 星轨 Agent connection
+Commit `b7d51b0` was the earlier production guide baseline at `https://agentpost.me`. The 星轨 Agent connection
 surface now guides a nontechnical Human through three visible steps: choose the
 tool, connect on the local computer, and return to 星轨 for identity confirmation.
 It has distinct Codex, WorkBuddy, OpenClaw, and generic-tool choices and generates
@@ -217,7 +218,7 @@ as awaiting physical-device validation.
 
 The first real Codex Pairing attempt exposed a Human-facing 422 caused by the UI
 accepting values that the `local_agent_id` protocol schema rejects while hiding
-the safe validation details. Release `dda639e` is deployed with a fixed managed-
+the safe validation details. Release `dda639e` was deployed with a fixed managed-
 domain suffix, same-domain full-address normalization, pre-confirmation input
 checks, Chinese/ASCII capability separators, and field-specific Chinese schema
 errors. The regression also proves that a schema-rejected decision does not

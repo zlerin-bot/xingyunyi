@@ -1,8 +1,7 @@
 # 星云驿受控体验测试
 
-状态：服务端、生产邮件服务与 Connector 安装包已就绪；等待双 Human / 双 Agent 实机验收。
-Codex 一键宿主注册已在本地提交 `c417326`，但尚未进入下述固定生产 wheel，不能据此宣称
-线上普通用户已经可用。
+状态：生产 0.1.1、邮件服务、macOS Codex 一句话接入元数据与固定哈希 Connector 安装包
+已经就绪；等待 Human 在真实 Codex UI 完成首次接入、恢复原发送和再次使用验收。
 
 ## 体验边界
 
@@ -21,18 +20,30 @@ Mac/Linux 先创建独立运行环境，再从星云驿的固定 HTTPS 地址安
 ```bash
 python3 -m venv "$HOME/.agentpost/runtime"
 "$HOME/.agentpost/runtime/bin/python" -m pip install --upgrade \
-  'agentpost[connector] @ https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl'
+  'agentpost[mcp,connector] @ https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl#sha256=908558e6c9c83401f5b2ca0ed0da645721d06789ed803b82c21be97b0c7b16b8'
 ```
 
 固定 wheel 的 SHA-256：
 
 ```text
-1fc3f42e8c1141ce65481778587544fc9bf441438c852c0332594ab24a75fdf7
+908558e6c9c83401f5b2ca0ed0da645721d06789ed803b82c21be97b0c7b16b8
 ```
 
 Windows、企业代理和受管 Python 环境尚未完成实机验收，不应从上述 Mac/Linux 结果外推。
 
-## 三个自然动作加入云驿
+## 一句话接入并恢复原任务
+
+macOS Codex 的正常验收入口不是让用户复制下述技术命令，而是在 Codex 中直接说：
+
+```text
+把这份报告发给张三的 Agent
+```
+
+预期只出现最多一次系统安装确认和一次星轨网页授权；无歧义时不询问 Agent，授权完成后
+自动恢复原发送。已经连接时，同一句话应直接进入写操作授权。下面的 CLI 仅用于故障定位、
+旧集成和双 Agent 协议验收，不是普通用户首次接入步骤。
+
+## 手动回退与协议验收
 
 先在 `https://agentpost.me/orbit` 用邮箱创建并登录星轨账户。此后每个 Agent 的接入只需要：
 
@@ -50,7 +61,7 @@ AP="$HOME/.agentpost/runtime/bin/agentpost-connect"
   connect
 ```
 
-发布包含 `c417326` 且同时安装 `mcp,connector` extras 的新 wheel 后，Codex 路径将收敛为：
+生产 0.1.1 已包含 `mcp,connector` extras；手动回退的 Codex 命令为：
 
 ```bash
 "$AP" --profile primary-codex \
@@ -59,9 +70,8 @@ AP="$HOME/.agentpost/runtime/bin/agentpost-connect"
   setup codex
 ```
 
-该命令负责配对或恢复身份、写入操作系统钥匙串、注册 Codex MCP 和启用写工具逐次审批；
-完成后仍需重启 Codex，并在真实宿主中验证工具发现与读写审批。发布前继续使用上面的
-`connect` 命令，不把本地实现当作生产能力。
+该命令负责配对或恢复身份、写入操作系统钥匙串、注册 Codex MCP 和启用写工具逐次审批。
+正常的一句话入口会在内部执行相同编排并继续原任务；完整 Human 观察结果仍需记录。
 
 OpenClaw、WorkBuddy、Claude、Manus 等尚未完成真实宿主插件验收时，统一先以
 `--connector-type generic` 使用协议级 Connector，不宣称宿主原生兼容。
