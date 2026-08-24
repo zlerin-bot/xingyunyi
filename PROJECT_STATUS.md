@@ -2,7 +2,58 @@
 
 Last updated: 2026-08-24
 
-Local handoff stage: `v0.1.0-local.1` (package/API version remains `0.1.0`)
+Frozen handoff stage: `v0.1.0-local.1`; current source candidate: `0.1.1`; pinned production
+release: `0.1.0`
+
+## Post-handoff natural-language onboarding progress (2026-08-24)
+
+Commits `30f8bc5` through `4b7eb68` implement the first Codex path against the agreed final
+acceptance contract. The source package is now `0.1.1`, while production remains pinned to the
+published `0.1.0` wheel. The server exposes immutable Connector release metadata (version, HTTPS
+wheel URL, and SHA-256); Codex setup stays disabled per platform until an operator explicitly opens
+the release gate.
+
+The repository now contains an implicitly invocable AgentPost messaging skill and a validated
+repository-local Codex plugin under `plugins/agentpost`. A request such as “把这份报告发给张三的
+Agent” preserves the original send as the goal. If the Connector is absent, the bootstrap installs
+the server-declared wheel into the dedicated runtime with a hash-pinned direct requirement, starts
+one short-lived Human Pairing, configures Codex, and delegates the original send in the same process.
+It never asks the user for a server, profile, package version, Agent address, or long-lived key.
+The plugin is source packaging only; it has not been installed into a personal marketplace or
+published to users.
+
+Natural recipient resolution now sends automatically for one Directory match and returns one
+structured clarification containing all safe candidates for zero or multiple matches. The resumed
+send supports local attachments and reports business acceptance separately from delivery state.
+For the sender identity, 星轨 automatically creates a server-generated Agent identity when the
+Human owns none, automatically uses the sole owned Agent when exactly one exists, and presents one
+combined choice only when several exist. Pairing ID, one-time code, address, and capability fields
+are not user inputs on the normal verification-URL path. Existing explicit Pairing API fields remain
+compatible for administrative and legacy clients.
+
+### Final acceptance contract ledger
+
+| Acceptance item | Current evidence | Remaining gate |
+| --- | --- | --- |
+| One natural-language request starts first use | implicit skill and plugin contract validated | run through a clean real Codex UI |
+| At most one system install confirmation | one bootstrap execution and one pinned runtime install path | observe the actual desktop approval count |
+| At most one web authorization | one Pairing verification URL, one reauthentication/decision transaction | run against staged `0.1.1` HTTPS service |
+| No technical parameters or long-lived key | enforced in skill, bootstrap, vault, and auto-created identity tests | user-observation acceptance |
+| Unambiguous recipient/Agent is not queried | one Directory result and zero/one owned-Agent branches are automatic | real multi-account fixture |
+| Ambiguity is asked once | one structured recipient clarification or one combined 星轨 Agent choice | real multiple-Agent fixture |
+| Original task resumes after authorization | composite pair/configure/search/upload/send CLI test passes | real browser-return send with attachment |
+| Reuse enters write approval directly | connected text flow uses MCP `writes`; attachment flow reuses runtime/profile | real second-request Codex UI acceptance |
+
+The current local regression reports 318 passed, one expected sandbox loopback skip, and five
+deselected PostgreSQL tests; the package-local MCP suite adds ten passing tests. Ruff lint/format,
+plugin validation, skill validation, browser JavaScript syntax, a clean-wheel `0.1.1` install, and an
+isolated real Codex MCP registration pass. Candidate wheel SHA-256 is
+`f78fafda046b048b6fdfdcf7430e999335c945da3e1ca674cb2ff84d40c0fbe6`.
+
+This is code and local packaging evidence, not a production or end-user acceptance claim. The
+`0.1.1` wheel is not published, the production release gate is closed, and the complete real
+first-use/reuse flow has not run. WorkBuddy/OpenClaw and Windows/Linux remain separate host/device
+acceptance gates. `PROJECT_HANDOFF.md` remains the frozen `v0.1.0-local.1` takeover record.
 
 ## Post-handoff M24 progress (2026-08-24)
 
@@ -78,9 +129,10 @@ The MVP implementation is locally runnable as a protocol-first modular monolith:
   and TypeScript Connector runtimes
 - official `agentpost-connect` CLI for browser Pairing, operating-system vault
   credentials, send/inbox/read/ACK/reply, rotation, and durable polling
-- a novice-oriented 星轨 connection guide that starts from the user's Agent
-  tool and operating system, gives two copyable commands, and keeps raw Pairing
-  fields behind an advanced fallback
+- a legacy novice-oriented 星轨 connection guide plus a normal verification-URL
+  path that auto-resolves the Agent identity and hides Pairing/address fields
+- an implicit Codex skill and repository-local plugin that preserve a natural
+  send request across hash-pinned setup, Pairing, recipient lookup, and send
 - email/password Human self-service, TOTP MFA, account recovery, Human-key
   rotation, organization invitations/self-governance, and verified domains
 - first-party OAuth Device Authorization with scoped rotating tokens and an

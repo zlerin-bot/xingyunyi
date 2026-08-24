@@ -1,7 +1,29 @@
 # 星云驿 Agent Onboarding / Pairing 计划
 
-状态：M19–M23 第一方接入与企业 OIDC 闭环已实现；官方零密钥 Connector CLI 已实现，
-生产受控双用户验收与通用第三方 MCP OAuth 待完成（2026-08-24）
+状态：Codex 自然语言触发、哈希固定安装、自动 Agent 归属和授权后恢复已完成本地代码闭环；
+`0.1.1` 尚未发布，真实首次/再次使用与其他宿主/系统待验收（2026-08-24）
+
+## 0. 最终验收指标
+
+首次接入必须满足：用户只说一句自然语言；最多一次系统安装确认和一次网页授权；
+不输入技术参数、不复制长期密钥；无歧义时不询问 Agent，有歧义时最多问一次；授权后
+自动恢复原任务。
+
+再次使用必须满足：用户直接提出发送动作；已连接时直接进入宿主写操作授权；未连接时
+自动发起配对并在完成后继续原动作。
+
+当前实现证据：
+
+- `agentpost-messaging` 隐式技能与 `plugins/agentpost` 插件保留原始发送意图；
+- bootstrap 仅从同源 HTTPS 元数据取得已发布版本和 SHA-256，并安装到专用 runtime；
+- CLI 在同一调用链内完成配对、Codex 配置、收件人搜索、附件上传和发送；
+- Directory 恰好一个匹配时自动发送，零个或多个时只返回一次结构化澄清；
+- 星轨在零个自有 Agent 时自动创建身份、一个时自动绑定、多个时只提供一次合并选择；
+- 正常 verification URL 路径不要求用户填写 Pairing ID、代码、Agent 地址、能力或密钥。
+
+仍未验收：干净真实 Codex 的首次安装确认次数、真实 HTTPS 网页授权后带附件恢复、第二次
+直接发送，以及 WorkBuddy/OpenClaw、Windows/Linux。生产仍固定 `0.1.0`，不得把本地
+`0.1.1` 候选描述为已发布能力。
 
 ## 1. 产品决定
 
@@ -49,8 +71,7 @@
 - 面向任意第三方 MCP Client 的 Authorization Code + PKCE、客户端元数据
   发现/注册与逐宿主兼容验收；当前只实现固定第一方 Device Client。
 - Pending Address / Invitation / Claim。
-- 接入端需求触发式发现和恢复原任务。
-- Codex 的桌面重启持久性及自然语言完整读写流；WorkBuddy、MiniMax、Claude、Manus
+- Codex 的真实桌面首次/再次使用、重启持久性及自然语言完整读写流；WorkBuddy、MiniMax、Claude、Manus
   与 OpenClaw 的真实宿主安装、浏览器授权和断线恢复验收。
 - 生产 SMTP 激活、受控 Human 账户恢复、两台真实设备与两名 Human 的体验验收。
 
@@ -100,12 +121,16 @@ Connector 在没有凭证时调用：
 
 ### 4.2 Human 在星轨授权
 
-Human 登录星轨并打开配对页，核对 Connector 类型、设备名和配对码。Human 输入期望的 Agent 名称/地址前缀、能力标签，并重新验证 Human 身份。
+Human 登录星轨并打开配对页，核对 Connector 类型、设备名和配对码，然后重新验证 Human
+身份。正常 verification URL 路径不要求填写 Agent 名称、地址前缀、能力标签或任何密钥：
+没有自有 Agent 时由服务器生成身份；恰好一个时自动绑定；多个时只问一次归属，也可在同
+一个选择中创建新的独立 Agent。
 
 星轨在一个数据库事务中：
 
 1. 锁定待处理 Pairing。
-2. 创建新的 Agent Identity 与唯一 Address。
+2. 根据已认证 Human 的自有 Agent 数量解析唯一目标；需要新建时由服务器根据高熵 Pairing
+   ID 生成地址候选，并通过全局唯一约束校验后创建 Agent Identity。
 3. 创建 `AgentOwnership`。
 4. 创建 Connector Instance。
 5. 设置该 Agent 的唯一当前 Connector。
@@ -236,7 +261,14 @@ A2A Agent Card、Task、Artifact 通过 compatibility mapping 接入。A2A task 
 
 ## 9. 需求触发式接入
 
-宿主适配器提供一个本地能力探针：当用户要求“把这个发给张三的 Agent”，但没有云驿 credential 时，Adapter 返回结构化 `connection_required`，附 verification URI，并保存待续动作的最小本地状态。授权完成后 Adapter 恢复同一动作并复用同一 Idempotency-Key。
+Codex 第一片已实现需求触发式接入：隐式技能在用户要求“把这个发给张三的 Agent”时，
+先探测 MCP/本地 runtime。已连接的文本发送直接进入宿主 `writes` 审批；未连接或带本地
+附件时，bootstrap 在同一进程调用链里保存原始 send 参数，安装受哈希保护的 Connector、
+打开 verification URI、等待授权，再继续 Directory、上传和 send。用户不接触这些参数。
+
+零个或多个 Directory 匹配返回一个 `needs_clarification` 结果；技能只问一次并使用用户
+选择的精确地址继续，不重启 Pairing。WorkBuddy/OpenClaw 等宿主应复用这一状态机，但在
+真实宿主验收前仍不得标记为完成。
 
 云端不保存用户尚未授权的完整业务正文。Pairing 完成前，只保存最少接入元数据。
 
