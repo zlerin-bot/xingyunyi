@@ -1736,6 +1736,37 @@ footer {
   gap: 7px;
 }
 
+.agent-address-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+}
+
+.agent-address-input input {
+  min-width: 0;
+  border-radius: 10px 0 0 10px;
+}
+
+.agent-address-input span {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+  background: rgba(103, 216, 212, 0.06);
+  color: var(--cyan);
+  padding: 0 11px;
+  font: 0.68rem ui-monospace, monospace;
+  white-space: nowrap;
+}
+
+.field-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
 .pairing-preview {
   display: grid;
   gap: 5px;

@@ -471,6 +471,43 @@ def test_pairing_is_human_isolated_and_address_conflict_rolls_back(
         assert session.scalar(select(func.count()).select_from(HumanActionConfirmation)) == 2
 
 
+def test_pairing_schema_error_identifies_address_and_does_not_consume_confirmation(
+    settings: Settings,
+    database: Database,
+) -> None:
+    runtime = _runtime_settings(settings)
+    with TestClient(create_app(settings=runtime, database=database)) as client:
+        pairing = _start_pairing(client)
+        owner = _create_human(client)
+        csrf = _login(client, owner)
+        confirmation = _confirmation(client, human=owner, csrf=csrf, pairing=pairing)
+
+        invalid = _decide(
+            client,
+            pairing=pairing,
+            csrf=csrf,
+            confirmation=confirmation,
+            payload={"decision": "approved", "local_agent_id": "pluto@agents.local"},
+            idempotency_key="invalid-full-address",
+        )
+        approved = _decide(
+            client,
+            pairing=pairing,
+            csrf=csrf,
+            confirmation=confirmation,
+            payload={"decision": "approved", "local_agent_id": "pluto"},
+            idempotency_key="valid-local-address",
+        )
+
+    assert invalid.status_code == 422
+    assert invalid.json()["error"]["code"] == "SCHEMA_VALIDATION_FAILED"
+    assert any(
+        detail["loc"] == ["body", "local_agent_id"] for detail in invalid.json()["error"]["details"]
+    )
+    assert approved.status_code == 200
+    assert approved.json()["pairing"]["agent"]["address"] == "pluto@agents.local"
+
+
 def test_pairing_can_be_disabled_without_exposing_public_surface(
     settings: Settings,
     database: Database,

@@ -136,5 +136,6 @@ class HumanAuthConfig(AccountModel):
     self_service_enabled: bool
     open_registration_enabled: bool
     enterprise_oidc_enabled: bool = False
+    managed_agent_domain: str
     password_min_length: int = 12
     mfa_supported: bool = True

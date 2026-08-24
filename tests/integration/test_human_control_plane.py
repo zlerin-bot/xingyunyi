@@ -79,6 +79,7 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     orbit = client.get("/orbit")
     script = client.get("/orbit/app.js")
     stylesheet = client.get("/orbit/styles.css")
+    auth_config = client.get("/api/v1/auth/config")
 
     assert home.status_code == orbit.status_code == 200
     assert "星云驿" in orbit.text
@@ -88,6 +89,8 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "default-src 'none'" in orbit.headers["Content-Security-Policy"]
     assert orbit.headers["X-Content-Type-Options"] == "nosniff"
     assert script.status_code == stylesheet.status_code == 200
+    assert auth_config.status_code == 200
+    assert auth_config.json()["managed_agent_domain"] == "agents.local"
     combined = f"{orbit.text}\n{script.text}".casefold()
     assert "localstorage" not in combined
     assert "sessionstorage" not in combined
@@ -115,11 +118,18 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "复制连接命令" in orbit.text
     assert "已经看到配对 ID / 代码？手动输入" in orbit.text
     assert "连接器是运行在你电脑上的安全小程序" in orbit.text
-    assert "data-connector-type=\"codex\"" in orbit.text
-    assert "data-connector-type=\"workbuddy\"" in orbit.text
-    assert "data-connector-type=\"openclaw\"" in orbit.text
+    assert "pairing-address-domain" in orbit.text
+    assert "只填写 @ 前面的部分" in orbit.text
+    assert 'pattern="[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?"' in orbit.text
+    assert 'data-connector-type="codex"' in orbit.text
+    assert 'data-connector-type="workbuddy"' in orbit.text
+    assert 'data-connector-type="openclaw"' in orbit.text
     assert "navigator.clipboard.writeText" in script.text
     assert "CONNECTOR_WHEEL" in script.text
+    assert "canonicalPairingLocalId" in script.text
+    assert "pairingPayloadProblem" in script.text
+    assert ".split(/[,，]/)" in script.text
+    assert "Agent 地址格式不正确" in script.text
     assert "AGENTPOST_API_KEY" not in orbit.text
     assert "agt_" not in orbit.text
     assert "账户安全" in orbit.text

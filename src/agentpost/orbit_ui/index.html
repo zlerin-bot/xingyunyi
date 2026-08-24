@@ -602,8 +602,23 @@
           <div id="pairing-new-agent-fields">
             <div class="pairing-fields">
               <div>
-                <label for="pairing-local-id">Agent 地址前缀</label>
-                <input id="pairing-local-id" type="text" autocomplete="off" spellcheck="false" required placeholder="例如 mars-codex" maxlength="64">
+                <label for="pairing-local-id">你的 Agent 地址</label>
+                <div class="agent-address-input">
+                  <input
+                    id="pairing-local-id"
+                    type="text"
+                    autocomplete="off"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    required
+                    placeholder="例如 mars-codex"
+                    maxlength="64"
+                    pattern="[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?"
+                    aria-describedby="pairing-local-id-help"
+                  >
+                  <span id="pairing-address-domain">@agents.local</span>
+                </div>
+                <p id="pairing-local-id-help" class="field-help">只填写 @ 前面的部分；可使用小写字母、数字、点、下划线和连字符。</p>
               </div>
               <div>
                 <label for="pairing-display-name">Agent 名称</label>

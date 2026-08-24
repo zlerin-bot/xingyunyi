@@ -24,6 +24,7 @@ const CONNECTOR_GUIDES = {
 };
 
 const CONNECTOR_WHEEL = "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl";
+const LOCAL_AGENT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/;
 
 const state = {
   dashboard: null,
@@ -127,6 +128,7 @@ const elements = {
   pairingExistingAgent: document.querySelector("#pairing-existing-agent"),
   pairingNewAgentFields: document.querySelector("#pairing-new-agent-fields"),
   pairingLocalId: document.querySelector("#pairing-local-id"),
+  pairingAddressDomain: document.querySelector("#pairing-address-domain"),
   pairingDisplayName: document.querySelector("#pairing-display-name"),
   pairingCapabilities: document.querySelector("#pairing-capabilities"),
   pairingAccessKey: document.querySelector("#pairing-access-key"),
@@ -239,6 +241,23 @@ function setFormStatus(message, kind = "") {
 
 function errorMessage(payload, status) {
   const error = payload && typeof payload === "object" ? payload.error : null;
+  if (status === 422 && Array.isArray(error?.details)) {
+    const fields = new Set(
+      error.details
+        .map((detail) => Array.isArray(detail?.loc) ? detail.loc.at(-1) : null)
+        .filter(Boolean),
+    );
+    if (fields.has("local_agent_id")) {
+      return "Agent 地址格式不正确：只填写 @ 前面的部分，并使用小写字母、数字、点、下划线或连字符。";
+    }
+    if (fields.has("capabilities")) {
+      return "能力标签格式不正确：请用逗号分隔，最多 64 项，每项不超过 100 个字符。";
+    }
+    if (fields.has("display_name")) {
+      return "Agent 名称格式不正确：名称不能为空，且不能超过 200 个字符。";
+    }
+    return "提交内容格式不正确。请检查页面中填写的 Agent 地址、名称和能力标签。";
+  }
   if (error && typeof error.message === "string") {
     return `星轨请求失败（${status}）：${error.message}`;
   }
@@ -1315,16 +1334,47 @@ function pairingPayload(decision) {
   }
   const capabilities = [...new Set(
     elements.pairingCapabilities.value
-      .split(",")
+      .split(/[,，]/)
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean),
   )];
+  const localAgentId = canonicalPairingLocalId(elements.pairingLocalId.value);
+  elements.pairingLocalId.value = localAgentId;
   return {
     decision: "approved",
-    local_agent_id: elements.pairingLocalId.value.trim().toLowerCase(),
+    local_agent_id: localAgentId,
     display_name: elements.pairingDisplayName.value.trim() || null,
     capabilities: capabilities.length ? capabilities : null,
   };
+}
+
+function managedAgentDomain() {
+  return state.authConfig?.managed_agent_domain || "agents.local";
+}
+
+function canonicalPairingLocalId(value) {
+  const candidate = value.trim().toLowerCase();
+  const separator = candidate.lastIndexOf("@");
+  if (separator > 0 && candidate.slice(separator + 1) === managedAgentDomain()) {
+    return candidate.slice(0, separator);
+  }
+  return candidate;
+}
+
+function pairingPayloadProblem(decision, payload) {
+  if (decision !== "approved" || payload.existing_agent_id) {
+    return "";
+  }
+  if (!payload.local_agent_id) {
+    return "请为 Agent 设置一个地址。只填写 @ 前面的部分，例如 mars-codex。";
+  }
+  if (!LOCAL_AGENT_ID_PATTERN.test(payload.local_agent_id)) {
+    return `Agent 地址只填写 @${managedAgentDomain()} 前面的部分，并使用小写字母、数字、点、下划线或连字符。`;
+  }
+  if ((payload.capabilities || []).length > 64 || (payload.capabilities || []).some((value) => value.length > 100)) {
+    return "能力标签请用逗号分隔，最多填写 64 项，每项不超过 100 个字符。";
+  }
+  return "";
 }
 
 function pairingIdempotencyKey(pairingId, payload) {
@@ -1344,6 +1394,7 @@ async function decidePairing(event, forcedDecision = null) {
   const humanKey = elements.pairingAccessKey.value.trim();
   const mfa = elements.pairingMfa.value.trim();
   const payload = pairingPayload(decision);
+  const payloadProblem = pairingPayloadProblem(decision, payload);
   if (!state.csrfToken || !pairingId.startsWith("pair_") || !userCode || !validReauthenticationCandidate(humanKey)) {
     elements.pairingResult.textContent = "请填写有效的配对 ID、一次性配对码和当前密码（或兼容 Human Key）。";
     elements.pairingResult.className = "form-status error";
@@ -1352,6 +1403,12 @@ async function decidePairing(event, forcedDecision = null) {
   if (decision === "approved" && !payload.local_agent_id && !payload.existing_agent_id) {
     elements.pairingResult.textContent = "请填写 Agent 地址前缀，或选择要迁移的已有 Agent。";
     elements.pairingResult.className = "form-status error";
+    return;
+  }
+  if (payloadProblem) {
+    elements.pairingResult.textContent = payloadProblem;
+    elements.pairingResult.className = "form-status error";
+    elements.pairingLocalId.focus();
     return;
   }
   elements.pairingSubmit.disabled = true;
@@ -1797,8 +1854,13 @@ async function loadAuthConfig() {
   try {
     state.authConfig = await requestJson("/api/v1/auth/config");
   } catch (_error) {
-    state.authConfig = { self_service_enabled: false, open_registration_enabled: false };
+    state.authConfig = {
+      self_service_enabled: false,
+      open_registration_enabled: false,
+      managed_agent_domain: "agents.local",
+    };
   }
+  elements.pairingAddressDomain.textContent = `@${managedAgentDomain()}`;
   const selfService = Boolean(state.authConfig.self_service_enabled);
   elements.loginForm.hidden = !selfService;
   elements.openRecovery.hidden = !selfService;
@@ -2339,6 +2401,9 @@ elements.pairingCancel.addEventListener("click", () => closePairingDialog());
 elements.pairingDialog.addEventListener("close", () => closePairingDialog());
 elements.pairingId.addEventListener("change", loadPairingPreview);
 elements.pairingTargetMode.addEventListener("change", updatePairingTargetMode);
+elements.pairingLocalId.addEventListener("change", () => {
+  elements.pairingLocalId.value = canonicalPairingLocalId(elements.pairingLocalId.value);
+});
 elements.revokeForm.addEventListener("submit", revokeConnector);
 elements.revokeClose.addEventListener("click", closeRevokeDialog);
 elements.revokeCancel.addEventListener("click", closeRevokeDialog);
