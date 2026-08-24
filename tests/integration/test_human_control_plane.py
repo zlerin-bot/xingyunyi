@@ -110,6 +110,18 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "login-password" in orbit.text
     assert "recovery-dialog" in orbit.text
     assert "mfa-dialog" in orbit.text
+    assert "你想连接哪个 Agent 工具" in orbit.text
+    assert "复制安装命令" in orbit.text
+    assert "复制连接命令" in orbit.text
+    assert "已经看到配对 ID / 代码？手动输入" in orbit.text
+    assert "连接器是运行在你电脑上的安全小程序" in orbit.text
+    assert "data-connector-type=\"codex\"" in orbit.text
+    assert "data-connector-type=\"workbuddy\"" in orbit.text
+    assert "data-connector-type=\"openclaw\"" in orbit.text
+    assert "navigator.clipboard.writeText" in script.text
+    assert "CONNECTOR_WHEEL" in script.text
+    assert "AGENTPOST_API_KEY" not in orbit.text
+    assert "agt_" not in orbit.text
     assert "账户安全" in orbit.text
     assert "组织星图" in orbit.text
     assert "organization-list" in orbit.text
@@ -129,9 +141,9 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "/api/v1/orbit/connectors" in script.text
     assert "pairing-existing-agent" in orbit.text
     assert "existing_agent_id" in script.text
-    assert "只替换当前 Connector" in orbit.text
+    assert "只替换当前连接器" in orbit.text
     assert "last_heartbeat_at" in script.text
-    assert "长期凭证只由 Connector 自动领取" in orbit.text
+    assert "长期凭证由本地连接器自动领取" in script.text
     assert 'elements.pairingAccessKey.value = ""' in script.text
     assert 'elements.revokeAccessKey.value = ""' in script.text
     assert ".welcome-shell[hidden]" in stylesheet.text

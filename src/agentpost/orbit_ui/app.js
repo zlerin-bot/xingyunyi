@@ -1,5 +1,30 @@
 "use strict";
 
+const CONNECTOR_GUIDES = {
+  codex: {
+    label: "Codex",
+    displayName: "我的 Codex",
+    summary: "当前可安全完成身份配对、消息收发和后台轮询。让 Codex 直接理解“发给某某 Agent”的原生工具能力正在接入。",
+  },
+  workbuddy: {
+    label: "WorkBuddy",
+    displayName: "我的 WorkBuddy",
+    summary: "当前先使用云驿通用连接器完成身份配对。WorkBuddy 内直接调用云驿工具的原生适配仍在完善。",
+  },
+  openclaw: {
+    label: "OpenClaw",
+    displayName: "我的 OpenClaw",
+    summary: "当前可先用通用连接器完成安全配对；OpenClaw 工具插件正在切换到无需手工配置长期密钥的新流程。",
+  },
+  generic: {
+    label: "其他工具",
+    displayName: "我的 Agent",
+    summary: "适用于 Claude、Manus 或自建 Agent。先完成通用连接器配对，再按宿主支持情况接入 MCP、SDK 或专用适配器。",
+  },
+};
+
+const CONNECTOR_WHEEL = "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl";
+
 const state = {
   dashboard: null,
   csrfToken: "",
@@ -13,6 +38,8 @@ const state = {
   pendingOrganizationInvitation: "",
   managedOrganization: null,
   organizationDomainProofs: new Map(),
+  pairingConnectorType: "codex",
+  pairingPlatform: "mac",
 };
 
 const elements = {
@@ -77,6 +104,22 @@ const elements = {
   pairingCancel: document.querySelector("#pairing-cancel"),
   pairingDeny: document.querySelector("#pairing-deny"),
   pairingSubmit: document.querySelector("#pairing-submit"),
+  pairingDialogSummary: document.querySelector("#pairing-dialog-summary"),
+  pairingGuide: document.querySelector("#pairing-guide"),
+  pairingApproval: document.querySelector("#pairing-approval"),
+  pairingChoices: [...document.querySelectorAll(".pairing-choice")],
+  platformChoices: [...document.querySelectorAll(".platform-choice")],
+  pairingCompatibility: document.querySelector("#pairing-compatibility"),
+  pairingInstallTitle: document.querySelector("#pairing-install-title"),
+  pairingInstallHelp: document.querySelector("#pairing-install-help"),
+  pairingInstallCommand: document.querySelector("#pairing-install-command"),
+  pairingConnectCommand: document.querySelector("#pairing-connect-command"),
+  pairingCopyInstall: document.querySelector("#pairing-copy-install"),
+  pairingCopyConnect: document.querySelector("#pairing-copy-connect"),
+  pairingCopyResult: document.querySelector("#pairing-copy-result"),
+  pairingManualOpen: document.querySelector("#pairing-manual-open"),
+  pairingGuideBack: document.querySelector("#pairing-guide-back"),
+  pairingGuideCancel: document.querySelector("#pairing-guide-cancel"),
   pairingId: document.querySelector("#pairing-id"),
   pairingUserCode: document.querySelector("#pairing-user-code"),
   pairingTargetMode: document.querySelector("#pairing-target-mode"),
@@ -1016,7 +1059,7 @@ function openRevokeDialog(connector) {
 function renderConnectors(connectors) {
   elements.connectorList.replaceChildren();
   if (!connectors.length) {
-    elements.connectorList.append(emptyState("尚未通过星轨连接 Agent。点击“连接 Agent”并使用本地 Connector 生成的一次性配对信息。"));
+    elements.connectorList.append(emptyState("还没有连接 Agent。点击“连接 Agent”，选择你使用的工具，按页面提示复制并运行两条命令即可。"));
     return;
   }
   const fragment = document.createDocumentFragment();
@@ -1069,6 +1112,94 @@ function renderConnectors(connectors) {
   elements.connectorList.append(fragment);
 }
 
+function detectedPairingPlatform() {
+  const userAgent = navigator.userAgent.toLowerCase();
+  if (userAgent.includes("windows")) {
+    return "windows";
+  }
+  if (userAgent.includes("linux")) {
+    return "linux";
+  }
+  return "mac";
+}
+
+function pairingCommands() {
+  const connector = CONNECTOR_GUIDES[state.pairingConnectorType] || CONNECTOR_GUIDES.generic;
+  if (state.pairingPlatform === "windows") {
+    return {
+      install: `py -3.11 -m venv "$env:USERPROFILE\\.agentpost\\runtime"; & "$env:USERPROFILE\\.agentpost\\runtime\\Scripts\\python.exe" -m pip install --upgrade "agentpost[connector] @ ${CONNECTOR_WHEEL}"`,
+      connect: `& "$env:USERPROFILE\\.agentpost\\runtime\\Scripts\\agentpost-connect.exe" --server https://agentpost.me --connector-type ${state.pairingConnectorType} --display-name "${connector.displayName}" connect`,
+    };
+  }
+  const install = `PY="$(command -v python3.12 || command -v python3.11 || command -v python3)" && "$PY" -c 'import sys; assert sys.version_info >= (3, 11), "需要 Python 3.11 或更高版本"' && "$PY" -m venv "$HOME/.agentpost/runtime" && "$HOME/.agentpost/runtime/bin/python" -m pip install --upgrade 'agentpost[connector] @ ${CONNECTOR_WHEEL}'`;
+  return {
+    install,
+    connect: `"$HOME/.agentpost/runtime/bin/agentpost-connect" --server https://agentpost.me --connector-type ${state.pairingConnectorType} --display-name "${connector.displayName}" connect`,
+  };
+}
+
+function renderPairingGuide() {
+  const connector = CONNECTOR_GUIDES[state.pairingConnectorType] || CONNECTOR_GUIDES.generic;
+  elements.pairingChoices.forEach((choice) => {
+    const selected = choice.dataset.connectorType === state.pairingConnectorType;
+    choice.classList.toggle("selected", selected);
+    choice.setAttribute("aria-pressed", String(selected));
+  });
+  elements.platformChoices.forEach((choice) => {
+    const selected = choice.dataset.platform === state.pairingPlatform;
+    choice.classList.toggle("selected", selected);
+    choice.setAttribute("aria-pressed", String(selected));
+  });
+  elements.pairingCompatibility.textContent = `${connector.label}：${connector.summary}`;
+  if (state.pairingPlatform === "windows") {
+    elements.pairingInstallTitle.textContent = "打开 PowerShell 并安装连接器";
+    elements.pairingInstallHelp.textContent = "点击开始菜单，搜索 PowerShell 并打开。复制下面整条命令，粘贴后按回车。Windows 指引仍处于实机验证阶段。";
+  } else if (state.pairingPlatform === "linux") {
+    elements.pairingInstallTitle.textContent = "打开终端并安装连接器";
+    elements.pairingInstallHelp.textContent = "打开系统终端，复制下面整条命令，粘贴后按回车。需要 Python 3.11 或更高版本。";
+  } else {
+    elements.pairingInstallTitle.textContent = "打开“终端”并安装连接器";
+    elements.pairingInstallHelp.textContent = "在 Mac 上按 Command + 空格，搜索“终端”并打开。复制下面整条命令，粘贴后按回车。";
+  }
+  const commands = pairingCommands();
+  elements.pairingInstallCommand.textContent = commands.install;
+  elements.pairingConnectCommand.textContent = commands.connect;
+  elements.pairingCopyResult.textContent = "";
+  elements.pairingCopyResult.className = "form-status";
+}
+
+function showPairingGuide() {
+  elements.pairingGuide.hidden = false;
+  elements.pairingApproval.hidden = true;
+  elements.pairingDialogSummary.textContent = "连接器是运行在你电脑上的安全小程序，替 Agent 收发云驿消息。Agent 关闭时，消息仍会保存在云端。";
+  renderPairingGuide();
+  elements.pairingChoices.find((choice) => choice.classList.contains("selected"))?.focus();
+}
+
+function showPairingApproval({ allowBack = true } = {}) {
+  elements.pairingGuide.hidden = true;
+  elements.pairingApproval.hidden = false;
+  elements.pairingGuideBack.hidden = !allowBack;
+  elements.pairingDialogSummary.textContent = "最后一步只确认身份和 Agent 地址。长期凭证由本地连接器自动领取，不会显示在星轨中。";
+  (elements.pairingId.value ? elements.pairingTargetMode : elements.pairingId).focus();
+}
+
+async function copyPairingCommand(command, button, label) {
+  const originalLabel = button.textContent;
+  try {
+    await navigator.clipboard.writeText(command);
+    button.textContent = "已复制";
+    elements.pairingCopyResult.textContent = `${label}已复制。现在粘贴到刚才打开的终端并按回车。`;
+    elements.pairingCopyResult.className = "form-status success";
+    setTimeout(() => {
+      button.textContent = originalLabel;
+    }, 1800);
+  } catch (_error) {
+    elements.pairingCopyResult.textContent = "浏览器没有允许自动复制。请选中命令文字后手动复制。";
+    elements.pairingCopyResult.className = "form-status error";
+  }
+}
+
 function closePairingDialog({ clear = true } = {}) {
   elements.pairingAccessKey.value = "";
   elements.pairingMfa.value = "";
@@ -1083,6 +1214,8 @@ function closePairingDialog({ clear = true } = {}) {
     elements.pairingCapabilities.value = "";
     elements.pairingPreview.replaceChildren();
     elements.pairingPreview.hidden = true;
+    state.pairingConnectorType = "codex";
+    state.pairingPlatform = detectedPairingPlatform();
     state.pairingRequestSignature = "";
     state.pairingIdempotencyKey = "";
     updatePairingTargetMode();
@@ -1156,15 +1289,18 @@ async function loadPairingPreview() {
 async function openPairingDialog(pairingId = "", userCode = "") {
   elements.pairingId.value = pairingId;
   elements.pairingUserCode.value = userCode;
-  elements.pairingResult.textContent = "长期凭证不会进入浏览器；批准后由发起配对的 Connector 自动领取。";
+  elements.pairingResult.textContent = "请核对工具、设备和一次性配对码，再设置 Agent 地址并确认。";
   elements.pairingResult.className = "form-status";
   populateExistingAgentOptions();
   updatePairingTargetMode();
   elements.pairingDialog.showModal();
   if (pairingId) {
+    showPairingApproval({ allowBack: false });
     await loadPairingPreview();
+    return;
   }
-  (pairingId ? elements.pairingTargetMode : elements.pairingId).focus();
+  state.pairingPlatform = detectedPairingPlatform();
+  showPairingGuide();
 }
 
 function pairingPayload(decision) {
@@ -2175,6 +2311,27 @@ elements.approvalClose.addEventListener("click", closeApprovalDialog);
 elements.approvalCancel.addEventListener("click", closeApprovalDialog);
 elements.approvalDialog.addEventListener("close", closeApprovalDialog);
 elements.openPairing.addEventListener("click", () => openPairingDialog());
+elements.pairingChoices.forEach((choice) => {
+  choice.addEventListener("click", () => {
+    state.pairingConnectorType = choice.dataset.connectorType || "generic";
+    renderPairingGuide();
+  });
+});
+elements.platformChoices.forEach((choice) => {
+  choice.addEventListener("click", () => {
+    state.pairingPlatform = choice.dataset.platform || "mac";
+    renderPairingGuide();
+  });
+});
+elements.pairingCopyInstall.addEventListener("click", () => {
+  copyPairingCommand(elements.pairingInstallCommand.textContent, elements.pairingCopyInstall, "安装命令");
+});
+elements.pairingCopyConnect.addEventListener("click", () => {
+  copyPairingCommand(elements.pairingConnectCommand.textContent, elements.pairingCopyConnect, "连接命令");
+});
+elements.pairingManualOpen.addEventListener("click", () => showPairingApproval());
+elements.pairingGuideBack.addEventListener("click", showPairingGuide);
+elements.pairingGuideCancel.addEventListener("click", () => closePairingDialog());
 elements.pairingForm.addEventListener("submit", decidePairing);
 elements.pairingDeny.addEventListener("click", (event) => decidePairing(event, "denied"));
 elements.pairingClose.addEventListener("click", () => closePairingDialog());

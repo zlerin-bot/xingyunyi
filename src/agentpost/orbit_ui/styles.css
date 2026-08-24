@@ -1501,7 +1501,228 @@ footer {
 }
 
 .pairing-dialog {
-  width: min(680px, calc(100% - 32px));
+  width: min(820px, calc(100% - 32px));
+}
+
+.pairing-guide,
+.pairing-approval {
+  display: grid;
+  gap: 14px;
+}
+
+.pairing-guide[hidden],
+.pairing-approval[hidden] {
+  display: none;
+}
+
+.pairing-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 3px 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.pairing-progress li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  padding: 9px 10px;
+  font-size: 0.66rem;
+}
+
+.pairing-progress li span {
+  display: grid;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  font: 0.62rem ui-monospace, monospace;
+}
+
+.pairing-progress li.current {
+  border-color: rgba(103, 216, 212, 0.4);
+  background: rgba(103, 216, 212, 0.06);
+  color: var(--cyan);
+}
+
+.pairing-progress li.current span,
+.pairing-progress li.complete span {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.pairing-progress li.complete {
+  color: #9eb8c8;
+}
+
+.pairing-choice-group {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.pairing-choice-group legend {
+  margin-bottom: 9px;
+  color: #dce8f0;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pairing-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pairing-choice,
+.platform-choice {
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: rgba(3, 11, 23, 0.64);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.pairing-choice {
+  display: grid;
+  gap: 5px;
+  min-height: 72px;
+  padding: 13px 14px;
+  text-align: left;
+}
+
+.pairing-choice span {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.pairing-choice:hover,
+.pairing-choice.selected,
+.platform-choice:hover,
+.platform-choice.selected {
+  border-color: var(--cyan);
+  background: rgba(103, 216, 212, 0.08);
+}
+
+.pairing-choice.selected strong,
+.platform-choice.selected {
+  color: var(--cyan);
+}
+
+.pairing-compatibility {
+  border-left: 2px solid var(--cyan);
+  background: rgba(103, 216, 212, 0.05);
+  color: #a9c1d0;
+  padding: 10px 13px;
+  font-size: 0.7rem;
+  line-height: 1.6;
+}
+
+.platform-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.platform-choice {
+  min-height: 38px;
+  padding: 0 15px;
+}
+
+.pairing-setup-step {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(3, 11, 23, 0.45);
+  padding: 15px;
+}
+
+.pairing-step-number {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid rgba(230, 189, 114, 0.38);
+  border-radius: 50%;
+  color: var(--gold);
+  font: 0.7rem ui-monospace, monospace;
+}
+
+.pairing-setup-step h3 {
+  margin: 1px 0 5px;
+  font-size: 0.84rem;
+}
+
+.pairing-setup-step p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.6;
+}
+
+.pairing-command {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-top: 11px;
+}
+
+.pairing-command code {
+  display: block;
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid rgba(103, 216, 212, 0.22);
+  border-radius: 10px;
+  background: rgba(2, 8, 18, 0.8);
+  color: #b9d9df;
+  padding: 11px 12px;
+  font: 0.66rem/1.55 ui-monospace, monospace;
+  white-space: nowrap;
+}
+
+.pairing-command .quiet-button {
+  align-self: stretch;
+  min-height: 42px;
+  padding-inline: 13px;
+}
+
+.pairing-return-step {
+  border-color: rgba(123, 212, 164, 0.24);
+  background: rgba(123, 212, 164, 0.04);
+}
+
+.pairing-guide-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.pairing-guide-actions .quiet-button {
+  min-height: 40px;
+  padding-inline: 14px;
+}
+
+.pairing-approval > .text-button {
+  justify-self: start;
+}
+
+.pairing-approval > label,
+.pairing-approval > div > label {
+  display: block;
 }
 
 .pairing-fields {
@@ -1776,6 +1997,8 @@ footer {
   }
 
   .pairing-fields,
+  .pairing-choice-grid,
+  .pairing-command,
   .organization-invite-fields,
   .organization-domain-fields,
   .organization-oidc-fields,
@@ -1784,9 +2007,22 @@ footer {
   }
 
   .split-actions,
-  .connector-actions {
+  .connector-actions,
+  .pairing-guide-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .pairing-progress {
+    grid-template-columns: 1fr;
+  }
+
+  .pairing-progress li:not(.current) {
+    display: none;
+  }
+
+  .pairing-command .quiet-button {
+    justify-self: stretch;
   }
 }
 
