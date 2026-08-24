@@ -119,10 +119,20 @@ SHA-256 is `1fc3f42e8c1141ce65481778587544fc9bf441438c852c0332594ab24a75fdf7`.
 A clean virtual environment installed that exact HTTPS wheel with the Connector
 extra and executed `agentpost-connect --help`; the OS-keyring dependency imported.
 
-Human self-service and Pairing remain off until the user activates a production
-mail provider and its sender is verified. Open registration, Remote MCP OAuth,
-and enterprise OIDC remain off. This release is therefore
-`deployed_controlled_experience_ready`, not yet `two_human_experience_accepted`.
+Alibaba Cloud DirectMail is now active with the verified sender
+`no-reply@notify.agentpost.me`. Production uses SMTP over TLS on port 465; a
+server-side authentication check passed without printing the credential. Human
+self-service and Pairing are enabled. On 2026-08-24, verified-email open
+registration was also enabled so a Human can create their own account from 星轨;
+the durable per-IP and per-address challenge limits remain active. Remote MCP
+OAuth and enterprise OIDC remain off.
+
+The environment immediately before enabling open registration is preserved at
+`/opt/agentpost/shared/agentpost.env.pre-open-registration-202608241203`. Public
+health, readiness, authentication configuration, and the 星轨 registration UI
+passed after restart. Delivery to a real recipient mailbox and the two-Human
+experience are still acceptance gates, so the release is
+`self_registration_ready`, not yet `two_human_experience_accepted`.
 
 ## Rollback
 

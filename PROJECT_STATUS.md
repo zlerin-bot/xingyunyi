@@ -558,19 +558,22 @@ HTTPS and a clean virtual environment installed its `connector` extra, imported
 the OS-keyring dependency, and executed its console entry point. Chrome rendered
 the production 星轨 shell after the release.
 
-The remaining blocker for a real two-Human experience is external and user-
-controlled: Alibaba Cloud DirectMail is not activated, so the system cannot yet
-deliver registration/recovery emails. Human self-service and Pairing remain off;
-public open registration, Remote MCP OAuth, and enterprise OIDC also remain off.
-No Human or Agent secret has been issued for this pending test.
+Alibaba Cloud DirectMail is active with a verified sender, SMTP/TLS configuration
+is installed, and a server-side SMTP authentication check passed without
+exposing the credential. Human self-service and Pairing are enabled. Verified-
+email open registration was enabled on 2026-08-24 after a protected environment
+backup; the public authentication configuration, health/readiness endpoints,
+and 星轨 registration UI passed after restart. Remote MCP OAuth and enterprise
+OIDC remain off. A real recipient-mailbox round trip and two-Human experience
+have not yet been accepted.
 
 ## Immediate next action
 
-The user must activate Alibaba Cloud DirectMail and create a verified sender; no
-agent should accept the provider agreement or commercial activation on the user's
-behalf. After that handoff, configure SMTP without printing its credential, run a
-real recovery-email round trip, enable Human self-service and Pairing while keeping
-public open registration off, bootstrap two controlled Human accounts, and execute
-`docs/CONTROLLED_EXPERIENCE_TEST.md`. Remote MCP, enterprise OIDC, Windows, and
+The user should now create their own Human account at
+`https://agentpost.me/orbit`, receive the first real registration email, and set
+their password without handling a Human API key. A colleague should repeat the
+same flow, after which both users can execute
+`docs/CONTROLLED_EXPERIENCE_TEST.md`. Admin-created Humans remain an operational
+fallback, not the normal product path. Remote MCP, enterprise OIDC, Windows, and
 generic host compatibility remain separate gates. Production hardening and later
 phases remain governed by `SECURITY.md` and `ROADMAP.md`.
