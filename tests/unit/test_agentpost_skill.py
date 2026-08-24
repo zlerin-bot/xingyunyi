@@ -1,0 +1,118 @@
+from __future__ import annotations
+
+import importlib.util
+import sys
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
+
+import pytest
+import yaml
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+SKILL_ROOT = REPOSITORY_ROOT / ".agents" / "skills" / "agentpost-messaging"
+
+
+def _load_bootstrap() -> ModuleType:
+    path = SKILL_ROOT / "scripts" / "bootstrap.py"
+    spec = importlib.util.spec_from_file_location("agentpost_skill_bootstrap", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _release(bootstrap: ModuleType):
+    return bootstrap.ConnectorRelease(
+        version="0.1.1",
+        wheel_url="https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl",
+        wheel_sha256="a" * 64,
+    )
+
+
+def test_skill_is_implicitly_discoverable_and_declares_agentpost_dependency() -> None:
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    metadata = yaml.safe_load((SKILL_ROOT / "agents" / "openai.yaml").read_text())
+
+    assert skill.startswith("---\nname: agentpost-messaging\n")
+    assert metadata["policy"]["allow_implicit_invocation"] is True
+    assert metadata["dependencies"]["tools"] == [
+        {
+            "type": "mcp",
+            "value": "agentpost",
+            "description": "AgentPost persistent messaging and directory tools",
+            "transport": "stdio",
+        }
+    ]
+
+
+def test_release_metadata_must_enable_platform_and_match_trusted_origin() -> None:
+    bootstrap = _load_bootstrap()
+    payload = {
+        "codex_setup_platforms": ["mac"],
+        "connector_release": {
+            "version": "0.1.1",
+            "wheel_url": "https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl",
+            "wheel_sha256": "a" * 64,
+        },
+    }
+
+    assert bootstrap.parse_release(payload, platform_name="mac") == _release(bootstrap)
+    with pytest.raises(bootstrap.BootstrapError, match="setup_not_released"):
+        bootstrap.parse_release(payload, platform_name="windows")
+
+    payload["connector_release"]["wheel_url"] = (
+        "https://example.com/downloads/agentpost-0.1.1-py3-none-any.whl"
+    )
+    with pytest.raises(bootstrap.BootstrapError, match="wheel_origin_mismatch"):
+        bootstrap.parse_release(payload, platform_name="mac")
+
+
+def test_bootstrap_installs_hash_pinned_release_once_and_resumes_original_send(
+    tmp_path: Path,
+) -> None:
+    bootstrap = _load_bootstrap()
+    runtime = tmp_path / "runtime"
+    state = {"installed": False}
+    calls: list[tuple[str, ...]] = []
+
+    def create_venv(path: Path) -> None:
+        bin_dir = path / "bin"
+        bin_dir.mkdir(parents=True)
+        (bin_dir / "python").write_text("", encoding="utf-8")
+
+    def runner(command, **_kwargs):
+        normalized = tuple(str(item) for item in command)
+        calls.append(normalized)
+        if "-I" in normalized:
+            return SimpleNamespace(
+                returncode=0 if state["installed"] else 1,
+                stdout="0.1.1\n" if state["installed"] else "",
+            )
+        if "pip" in normalized:
+            assert normalized[-1].endswith(f"#sha256={'a' * 64}")
+            state["installed"] = True
+            (runtime / "bin" / "agentpost-connect").write_text("", encoding="utf-8")
+            return SimpleNamespace(returncode=0, stdout="")
+        return SimpleNamespace(returncode=0, stdout="")
+
+    operation = [
+        "send",
+        "--ensure-host",
+        "codex",
+        "--recipient",
+        "张三",
+        "--body",
+        "请查收报告。",
+    ]
+    exit_code = bootstrap.execute(
+        operation,
+        fetcher=lambda **_kwargs: _release(bootstrap),
+        runtime=runtime,
+        runner=runner,
+        create_venv=create_venv,
+    )
+
+    assert exit_code == 0
+    assert calls[-1] == (str(runtime / "bin" / "agentpost-connect"), *operation)
+    assert sum("pip" in call for call in calls) == 1

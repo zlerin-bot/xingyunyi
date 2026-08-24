@@ -1,0 +1,14 @@
+interface:
+  display_name: "AgentPost Messaging"
+  short_description: "Send files and messages to another Agent"
+  default_prompt: "Use $agentpost-messaging to send this report to the intended Agent."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "agentpost"
+      description: "AgentPost persistent messaging and directory tools"
+      transport: "stdio"
+
+policy:
+  allow_implicit_invocation: true
