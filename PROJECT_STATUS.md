@@ -28,6 +28,14 @@ reported AgentPost 0.1.0, MCP 2.0.0, and keyring 25.7.0; its `agentpost-connect`
 Codex CLI configuration with redacted environment values and `writes` approval. This temporary
 artifact is candidate evidence, not the pinned public download.
 
+Commit `0786c71` stages the corresponding 星轨 release gate. The public auth configuration now
+exposes an operator-controlled, validated list of `mac`, `windows`, and/or `linux` Codex setup
+platforms. The list is empty by default, so current production instructions remain unchanged. Only
+an explicitly enabled platform receives the `mcp,connector` install extra, `setup codex` command,
+and native-tool explanation; other platforms and hosts retain the generic Connector path. The gate
+passed 24 focused config/control-plane tests, JavaScript syntax validation, Ruff, and the same full
+310-fast-test plus ten-MCP-test regression.
+
 Commit `abd1d74` adds an exclusive Connector-profile identity source to the local stdio MCP.
 `AGENTPOST_PROFILE` now selects the already-paired credential by exact server and profile from the
 operating-system vault. The existing explicit `AGENTPOST_API_KEY` mode remains available for
@@ -675,12 +683,12 @@ have not yet been accepted.
 
 ## Immediate next action
 
-Add a release-capability gate to the 星轨 guide so the Codex `setup` path can be staged without ever
-pointing production users at an older wheel. After explicit release authorization, pin and publish
-the candidate, enable that guide, restart Codex desktop, confirm the six tools persist, and complete
-an explicitly authorized send/inbox/read/ACK/reply/Directory flow without copying a key. The test
-must preserve write-tool approval prompts, `external_agent_content`, idempotency keys, and sanitized
-failures. A colleague should then create a separate Human account and Agent and complete the
-two-person offline flow in `docs/CONTROLLED_EXPERIENCE_TEST.md`. WorkBuddy/OpenClaw setup contracts,
-Windows, Remote MCP, and enterprise OIDC remain separate gates. Production hardening and later
-phases remain governed by `SECURITY.md` and `ROADMAP.md`.
+Assign a new immutable package version and public wheel path, rebuild and verify its checksum, then
+request explicit release authorization before publishing it or enabling `mac` in
+`AGENTPOST_CODEX_SETUP_PLATFORMS`. After release, restart Codex desktop, confirm the six tools
+persist, and complete an explicitly authorized send/inbox/read/ACK/reply/Directory flow without
+copying a key. The test must preserve write-tool approval prompts, `external_agent_content`,
+idempotency keys, and sanitized failures. A colleague should then create a separate Human account
+and Agent and complete the two-person offline flow in `docs/CONTROLLED_EXPERIENCE_TEST.md`.
+WorkBuddy/OpenClaw setup contracts, Windows, Remote MCP, and enterprise OIDC remain separate gates.
+Production hardening and later phases remain governed by `SECURITY.md` and `ROADMAP.md`.
