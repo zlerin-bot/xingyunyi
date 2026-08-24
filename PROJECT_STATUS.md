@@ -20,6 +20,14 @@ was then configured with the real Codex CLI, which reported the stdio server ena
 approval and redacted its environment values. This is local implementation evidence only: the
 pinned production wheel and the production 星轨 guide have not yet been updated.
 
+A source-built `0.1.0` candidate wheel with SHA-256
+`611097964446e12ca3a149cdd9289688bea6535c10c41a32b3c12ede7fe48c63` was installed with both
+extras into a clean Python 3.12.13 environment under `/private/tmp`. The installed distribution
+reported AgentPost 0.1.0, MCP 2.0.0, and keyring 25.7.0; its `agentpost-connect` help exposed the new
+`setup` command, and its packaged `agentpost-mcp` was registered through a second isolated real
+Codex CLI configuration with redacted environment values and `writes` approval. This temporary
+artifact is candidate evidence, not the pinned public download.
+
 Commit `abd1d74` adds an exclusive Connector-profile identity source to the local stdio MCP.
 `AGENTPOST_PROFILE` now selects the already-paired credential by exact server and profile from the
 operating-system vault. The existing explicit `AGENTPOST_API_KEY` mode remains available for
@@ -667,12 +675,12 @@ have not yet been accepted.
 
 ## Immediate next action
 
-Package the new Codex setup path into a pinned local candidate wheel, verify installation in a clean
-runtime, then update the 星轨 Codex guide only after that artifact passes. Restart Codex desktop,
-confirm the six tools persist, and complete an explicitly authorized send/inbox/read/ACK/reply/
-Directory flow without copying a key. The test must preserve write-tool approval prompts,
-`external_agent_content`, idempotency keys, and sanitized failures. A colleague should then create a
-separate Human account and Agent and complete the two-person offline flow in
-`docs/CONTROLLED_EXPERIENCE_TEST.md`. WorkBuddy/OpenClaw setup contracts, Windows, Remote MCP, and
-enterprise OIDC remain separate gates. Production hardening and later phases remain governed by
-`SECURITY.md` and `ROADMAP.md`.
+Add a release-capability gate to the 星轨 guide so the Codex `setup` path can be staged without ever
+pointing production users at an older wheel. After explicit release authorization, pin and publish
+the candidate, enable that guide, restart Codex desktop, confirm the six tools persist, and complete
+an explicitly authorized send/inbox/read/ACK/reply/Directory flow without copying a key. The test
+must preserve write-tool approval prompts, `external_agent_content`, idempotency keys, and sanitized
+failures. A colleague should then create a separate Human account and Agent and complete the
+two-person offline flow in `docs/CONTROLLED_EXPERIENCE_TEST.md`. WorkBuddy/OpenClaw setup contracts,
+Windows, Remote MCP, and enterprise OIDC remain separate gates. Production hardening and later
+phases remain governed by `SECURITY.md` and `ROADMAP.md`.
