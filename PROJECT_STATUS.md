@@ -1,6 +1,6 @@
 # 星云驿 Project Status
 
-Last updated: 2026-08-19
+Last updated: 2026-08-24
 
 ## Current state
 
@@ -26,6 +26,9 @@ The MVP implementation is locally runnable as a protocol-first modular monolith:
   rotation, organization invitations/self-governance, and verified domains
 - first-party OAuth Device Authorization with scoped rotating tokens and an
   optional OAuth-protected Streamable HTTP Remote MCP service
+- Alibaba Cloud deployment at `https://agentpost.me`, with verified DNS, TLS,
+  HTTP redirect, public health/readiness, 星轨 rendering, and PostgreSQL-backed
+  offline message delivery across an AgentPost restart
 
 ## Verified local environment
 
@@ -460,16 +463,13 @@ test with immediate foreign-key enforcement. The resulting local suite passed
 227 tests with one environment-only loopback skip and three PostgreSQL cases
 deselected.
 
-The cloud acceptance then passed against real PostgreSQL: Alice sent while no Bob
+The initial cloud acceptance passed against real PostgreSQL: Alice sent while no Bob
 client was running; the delivery was persisted; the AgentPost service restarted;
 Bob found the unread message, marked it read, ACKed it, and replied; Alice found
-the reply; and the thread contained exactly two messages. This establishes
-`deployed_origin_verified`, not full public production acceptance.
-
-`agentpost.me` DNS, ICP filing, and HTTPS were intentionally not changed. Until
-the registration review and user-controlled filing/DNS steps complete, the
-branded public endpoint remains pending. Operational paths, verification, and
-rollback are recorded in `docs/ALIYUN_DEPLOYMENT.md`.
+the reply; and the thread contained exactly two messages. At that stage this
+established `deployed_origin_verified`; the later HTTPS stage supersedes that
+label. Operational paths, verification, and rollback are recorded in
+`docs/ALIYUN_DEPLOYMENT.md`.
 
 ### Current-stage Alibaba Cloud update (2026-08-19)
 
@@ -493,16 +493,41 @@ Bob replied; Alice found the reply and ACK receipt; and the thread contained two
 messages. Public-IP `/health`, `/ready`, and `/orbit` returned HTTP 200. The
 application and PostgreSQL continue to listen only on loopback behind Nginx.
 
-Because the origin is still plaintext HTTP, Human self-service/open registration,
-pairing, Remote MCP OAuth, and enterprise OIDC remain explicitly disabled. This
-is `deployed_origin_verified`, not `production_accepted`; DNS, ICP, HTTPS, IdP,
-SMTP, backup restore, and external host acceptance remain separate gates.
+At the end of this 2026-08-19 stage the origin was still plaintext HTTP, so Human
+self-service/open registration, pairing, Remote MCP OAuth, and enterprise OIDC
+remained explicitly disabled.
+
+### HTTPS deployment update (2026-08-24)
+
+After the user-controlled ICP filing was approved, a single root A record was
+added for `agentpost.me` to `112.124.33.54` and independently resolved through
+the server resolver and Alibaba Public DNS. Before HTTPS mutation, a PostgreSQL
+dump, attachment archive, protected environment backup, Nginx backup, and provider
+snapshot `agentpost-pre-https-20260824` were completed.
+
+Certbot 2.9.0 issued and deployed a Let's Encrypt certificate whose SAN is exactly
+`agentpost.me`, valid through 2026-11-22 01:18:42 UTC. HTTP now redirects to
+HTTPS, the renewal dry run passed, and the public application base is
+`https://agentpost.me`. AgentPost, Nginx, and PostgreSQL remained active; public
+HTTPS `/health`, `/ready`, and `/orbit` passed, and Chrome rendered the 星云驿/
+星轨 shell without entering credentials.
+
+A fresh cloud E2E through the HTTPS hostname also passed: Alice sent while Bob
+had no client, AgentPost restarted, Bob retrieved the persisted unread message,
+marked it read, ACKed it, and replied; Alice observed the ACK and reply; the
+thread contained exactly two messages. The current evidence label is
+`deployed_https_verified`, not `production_accepted`.
+
+HTTPS removed the plaintext-origin blocker but did not automatically accept the
+identity and abuse-control dependencies. Human self-service/open registration,
+pairing, Remote MCP OAuth, and enterprise OIDC remain explicitly disabled.
 
 ## Immediate next action
 
-After the domain registration review completes, the user-controlled next gate is
-ICP filing for the Hangzhou origin. Only after filing should DNS be pointed to the
-server and HTTPS be issued and verified. Separately run the OpenClaw plugin's
-build/load/validate commands in a supported host before claiming host
-compatibility. Production hardening and later phases remain governed by
-`SECURITY.md` and `ROADMAP.md`.
+The next safe slice is production Human authentication: configure and verify SMTP,
+add registration/login/recovery rate limits and abuse controls, then run external
+browser acceptance before enabling Human self-service. Pairing follows Human
+authentication; Remote MCP and enterprise OIDC require separate host/provider
+acceptance. Also run the OpenClaw plugin's build/load/validate commands in a
+supported host before claiming host compatibility. Production hardening and later
+phases remain governed by `SECURITY.md` and `ROADMAP.md`.

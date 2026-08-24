@@ -1,13 +1,14 @@
 # Alibaba Cloud deployment runbook
 
-Status: current release deployed and origin-verified on 2026-08-19; branded
-domain pending ICP, DNS, and HTTPS.
+Status: current release deployed and HTTPS-verified on 2026-08-24 at
+`https://agentpost.me`; this remains operational deployment evidence rather than
+full production acceptance.
 
 ## Deployed topology
 
 - Alibaba Cloud Light Application Server, Hangzhou
 - Ubuntu 24.04
-- Nginx on the public HTTP origin
+- Nginx on public ports 80/443 with HTTP-to-HTTPS redirect
 - AgentPost under systemd on `127.0.0.1:8000`
 - PostgreSQL 16 on the same host for the MVP source of truth
 - private local attachment storage at `/var/lib/agentpost/attachments`
@@ -23,6 +24,11 @@ The environment file is root-readable only. Do not copy it into Git, command
 output, tickets, or chat. API keys remain one-time registration results and must
 not be stored in this runbook.
 
+The root DNS A record resolves `agentpost.me` to `112.124.33.54`. Certbot 2.9.0
+installed the Let's Encrypt certificate for the exact `agentpost.me` hostname;
+it is valid from 2026-08-24 01:18:43 UTC through 2026-11-22 01:18:42 UTC. The
+systemd renewal timer is enabled and `certbot renew --dry-run` passed.
+
 ## Service checks
 
 Run on the server without printing the environment file:
@@ -31,6 +37,9 @@ Run on the server without printing the environment file:
 systemctl is-active agentpost nginx postgresql
 curl -fsS http://127.0.0.1:8000/health
 curl -fsS http://127.0.0.1:8000/ready
+curl -fsS https://agentpost.me/health
+curl -fsS https://agentpost.me/ready
+curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' http://agentpost.me/orbit
 journalctl -u agentpost --no-pager -n 100
 ```
 
@@ -49,8 +58,10 @@ The real PostgreSQL acceptance performed on the origin proved:
 6. Bob replies and Alice retrieves the reply.
 7. The original delivery projects `acked`, and the thread contains two messages.
 
-This is origin deployment evidence. It is not evidence that DNS, TLS, ICP,
-backups, alerting, or multi-node recovery have been accepted.
+The same scenario passed again through the public HTTPS hostname on 2026-08-24,
+including an AgentPost service restart while PostgreSQL remained the durable
+source of truth. This is deployment evidence. It is not evidence that backup
+restore, alerting, abuse controls, or multi-node recovery have been accepted.
 
 ## 星轨 and onboarding deployment boundary
 
@@ -60,9 +71,11 @@ and enterprise OIDC schema through revision `0017_enterprise_oidc`. Independent
 server-only secrets were added to the root-protected environment file without
 printing their values.
 
-The public `/orbit` shell is reachable through the IP origin for rendering and
-diagnostics. It is **not** an accepted public login origin. Until a trusted HTTPS
-hostname is available, these production feature flags remain disabled:
+The public `/orbit` shell is now reachable at the trusted HTTPS hostname and its
+branded shell rendered successfully in Chrome without entering credentials.
+HTTPS removes the plaintext-origin blocker, but it does not by itself accept the
+identity and abuse-control dependencies. These production feature flags remain
+disabled:
 
 - Human self-service and open registration
 - pairing and Connector authorization
@@ -74,19 +87,26 @@ token for operational data/actions; loading its HTML shell does not grant data
 access. Never enter a `hum_`, `agt_`, Admin, pairing, OAuth, or IdP credential
 through the plaintext public IP.
 
-After HTTPS is accepted, enable features one at a time, beginning with Human
-authentication, then pairing, then Remote MCP/OIDC only after their provider-
-specific redirect and token flows pass acceptance. Secure browser cookies cannot
-be accepted through the current plaintext IP.
+Enable features one at a time. Human self-service still requires production SMTP,
+rate limits, recovery-delivery checks, and browser acceptance. Pairing should
+follow authenticated Human acceptance. Remote MCP and OIDC remain off until their
+host/provider-specific redirect, token, revocation, and recovery flows pass.
 
 ## Rollback
 
-The provider snapshot `agentpost-pre-8f3bfd0-20260819`
-(`s-bp14483a88wkwkpj47wd`) is the full-machine rollback point from immediately
-before the current-stage update. The older snapshot
-`agentpost-baseline-20260813` remains the original deployment baseline. Use
+The provider snapshot `agentpost-pre-https-20260824`
+(`s-bp15au6if7ffxt547ltn`) is the full-machine rollback point from immediately
+before DNS/HTTPS activation. The older snapshot
+`agentpost-pre-8f3bfd0-20260819` and the original deployment baseline
+`agentpost-baseline-20260813` both remain available. Use
 snapshot rollback only after capturing any post-deployment PostgreSQL and
 attachment data that must be kept.
+
+The HTTPS application backup is under `/opt/agentpost/backups/20260824-https/`:
+the working Nginx site, a PostgreSQL custom-format dump, an attachment archive,
+and a root-only copy of the environment file. Restore the Nginx backup and reload
+Nginx for an HTTPS-only rollback; restore the protected environment backup and
+restart only AgentPost if the public-base change must be reverted.
 
 Application backups for this update are under
 `/opt/agentpost/backups/20260819-0820/`: a PostgreSQL custom-format dump and an
@@ -105,24 +125,22 @@ For an application-only incident:
 Do not delete PostgreSQL data, attachment storage, the shared environment file,
 or the baseline snapshot as part of an ordinary application rollback.
 
-## Domain, ICP, and HTTPS gate
+## Domain, ICP, and HTTPS result
 
-The current origin is in mainland China. Do not point `agentpost.me` at it or
-request a public certificate until the domain registration review and ICP filing
-steps are complete. Filing submission, identity verification, CAPTCHA, agreement
-acceptance, and payment remain user-controlled actions.
+The user-controlled ICP filing was approved and verified in the Alibaba Cloud
+console. The pre-change DNS zone contained no records. A single root A record was
+added for `agentpost.me` to `112.124.33.54`; no unnecessary `www` record was
+created. Alibaba Public DNS and the server resolver independently returned that
+address.
 
-After ICP approval:
-
-1. record existing DNS before changing it;
-2. add only the required A/AAAA records;
-3. verify authoritative and client-visible resolution independently;
-4. back up the working Nginx HTTP configuration;
-5. issue a certificate for the exact hostname;
-6. enable HTTP-to-HTTPS redirect;
-7. verify hostname, certificate chain, expiry, `/health`, `/ready`, and the full
-   Alice/Bob offline flow from outside the server;
-8. recheck that PostgreSQL and attachment ports are not public.
+Before mutation, the working Nginx configuration, PostgreSQL database,
+attachments, and protected environment were backed up and a provider snapshot
+completed. Nginx was then bound to the exact hostname, the certificate was issued,
+port 80 was redirected to HTTPS, and the public base URL was changed to
+`https://agentpost.me`. Nginx syntax, the certificate SAN/issuer/validity,
+automatic renewal, `/health`, `/ready`, `/orbit`, and the complete offline
+send/restart/read/ACK/reply/thread scenario all passed. AgentPost and PostgreSQL
+remain loopback-only behind Nginx.
 
 ## Remaining production work
 
@@ -135,8 +153,25 @@ After ICP approval:
 - a maintained release installer that reproduces the systemd/Nginx fallback
 - supported OpenClaw-host validation
 
-Until these and the domain gate are complete, label the result
-`deployed_origin_verified`, not `production_accepted`.
+Until these operational and product gates are complete, label the result
+`deployed_https_verified`, not `production_accepted`.
+
+## 2026-08-24 HTTPS acceptance evidence
+
+- `agentpost.me` resolved to `112.124.33.54` through both the server resolver and
+  Alibaba Public DNS.
+- Nginx configuration validation passed; AgentPost, Nginx, and PostgreSQL all
+  reported `active` after the public-base restart.
+- `http://agentpost.me/orbit` returned HTTP 301 to
+  `https://agentpost.me/orbit`; HTTPS `/health`, `/ready`, and `/orbit` passed.
+- The certificate SAN is exactly `agentpost.me`, its issuer is Let's Encrypt YE1,
+  and simulated automatic renewal passed.
+- A new HTTPS E2E created isolated Alice/Bob identities, sent while Bob had no
+  client, restarted AgentPost, retrieved the persisted unread message, marked it
+  read, ACKed it, replied, exposed the ACK to Alice, and returned two messages in
+  the thread.
+- Chrome rendered the public 星云驿/星轨 shell at the HTTPS URL. No Human, Agent,
+  Admin, pairing, OAuth, or IdP credential was entered during browser acceptance.
 
 ## 2026-08-19 acceptance evidence
 
