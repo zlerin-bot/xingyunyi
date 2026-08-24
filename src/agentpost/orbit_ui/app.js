@@ -114,6 +114,7 @@ const elements = {
   pairingInstallTitle: document.querySelector("#pairing-install-title"),
   pairingInstallHelp: document.querySelector("#pairing-install-help"),
   pairingInstallCommand: document.querySelector("#pairing-install-command"),
+  pairingConnectHelp: document.querySelector("#pairing-connect-help"),
   pairingConnectCommand: document.querySelector("#pairing-connect-command"),
   pairingCopyInstall: document.querySelector("#pairing-copy-install"),
   pairingCopyConnect: document.querySelector("#pairing-copy-connect"),
@@ -1142,18 +1143,32 @@ function detectedPairingPlatform() {
   return "mac";
 }
 
+function codexSetupAvailable() {
+  const platforms = state.authConfig?.codex_setup_platforms;
+  return (
+    state.pairingConnectorType === "codex" &&
+    Array.isArray(platforms) &&
+    platforms.includes(state.pairingPlatform)
+  );
+}
+
 function pairingCommands() {
   const connector = CONNECTOR_GUIDES[state.pairingConnectorType] || CONNECTOR_GUIDES.generic;
+  const nativeCodexSetup = codexSetupAvailable();
+  const extras = nativeCodexSetup ? "mcp,connector" : "connector";
+  const operation = nativeCodexSetup
+    ? "setup codex"
+    : `--connector-type ${state.pairingConnectorType} connect`;
   if (state.pairingPlatform === "windows") {
     return {
-      install: `py -3.11 -m venv "$env:USERPROFILE\\.agentpost\\runtime"; & "$env:USERPROFILE\\.agentpost\\runtime\\Scripts\\python.exe" -m pip install --upgrade "agentpost[connector] @ ${CONNECTOR_WHEEL}"`,
-      connect: `& "$env:USERPROFILE\\.agentpost\\runtime\\Scripts\\agentpost-connect.exe" --server https://agentpost.me --connector-type ${state.pairingConnectorType} --display-name "${connector.displayName}" connect`,
+      install: `py -3.11 -m venv "$env:USERPROFILE\\.agentpost\\runtime"; & "$env:USERPROFILE\\.agentpost\\runtime\\Scripts\\python.exe" -m pip install --upgrade "agentpost[${extras}] @ ${CONNECTOR_WHEEL}"`,
+      connect: `& "$env:USERPROFILE\\.agentpost\\runtime\\Scripts\\agentpost-connect.exe" --server https://agentpost.me --display-name "${connector.displayName}" ${operation}`,
     };
   }
-  const install = `PY="$(command -v python3.12 || command -v python3.11 || command -v python3)" && "$PY" -c 'import sys; assert sys.version_info >= (3, 11), "需要 Python 3.11 或更高版本"' && "$PY" -m venv "$HOME/.agentpost/runtime" && "$HOME/.agentpost/runtime/bin/python" -m pip install --upgrade 'agentpost[connector] @ ${CONNECTOR_WHEEL}'`;
+  const install = `PY="$(command -v python3.12 || command -v python3.11 || command -v python3)" && "$PY" -c 'import sys; assert sys.version_info >= (3, 11), "需要 Python 3.11 或更高版本"' && "$PY" -m venv "$HOME/.agentpost/runtime" && "$HOME/.agentpost/runtime/bin/python" -m pip install --upgrade 'agentpost[${extras}] @ ${CONNECTOR_WHEEL}'`;
   return {
     install,
-    connect: `"$HOME/.agentpost/runtime/bin/agentpost-connect" --server https://agentpost.me --connector-type ${state.pairingConnectorType} --display-name "${connector.displayName}" connect`,
+    connect: `"$HOME/.agentpost/runtime/bin/agentpost-connect" --server https://agentpost.me --display-name "${connector.displayName}" ${operation}`,
   };
 }
 
@@ -1169,7 +1184,13 @@ function renderPairingGuide() {
     choice.classList.toggle("selected", selected);
     choice.setAttribute("aria-pressed", String(selected));
   });
-  elements.pairingCompatibility.textContent = `${connector.label}：${connector.summary}`;
+  const nativeCodexSetup = codexSetupAvailable();
+  elements.pairingCompatibility.textContent = nativeCodexSetup
+    ? "Codex：一次完成身份连接和工具注册；重启 Codex 后即可用自然语言收发云驿消息，写操作仍需确认。"
+    : `${connector.label}：${connector.summary}`;
+  elements.pairingConnectHelp.textContent = nativeCodexSetup
+    ? "安装完成后运行下面这条命令。它会连接身份并注册 Codex 工具；长期密钥仍只保存在操作系统钥匙串。"
+    : "安装完成后，再复制并运行下面这条命令。它只会申请一次短期配对，不会显示长期密钥。";
   if (state.pairingPlatform === "windows") {
     elements.pairingInstallTitle.textContent = "打开 PowerShell 并安装连接器";
     elements.pairingInstallHelp.textContent = "点击开始菜单，搜索 PowerShell 并打开。复制下面整条命令，粘贴后按回车。Windows 指引仍处于实机验证阶段。";
@@ -1857,6 +1878,7 @@ async function loadAuthConfig() {
     state.authConfig = {
       self_service_enabled: false,
       open_registration_enabled: false,
+      codex_setup_platforms: [],
       managed_agent_domain: "agents.local",
     };
   }

@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     open_registration_enabled: bool = False
     remote_mcp_oauth_enabled: bool = False
     enterprise_oidc_enabled: bool = False
+    codex_setup_platforms: str = ""
     rate_limit_enabled: bool = True
     oidc_allowed_issuers: str = ""
     email_delivery_mode: str = "test"
@@ -109,6 +110,17 @@ class Settings(BaseSettings):
         if canonical not in {"test", "smtp"}:
             raise ValueError("AGENTPOST_EMAIL_DELIVERY_MODE must be test or smtp")
         return canonical
+
+    @field_validator("codex_setup_platforms")
+    @classmethod
+    def codex_setup_platforms_are_supported(cls, value: str) -> str:
+        supported = {"mac", "windows", "linux"}
+        canonical = [item.strip().casefold() for item in value.split(",") if item.strip()]
+        if any(item not in supported for item in canonical):
+            raise ValueError(
+                "AGENTPOST_CODEX_SETUP_PLATFORMS may contain only mac, windows, or linux"
+            )
+        return ",".join(dict.fromkeys(canonical))
 
     @field_validator("managed_agent_domain")
     @classmethod
@@ -191,6 +203,10 @@ class Settings(BaseSettings):
     @property
     def allowed_oidc_issuers(self) -> frozenset[str]:
         return frozenset(item for item in self.oidc_allowed_issuers.split(",") if item)
+
+    @property
+    def enabled_codex_setup_platforms(self) -> tuple[str, ...]:
+        return tuple(item for item in self.codex_setup_platforms.split(",") if item)
 
     @property
     def is_production(self) -> bool:

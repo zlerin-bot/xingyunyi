@@ -23,6 +23,7 @@ def _control_client(settings: Settings, database: Database) -> TestClient:
         cursor_secret="test-cursor-secret",
         registration_token="register-secret",
         admin_token=ADMIN_KEY,
+        codex_setup_platforms=settings.codex_setup_platforms,
         log_level="WARNING",
     )
     return TestClient(create_app(settings=protected, database=database))
@@ -91,6 +92,7 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert script.status_code == stylesheet.status_code == 200
     assert auth_config.status_code == 200
     assert auth_config.json()["managed_agent_domain"] == "agents.local"
+    assert auth_config.json()["codex_setup_platforms"] == []
     combined = f"{orbit.text}\n{script.text}".casefold()
     assert "localstorage" not in combined
     assert "sessionstorage" not in combined
@@ -126,6 +128,9 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert 'data-connector-type="openclaw"' in orbit.text
     assert "navigator.clipboard.writeText" in script.text
     assert "CONNECTOR_WHEEL" in script.text
+    assert "codex_setup_platforms" in script.text
+    assert 'const extras = nativeCodexSetup ? "mcp,connector" : "connector"' in script.text
+    assert '"setup codex"' in script.text
     assert "canonicalPairingLocalId" in script.text
     assert "pairingPayloadProblem" in script.text
     assert ".split(/[,，]/)" in script.text
@@ -158,6 +163,25 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert 'elements.revokeAccessKey.value = ""' in script.text
     assert ".welcome-shell[hidden]" in stylesheet.text
     assert "max-height: calc(100dvh - 32px)" in stylesheet.text
+
+
+def test_auth_config_exposes_only_release_enabled_codex_platforms(
+    settings: Settings,
+    database: Database,
+) -> None:
+    staged = Settings(
+        environment="test",
+        database_url=settings.database_url,
+        storage_path=settings.storage_path,
+        api_key_pepper="test-agent-pepper",
+        codex_setup_platforms="mac,linux",
+        log_level="WARNING",
+    )
+    with _control_client(staged, database) as client:
+        response = client.get("/api/v1/auth/config")
+
+    assert response.status_code == 200
+    assert response.json()["codex_setup_platforms"] == ["mac", "linux"]
 
 
 def test_human_identity_uses_a_separate_one_time_key_and_admin_boundary(

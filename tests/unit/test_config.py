@@ -52,10 +52,13 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
     settings = Settings(
         managed_agent_domain="AgentPost.Me",
         public_base_url="https://agentpost.me/",
+        codex_setup_platforms="mac,LINUX,mac",
     )
 
     assert settings.managed_agent_domain == "agentpost.me"
     assert settings.public_base_url == "https://agentpost.me"
+    assert settings.codex_setup_platforms == "mac,linux"
+    assert settings.enabled_codex_setup_platforms == ("mac", "linux")
     assert settings.pairing_ttl_seconds == 600
     assert settings.pairing_poll_interval_seconds == 5
     with pytest.raises(ValidationError):
@@ -66,6 +69,8 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
         Settings(pairing_ttl_seconds=299)
     with pytest.raises(ValidationError):
         Settings(pairing_poll_interval_seconds=2)
+    with pytest.raises(ValidationError, match="CODEX_SETUP_PLATFORMS"):
+        Settings(codex_setup_platforms="mac,android")
 
 
 def test_production_rejects_development_secrets() -> None:
