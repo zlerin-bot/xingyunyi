@@ -15,9 +15,9 @@ full production acceptance.
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `b7d51b0` at
-`/opt/agentpost/releases/b7d51b0`, with its independent Python environment at
-`/opt/agentpost/venvs/b7d51b0`. The database is at Alembic revision
+The active application release is Git commit `dda639e` at
+`/opt/agentpost/releases/dda639e`, with its independent Python environment at
+`/opt/agentpost/venvs/dda639e`. The database is at Alembic revision
 `0018_rate_limit_buckets`.
 
 The environment file is root-readable only. Do not copy it into Git, command
@@ -160,6 +160,27 @@ submitted and no long-term credential was exposed. This verifies the guidance
 surface, not yet a real end-user Connector installation or native WorkBuddy/
 OpenClaw host integration.
 
+### Pairing 422 correction
+
+The first real Codex Pairing attempt reached Human confirmation but the final
+decision returned HTTP 422 when the address field did not match the protocol's
+`local_agent_id` schema. Release `dda639e` fixes that usability failure without
+loosening the protocol: `/api/v1/auth/config` now publishes the non-secret
+managed Agent domain, 星轨 renders it as a fixed suffix, accepts only the local
+address portion, and canonicalizes a same-domain full address. Chinese and ASCII
+commas are both accepted for capability entry. Invalid address/capability values
+are rejected before password confirmation, and safe schema-detail locations are
+translated into actionable Chinese messages.
+
+The prior release pointer, systemd unit, Nginx sites, and root-only environment
+copy are under `/opt/agentpost/backups/20260824-dda639e/`. Local validation passed
+306 fast tests with one sandbox-only skip and five deselections, plus nine MCP
+adapter tests. Production file hashes matched, all three services stayed active,
+and local/public health and readiness passed. The live authenticated page showed
+the fixed `@agentpost.me` suffix and address guidance. The expired Connector
+process was not restarted automatically; the Human must run the existing
+connection command once to create a fresh short-lived Pairing.
+
 ## Rollback
 
 The provider snapshot `agentpost-pre-https-20260824`
@@ -182,9 +203,9 @@ attachment archive. The pre-update systemd unit is stored at
 `/etc/systemd/system/agentpost.service.pre-8f3bfd0`.
 
 The current application-only rollback backup is
-`/opt/agentpost/backups/20260824-b7d51b0/`. The current update did not change the
+`/opt/agentpost/backups/20260824-dda639e/`. The current update did not change the
 database. To roll it back, point `/opt/agentpost/current` to
-`/opt/agentpost/releases/67593b8`, restore the backed-up systemd unit, reload
+`/opt/agentpost/releases/b7d51b0`, restore the backed-up systemd unit, reload
 systemd, restart AgentPost, and verify `/health`, `/ready`, and `/orbit`. The
 earlier database-aware backup remains at
 `/opt/agentpost/backups/20260824-0300-67593b8/` for the revision-0018 upgrade.

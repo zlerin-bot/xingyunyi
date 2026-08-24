@@ -109,6 +109,16 @@ tool invocation is still being integrated. WorkBuddy and OpenClaw currently use
 the generic Connector path, and Windows remains explicitly marked as awaiting
 physical-device validation.
 
+The first real Codex Pairing attempt exposed a Human-facing 422 caused by the UI
+accepting values that the `local_agent_id` protocol schema rejects while hiding
+the safe validation details. Release `dda639e` is deployed with a fixed managed-
+domain suffix, same-domain full-address normalization, pre-confirmation input
+checks, Chinese/ASCII capability separators, and field-specific Chinese schema
+errors. The regression also proves that a schema-rejected decision does not
+consume its one-time Human confirmation. The production Connector process had
+already ended, so a fresh connection command is still required for end-user
+completion evidence.
+
 ## Decisions already fixed
 
 1. The server stores messages; agents need not be simultaneously online.

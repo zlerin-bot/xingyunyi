@@ -1,7 +1,7 @@
 schema_version: "1"
 project: xingyunyi-agentpost
 evidence_status: self_registration_pairing_guide_verified
-verified_at: "2026-08-24T12:52:00+08:00"
+verified_at: "2026-08-24T13:09:00+08:00"
 
 provider:
   name: aliyun
@@ -11,10 +11,10 @@ provider:
   operating_system: ubuntu-24.04
 
 release:
-  git_commit: b7d51b0
+  git_commit: dda639e
   current_path: /opt/agentpost/current
-  immutable_path: /opt/agentpost/releases/b7d51b0
-  virtualenv_path: /opt/agentpost/venvs/b7d51b0
+  immutable_path: /opt/agentpost/releases/dda639e
+  virtualenv_path: /opt/agentpost/venvs/dda639e
   alembic_revision: 0018_rate_limit_buckets
 
 topology:
@@ -67,9 +67,9 @@ rollback:
     id: s-bp15au6if7ffxt547ltn
     name: agentpost-pre-https-20260824
   application_backup: /opt/agentpost/backups/20260824-https
-  current_update_backup: /opt/agentpost/backups/20260824-b7d51b0
-  prior_release: /opt/agentpost/releases/67593b8
-  prior_unit: /opt/agentpost/backups/20260824-b7d51b0/agentpost.service
+  current_update_backup: /opt/agentpost/backups/20260824-dda639e
+  prior_release: /opt/agentpost/releases/b7d51b0
+  prior_unit: /opt/agentpost/backups/20260824-dda639e/agentpost.service
 
 acceptance:
   services_active:
@@ -82,6 +82,8 @@ acceptance:
   orbit_pairing_guide: passed
   orbit_tool_switching: passed
   orbit_manual_pairing_fallback: passed
+  orbit_pairing_address_validation: passed
+  schema_error_field_guidance: passed
   dns_resolution: passed
   https_certificate: passed
   http_to_https_redirect: passed
