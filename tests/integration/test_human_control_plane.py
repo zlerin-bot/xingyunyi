@@ -165,7 +165,11 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "/api/v1/orbit/connectors" in script.text
     assert "pairing-existing-agent" in orbit.text
     assert "existing_agent_id" in script.text
-    assert "只替换当前连接器" in orbit.text
+    assert "pairing-target-summary" in orbit.text
+    assert "create_new_agent" in script.text
+    assert "owned.length === 1" in script.text
+    assert 'state.pairingTargetResolution = "ambiguous"' in script.text
+    assert "只需选择一次" in orbit.text
     assert "last_heartbeat_at" in script.text
     assert "长期凭证由本地连接器自动领取" in script.text
     assert 'elements.pairingAccessKey.value = ""' in script.text

@@ -139,6 +139,7 @@ class PairingConfirmationResponse(OnboardingModel):
 
 class PairingDecisionCreate(OnboardingModel):
     decision: Literal["approved", "denied"]
+    create_new_agent: bool = False
     local_agent_id: str | None = Field(
         default=None,
         min_length=1,
@@ -169,31 +170,41 @@ class PairingDecisionCreate(OnboardingModel):
 
     @model_validator(mode="after")
     def decision_fields_match_action(self) -> PairingDecisionCreate:
-        if self.decision == "approved" and (self.local_agent_id is None) == (
-            self.existing_agent_id is None
+        target_count = sum(
+            (
+                self.create_new_agent,
+                self.local_agent_id is not None,
+                self.existing_agent_id is not None,
+            )
+        )
+        if self.decision == "approved" and target_count != 1:
+            raise ValueError(
+                "approved pairing decisions require exactly one of create_new_agent, "
+                "local_agent_id, or existing_agent_id"
+            )
+        if (self.existing_agent_id is not None or self.create_new_agent) and any(
+            value is not None
+            for value in (
+                self.local_agent_id,
+                self.display_name,
+                self.description,
+                self.capabilities,
+            )
         ):
             raise ValueError(
-                "approved pairing decisions require exactly one of local_agent_id or "
-                "existing_agent_id"
+                "automatic or existing Agent pairing must not modify Agent profile fields"
             )
-        if self.existing_agent_id is not None and any(
-            value is not None
-            for value in (
-                self.local_agent_id,
-                self.display_name,
-                self.description,
-                self.capabilities,
-            )
-        ):
-            raise ValueError("existing Agent pairing must not modify Agent profile fields")
-        if self.decision == "denied" and any(
-            value is not None
-            for value in (
-                self.local_agent_id,
-                self.existing_agent_id,
-                self.display_name,
-                self.description,
-                self.capabilities,
+        if self.decision == "denied" and (
+            self.create_new_agent
+            or any(
+                value is not None
+                for value in (
+                    self.local_agent_id,
+                    self.existing_agent_id,
+                    self.display_name,
+                    self.description,
+                    self.capabilities,
+                )
             )
         ):
             raise ValueError("denied pairing decisions must not create or modify an Agent")

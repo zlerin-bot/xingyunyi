@@ -585,19 +585,24 @@
           </ol>
           <button id="pairing-guide-back" type="button" class="text-button">← 返回连接说明</button>
           <div id="pairing-preview" class="pairing-preview" hidden></div>
-          <label for="pairing-id">配对 ID</label>
-          <input id="pairing-id" type="text" autocomplete="off" spellcheck="false" required placeholder="pair_••••••••">
-          <label for="pairing-user-code">一次性配对码</label>
-          <input id="pairing-user-code" type="text" autocomplete="one-time-code" spellcheck="false" required placeholder="ABCD-EFGH" maxlength="16">
-          <label for="pairing-target-mode">连接方式</label>
-          <select id="pairing-target-mode">
-            <option value="new">创建新的独立 Agent</option>
-            <option value="existing">把已有 Agent 迁移到这个工具</option>
-          </select>
+          <div id="pairing-code-fields">
+            <label for="pairing-id">配对 ID</label>
+            <input id="pairing-id" type="text" autocomplete="off" spellcheck="false" required placeholder="pair_••••••••">
+            <label for="pairing-user-code">一次性配对码</label>
+            <input id="pairing-user-code" type="text" autocomplete="one-time-code" spellcheck="false" required placeholder="ABCD-EFGH" maxlength="16">
+          </div>
+          <div id="pairing-target-mode-field">
+            <label for="pairing-target-mode">连接方式</label>
+            <select id="pairing-target-mode">
+              <option value="new">创建新的独立 Agent</option>
+              <option value="existing">把已有 Agent 迁移到这个工具</option>
+            </select>
+          </div>
+          <p id="pairing-target-summary" class="form-status" role="status" hidden></p>
           <div id="pairing-existing-agent-field" hidden>
-            <label for="pairing-existing-agent">选择已有 Agent</label>
+            <label for="pairing-existing-agent">这次连接属于哪个 Agent？</label>
             <select id="pairing-existing-agent"></select>
-            <p class="dialog-summary">只替换当前连接器；Agent 地址、Inbox、Thread、任务和历史均保留，旧连接器凭证立即失效。</p>
+            <p class="dialog-summary">只需选择一次。选择已有 Agent 会保留其地址、Inbox、Thread、任务和历史，并替换旧连接器。</p>
           </div>
           <div id="pairing-new-agent-fields">
             <div class="pairing-fields">

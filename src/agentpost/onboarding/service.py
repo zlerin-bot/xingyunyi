@@ -144,6 +144,13 @@ def _decision_hash(pairing_id: str, payload: PairingDecisionCreate) -> str:
     return hashlib.sha256(canonical).hexdigest()
 
 
+def _automatic_local_agent_id(pairing: AgentPairingSession) -> str:
+    connector_slug = re.sub(r"[^a-z0-9]+", "-", pairing.connector_type.lower()).strip("-")
+    prefix = connector_slug or "agent"
+    suffix = hashlib.sha256(pairing.pairing_id.encode("utf-8")).hexdigest()[:24]
+    return f"{prefix[:39]}-{suffix}"
+
+
 def _connector_response(connector: ConnectorInstance) -> PairingConnectorResponse:
     return PairingConnectorResponse(
         connector_id=connector.connector_id,
@@ -471,21 +478,34 @@ def decide_pairing(
             if agent is None:
                 raise PairingTargetAgentNotFoundError
         else:
-            assert payload.local_agent_id is not None
+            local_agent_id = (
+                _automatic_local_agent_id(pairing)
+                if payload.create_new_agent
+                else payload.local_agent_id
+            )
+            assert local_agent_id is not None
             address = canonicalize_agent_address(
-                f"{payload.local_agent_id}@{settings.managed_agent_domain}"
+                f"{local_agent_id}@{settings.managed_agent_domain}"
             )
             if session.scalar(select(Agent.id).where(Agent.address == address)) is not None:
                 raise PairingAddressConflictError(address)
             capabilities = (
-                payload.capabilities
-                if payload.capabilities is not None
-                else list(pairing.requested_capabilities)
+                list(pairing.requested_capabilities)
+                if payload.create_new_agent
+                else (
+                    payload.capabilities
+                    if payload.capabilities is not None
+                    else list(pairing.requested_capabilities)
+                )
             )
             agent = Agent(
                 address=address,
-                display_name=payload.display_name or address_local_id(address),
-                description=payload.description,
+                display_name=(
+                    pairing.connector_display_name
+                    if payload.create_new_agent
+                    else payload.display_name or address_local_id(address)
+                ),
+                description=None if payload.create_new_agent else payload.description,
                 owner_id=str(user.id),
                 domain=address_domain(address),
                 status="active",
@@ -573,6 +593,17 @@ def decide_pairing(
         request_id=request_id,
         audit_metadata={
             "decision": payload.decision,
+            "target_selection": (
+                "denied"
+                if payload.decision == "denied"
+                else (
+                    "automatic_new"
+                    if payload.create_new_agent
+                    else "existing"
+                    if payload.existing_agent_id
+                    else "explicit_new"
+                )
+            ),
             "agent_id": str(pairing.agent_id) if pairing.agent_id else None,
             "connector_id": connector.connector_id if connector else None,
             "replaces_connector_id": (
@@ -584,7 +615,7 @@ def decide_pairing(
         session.commit()
     except IntegrityError as exc:
         session.rollback()
-        raise PairingAddressConflictError(payload.local_agent_id or "") from exc
+        raise PairingAddressConflictError(payload.local_agent_id or "automatic") from exc
     return PairingDecisionResult(pairing=pairing, replayed=False)
 
 

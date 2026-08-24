@@ -45,6 +45,8 @@ const state = {
   organizationDomainProofs: new Map(),
   pairingConnectorType: "codex",
   pairingPlatform: "mac",
+  pairingTargetResolution: "pending",
+  pairingCreateNewAutomatically: false,
 };
 
 const elements = {
@@ -128,7 +130,10 @@ const elements = {
   pairingGuideCancel: document.querySelector("#pairing-guide-cancel"),
   pairingId: document.querySelector("#pairing-id"),
   pairingUserCode: document.querySelector("#pairing-user-code"),
+  pairingCodeFields: document.querySelector("#pairing-code-fields"),
+  pairingTargetModeField: document.querySelector("#pairing-target-mode-field"),
   pairingTargetMode: document.querySelector("#pairing-target-mode"),
+  pairingTargetSummary: document.querySelector("#pairing-target-summary"),
   pairingExistingAgentField: document.querySelector("#pairing-existing-agent-field"),
   pairingExistingAgent: document.querySelector("#pairing-existing-agent"),
   pairingNewAgentFields: document.querySelector("#pairing-new-agent-fields"),
@@ -1241,8 +1246,8 @@ function showPairingApproval({ allowBack = true } = {}) {
   elements.pairingGuide.hidden = true;
   elements.pairingApproval.hidden = false;
   elements.pairingGuideBack.hidden = !allowBack;
-  elements.pairingDialogSummary.textContent = "最后一步只确认身份和 Agent 地址。长期凭证由本地连接器自动领取，不会显示在星轨中。";
-  (elements.pairingId.value ? elements.pairingTargetMode : elements.pairingId).focus();
+  elements.pairingDialogSummary.textContent = "最后一步只确认这次连接。Agent 身份会自动匹配，长期凭证由本地连接器自动领取，不会显示在星轨中。";
+  (elements.pairingId.value ? elements.pairingAccessKey : elements.pairingId).focus();
 }
 
 async function copyPairingCommand(command, button, label) {
@@ -1268,6 +1273,7 @@ function closePairingDialog({ clear = true } = {}) {
   if (clear) {
     elements.pairingId.value = "";
     elements.pairingUserCode.value = "";
+    elements.pairingCodeFields.hidden = false;
     elements.pairingTargetMode.value = "new";
     elements.pairingExistingAgent.replaceChildren();
     elements.pairingLocalId.value = "";
@@ -1277,6 +1283,8 @@ function closePairingDialog({ clear = true } = {}) {
     elements.pairingPreview.hidden = true;
     state.pairingConnectorType = "codex";
     state.pairingPlatform = detectedPairingPlatform();
+    state.pairingTargetResolution = "pending";
+    state.pairingCreateNewAutomatically = false;
     state.pairingRequestSignature = "";
     state.pairingIdempotencyKey = "";
     updatePairingTargetMode();
@@ -1304,14 +1312,56 @@ function populateExistingAgentOptions() {
     option.textContent = "没有可迁移的自有 Agent";
     elements.pairingExistingAgent.append(option);
   }
+  return owned;
 }
 
 function updatePairingTargetMode() {
+  if (state.pairingTargetResolution !== "pending") {
+    const ambiguous = state.pairingTargetResolution === "ambiguous";
+    elements.pairingTargetModeField.hidden = true;
+    elements.pairingExistingAgentField.hidden = !ambiguous;
+    elements.pairingNewAgentFields.hidden = true;
+    elements.pairingLocalId.required = false;
+    elements.pairingExistingAgent.required = ambiguous;
+    return;
+  }
   const existing = elements.pairingTargetMode.value === "existing";
+  elements.pairingTargetModeField.hidden = false;
   elements.pairingExistingAgentField.hidden = !existing;
   elements.pairingNewAgentFields.hidden = existing;
   elements.pairingLocalId.required = !existing;
   elements.pairingExistingAgent.required = existing;
+}
+
+function configurePairingTarget(pairing) {
+  const owned = populateExistingAgentOptions();
+  state.pairingCreateNewAutomatically = false;
+  elements.pairingTargetSummary.hidden = false;
+  if (!owned.length) {
+    state.pairingTargetResolution = "automatic-new";
+    state.pairingCreateNewAutomatically = true;
+    elements.pairingTargetMode.value = "new";
+    elements.pairingTargetSummary.textContent = `将自动创建 ${safeText(pairing.connector_display_name, "当前 Agent")} 的星云驿身份，无需设置地址或技术参数。`;
+  } else if (owned.length === 1) {
+    state.pairingTargetResolution = "automatic-existing";
+    elements.pairingTargetMode.value = "existing";
+    elements.pairingExistingAgent.value = owned[0].id;
+    elements.pairingTargetSummary.textContent = `将自动连接到唯一的 Agent：${safeText(owned[0].display_name, owned[0].address)} · ${safeText(owned[0].address)}。`;
+  } else {
+    state.pairingTargetResolution = "ambiguous";
+    elements.pairingTargetMode.value = "existing";
+    const prompt = document.createElement("option");
+    prompt.value = "";
+    prompt.textContent = "请选择一个 Agent";
+    prompt.selected = true;
+    elements.pairingExistingAgent.insertBefore(prompt, elements.pairingExistingAgent.firstChild);
+    const create = document.createElement("option");
+    create.value = "__create_new__";
+    create.textContent = "为这次连接创建新的独立 Agent";
+    elements.pairingExistingAgent.append(create);
+    elements.pairingTargetSummary.textContent = "找到多个可用 Agent，请只选择一次这次连接的归属。";
+  }
+  updatePairingTargetMode();
 }
 
 function renderPairingPreview(pairing) {
@@ -1338,6 +1388,7 @@ async function loadPairingPreview() {
   try {
     const pairing = await requestJson(`/api/v1/orbit/pairings/${encodeURIComponent(pairingId)}`);
     renderPairingPreview(pairing);
+    configurePairingTarget(pairing);
     elements.pairingResult.textContent = "请核对本地 Connector 展示的完整配对码和以上设备信息。";
     elements.pairingResult.className = "form-status";
   } catch (error) {
@@ -1350,7 +1401,8 @@ async function loadPairingPreview() {
 async function openPairingDialog(pairingId = "", userCode = "") {
   elements.pairingId.value = pairingId;
   elements.pairingUserCode.value = userCode;
-  elements.pairingResult.textContent = "请核对工具、设备和一次性配对码，再设置 Agent 地址并确认。";
+  elements.pairingCodeFields.hidden = Boolean(pairingId && userCode);
+  elements.pairingResult.textContent = "请核对工具和设备，确认后连接器会自动恢复原任务。";
   elements.pairingResult.className = "form-status";
   populateExistingAgentOptions();
   updatePairingTargetMode();
@@ -1367,6 +1419,9 @@ async function openPairingDialog(pairingId = "", userCode = "") {
 function pairingPayload(decision) {
   if (decision === "denied") {
     return { decision: "denied" };
+  }
+  if (state.pairingCreateNewAutomatically) {
+    return { decision: "approved", create_new_agent: true };
   }
   if (elements.pairingTargetMode.value === "existing") {
     return {
@@ -1404,7 +1459,7 @@ function canonicalPairingLocalId(value) {
 }
 
 function pairingPayloadProblem(decision, payload) {
-  if (decision !== "approved" || payload.existing_agent_id) {
+  if (decision !== "approved" || payload.create_new_agent || payload.existing_agent_id) {
     return "";
   }
   if (!payload.local_agent_id) {
@@ -1442,8 +1497,13 @@ async function decidePairing(event, forcedDecision = null) {
     elements.pairingResult.className = "form-status error";
     return;
   }
-  if (decision === "approved" && !payload.local_agent_id && !payload.existing_agent_id) {
-    elements.pairingResult.textContent = "请填写 Agent 地址前缀，或选择要迁移的已有 Agent。";
+  if (
+    decision === "approved"
+    && !payload.create_new_agent
+    && !payload.local_agent_id
+    && !payload.existing_agent_id
+  ) {
+    elements.pairingResult.textContent = "请选择这次连接属于哪个 Agent。";
     elements.pairingResult.className = "form-status error";
     return;
   }
@@ -1477,7 +1537,9 @@ async function decidePairing(event, forcedDecision = null) {
       elements.pairingMfa.value = "";
     }
     elements.pairingResult.textContent = decision === "approved"
-      ? (payload.existing_agent_id
+      ? (payload.create_new_agent
+        ? "身份已确认，正在自动创建 Agent 身份与当前 Connector…"
+        : payload.existing_agent_id
         ? "身份已确认，正在迁移当前 Connector 并撤销旧凭证…"
         : "身份已确认，正在创建 Agent 身份与当前 Connector…")
       : "身份已确认，正在拒绝本次配对…";
@@ -2445,6 +2507,13 @@ elements.pairingCancel.addEventListener("click", () => closePairingDialog());
 elements.pairingDialog.addEventListener("close", () => closePairingDialog());
 elements.pairingId.addEventListener("change", loadPairingPreview);
 elements.pairingTargetMode.addEventListener("change", updatePairingTargetMode);
+elements.pairingExistingAgent.addEventListener("change", () => {
+  if (state.pairingTargetResolution !== "ambiguous") {
+    return;
+  }
+  state.pairingCreateNewAutomatically = elements.pairingExistingAgent.value === "__create_new__";
+  elements.pairingTargetMode.value = state.pairingCreateNewAutomatically ? "new" : "existing";
+});
 elements.pairingLocalId.addEventListener("change", () => {
   elements.pairingLocalId.value = canonicalPairingLocalId(elements.pairingLocalId.value);
 });

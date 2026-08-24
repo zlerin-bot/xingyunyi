@@ -291,6 +291,60 @@ def test_zero_config_pairing_creates_owned_agent_and_preserves_offline_inbox(
         assert session.scalar(select(func.count()).select_from(Delivery)) == 1
 
 
+def test_automatic_new_agent_pairing_requires_no_address_or_profile_parameters(
+    settings: Settings,
+    database: Database,
+) -> None:
+    runtime = _runtime_settings(settings)
+    with TestClient(create_app(settings=runtime, database=database)) as client:
+        pairing = _start_pairing(client, name="我的 Codex")
+        human = _create_human(client, "automatic@example.com")
+        csrf = _login(client, human)
+        confirmation = _confirmation(client, human=human, csrf=csrf, pairing=pairing)
+
+        invalid = _decide(
+            client,
+            pairing=pairing,
+            csrf=csrf,
+            confirmation=confirmation,
+            payload={
+                "decision": "approved",
+                "create_new_agent": True,
+                "local_agent_id": "must-not-be-user-supplied",
+            },
+            idempotency_key="automatic-and-explicit-conflict",
+        )
+        approved = _decide(
+            client,
+            pairing=pairing,
+            csrf=csrf,
+            confirmation=confirmation,
+            payload={"decision": "approved", "create_new_agent": True},
+            idempotency_key="automatic-new-agent",
+        )
+
+        assert invalid.status_code == 422
+        assert approved.status_code == 200, approved.text
+        created = approved.json()["pairing"]["agent"]
+        local_id, domain = created["address"].split("@", maxsplit=1)
+        assert domain == "agents.local"
+        assert local_id.startswith("codex-")
+        assert len(local_id) <= 64
+        assert created["display_name"] == "我的 Codex"
+
+        issued = client.post(
+            "/api/v1/connect/pairings/token",
+            json={"device_code": pairing["device_code"]},
+        )
+        assert issued.status_code == 200
+        assert issued.json()["agent"] == created
+
+    with database.session_factory() as session:
+        agent = session.scalar(select(Agent))
+        assert agent is not None
+        assert agent.capabilities == ["financial-research", "document-analysis"]
+
+
 def test_owner_can_revoke_connector_without_deleting_agent_or_inbox(
     settings: Settings,
     database: Database,
