@@ -54,9 +54,7 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
         public_base_url="https://agentpost.me/",
         codex_setup_platforms="mac,LINUX,mac",
         connector_release_version="0.1.1",
-        connector_wheel_url=(
-            "https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl"
-        ),
+        connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl"),
         connector_wheel_sha256="A" * 64,
     )
 
@@ -87,9 +85,7 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
     with pytest.raises(ValidationError, match="configured release version"):
         Settings(
             connector_release_version="0.1.1",
-            connector_wheel_url=(
-                "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl"
-            ),
+            connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl"),
         )
 
 

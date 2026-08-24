@@ -40,12 +40,8 @@ class Settings(BaseSettings):
     enterprise_oidc_enabled: bool = False
     codex_setup_platforms: str = ""
     connector_release_version: str = "0.1.0"
-    connector_wheel_url: str = (
-        "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl"
-    )
-    connector_wheel_sha256: str = (
-        "1fc3f42e8c1141ce65481778587544fc9bf441438c852c0332594ab24a75fdf7"
-    )
+    connector_wheel_url: str = "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl"
+    connector_wheel_sha256: str = "1fc3f42e8c1141ce65481778587544fc9bf441438c852c0332594ab24a75fdf7"
     rate_limit_enabled: bool = True
     oidc_allowed_issuers: str = ""
     email_delivery_mode: str = "test"

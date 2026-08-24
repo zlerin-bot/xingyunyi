@@ -185,9 +185,7 @@ def test_auth_config_exposes_only_release_enabled_codex_platforms(
         api_key_pepper="test-agent-pepper",
         codex_setup_platforms="mac,linux",
         connector_release_version="0.1.1",
-        connector_wheel_url=(
-            "https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl"
-        ),
+        connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl"),
         connector_wheel_sha256="a" * 64,
         log_level="WARNING",
     )
