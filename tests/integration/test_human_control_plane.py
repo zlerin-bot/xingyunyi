@@ -434,6 +434,7 @@ def test_production_session_cookie_is_secure(
         api_key_pepper="production-agent-pepper",
         human_api_key_pepper="production-human-pepper",
         cursor_secret="production-cursor-secret",
+        rate_limit_secret="production-rate-limit-secret",
         registration_token="registration-secret",
         admin_token=ADMIN_KEY,
         log_level="WARNING",

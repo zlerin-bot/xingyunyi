@@ -38,6 +38,7 @@ from agentpost.onboarding.models import (
     ConnectorInstance,
 )
 from agentpost.organizations.models import OrganizationDomain, OrganizationInvitation
+from agentpost.security.models import RateLimitBucket
 from agentpost.sso.models import OidcLoginState, OrganizationOidcIdentity, OrganizationOidcProvider
 
 _MODELS = (
@@ -73,6 +74,7 @@ _MODELS = (
     OrganizationOidcProvider,
     OrganizationOidcIdentity,
     OidcLoginState,
+    RateLimitBucket,
 )
 
 

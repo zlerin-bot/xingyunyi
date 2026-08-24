@@ -603,6 +603,7 @@ paths, or the existence of another Agent's private object.
 | `409` | `PAIRING_INVALID_STATE` | Pairing or Connector is no longer in the required state |
 | `410` | `PAIRING_EXPIRED` | Short-lived pairing state expired before claim |
 | `429` | `PAIRING_SLOW_DOWN` | Connector polled before the advertised interval |
+| `429` | `RATE_LIMITED` | Deployment policy temporarily rejected the request; obey `Retry-After` |
 | `409` | `IDEMPOTENCY_CONFLICT` | Same sender/key was used for a different normalized request |
 | `409` | `INVALID_STATE_TRANSITION` | Requested operation cannot legally follow current state |
 | `409` | `APPROVAL_INVALID_STATE` | Approval is already terminal or expired |
@@ -610,8 +611,12 @@ paths, or the existence of another Agent's private object.
 | `422` | `SCHEMA_VALIDATION_FAILED` | JSON is malformed or the body/query violates its schema |
 | `503` | `DATABASE_UNAVAILABLE` | Readiness cannot reach the durable database |
 
-Rate limiting is not implemented by the MVP. A future implementation reserves
-`429 RATE_LIMITED` but MUST document retry behavior before enabling it.
+Human email challenges and login, plus Pairing creation and polling, use durable
+fixed-window limits keyed by HMAC digests of the source/account subject. A
+`429 RATE_LIMITED` response includes an integer `Retry-After` header in seconds.
+Clients MUST wait at least that long and MUST NOT silently retry non-idempotent
+operations. Authenticated-Agent messaging and attachment quotas remain deployment
+policy work rather than a v0.1 protocol guarantee.
 
 Authentication failure is distinct from authorization failure. For object reads,
 `404` is used for both absent and inaccessible resources to limit enumeration.

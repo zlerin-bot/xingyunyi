@@ -49,7 +49,7 @@ The evidence boundary is important:
 | OpenClaw | Static contracts and a zero-dependency Node HTTP-client harness are local verified | A real OpenClaw plugin build/load/validate was not run; npm/host dependencies were unavailable and bundled Node 24.14 is outside the plugin's declared supported ranges |
 | A2A | A2A 1.0 concept mapping and documentation contract tests are local verified | No A2A runtime endpoint, persistent task-binding implementation, conformance result, Agent Card, streaming, or push support exists |
 | Human organization scope | Self-created organizations, invitations, role changes, removal/self-exit, last-owner protection, DNS domain proof, allowlisted enterprise OIDC, single-organization Agent assignment, and revocable visibility are implemented | SCIM, nested units, broad account merge, tenant-isolation review, and production RBAC remain |
-| Human authentication/control | Email registration/login, TOTP MFA, recovery, Human-key rotation, verified-domain OIDC Authorization Code + PKCE, secure sessions/CSRF, confirmation, audit, and approval-only writes are locally verified | Production IdP/email/HTTPS acceptance, abuse/rate controls, IdP lifecycle, and approval execution remain |
+| Human authentication/control | Email registration/login, TOTP MFA, recovery, Human-key rotation, verified-domain OIDC Authorization Code + PKCE, secure sessions/CSRF, confirmation, audit, approval-only writes, and PostgreSQL-backed auth throttles are locally verified | Production IdP/email acceptance, broader abuse controls, IdP lifecycle, and approval execution remain |
 | Connector onboarding | New/existing-Agent Pairing, migration, credential rotation/revocation, heartbeat, Python keyring Worker, and TypeScript secure-store boundary are locally verified | Real host install/update/OS-service acceptance and multi-connector claim/lease are not implemented |
 | Admin console | Lightweight debug UI and token-gated operational views are implemented | It is not a production operations or organization-management console |
 
@@ -62,9 +62,9 @@ accepted.
 
 The following items are explicit backlog, not silent promises:
 
-- `PROTOCOL.md` reserves the stable `429 RATE_LIMITED` response, but the server has
-  no rate limiter, quota policy, or abuse throttle. It must not emit or advertise
-  enforceable quotas until implemented.
+- `429 RATE_LIMITED` is implemented for Human email challenges/login and Pairing
+  creation/polling with durable HMAC-keyed buckets. Authenticated-Agent messaging,
+  Directory, Inbox, and attachment-byte quotas remain explicit backlog.
 - Legacy manually registered Agent API keys have no public self-service lifecycle.
   Connector-bound credentials do have audited rotation/revocation; this does not
   replace a future bounded multi-key policy for legacy/API integrations.
@@ -120,9 +120,9 @@ persistent Inbox as the source of truth.
 - Add audited API-key issuance, overlapping rotation, revocation, last-used
   metadata, bounded key count, and emergency disable flows. Raw keys remain
   creation-only secrets.
-- Implement rate limiting and quotas by authenticated Agent, source, endpoint, and
-  attachment bytes, with trusted-proxy handling and the documented stable `429`
-  error. Idempotent retries must remain safe under throttling.
+- Extend the implemented source/account throttles with authenticated-Agent quotas
+  for Directory, Inbox, messages, replies, and attachment bytes. Preserve trusted-
+  proxy handling and keep idempotent retries safe under throttling.
 - Extend the existing named Human principals, email login, TOTP, recovery, key
   rotation, secure sessions, browser CSRF, one-time confirmation, and action
   attribution and verified-domain enterprise OIDC with SCIM, least-privilege

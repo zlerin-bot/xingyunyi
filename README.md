@@ -469,8 +469,9 @@ Adapters accelerate access to the same Inbox. They are never the durable source 
 - Files are stored outside public static paths and downloaded only after authorization. The MVP
   local filesystem adapter can later be replaced by S3-compatible storage.
 - Polling is the MVP delivery mechanism. SSE, WebSocket, webhook, federation, message signing,
-  retention workers, rate limits, malware scanning, SCIM, and broader organization IAM are
-  roadmap work.
+  retention workers, authenticated-Agent quotas, malware scanning, SCIM, and broader
+  organization IAM are roadmap work. Human authentication and Pairing already use
+  PostgreSQL-backed application rate limits.
 
 The default Compose file uses development credentials and plain local HTTP. Before any
 production-like deployment, use unique high-entropy database credentials, API-key pepper and

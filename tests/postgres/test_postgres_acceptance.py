@@ -21,6 +21,8 @@ from agentpost.onboarding.models import (
     AgentPairingSession,
     ConnectorInstance,
 )
+from agentpost.security.models import RateLimitBucket
+from agentpost.security.rate_limit import RateLimitExceededError, enforce_rate_limit
 
 pytestmark = pytest.mark.postgres
 ADMIN_KEY = "postgres-admin-secret-postgres-admin-secret"
@@ -35,6 +37,7 @@ def _settings(database_url: str, storage_path: Path) -> Settings:
         human_api_key_pepper="postgres-human-pepper",
         cursor_secret="postgres-acceptance-cursor",
         pairing_secret="postgres-pairing-secret",
+        rate_limit_secret="postgres-rate-limit-secret",
         pairing_enabled=True,
         managed_agent_domain="agents.local",
         public_base_url="https://agentpost.test",
@@ -141,7 +144,49 @@ def test_alembic_upgrade_reaches_single_head_and_creates_expected_schema(
         "agent_pairing_sessions",
         "connector_instances",
         "agent_connector_bindings",
+        "rate_limit_buckets",
     } <= table_names
+
+
+@pytest.mark.concurrency
+def test_postgres_rate_limit_upsert_is_atomic_across_workers(
+    migrated_database: Database,
+    postgres_url: str,
+    tmp_path: Path,
+) -> None:
+    settings = _settings(postgres_url, tmp_path / "rate-limit-attachments")
+    workers = 16
+    barrier = Barrier(workers)
+
+    def hit(_: int) -> str:
+        with migrated_database.session_factory() as session:
+            barrier.wait(timeout=10)
+            try:
+                enforce_rate_limit(
+                    session,
+                    settings,
+                    scope="postgres_concurrency_acceptance",
+                    subject="ip:192.0.2.10",
+                    limit=8,
+                    window_seconds=3600,
+                )
+            except RateLimitExceededError:
+                return "limited"
+            return "accepted"
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        outcomes = list(executor.map(hit, range(workers)))
+
+    assert outcomes.count("accepted") == 8
+    assert outcomes.count("limited") == 8
+    with migrated_database.session_factory() as session:
+        bucket = session.scalar(
+            select(RateLimitBucket).where(
+                RateLimitBucket.scope == "postgres_concurrency_acceptance"
+            )
+        )
+    assert bucket is not None and bucket.request_count == workers
+    assert "192.0.2.10" not in bucket.subject_digest
 
 
 @pytest.mark.e2e

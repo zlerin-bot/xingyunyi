@@ -204,9 +204,10 @@ creates no message, delivery, attachment binding, or idempotency record; the den
 is recorded as a separate audit event. Responses do not disclose the private rule
 that caused denial.
 
-ACLs reduce unsolicited delivery but are not a complete anti-abuse system. The MVP
-has no per-Agent quotas, reputation service, rate limiter, or automated spam
-classification.
+ACLs reduce unsolicited delivery but are not a complete anti-abuse system. Durable
+application rate limits protect Human email challenges, Human login attempts, and
+public Pairing creation/polling. Per-Agent messaging/attachment quotas, reputation,
+and automated spam classification are not yet implemented.
 
 ## 5. Untrusted Agent content and prompt injection
 
@@ -453,25 +454,25 @@ lost success response without issuing multiple credentials. A connector-bound ke
 updates Connector `last_seen_at`; owner revocation atomically removes the current
 binding and revokes the key while preserving the Agent and Inbox.
 
-Production Pairing requires HTTPS and an independent pairing secret. The
-production Compose manifest keeps it disabled by default. Application-wide rate
-limits are still not implemented, so a public deployment MUST add reverse-proxy
-limits for pairing creation, code verification, and device polling before
-enabling it. Device/user codes, verification query strings, confirmation tokens,
-and derived credentials must be redacted from proxy access logs and support
-telemetry.
+Production Pairing requires HTTPS, an independent pairing secret, and an
+independent rate-limit HMAC secret. The production Compose manifest keeps Pairing
+disabled by default. Pairing creation and polling use durable fixed-window limits
+in PostgreSQL and return `429 RATE_LIMITED` with `Retry-After`; per-pairing polling
+also retains the protocol-level `PAIRING_SLOW_DOWN` response. Device/user codes,
+verification query strings, confirmation tokens, and derived credentials must be
+redacted from proxy access logs and support telemetry.
 
 ## 12. Production deployment checklist
 
 Before exposing AgentPost outside a controlled local environment:
 
 - Set `AGENTPOST_ENVIRONMENT=production`. The application then refuses the known
-  development Agent-key pepper, Human-key pepper, and cursor secret and requires
-  registration and Admin tokens.
+  development Agent-key pepper, Human-key pepper, cursor secret, and rate-limit
+  secret and requires registration and Admin tokens.
 - Generate independent high-entropy values for the Agent-key pepper, Human-key
-  pepper, cursor secret, pairing secret, registration token, and Admin token. Store them outside
-  source control and container images. Do not reuse Agent or Human keys for
-  adapters or administration.
+  pepper, cursor secret, pairing secret, rate-limit secret, registration token,
+  and Admin token. Store them outside source control and container images. Do not
+  reuse Agent or Human keys for adapters or administration.
 - Terminate modern TLS at a trusted reverse proxy or ingress. The application does
   not configure production TLS itself. Redirect or reject plaintext traffic and
   validate proxy/host configuration for the deployment.
@@ -486,9 +487,10 @@ Before exposing AgentPost outside a controlled local environment:
   and regularly test restoration and server-restart persistence.
 - Put the Admin UI/API behind additional network or identity-aware access controls
   where possible. Monitor Admin access and never expose its token in URLs.
-- Add rate limits and quotas for registration, authentication attempts, directory
-  search, polling, sends, replies, and uploads. **Application-level rate limiting
-  is not implemented in the MVP.**
+- Human email challenges, login attempts, and Pairing creation/polling have
+  PostgreSQL-backed source/account limits. Add authenticated-Agent quotas for
+  directory search, Inbox polling, sends, replies, and attachment bytes before a
+  broad public Agent-network launch.
 - Add attachment malware/content scanning, quarantine, archive-expansion controls,
   and content-specific policy. **These are not implemented in the MVP.**
 - Define and implement message, idempotency, audit, pending-upload, and attachment

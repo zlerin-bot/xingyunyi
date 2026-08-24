@@ -66,6 +66,10 @@ from agentpost.onboarding.service import (
     rotate_connector_credential,
     verify_pairing_user_code,
 )
+from agentpost.security.rate_limit import (
+    client_rate_limit_subject,
+    enforce_http_rate_limit,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["agent-onboarding"])
 
@@ -207,6 +211,17 @@ def connector_create_pairing(
     session: SessionDep,
     settings: SettingsDep,
 ) -> PairingCreateResponse:
+    if not settings.pairing_enabled:
+        raise _pairing_disabled()
+    enforce_http_rate_limit(
+        request,
+        session,
+        settings,
+        scope="pairing_create_ip",
+        subject=client_rate_limit_subject(request),
+        limit=settings.pairing_create_ip_limit,
+        window_seconds=settings.pairing_rate_window_seconds,
+    )
     try:
         created = create_pairing(
             session,
@@ -241,6 +256,17 @@ def connector_poll_pairing(
     settings: SettingsDep,
 ) -> PairingTokenResponse:
     response.headers["Cache-Control"] = "no-store"
+    if not settings.pairing_enabled:
+        raise _pairing_disabled()
+    enforce_http_rate_limit(
+        request,
+        session,
+        settings,
+        scope="pairing_poll_ip",
+        subject=client_rate_limit_subject(request),
+        limit=settings.pairing_poll_ip_limit,
+        window_seconds=settings.pairing_rate_window_seconds,
+    )
     try:
         result = issue_pairing_token(
             session,

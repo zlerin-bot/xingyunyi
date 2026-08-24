@@ -80,6 +80,8 @@ def test_production_requires_registration_token() -> None:
             api_key_pepper="production-pepper",
             human_api_key_pepper="production-human-pepper",
             cursor_secret="production-cursor-secret",
+            rate_limit_secret="production-rate-limit-secret",
+            pairing_enabled=False,
         )
 
 
@@ -90,6 +92,8 @@ def test_production_requires_admin_token() -> None:
             api_key_pepper="production-pepper",
             human_api_key_pepper="production-human-pepper",
             cursor_secret="production-cursor-secret",
+            rate_limit_secret="production-rate-limit-secret",
+            pairing_enabled=False,
             registration_token="registration-secret",
         )
 
@@ -100,6 +104,7 @@ def test_production_accepts_all_required_secrets() -> None:
         api_key_pepper="production-pepper",
         human_api_key_pepper="production-human-pepper",
         cursor_secret="production-cursor-secret",
+        rate_limit_secret="production-rate-limit-secret",
         pairing_secret="production-pairing-secret",
         registration_token="registration-secret",
         admin_token="production-admin-token-at-least-32",
@@ -117,6 +122,7 @@ def test_production_pairing_requires_separate_secret_and_https() -> None:
         "api_key_pepper": "production-pepper",
         "human_api_key_pepper": "production-human-pepper",
         "cursor_secret": "production-cursor-secret",
+        "rate_limit_secret": "production-rate-limit-secret",
         "registration_token": "registration-secret",
         "admin_token": "production-admin-token-at-least-32",
         "managed_agent_domain": "agentpost.me",
@@ -140,6 +146,8 @@ def test_production_requires_a_separate_human_key_pepper() -> None:
             environment="production",
             api_key_pepper="production-pepper",
             cursor_secret="production-cursor-secret",
+            rate_limit_secret="production-rate-limit-secret",
+            pairing_enabled=False,
             registration_token="registration-secret",
             admin_token="production-admin-token-at-least-32",
         )
@@ -180,6 +188,7 @@ def test_production_human_self_service_requires_https_smtp_and_secrets() -> None
         "api_key_pepper": "production-pepper",
         "human_api_key_pepper": "production-human-pepper",
         "cursor_secret": "production-cursor-secret",
+        "rate_limit_secret": "production-rate-limit-secret",
         "pairing_secret": "production-pairing-secret",
         "registration_token": "registration-secret",
         "admin_token": "production-admin-token-at-least-32",
@@ -226,3 +235,26 @@ def test_production_human_self_service_requires_https_smtp_and_secrets() -> None
     assert configured.human_self_service_enabled is True
     assert configured.open_registration_enabled is True
     assert "production-human-auth-secret" not in repr(configured)
+
+
+def test_production_rate_limiting_requires_an_independent_secret() -> None:
+    with pytest.raises(ValidationError, match="RATE_LIMIT_SECRET"):
+        Settings(
+            environment="production",
+            api_key_pepper="production-pepper",
+            human_api_key_pepper="production-human-pepper",
+            cursor_secret="production-cursor-secret",
+            registration_token="registration-secret",
+            admin_token="production-admin-token-at-least-32",
+        )
+    disabled = Settings(
+        environment="production",
+        api_key_pepper="production-pepper",
+        human_api_key_pepper="production-human-pepper",
+        cursor_secret="production-cursor-secret",
+        registration_token="registration-secret",
+        admin_token="production-admin-token-at-least-32",
+        rate_limit_enabled=False,
+        pairing_enabled=False,
+    )
+    assert disabled.rate_limit_enabled is False

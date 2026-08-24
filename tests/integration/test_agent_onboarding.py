@@ -729,3 +729,39 @@ def test_existing_agent_pairing_is_owner_only_and_profile_fields_are_immutable(
     with database.session_factory() as session:
         assert session.scalar(select(func.count()).select_from(Agent)) == 2
         assert session.scalar(select(func.count()).select_from(ConnectorInstance)) == 1
+
+
+def test_pairing_creation_has_durable_ip_rate_limit(
+    settings: Settings,
+    database: Database,
+) -> None:
+    runtime = _runtime_settings(
+        settings,
+        pairing_create_ip_limit=2,
+        pairing_rate_window_seconds=3600,
+    )
+    with TestClient(create_app(settings=runtime, database=database)) as client:
+        for index in range(2):
+            created = client.post(
+                "/api/v1/connect/pairings",
+                json={
+                    "connector_type": "codex",
+                    "display_name": f"Pilot Connector {index}",
+                    "capabilities": [],
+                },
+            )
+            assert created.status_code == 201, created.text
+        limited = client.post(
+            "/api/v1/connect/pairings",
+            json={
+                "connector_type": "codex",
+                "display_name": "Third Connector",
+                "capabilities": [],
+            },
+        )
+
+    assert limited.status_code == 429
+    assert limited.json()["error"]["code"] == "RATE_LIMITED"
+    assert int(limited.headers["Retry-After"]) >= 1
+    with database.session_factory() as session:
+        assert session.scalar(select(func.count()).select_from(AgentPairingSession)) == 2

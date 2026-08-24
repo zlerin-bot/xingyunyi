@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     human_auth_secret: SecretStr = SecretStr("development-only-human-auth-secret")
     human_mfa_encryption_key: SecretStr = SecretStr("development-only-human-mfa-encryption-key")
     oauth_token_pepper: SecretStr = SecretStr("development-only-oauth-token-pepper")
+    rate_limit_secret: SecretStr = SecretStr("development-only-rate-limit-secret")
     registration_token: SecretStr | None = None
     admin_token: SecretStr | None = None
     pairing_enabled: bool = True
@@ -36,6 +37,7 @@ class Settings(BaseSettings):
     open_registration_enabled: bool = False
     remote_mcp_oauth_enabled: bool = False
     enterprise_oidc_enabled: bool = False
+    rate_limit_enabled: bool = True
     oidc_allowed_issuers: str = ""
     email_delivery_mode: str = "test"
     smtp_host: str | None = None
@@ -53,6 +55,15 @@ class Settings(BaseSettings):
     email_challenge_ttl_seconds: int = Field(default=10 * 60, ge=5 * 60, le=30 * 60)
     email_challenge_cooldown_seconds: int = Field(default=60, ge=10, le=10 * 60)
     email_challenge_max_attempts: int = Field(default=5, ge=3, le=10)
+    email_challenge_ip_limit: int = Field(default=20, ge=1, le=1000)
+    email_challenge_address_limit: int = Field(default=5, ge=1, le=100)
+    email_challenge_rate_window_seconds: int = Field(default=60 * 60, ge=60, le=24 * 60 * 60)
+    human_login_ip_limit: int = Field(default=60, ge=1, le=5000)
+    human_login_account_limit: int = Field(default=10, ge=1, le=1000)
+    human_login_rate_window_seconds: int = Field(default=15 * 60, ge=60, le=24 * 60 * 60)
+    pairing_create_ip_limit: int = Field(default=30, ge=1, le=5000)
+    pairing_poll_ip_limit: int = Field(default=1200, ge=1, le=10000)
+    pairing_rate_window_seconds: int = Field(default=60 * 60, ge=60, le=24 * 60 * 60)
     domain_verification_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     connector_heartbeat_interval_seconds: int = Field(default=30, ge=10, le=5 * 60)
     oauth_access_token_ttl_seconds: int = Field(default=60 * 60, ge=5 * 60, le=24 * 60 * 60)
@@ -220,11 +231,14 @@ class Settings(BaseSettings):
             "development-only-human-auth-secret",
             "development-only-human-mfa-encryption-key",
             "development-only-oauth-token-pepper",
+            "development-only-rate-limit-secret",
         }
         if self.api_key_pepper.get_secret_value() in unsafe:
             raise ValueError("AGENTPOST_API_KEY_PEPPER must be replaced in production")
         if self.cursor_secret.get_secret_value() in unsafe:
             raise ValueError("AGENTPOST_CURSOR_SECRET must be replaced in production")
+        if self.rate_limit_enabled and self.rate_limit_secret.get_secret_value() in unsafe:
+            raise ValueError("AGENTPOST_RATE_LIMIT_SECRET must be replaced in production")
         if self.human_api_key_pepper.get_secret_value() in unsafe:
             raise ValueError("AGENTPOST_HUMAN_API_KEY_PEPPER must be replaced in production")
         if self.registration_token is None:

@@ -15,6 +15,7 @@ from agentpost.config import Settings
 from agentpost.control.models import HumanAccessKey, HumanSession, HumanUser
 from agentpost.db import Database
 from agentpost.main import create_app
+from agentpost.security.models import RateLimitBucket
 
 
 def _settings(settings: Settings, *, enabled: bool = True) -> Settings:
@@ -160,6 +161,48 @@ def test_email_challenge_rate_limit_and_attempt_budget(
             },
         )
         assert exhausted.status_code == 400
+
+
+def test_login_has_durable_account_rate_limit_without_storing_email(
+    settings: Settings,
+    database: Database,
+) -> None:
+    runtime = _settings(settings).model_copy(
+        update={
+            "human_login_account_limit": 2,
+            "human_login_ip_limit": 20,
+            "human_login_rate_window_seconds": 900,
+        }
+    )
+    with TestClient(create_app(settings=runtime, database=database)) as client:
+        registered = _register(client, "limited-login@example.com")
+        _logout(client, str(registered["csrf_token"]))
+        for _ in range(2):
+            rejected = client.post(
+                "/api/v1/auth/login",
+                json={
+                    "email": "limited-login@example.com",
+                    "password": "wrong password that is long enough",
+                },
+            )
+            assert rejected.status_code == 401
+        limited = client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "limited-login@example.com",
+                "password": "correct horse battery staple",
+            },
+        )
+        assert limited.status_code == 429
+        assert limited.json()["error"]["code"] == "RATE_LIMITED"
+        assert int(limited.headers["Retry-After"]) >= 1
+
+    with database.session_factory() as session:
+        buckets = session.scalars(
+            select(RateLimitBucket).where(RateLimitBucket.scope == "human_login_account")
+        ).all()
+    assert len(buckets) == 1 and buckets[0].request_count == 3
+    assert "limited-login@example.com" not in repr(buckets[0].__dict__)
 
 
 def test_totp_recovery_codes_and_human_key_rotation(

@@ -47,6 +47,10 @@ from agentpost.control.human_security import HumanCsrfDep
 from agentpost.control.schemas import HumanProfile
 from agentpost.control.service import human_profile
 from agentpost.control.sessions import HUMAN_SESSION_COOKIE, create_human_session
+from agentpost.security.rate_limit import (
+    client_rate_limit_subject,
+    enforce_http_rate_limit,
+)
 
 router = APIRouter(tags=["human-authentication"])
 
@@ -138,6 +142,31 @@ def start_email_challenge(
     session: SessionDep,
     settings: SettingsDep,
 ) -> EmailChallengeResponse:
+    if not settings.human_self_service_enabled:
+        raise _self_service_disabled()
+    if payload.purpose == "register" and not settings.open_registration_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "open_registration_disabled", "message": "Registration is closed"},
+        )
+    enforce_http_rate_limit(
+        request,
+        session,
+        settings,
+        scope="human_email_challenge_ip",
+        subject=client_rate_limit_subject(request),
+        limit=settings.email_challenge_ip_limit,
+        window_seconds=settings.email_challenge_rate_window_seconds,
+    )
+    enforce_http_rate_limit(
+        request,
+        session,
+        settings,
+        scope="human_email_challenge_address",
+        subject=f"email:{payload.email}",
+        limit=settings.email_challenge_address_limit,
+        window_seconds=settings.email_challenge_rate_window_seconds,
+    )
     try:
         created = create_email_challenge(
             session,
@@ -240,6 +269,26 @@ def login_human(
     session: SessionDep,
     settings: SettingsDep,
 ) -> BrowserAuthenticationResponse:
+    if not settings.human_self_service_enabled:
+        raise _self_service_disabled()
+    enforce_http_rate_limit(
+        request,
+        session,
+        settings,
+        scope="human_login_ip",
+        subject=client_rate_limit_subject(request),
+        limit=settings.human_login_ip_limit,
+        window_seconds=settings.human_login_rate_window_seconds,
+    )
+    enforce_http_rate_limit(
+        request,
+        session,
+        settings,
+        scope="human_login_account",
+        subject=f"email:{payload.email}",
+        limit=settings.human_login_account_limit,
+        window_seconds=settings.human_login_rate_window_seconds,
+    )
     try:
         user, mfa_authenticated = authenticate_human(
             session,
