@@ -15,9 +15,9 @@ full production acceptance.
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `67593b8` at
-`/opt/agentpost/releases/67593b8`, with its independent Python environment at
-`/opt/agentpost/venvs/67593b8`. The database is at Alembic revision
+The active application release is Git commit `b7d51b0` at
+`/opt/agentpost/releases/b7d51b0`, with its independent Python environment at
+`/opt/agentpost/venvs/b7d51b0`. The database is at Alembic revision
 `0018_rate_limit_buckets`.
 
 The environment file is root-readable only. Do not copy it into Git, command
@@ -134,6 +134,32 @@ passed after restart. Delivery to a real recipient mailbox and the two-Human
 experience are still acceptance gates, so the release is
 `self_registration_ready`, not yet `two_human_experience_accepted`.
 
+## Human-friendly Pairing guide update (2026-08-24)
+
+Release `b7d51b0` replaces the low-level Pairing-first screen with a three-step
+guide intended for a Human without programming experience: choose an Agent tool,
+run two copyable commands on the local computer, then return to 星轨 to confirm
+the device and Agent address. The guide provides separate Codex, WorkBuddy,
+OpenClaw, and generic-tool entries, plus macOS, Windows, and Linux instructions.
+It explains the local Connector and durable cloud Inbox in plain language and
+moves Pairing ID/user-code fields behind an explicit advanced fallback.
+
+The deployment was application-only: no schema, environment, DNS, Nginx, or
+PostgreSQL change was required. Before cutover, the prior release pointer,
+systemd unit, Nginx sites, and a root-only environment copy were stored under
+`/opt/agentpost/backups/20260824-b7d51b0/`. The three changed UI files matched
+their local SHA-256 hashes after transfer. A separate
+`/opt/agentpost/venvs/b7d51b0` was built and the systemd unit now starts Alembic
+and Uvicorn through that version's Python runtime.
+
+After restart, AgentPost, Nginx, and PostgreSQL all reported `active`; local
+health and readiness passed. A logged-in production Chrome session verified the
+new empty state, all four tool choices, macOS and Windows instruction changes,
+the Windows preview warning, and the manual Pairing fallback. No Pairing was
+submitted and no long-term credential was exposed. This verifies the guidance
+surface, not yet a real end-user Connector installation or native WorkBuddy/
+OpenClaw host integration.
+
 ## Rollback
 
 The provider snapshot `agentpost-pre-https-20260824`
@@ -156,10 +182,12 @@ attachment archive. The pre-update systemd unit is stored at
 `/etc/systemd/system/agentpost.service.pre-8f3bfd0`.
 
 The current application-only rollback backup is
-`/opt/agentpost/backups/20260824-0300-67593b8/`. Because release `9f39342` does
-not know revision `0018`, first use the `67593b8` environment to downgrade the
-database to `0017_enterprise_oidc`, then restore the prior current-release symlink
-and systemd unit. Verify counts and `/ready` before reopening traffic.
+`/opt/agentpost/backups/20260824-b7d51b0/`. The current update did not change the
+database. To roll it back, point `/opt/agentpost/current` to
+`/opt/agentpost/releases/67593b8`, restore the backed-up systemd unit, reload
+systemd, restart AgentPost, and verify `/health`, `/ready`, and `/orbit`. The
+earlier database-aware backup remains at
+`/opt/agentpost/backups/20260824-0300-67593b8/` for the revision-0018 upgrade.
 
 For an application-only incident:
 

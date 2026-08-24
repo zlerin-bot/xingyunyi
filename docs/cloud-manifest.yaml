@@ -1,7 +1,7 @@
 schema_version: "1"
 project: xingyunyi-agentpost
-evidence_status: deployed_https_verified
-verified_at: "2026-08-24T10:24:00+08:00"
+evidence_status: self_registration_pairing_guide_verified
+verified_at: "2026-08-24T12:52:00+08:00"
 
 provider:
   name: aliyun
@@ -11,11 +11,11 @@ provider:
   operating_system: ubuntu-24.04
 
 release:
-  git_commit: 9f39342
+  git_commit: b7d51b0
   current_path: /opt/agentpost/current
-  immutable_path: /opt/agentpost/releases/9f39342
-  virtualenv_path: /opt/agentpost/venvs/9f39342
-  alembic_revision: 0017_enterprise_oidc
+  immutable_path: /opt/agentpost/releases/b7d51b0
+  virtualenv_path: /opt/agentpost/venvs/b7d51b0
+  alembic_revision: 0018_rate_limit_buckets
 
 topology:
   reverse_proxy: nginx
@@ -55,20 +55,21 @@ domain:
     automatic_renewal_dry_run: passed
 
 feature_gates:
-  human_self_service: false
-  open_registration: false
-  pairing: false
+  human_self_service: true
+  open_registration: true
+  pairing: true
   remote_mcp_oauth: false
   enterprise_oidc: false
-  reason: awaiting_smtp_rate_limits_and_adapter_idp_acceptance
+  reason: remote_host_and_enterprise_idp_acceptance_remain_pending
 
 rollback:
   provider_snapshot:
     id: s-bp15au6if7ffxt547ltn
     name: agentpost-pre-https-20260824
   application_backup: /opt/agentpost/backups/20260824-https
-  prior_release: /opt/agentpost/releases/01c97a1
-  prior_unit: /etc/systemd/system/agentpost.service.pre-8f3bfd0
+  current_update_backup: /opt/agentpost/backups/20260824-b7d51b0
+  prior_release: /opt/agentpost/releases/67593b8
+  prior_unit: /opt/agentpost/backups/20260824-b7d51b0/agentpost.service
 
 acceptance:
   services_active:
@@ -78,6 +79,9 @@ acceptance:
   public_health: passed
   public_ready: passed
   orbit_render: passed
+  orbit_pairing_guide: passed
+  orbit_tool_switching: passed
+  orbit_manual_pairing_fallback: passed
   dns_resolution: passed
   https_certificate: passed
   http_to_https_redirect: passed
