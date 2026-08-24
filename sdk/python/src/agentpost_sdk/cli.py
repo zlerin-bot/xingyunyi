@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import platform
@@ -14,8 +15,9 @@ from threading import Event
 from typing import Any
 
 from agentpost_sdk.client import AgentPost
+from agentpost_sdk.codex_setup import configure_codex_mcp
 from agentpost_sdk.connector import ConnectorWorker, JsonCursorStore, ManagedConnector
-from agentpost_sdk.errors import AgentPostError, ResponseError
+from agentpost_sdk.errors import AgentPostError, ConfigurationError, ResponseError
 from agentpost_sdk.models import Message
 from agentpost_sdk.onboarding import PairingInstructions
 
@@ -95,6 +97,12 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser("connect", help="pair once or restore the Connector from the OS vault")
     commands.add_parser("status", help="connect if needed, then report heartbeat state")
 
+    setup = commands.add_parser(
+        "setup",
+        help="pair and register the local AgentPost tools in a supported host",
+    )
+    setup.add_argument("host", choices=("codex",))
+
     send = commands.add_parser("send", help="send a message using the paired Agent identity")
     send.add_argument("--to", required=True)
     send.add_argument("--subject", default="")
@@ -164,6 +172,13 @@ def _connect(args: argparse.Namespace) -> ManagedConnector:
         open_browser=not args.no_browser,
         on_pairing=_pairing_notice,
     )
+
+
+def _mcp_command() -> Path:
+    if importlib.util.find_spec("mcp") is None:
+        raise ConfigurationError("Codex setup requires the agentpost[mcp,connector] extras")
+    executable = "agentpost-mcp.exe" if os.name == "nt" else "agentpost-mcp"
+    return Path(sys.executable).with_name(executable)
 
 
 def _json(value: Any) -> None:
@@ -258,6 +273,8 @@ def _run_worker(args: argparse.Namespace, connector: ManagedConnector) -> int:
 
 
 def _run(args: argparse.Namespace) -> int:
+    if args.command == "setup":
+        args.connector_type = args.host
     with _connect(args) as connector:
         client = connector.client
         if args.command == "connect":
@@ -272,6 +289,25 @@ def _run(args: argparse.Namespace) -> int:
             )
         elif args.command == "status":
             _json(connector.heartbeat())
+        elif args.command == "setup":
+            heartbeat = connector.heartbeat()
+            configured = configure_codex_mcp(
+                server=client.server,
+                profile=connector.profile,
+                mcp_command=_mcp_command(),
+            )
+            _json(
+                {
+                    "status": "configured",
+                    "host": args.host,
+                    "address": heartbeat.agent.address,
+                    "profile": connector.profile,
+                    "mcp_server": configured.server_name,
+                    "approval_mode": configured.approval_mode,
+                    "credential_storage": "operating_system_vault",
+                    "restart_required": configured.restart_required,
+                }
+            )
         elif args.command == "send":
             sent = client.send(args.to, args.subject, args.body, type=args.type)
             _json({"status": "accepted", **_message_metadata(sent)})

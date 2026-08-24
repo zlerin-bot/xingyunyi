@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 from agentpost_sdk import ConnectorCredentialRotation, ConnectorHeartbeat, cli
+from agentpost_sdk.codex_setup import CodexSetupResult
 from agentpost_sdk.onboarding import PairingInstructions
 
 
@@ -12,6 +13,7 @@ class DummyConnector:
     def __init__(self) -> None:
         self.profile = "generic:test-device"
         self.client = SimpleNamespace()
+        self.client.server = "https://agentpost.me"
         self.client.send = lambda *args, **kwargs: None
         self.client.inbox = SimpleNamespace()
         self.client.messages = SimpleNamespace()
@@ -110,3 +112,48 @@ def test_result_reply_is_available_only_on_reply_command() -> None:
     parser = cli._parser()
     reply = parser.parse_args(["reply", "msg_test", "--body", "done", "--type", "result"])
     assert reply.type == "result"
+
+
+def test_setup_codex_pairs_registers_profile_and_never_prints_credentials(
+    monkeypatch,
+    capsys,
+    tmp_path,
+) -> None:
+    connector = DummyConnector()
+    captured = {}
+
+    def connect(args):
+        captured["connector_type"] = args.connector_type
+        connector.profile = f"{args.connector_type}:test-device"
+        return connector
+
+    def configure(**kwargs):
+        captured.update(kwargs)
+        return CodexSetupResult(
+            server_name="agentpost",
+            approval_mode="writes",
+            config_path=tmp_path / "config.toml",
+        )
+
+    monkeypatch.setattr(cli, "_connect", connect)
+    monkeypatch.setattr(cli, "_mcp_command", lambda: tmp_path / "agentpost-mcp")
+    monkeypatch.setattr(cli, "configure_codex_mcp", configure)
+
+    assert cli.main(["--device-name", "test-device", "setup", "codex"]) == 0
+    output = capsys.readouterr().out
+    result = json.loads(output)
+
+    assert captured["connector_type"] == "codex"
+    assert captured["server"] == "https://agentpost.me"
+    assert captured["profile"] == "codex:test-device"
+    assert result == {
+        "address": "test@agentpost.me",
+        "approval_mode": "writes",
+        "credential_storage": "operating_system_vault",
+        "host": "codex",
+        "mcp_server": "agentpost",
+        "profile": "codex:test-device",
+        "restart_required": True,
+        "status": "configured",
+    }
+    assert "agt_" not in output
