@@ -198,6 +198,23 @@ def test_production_human_self_service_requires_https_smtp_and_secrets() -> None
             human_mfa_encryption_key="production-human-mfa-key",
         )
 
+    with pytest.raises(ValidationError, match="Encrypted SMTP"):
+        Settings(
+            **base,
+            human_auth_secret="production-human-auth-secret",
+            human_mfa_encryption_key="production-human-mfa-key",
+            email_delivery_mode="smtp",
+            smtp_host="smtp.example.com",
+            smtp_from_address="no-reply@agentpost.me",
+            smtp_starttls=False,
+        )
+
+    with pytest.raises(ValidationError, match="mutually exclusive"):
+        Settings(smtp_starttls=True, smtp_ssl=True)
+
+    with pytest.raises(ValidationError, match="SMTP_PASSWORD"):
+        Settings(smtp_username="mailer")
+
     configured = Settings(
         **base,
         human_auth_secret="production-human-auth-secret",

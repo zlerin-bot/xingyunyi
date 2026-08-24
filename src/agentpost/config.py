@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     smtp_password: SecretStr | None = None
     smtp_from_address: str | None = None
     smtp_starttls: bool = True
+    smtp_ssl: bool = False
     managed_agent_domain: str = "agents.local"
     public_base_url: str = "http://127.0.0.1:8000"
     remote_mcp_resource_url: str | None = None
@@ -186,6 +187,14 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def require_production_secrets(self) -> Settings:
+        if self.smtp_ssl and self.smtp_starttls:
+            raise ValueError(
+                "AGENTPOST_SMTP_SSL and AGENTPOST_SMTP_STARTTLS are mutually exclusive"
+            )
+        if self.smtp_username and self.smtp_password is None:
+            raise ValueError("AGENTPOST_SMTP_PASSWORD is required when SMTP username is configured")
+        if self.smtp_password is not None and not self.smtp_username:
+            raise ValueError("AGENTPOST_SMTP_USERNAME is required when SMTP password is configured")
         if self.open_registration_enabled and not self.human_self_service_enabled:
             raise ValueError(
                 "AGENTPOST_HUMAN_SELF_SERVICE_ENABLED must be true when open "
@@ -246,6 +255,8 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "SMTP host and from address are required when Human self-service is enabled"
                 )
+            if not (self.smtp_starttls or self.smtp_ssl):
+                raise ValueError("Encrypted SMTP is required when Human self-service is enabled")
         if self.remote_mcp_oauth_enabled:
             if self.oauth_token_pepper.get_secret_value() in unsafe:
                 raise ValueError("AGENTPOST_OAUTH_TOKEN_PEPPER must be replaced in production")

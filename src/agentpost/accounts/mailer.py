@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import smtplib
+import ssl
 from email.message import EmailMessage
 
 from agentpost.config import Settings
@@ -16,9 +17,19 @@ def _send_message(settings: Settings, message: EmailMessage) -> None:
     if not settings.smtp_host or not settings.smtp_from_address:
         raise EmailDeliveryError("SMTP delivery is not configured")
     try:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as client:
+        context = ssl.create_default_context()
+        if settings.smtp_ssl:
+            connection = smtplib.SMTP_SSL(
+                settings.smtp_host,
+                settings.smtp_port,
+                timeout=10,
+                context=context,
+            )
+        else:
+            connection = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10)
+        with connection as client:
             if settings.smtp_starttls:
-                client.starttls()
+                client.starttls(context=context)
             if settings.smtp_username:
                 password = (
                     settings.smtp_password.get_secret_value() if settings.smtp_password else ""
