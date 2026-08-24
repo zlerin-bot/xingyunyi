@@ -4,6 +4,28 @@ Last updated: 2026-08-24
 
 Local handoff stage: `v0.1.0-local.1` (package/API version remains `0.1.0`)
 
+## Post-handoff M24 progress (2026-08-24)
+
+Commit `abd1d74` adds an exclusive Connector-profile identity source to the local stdio MCP.
+`AGENTPOST_PROFILE` now selects the already-paired credential by exact server and profile from the
+operating-system vault. The existing explicit `AGENTPOST_API_KEY` mode remains available for
+server/CI use, but configuring both sources or neither source fails closed. There is no plaintext
+credential-file fallback, and credentials remain absent from tool parameters and representations.
+
+The slice passed Ruff lint/format, the unchanged 306-fast-test local regression with one sandbox
+loopback skip and five deselected PostgreSQL tests, and ten package-local MCP tests. A sandbox-outside
+read-only probe loaded profile `codex:MacBook-Air-2.local` from macOS Keychain without displaying the
+key. A packaged `0.1.0` wheel was installed into the dedicated `~/.agentpost/runtime`, its MCP 2.x
+optional dependency was installed, and a real stdio handshake discovered all six AgentPost tools.
+
+AgentPost is now enabled in the shared Codex MCP configuration with non-secret server/profile values
+and `default_tools_approval_mode = "writes"`. A fresh ephemeral Codex CLI task discovered and invoked
+`agentpost_list_inbox(status=unread, limit=1)` from natural language, returned zero items with
+`external_agent_content`, and performed no read/send/reply/ACK operation. This establishes
+Connector-aware identity, registration, tool discovery, and one read-only natural-language call. It
+does **not** yet accept the complete M24 write flow: send, explicit read, ACK, reply, Directory, Codex
+desktop restart persistence, and error-redaction behavior still require end-to-end acceptance.
+
 ## Current state
 
 This repository started as an empty directory. There was no existing application,
@@ -105,11 +127,11 @@ readiness passed. A logged-in production browser verified the guide, tool/OS
 switching, Windows preview notice, and manual Pairing fallback without submitting
 a Pairing or exposing credentials.
 
-This is UI and deployment acceptance, not yet a real ordinary-user Connector
-installation. Codex can use the generic Connector today; native natural-language
-tool invocation is still being integrated. WorkBuddy and OpenClaw currently use
-the generic Connector path, and Windows remains explicitly marked as awaiting
-physical-device validation.
+This earlier release established UI and deployment acceptance, not a real ordinary-user Connector
+installation. At that stage Codex used the generic Connector and native natural-language invocation
+was still pending; the post-handoff M24 section above records the later Codex MCP integration.
+WorkBuddy and OpenClaw still use the generic Connector path, and Windows remains explicitly marked
+as awaiting physical-device validation.
 
 The first real Codex Pairing attempt exposed a Human-facing 422 caused by the UI
 accepting values that the `local_agent_id` protocol schema rejects while hiding
@@ -120,8 +142,9 @@ errors. The regression also proves that a schema-rejected decision does not
 consume its one-time Human confirmation. A fresh end-user command subsequently
 completed real Codex Pairing: the Connector claimed its credential into the macOS
 credential vault and reported active/healthy heartbeat state without displaying
-the long-lived key. AgentPost is not yet registered in Codex's MCP configuration,
-so native natural-language tool invocation remains a separate next milestone.
+the long-lived key. At the time of that Pairing, AgentPost was not registered in
+Codex's MCP configuration; commit `abd1d74` and the post-handoff evidence above
+supersede that specific local-integration gap.
 
 ## Decisions already fixed
 
@@ -630,12 +653,12 @@ have not yet been accepted.
 
 ## Immediate next action
 
-Human self-registration and one real Codex Pairing have now completed. The next
-implementation slice is a Connector-aware local Codex MCP bridge that reads the
-already-paired identity from the operating-system vault without exposing or
-copying the Agent API key. After MCP registration and Codex restart, a fresh task
-must prove natural-language send/inbox/read/ACK/reply. A colleague should then
-create a separate Human account and Agent and complete the two-person offline flow
-in `docs/CONTROLLED_EXPERIENCE_TEST.md`. Remote MCP, enterprise OIDC, Windows, and
-generic host-native compatibility remain separate gates. Production hardening and
-later phases remain governed by `SECURITY.md` and `ROADMAP.md`.
+The Connector-aware local Codex MCP bridge is implemented, installed, registered, and read-only
+natural-language Inbox discovery is verified from a fresh CLI task. The next acceptance slice is to
+restart Codex desktop, confirm the six tools persist there, and complete an explicitly authorized
+send/inbox/read/ACK/reply/Directory flow without copying a key. The test must preserve write-tool
+approval prompts, `external_agent_content`, idempotency keys, and sanitized failures. A colleague
+should then create a separate Human account and Agent and complete the two-person offline flow in
+`docs/CONTROLLED_EXPERIENCE_TEST.md`. Remote MCP, enterprise OIDC, Windows, and generic host-native
+compatibility remain separate gates. Production hardening and later phases remain governed by
+`SECURITY.md` and `ROADMAP.md`.
