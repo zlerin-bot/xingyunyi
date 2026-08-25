@@ -1,8 +1,8 @@
 # 星云驿 Agent Onboarding / Pairing 计划
 
-状态：已撤销“自然语言网页体验就绪”结论。生产 0.1.1 仍是面向技术人员的多宿主、多系统、
-复制命令式入口，不满足最终验收。当前源码已把普通用户入口改为复制同一句自然语言到
-Agent 对话框，并补齐 Codex 的纯连接意图；尚未部署、分发插件或完成真实首次/再次使用
+状态：已撤销旧的“自然语言网页体验就绪”结论。生产 release `c7c7313` 已把普通用户入口
+改为复制同一句自然语言到 Agent 对话框，不再展示多宿主、多系统或复制命令式入口；
+Codex 个人插件也已安装。真实首次安装/网页授权/自动返回原任务和再次发送仍未完成 Human
 验收（2026-08-25）。
 
 ## 0. 最终验收指标
@@ -16,8 +16,9 @@ Agent 对话框，并补齐 Codex 的纯连接意图；尚未部署、分发插�
 
 当前实现证据：
 
-- 星轨“连接新的 Agent”源码只显示同一段自然语言接入口令，不再要求选择宿主、操作系统，
+- 生产星轨“连接新的 Agent”只显示同一段自然语言，不再要求选择宿主、操作系统，
   也不再显示安装命令、连接命令或手工配对参数入口；
+- 真实登录网页已验证弹窗与“复制这句话 → 已复制”的交互；
 - `agentpost-messaging` 隐式技能与 `plugins/agentpost` 插件保留原始发送意图；
 - 同一技能已识别“请连接我的星云驿”纯连接意图，并在内部调用 `setup codex`；
 - bootstrap 仅从同源 HTTPS 元数据取得已发布版本和 SHA-256，并安装到专用 runtime；
@@ -26,10 +27,9 @@ Agent 对话框，并补齐 Codex 的纯连接意图；尚未部署、分发插�
 - 星轨在零个自有 Agent 时自动创建身份、一个时自动绑定、多个时只提供一次合并选择；
 - 正常 verification URL 路径不要求用户填写 Pairing ID、代码、Agent 地址、能力或密钥。
 
-仍未验收：新版星轨页面部署、AgentPost 插件对干净 Codex 用户的可发现/安装、首次安装
-确认次数、真实 HTTPS 网页授权后带附件恢复、第二次直接发送，以及 WorkBuddy/OpenClaw、
-Windows/Linux。生产 Connector 已固定 0.1.1，但生产网页仍是旧技术入口，不得描述为
-普通用户一句话接入已经可用。
+仍未验收：AgentPost 插件对干净 Codex 用户的分发、首次安装确认次数、真实 HTTPS 网页
+授权后带附件恢复、第二次直接发送，以及 WorkBuddy/OpenClaw、Windows/Linux。生产网页的
+一句话入口已经可体验，但在完整回到原任务前仍不得描述为首次接入最终验收通过。
 
 ## 1. 产品决定
 
@@ -66,7 +66,7 @@ Windows/Linux。生产 Connector 已固定 0.1.1，但生产网页仍是旧技�
   命令行永不打印长期 Agent credential。
 - Codex 本地接入已新增 `agentpost-connect setup codex`：同一命令完成身份恢复或
   Human Pairing、MCP 注册和写工具逐次审批配置；配置只保存服务器与钥匙串 profile
-  引用。该切片已通过隔离 Codex CLI 验证，尚未发布到生产 wheel。
+  引用。该切片已通过隔离 Codex CLI 验证并发布在固定的生产 0.1.1 wheel 中。
 - 第一方 OAuth Device Authorization 与 OAuth-protected Remote MCP 已存在。
 - 企业 OIDC Authorization Code + PKCE、Issuer 运维白名单、已验证域名
   auto-provision 和已有账户显式绑定已存在。
@@ -79,7 +79,7 @@ Windows/Linux。生产 Connector 已固定 0.1.1，但生产网页仍是旧技�
 - Pending Address / Invitation / Claim。
 - Codex 的真实桌面首次/再次使用、重启持久性及自然语言完整读写流；WorkBuddy、MiniMax、Claude、Manus
   与 OpenClaw 的真实宿主安装、浏览器授权和断线恢复验收。
-- 生产 SMTP 激活、受控 Human 账户恢复、两台真实设备与两名 Human 的体验验收。
+- 真实邮件送达、受控 Human 账户恢复、两台真实设备与两名 Human 的体验验收。
 
 因此，现有系统已具备本地 Connector 的低门槛接入闭环，但尚不能把
 “第一方协议可用”宣传为“所有第三方宿主无感兼容”。

@@ -6,24 +6,21 @@ Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production rel
 
 ## Post-handoff ordinary-user onboarding correction (2026-08-25)
 
-The prior `natural_language_web_experience_ready` label was rejected by the Human and is withdrawn.
-Production 0.1.1 still asks a normal user to choose a host and operating system and copy installation
-and connection commands. The Codex skill also exists only inside this repository/plugin source and
-the plugin is not installed or published. Those facts do not satisfy the final acceptance contract.
-
-The current source replaces the default 星轨 “连接新的 Agent” guide with one host-neutral sentence:
-“请连接我的星云驿。如果尚未连接，请自动安装官方连接组件并打开一次网页授权；完成后回到
-这个对话并告诉我连接结果。” The user copies it into an ordinary Agent chat. Host selection,
+The prior `natural_language_web_experience_ready` label was rejected by the Human and remains
+withdrawn. Release `c7c7313` now corrects the actual production web path: 星轨 “连接新的 Agent”
+shows one host-neutral sentence, “请连接我的星云驿。如果还没有连接，请帮我完成安装并打开授权
+页面；连接好后回到这里告诉我。” The user copies it into an ordinary Agent chat. Host selection,
 operating-system selection, installation commands, connection commands, profiles, addresses, and
-long-lived credentials are absent from the normal web path. Manual CLI material remains an operator
-fallback outside the ordinary-user flow.
+long-lived credentials are absent from the default web path. The authenticated production page and
+its copy-button result were observed in Chrome. Manual CLI material remains an operator fallback.
 
 The implicit Codex skill now recognizes connection-only intent and can internally run the pinned
 0.1.1 bootstrap, pair through one 星轨 page, and register the local MCP without asking the Human to
-choose Codex or type a command. This is source and automated-test evidence only. The corrected web
-experience is not deployed, the plugin is not yet distributed to a clean Codex user, and
-WorkBuddy/OpenClaw/Windows/Linux do not yet have equivalent native pickup. Current evidence status is
-`ordinary_user_prompt_flow_implemented_not_deployed`, not end-user acceptance.
+choose Codex or type a command. The personal Codex marketplace has the validated AgentPost plugin
+installed and enabled as `0.1.1+codex.20260825013544`. A new Codex task is still required to load it
+and observe a complete first-use install/pair/return cycle. WorkBuddy/OpenClaw/Windows/Linux do not
+yet have equivalent native pickup. Current evidence status is
+`ordinary_user_uniform_prompt_web_ready_codex_plugin_installed`, not end-user acceptance.
 
 ## Post-handoff natural-language onboarding implementation (2026-08-24)
 
@@ -38,8 +35,8 @@ Agent” preserves the original send as the goal. If the Connector is absent, th
 the server-declared wheel into the dedicated runtime with a hash-pinned direct requirement, starts
 one short-lived Human Pairing, configures Codex, and delegates the original send in the same process.
 It never asks the user for a server, profile, package version, Agent address, or long-lived key.
-The plugin is source packaging only; it has not been installed into a personal marketplace or
-published to users.
+The plugin is installed in the current Human's personal marketplace; clean-user distribution and
+external publication remain pending.
 
 Natural recipient resolution now sends automatically for one Directory match and returns one
 structured clarification containing all safe candidates for zero or multiple matches. The resumed
@@ -54,26 +51,25 @@ compatible for administrative and legacy clients.
 
 | Acceptance item | Current evidence | Remaining gate |
 | --- | --- | --- |
-| One natural-language request starts first use | one uniform chat prompt and Codex connection-only skill pass source tests | deploy corrected UI; install/publish plugin; run clean real Codex UI |
+| One natural-language request starts first use | live uniform prompt, working copy button, and installed personal Codex plugin | run a new/clean real Codex task through the complete return cycle |
 | At most one system install confirmation | one bootstrap execution and one pinned runtime install path | plugin distribution and clean-desktop observation |
 | At most one web authorization | one Pairing verification URL, one reauthentication/decision transaction; production 0.1.1 metadata and 星轨 UI verified | observe the complete first-use return in Codex |
-| No technical parameters or long-lived key | enforced in skill, bootstrap, vault, and auto-created identity tests | user-observation acceptance |
+| No technical parameters or long-lived key | live default web path contains no host/OS choice or commands; skill/bootstrap/vault tests pass | user-observation acceptance |
 | Unambiguous recipient/Agent is not queried | one Directory result and zero/one owned-Agent branches are automatic | real multi-account fixture |
 | Ambiguity is asked once | one structured recipient clarification or one combined 星轨 Agent choice | real multiple-Agent fixture |
 | Original task resumes after authorization | composite pair/configure/search/upload/send CLI test passes | real browser-return send with attachment |
 | Reuse enters write approval directly | connected text flow uses MCP `writes`; attachment flow reuses runtime/profile | real second-request Codex UI acceptance |
 
-The current full local regression reports 318 passed and six explicit skips: one expected sandbox
+The current full local regression reports 320 passed and six explicit skips: one expected sandbox
 loopback case plus five opt-in PostgreSQL tests; the package-local MCP suite adds ten passing tests. The deployment-day
 focused skill/config/onboarding/control-plane selection adds 39 passing tests. Ruff lint/format,
 plugin validation, skill validation, browser JavaScript syntax, a clean-wheel `0.1.1` install, and an
 isolated real Codex MCP registration pass. The published wheel SHA-256 is
 `908558e6c9c83401f5b2ca0ed0da645721d06789ed803b82c21be97b0c7b16b8`.
 
-Production serves 0.1.1 and its health/readiness, pinned-wheel digest, authenticated 星轨 rendering,
-existing Agent view, and prior technical Codex guide passed. The currently deployed technical guide
-is now negative product evidence, not an ordinary-user success. The corrected one-sentence web guide,
-complete real first-use send, and connected reuse send all remain undeployed or unobserved.
+Production serves 0.1.1 from release `c7c7313`; health/readiness, the pinned-wheel digest,
+authenticated 星轨 rendering, existing Agent view, the one-sentence connection dialog, and its copy
+result pass. The complete real first-use return and connected reuse send remain unobserved.
 WorkBuddy/OpenClaw and Windows/Linux remain separate native host/device gates. `PROJECT_HANDOFF.md`
 remains the frozen `v0.1.0-local.1` takeover record.
 

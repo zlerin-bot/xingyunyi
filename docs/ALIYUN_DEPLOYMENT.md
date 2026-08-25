@@ -15,9 +15,9 @@ full production acceptance.
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `9f27d36` at
-`/opt/agentpost/releases/9f27d36`, with its independent Python environment at
-`/opt/agentpost/venvs/9f27d36`. The database is at Alembic revision
+The active application release is Git commit `c7c7313` at
+`/opt/agentpost/releases/c7c7313`, with its independent Python environment at
+`/opt/agentpost/venvs/c7c7313`. The database is at Alembic revision
 `0018_rate_limit_buckets`.
 
 The environment file is root-readable only. Do not copy it into Git, command
@@ -203,11 +203,30 @@ and readiness returned version 0.1.1; and PostgreSQL remained at
 existing Agent and all 星轨 observation areas, opened the 0.1.1 Codex guide with the
 correct fixed hash, and reported no frontend errors.
 
-This deployed state is `production_0_1_1_manual_bootstrap_only`. The host/OS selectors
-and copied commands are negative ordinary-user evidence, not a one-sentence experience.
-The corrected uniform chat-prompt UI exists only in source and must be deployed before
-the Human can observe one clean first-use request resuming after web authorization and
-one connected reuse request entering write approval directly.
+This technical guide was later rejected as an ordinary-user experience and is retained only as
+historical deployment evidence. Release `c7c7313` supersedes its default web entry with the uniform
+chat prompt described below.
+
+## Ordinary-user uniform prompt release (2026-08-25)
+
+Release `c7c7313` is deployed at `/opt/agentpost/releases/c7c7313` with an isolated runtime at
+`/opt/agentpost/venvs/c7c7313`. The immediate rollback is release `99f557f`; the pre-switch unit,
+environment copy, and prior pointer evidence are under
+`/opt/agentpost/backups/20260825-0938-c7c7313/`. This was an application-only change: database,
+migration, Nginx, DNS, certificate, and PostgreSQL configuration were not changed.
+
+The authenticated production 星轨 page now presents “连接新的 Agent”. Opening it shows one sentence:
+“请连接我的星云驿。如果还没有连接，请帮我完成安装并打开授权页面；连接好后回到这里告诉我。”
+The default path contains no Agent selector, operating-system selector, install command, connection
+command, Pairing ID/code input, address input, or long-lived credential. The copy action changed to
+“已复制” and displayed the next-step confirmation in the real Chrome session.
+
+After cutover, AgentPost, Nginx, and PostgreSQL remained active; local and public health/readiness
+passed; the public HTML contained the new sentence and excluded the rejected selector text. The
+personal Codex marketplace plugin is installed and enabled as
+`0.1.1+codex.20260825013544`. A new Codex task must still observe the complete first-use
+install/authorization/return cycle. Mac Codex is the only currently open real-experience gate;
+WorkBuddy, OpenClaw, Windows, and Linux remain pending and must not be reported as supported.
 
 ## Rollback
 
