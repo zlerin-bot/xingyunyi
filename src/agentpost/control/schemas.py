@@ -177,6 +177,10 @@ class OrbitAgentHandleUpdate(ControlModel):
         return canonicalize_agent_handle(value) if value is not None else None
 
 
+class OrbitAgentDelete(ControlModel):
+    confirmation: Literal["delete"]
+
+
 class OrbitMessage(ControlModel):
     message_id: str
     sender_address: str
@@ -213,6 +217,7 @@ class OrbitTask(ControlModel):
 
 class OrbitMetrics(ControlModel):
     agent_count: int
+    connected_agent_count: int
     online_recently_count: int
     unread_delivery_count: int
     pending_task_count: int

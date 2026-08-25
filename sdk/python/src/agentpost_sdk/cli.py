@@ -106,6 +106,8 @@ def _parser() -> argparse.ArgumentParser:
         help="pair and register the local AgentPost tools in a supported host",
     )
     setup.add_argument("host", choices=("codex", "workbuddy", "openclaw"))
+    setup.add_argument("--existing-agent-id", help=argparse.SUPPRESS)
+    setup.add_argument("--new-agent-intent", help=argparse.SUPPRESS)
 
     send = commands.add_parser("send", help="send a message using the paired Agent identity")
     recipient = send.add_mutually_exclusive_group(required=True)
@@ -174,7 +176,16 @@ def _pairing_notice(instructions: PairingInstructions) -> None:
 
 
 def _profile(args: argparse.Namespace) -> str:
-    return args.profile or f"{args.connector_type}:{args.device_name}"
+    if args.profile:
+        return args.profile
+    profile_scope = getattr(args, "existing_agent_id", None) or getattr(
+        args,
+        "new_agent_intent",
+        None,
+    )
+    if profile_scope:
+        return f"{args.connector_type}:{args.device_name[:80]}:{profile_scope}"
+    return f"{args.connector_type}:{args.device_name}"
 
 
 def _display_name(args: argparse.Namespace) -> str:
@@ -190,6 +201,7 @@ def _connect(args: argparse.Namespace) -> ManagedConnector:
         device_name=args.device_name,
         client_version=f"agentpost-connect/{__version__}",
         capabilities=args.capability,
+        requested_existing_agent_id=getattr(args, "existing_agent_id", None),
         open_browser=not args.no_browser,
         on_pairing=_pairing_notice,
     )

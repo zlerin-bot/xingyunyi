@@ -4,6 +4,46 @@ Last updated: 2026-08-25
 
 Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.3`
 
+## Multi-Agent simultaneous connection and per-Agent control (local, 2026-08-25)
+
+Tester `020` exposed a real product defect: after a WorkBuddy pairing, the existing Codex lost its
+connection. The storage model already allowed one Human to own many Agents and one current Connector
+per Agent; the defect was in 星轨's default approval policy. When the Human owned exactly one Agent,
+the browser silently selected that Agent for every new pairing, so the backend correctly treated the
+new WorkBuddy Connector as a replacement for the Codex Connector on the same durable Agent.
+
+The local source now makes the two intents explicit without asking the Human for technical input:
+
+- “连接新的 Agent” always creates a new independent Agent, even when the Human already owns one or
+  many Agents. Each copied code carries an opaque new-Agent intent so two same-host Agents on the
+  same device use separate OS-vault profiles instead of restoring one another.
+- “连接/重新连接” on an existing Agent card carries that Agent's UUID as a short-lived target
+  intent. The approval page verifies current-Human ownership, binds only that Agent, and rejects a
+  target mismatch. This is the only path that may replace an existing Agent's current Connector.
+- Automatic addresses are readable and globally checked, using Human name, Connector type, and a
+  sequence, for example `mars-codex-001@agentpost.me` and `mars-workbuddy-001@agentpost.me`.
+  Existing addresses are unchanged.
+- 星轨 now reports the count of current connected Agents instead of presenting recent activity as
+  the connection count. Every owned Agent card shows its own connected/disconnected state and offers
+  connect/reconnect, disconnect, short-name edit, and delete actions.
+- Delete is a soft delete: it revokes only that Agent's current Connector and hides the Agent from
+  the active dashboard, while retaining the immutable Agent ID/address, ownership, Inbox, Thread,
+  ACL, Connector records, and message history for audit continuity.
+
+The schema head is locally `0020_pairing_agent_intent`. Local evidence is **362 passed, 1 explicit
+sandbox skip, and 5 PostgreSQL tests deselected**, plus **10 MCP tests** and **4 TypeScript Connector
+tests**. Ruff/format, JavaScript syntax, skill/plugin bootstrap parity, Alembic single-head, diff, and
+PostgreSQL offline SQL generation checks pass. Focused multi-Agent/UI/SDK/CLI/bootstrap coverage is
+47 passed and proves that Codex and WorkBuddy credentials remain valid simultaneously with two
+current bindings. A live PostgreSQL migration and an interactive local browser run were not
+available in this sandbox; loopback binding is explicitly denied.
+
+This slice is local source only. Production remains package `0.1.3`, migration
+`0019_agent_handles`, and does not contain this correction. A separately authorized immutable
+release (expected `0.1.4`) still needs backup, real-PostgreSQL migration tests, deployment, HTTPS
+verification, and real `020`/`mars` Codex plus WorkBuddy experience testing. Current evidence is
+`multi_agent_connection_locally_verified`, not `production_accepted`.
+
 ## OpenClaw real-CLI compatibility gate (local, 2026-08-25)
 
 The ordinary-user OpenClaw path uses the shared stdio MCP adapter, not the older optional native

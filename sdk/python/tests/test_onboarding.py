@@ -37,6 +37,7 @@ def test_begin_pairing_exposes_only_short_lived_human_instructions() -> None:
         device_name="Mars MacBook",
         client_version="1.0.0",
         capabilities=["financial-research"],
+        requested_existing_agent_id="5a7044c7-6a5e-48e9-90dd-78680c91dcb9",
         transport=httpx.MockTransport(handler),
     )
 
@@ -50,6 +51,7 @@ def test_begin_pairing_exposes_only_short_lived_human_instructions() -> None:
     body = requests[0].content.decode()
     assert '"connector_type":"codex"' in body
     assert '"capabilities":["financial-research"]' in body
+    assert '"requested_existing_agent_id":"5a7044c7-6a5e-48e9-90dd-78680c91dcb9"' in body
     pairing.close()
 
 

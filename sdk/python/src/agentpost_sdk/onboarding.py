@@ -195,6 +195,7 @@ def begin_pairing(
     device_name: str | None,
     client_version: str | None,
     capabilities: list[str] | None,
+    requested_existing_agent_id: str | None,
     timeout: float | httpx.Timeout,
     transport: httpx.BaseTransport | None,
 ) -> PairingSession:
@@ -217,6 +218,7 @@ def begin_pairing(
                     "device_name": device_name,
                     "client_version": client_version,
                     "capabilities": capabilities or [],
+                    "requested_existing_agent_id": requested_existing_agent_id,
                 },
             )
         except httpx.HTTPError as exc:

@@ -23,6 +23,9 @@ const state = {
   pairingTargetResolution: "pending",
   pairingCreateNewAutomatically: false,
   selectedPairingHost: "",
+  pairingTargetAgent: null,
+  pairingNewAgentIntent: "",
+  connectors: [],
 };
 
 const elements = {
@@ -135,6 +138,14 @@ const elements = {
   revokeMfa: document.querySelector("#revoke-mfa"),
   revokeSummary: document.querySelector("#revoke-summary"),
   revokeResult: document.querySelector("#revoke-result"),
+  deleteAgentDialog: document.querySelector("#delete-agent-dialog"),
+  deleteAgentForm: document.querySelector("#delete-agent-form"),
+  deleteAgentClose: document.querySelector("#delete-agent-close"),
+  deleteAgentCancel: document.querySelector("#delete-agent-cancel"),
+  deleteAgentSubmit: document.querySelector("#delete-agent-submit"),
+  deleteAgentId: document.querySelector("#delete-agent-id"),
+  deleteAgentSummary: document.querySelector("#delete-agent-summary"),
+  deleteAgentResult: document.querySelector("#delete-agent-result"),
   registerDialog: document.querySelector("#register-dialog"),
   registerForm: document.querySelector("#register-form"),
   registerClose: document.querySelector("#register-close"),
@@ -403,6 +414,8 @@ function statusLabel(value) {
     healthy: "健康",
     degraded: "降级",
     error: "故障",
+    connected: "已连接",
+    disconnected: "未连接",
   };
   return labels[value] || safeText(value);
 }
@@ -418,7 +431,7 @@ function renderMetrics(metrics, agents, organizations) {
   elements.metricAgents.textContent = safeText(metrics.agent_count, "0");
   elements.metricUnread.textContent = safeText(metrics.unread_delivery_count, "0");
   elements.metricPending.textContent = safeText(metrics.pending_task_count, "0");
-  elements.metricOnline.textContent = safeText(metrics.online_recently_count, "0");
+  elements.metricOnline.textContent = safeText(metrics.connected_agent_count, "0");
   elements.metricApprovals.textContent = safeText(metrics.pending_approval_count, "0");
   const active = agents.filter((agent) => agent.status === "active").length;
   elements.overviewCopy.textContent = `当前进入 ${organizations.length} 个组织治理范围，可观察 ${agents.length} 个 Agent，其中 ${active} 个身份处于 active；通信状态和工作状态仍分别呈现。`;
@@ -1009,6 +1022,13 @@ function renderAgents(agents) {
   }
   const fragment = document.createDocumentFragment();
   agents.forEach((agent) => {
+    const agentConnectors = state.connectors.filter(
+      (connector) => String(connector.agent?.id) === String(agent.id),
+    );
+    const currentConnector = agentConnectors.find(
+      (connector) => connector.is_current && connector.status === "active",
+    ) || null;
+    const preferredConnector = currentConnector || agentConnectors[0] || null;
     const card = document.createElement("article");
     card.className = "agent-card";
 
@@ -1022,8 +1042,17 @@ function renderAgents(agents) {
       ? safeText(agent.display_name)
       : "尚未设置短名称";
     identity.append(title, displayName);
-    const role = chip(agent.role, "role");
-    top.append(identity, role);
+    const badges = document.createElement("div");
+    badges.className = "agent-status-badges";
+    badges.append(chip(currentConnector ? "connected" : "disconnected"));
+    badges.append(chip(agent.role, "role"));
+    top.append(identity, badges);
+
+    const connection = document.createElement("div");
+    connection.className = `agent-connection-state ${currentConnector ? "connected" : "disconnected"}`;
+    connection.textContent = currentConnector
+      ? `${safeText(currentConnector.display_name, currentConnector.connector_type)} 已连接 · ${statusLabel(currentConnector.health_status)}`
+      : "当前未连接；Agent 身份、Inbox 和历史仍保留";
 
     const identityDetails = document.createElement("details");
     identityDetails.className = "agent-identity-details";
@@ -1059,7 +1088,7 @@ function renderAgents(agents) {
       cell.append(term, detail);
       stats.append(cell);
     });
-    card.append(top, identityDetails);
+    card.append(top, connection, identityDetails);
     if (agent.organization) {
       const organization = document.createElement("div");
       organization.className = "agent-organization";
@@ -1070,12 +1099,37 @@ function renderAgents(agents) {
     if (agent.role === "owner") {
       const actions = document.createElement("div");
       actions.className = "agent-card-actions";
+      const connect = document.createElement("button");
+      connect.type = "button";
+      connect.className = "quiet-button";
+      connect.textContent = currentConnector ? "重新连接" : "连接";
+      connect.addEventListener("click", () => openPairingDialog(
+        "",
+        "",
+        agent,
+        safeText(preferredConnector?.connector_type, ""),
+      ));
       const editHandle = document.createElement("button");
       editHandle.type = "button";
       editHandle.className = "quiet-button";
       editHandle.textContent = agent.handle ? "修改短名称" : "设置短名称";
       editHandle.addEventListener("click", () => openHandleDialog(agent));
+      actions.append(connect);
+      if (currentConnector) {
+        const disconnect = document.createElement("button");
+        disconnect.type = "button";
+        disconnect.className = "quiet-button";
+        disconnect.textContent = "断开";
+        disconnect.addEventListener("click", () => openRevokeDialog(currentConnector));
+        actions.append(disconnect);
+      }
       actions.append(editHandle);
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "quiet-button danger";
+      remove.textContent = "删除";
+      remove.addEventListener("click", () => openDeleteAgentDialog(agent));
+      actions.append(remove);
       card.append(actions);
     }
     fragment.append(card);
@@ -1143,7 +1197,8 @@ async function saveAgentHandle(event) {
 
 function openRevokeDialog(connector) {
   elements.revokeConnectorId.value = safeText(connector.connector_id, "");
-  elements.revokeSummary.textContent = `将撤销 ${safeText(connector.agent?.address)} 当前使用的 ${safeText(connector.display_name)} 连接。`;
+  const agentLabel = connector.agent?.handle || connector.agent?.display_name || connector.agent?.address;
+  elements.revokeSummary.textContent = `将断开 ${safeText(agentLabel, "这个 Agent")} 当前使用的 ${safeText(connector.display_name)} 连接。`;
   elements.revokeResult.textContent = "请重新输入当前密码（或兼容 Human Key）；凭证验证后立即清除。";
   elements.revokeResult.className = "form-status";
   elements.revokeDialog.showModal();
@@ -1206,10 +1261,16 @@ function renderConnectors(connectors) {
   elements.connectorList.append(fragment);
 }
 
-function showPairingGuide() {
+function showPairingGuide(targetAgent = state.pairingTargetAgent, preferredHost = "") {
+  state.pairingTargetAgent = targetAgent || null;
+  state.pairingNewAgentIntent = targetAgent
+    ? ""
+    : state.pairingNewAgentIntent || crypto.randomUUID();
   elements.pairingGuide.hidden = false;
   elements.pairingApproval.hidden = true;
-  elements.pairingDialogSummary.textContent = "先选择你正在使用的 Agent。星轨会生成一段接入码，复制到它的普通对话框即可。";
+  elements.pairingDialogSummary.textContent = targetAgent
+    ? `重新连接 ${safeText(targetAgent.handle, targetAgent.display_name)}。复制接入码到它的普通对话框，原身份和历史保持不变。`
+    : "先选择你正在使用的 Agent。星轨会生成一段接入码，复制到它的普通对话框即可。";
   state.selectedPairingHost = "";
   elements.pairingHostCards.forEach((button) => {
     button.classList.remove("selected");
@@ -1219,6 +1280,9 @@ function showPairingGuide() {
   elements.pairingChatPrompt.textContent = "";
   elements.pairingCopyResult.textContent = "";
   elements.pairingCopyResult.className = "form-status";
+  if (PAIRING_HOSTS[preferredHost]) {
+    selectPairingHost(preferredHost);
+  }
   elements.pairingHostCards[0]?.focus();
 }
 
@@ -1233,9 +1297,16 @@ function pairingPrompt(host) {
   if (!selected) {
     return "";
   }
+  const target = state.pairingTargetAgent;
+  const targetLabel = target ? safeText(target.handle, target.display_name) : "";
+  const targetQuery = target?.id
+    ? `?agent=${encodeURIComponent(target.id)}`
+    : `?new=${encodeURIComponent(state.pairingNewAgentIntent)}`;
   return [
-    `请把当前 ${selected.name} 连接到我的星云驿。`,
-    `接入码：${selected.code} https://agentpost.me/connect/${host}`,
+    target
+      ? `请把当前 ${selected.name} 重新连接到我已有的 Agent“${targetLabel}”，保留原身份和历史。`
+      : `请把当前 ${selected.name} 作为新的独立 Agent 连接到我的星云驿。`,
+    `接入码：${selected.code} https://agentpost.me/connect/${host}${targetQuery}`,
     "请读取这个官方接入页并直接完成安装和授权。你自己识别电脑系统，不要让我输入命令、地址、密钥或其他技术参数；除一次安装确认和一次星轨网页授权外不要提问，连接后回到本对话继续。",
   ].join("\n");
 }
@@ -1309,6 +1380,8 @@ function closePairingDialog({ clear = true } = {}) {
     state.pairingCreateNewAutomatically = false;
     state.pairingRequestSignature = "";
     state.pairingIdempotencyKey = "";
+    state.pairingTargetAgent = null;
+    state.pairingNewAgentIntent = "";
     updatePairingTargetMode();
   }
   if (elements.pairingDialog.open) {
@@ -1361,29 +1434,27 @@ function configurePairingTarget(pairing) {
   const owned = populateExistingAgentOptions();
   state.pairingCreateNewAutomatically = false;
   elements.pairingTargetSummary.hidden = false;
-  if (!owned.length) {
+  const requestedAgentId = safeText(pairing.requested_existing_agent_id, "");
+  const requestedAgent = requestedAgentId
+    ? owned.find((agent) => String(agent.id) === requestedAgentId)
+    : null;
+  if (requestedAgent) {
+    state.pairingTargetResolution = "automatic-existing";
+    elements.pairingTargetMode.value = "existing";
+    elements.pairingExistingAgent.value = requestedAgent.id;
+    elements.pairingTargetSummary.textContent = `将重新连接 ${safeText(requestedAgent.handle, requestedAgent.display_name)}；原地址、Inbox、Thread、权限和历史保持不变。`;
+    elements.pairingSubmit.disabled = false;
+  } else if (requestedAgentId) {
+    state.pairingTargetResolution = "invalid-target";
+    elements.pairingTargetMode.value = "existing";
+    elements.pairingTargetSummary.textContent = "这段接入码指定的 Agent 不属于当前账号。请关闭后，从目标 Agent 卡片重新点击“连接”。";
+    elements.pairingSubmit.disabled = true;
+  } else {
     state.pairingTargetResolution = "automatic-new";
     state.pairingCreateNewAutomatically = true;
     elements.pairingTargetMode.value = "new";
-    elements.pairingTargetSummary.textContent = `将自动创建 ${safeText(pairing.connector_display_name, "当前 Agent")} 的星云驿身份，无需设置地址或技术参数。`;
-  } else if (owned.length === 1) {
-    state.pairingTargetResolution = "automatic-existing";
-    elements.pairingTargetMode.value = "existing";
-    elements.pairingExistingAgent.value = owned[0].id;
-    elements.pairingTargetSummary.textContent = `将自动连接到唯一的 Agent：${safeText(owned[0].display_name, owned[0].address)} · ${safeText(owned[0].address)}。`;
-  } else {
-    state.pairingTargetResolution = "ambiguous";
-    elements.pairingTargetMode.value = "existing";
-    const prompt = document.createElement("option");
-    prompt.value = "";
-    prompt.textContent = "请选择一个 Agent";
-    prompt.selected = true;
-    elements.pairingExistingAgent.insertBefore(prompt, elements.pairingExistingAgent.firstChild);
-    const create = document.createElement("option");
-    create.value = "__create_new__";
-    create.textContent = "为这次连接创建新的独立 Agent";
-    elements.pairingExistingAgent.append(create);
-    elements.pairingTargetSummary.textContent = "找到多个可用 Agent，请只选择一次这次连接的归属。";
+    elements.pairingTargetSummary.textContent = `将为 ${safeText(pairing.connector_display_name, "当前 Agent")} 创建新的独立身份和可读地址，不会替换你已有的任何 Agent。`;
+    elements.pairingSubmit.disabled = false;
   }
   updatePairingTargetMode();
 }
@@ -1422,7 +1493,8 @@ async function loadPairingPreview() {
   }
 }
 
-async function openPairingDialog(pairingId = "", userCode = "") {
+async function openPairingDialog(pairingId = "", userCode = "", targetAgent = null, preferredHost = "") {
+  state.pairingTargetAgent = targetAgent;
   elements.pairingId.value = pairingId;
   elements.pairingUserCode.value = userCode;
   elements.pairingCodeFields.hidden = Boolean(pairingId && userCode);
@@ -1436,7 +1508,7 @@ async function openPairingDialog(pairingId = "", userCode = "") {
     await loadPairingPreview();
     return;
   }
-  showPairingGuide();
+  showPairingGuide(targetAgent, preferredHost);
 }
 
 function pairingPayload(decision) {
@@ -1663,6 +1735,49 @@ async function revokeConnector(event) {
     elements.revokeResult.className = "form-status error";
   } finally {
     elements.revokeSubmit.disabled = false;
+  }
+}
+
+function openDeleteAgentDialog(agent) {
+  elements.deleteAgentId.value = safeText(agent.id, "");
+  elements.deleteAgentSummary.textContent = `确定删除 ${safeText(agent.handle, agent.display_name)} 吗？这个操作只影响该 Agent，不会让其他 Agent 下线。`;
+  elements.deleteAgentResult.textContent = "删除后，该 Agent 的当前 Connector 会立即失效。";
+  elements.deleteAgentResult.className = "form-status";
+  elements.deleteAgentDialog.showModal();
+  elements.deleteAgentCancel.focus();
+}
+
+function closeDeleteAgentDialog() {
+  elements.deleteAgentId.value = "";
+  elements.deleteAgentResult.textContent = "";
+  if (elements.deleteAgentDialog.open) {
+    elements.deleteAgentDialog.close();
+  }
+}
+
+async function deleteAgent(event) {
+  event.preventDefault();
+  const agentId = elements.deleteAgentId.value.trim();
+  if (!state.csrfToken || !agentId) {
+    elements.deleteAgentResult.textContent = "无法确认要删除的 Agent，请关闭后重试。";
+    elements.deleteAgentResult.className = "form-status error";
+    return;
+  }
+  elements.deleteAgentSubmit.disabled = true;
+  try {
+    await requestJson(`/api/v1/orbit/agents/${encodeURIComponent(agentId)}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+      body: JSON.stringify({ confirmation: "delete" }),
+    });
+    closeDeleteAgentDialog();
+    await loadDashboard();
+    setConnection("Agent 已删除；其他 Agent 的连接未受影响", "success");
+  } catch (error) {
+    elements.deleteAgentResult.textContent = error.message;
+    elements.deleteAgentResult.className = "form-status error";
+  } finally {
+    elements.deleteAgentSubmit.disabled = false;
   }
 }
 
@@ -1978,8 +2093,9 @@ async function loadDashboard() {
       requestJson("/api/v1/orbit/connectors"),
       requestJson("/api/v1/orbit/security"),
     ]);
+    state.connectors = Array.isArray(connectors.items) ? connectors.items : [];
     renderDashboard(dashboard);
-    renderConnectors(Array.isArray(connectors.items) ? connectors.items : []);
+    renderConnectors(state.connectors);
     renderSecurity(security);
     elements.welcomeView.hidden = true;
     elements.workspaceView.hidden = false;
@@ -2523,7 +2639,7 @@ elements.pairingHostCards.forEach((button) => {
   button.addEventListener("click", () => selectPairingHost(button.dataset.connectorType));
 });
 elements.pairingCopyPrompt.addEventListener("click", copyPairingPrompt);
-elements.pairingGuideBack.addEventListener("click", showPairingGuide);
+elements.pairingGuideBack.addEventListener("click", () => showPairingGuide());
 elements.pairingGuideCancel.addEventListener("click", () => closePairingDialog());
 elements.pairingForm.addEventListener("submit", decidePairing);
 elements.pairingDeny.addEventListener("click", (event) => decidePairing(event, "denied"));
@@ -2550,6 +2666,10 @@ elements.revokeForm.addEventListener("submit", revokeConnector);
 elements.revokeClose.addEventListener("click", closeRevokeDialog);
 elements.revokeCancel.addEventListener("click", closeRevokeDialog);
 elements.revokeDialog.addEventListener("close", closeRevokeDialog);
+elements.deleteAgentForm.addEventListener("submit", deleteAgent);
+elements.deleteAgentClose.addEventListener("click", closeDeleteAgentDialog);
+elements.deleteAgentCancel.addEventListener("click", closeDeleteAgentDialog);
+elements.deleteAgentDialog.addEventListener("close", closeDeleteAgentDialog);
 elements.openOrganizationCreate.addEventListener("click", () => {
   elements.organizationCreateResult.textContent = "创建后你将成为首位 Owner。";
   elements.organizationCreateDialog.showModal();

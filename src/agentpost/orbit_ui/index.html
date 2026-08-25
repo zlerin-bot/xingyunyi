@@ -162,9 +162,9 @@
               <small>尚未收到明确 Result</small>
             </article>
             <article class="metric-card accent-green">
-              <span class="metric-label">近期活跃 Agent</span>
+              <span class="metric-label">已连接 Agent</span>
               <strong id="metric-online">—</strong>
-              <small>五分钟内有身份活动</small>
+              <small>每个 Agent 可同时保持独立连接</small>
             </article>
             <article class="metric-card accent-red">
               <span class="metric-label">待我审批</span>
@@ -714,6 +714,28 @@
         <div class="dialog-actions">
           <button id="revoke-cancel" type="button" class="quiet-button">返回</button>
           <button id="revoke-submit" type="submit" class="approval-submit danger-submit">确认撤销</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="delete-agent-dialog" class="approval-dialog" aria-labelledby="delete-agent-dialog-title">
+      <form id="delete-agent-form" method="dialog" autocomplete="off">
+        <div class="dialog-heading">
+          <div>
+            <p class="section-tag">Agent delete</p>
+            <h2 id="delete-agent-dialog-title">删除这个 Agent</h2>
+          </div>
+          <button id="delete-agent-close" type="button" class="dialog-close" aria-label="关闭删除窗口">×</button>
+        </div>
+        <p id="delete-agent-summary" class="dialog-summary"></p>
+        <input id="delete-agent-id" type="hidden">
+        <div class="trust-banner">
+          删除会立即断开并隐藏这个 Agent。底层 ID、地址、Inbox、Thread、ACL、Connector 记录和消息历史会保留，不会误删其他 Agent。
+        </div>
+        <p id="delete-agent-result" class="form-status" role="status"></p>
+        <div class="dialog-actions">
+          <button id="delete-agent-cancel" type="button" class="quiet-button">返回</button>
+          <button id="delete-agent-submit" type="submit" class="approval-submit danger-submit">确认删除</button>
         </div>
       </form>
     </dialog>

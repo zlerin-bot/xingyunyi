@@ -185,8 +185,13 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "existing_agent_id" in script.text
     assert "pairing-target-summary" in orbit.text
     assert "create_new_agent" in script.text
-    assert "owned.length === 1" in script.text
-    assert 'state.pairingTargetResolution = "ambiguous"' in script.text
+    assert "owned.length === 1" not in script.text
+    assert 'state.pairingTargetResolution = "automatic-new"' in script.text
+    assert "requested_existing_agent_id" in script.text
+    assert "不会替换你已有的任何 Agent" in script.text
+    assert "delete-agent-dialog" in orbit.text
+    assert "重新连接" in script.text
+    assert "断开" in script.text
     assert "只需选择一次" in orbit.text
     assert "last_heartbeat_at" in script.text
     assert "长期凭证由本地连接器自动领取" in script.text
@@ -222,7 +227,28 @@ def test_agent_facing_connection_contract_is_public_pinned_and_host_specific(
         assert "one 星轨 browser authorization" in instructions.text
         assert "long-lived credential" in instructions.text
 
+        target = "5a7044c7-6a5e-48e9-90dd-78680c91dcb9"
+        reconnect = client.get(f"/connect/{host}?agent={target}")
+        assert reconnect.status_code == 200
+        assert f"setup {host} --existing-agent-id {target}" in reconnect.text
+        assert "Preserve that Agent's durable identity" in reconnect.text
+
+        intent = "40000000-0000-0000-0000-000000000001"
+        new_agent = client.get(f"/connect/{host}?new={intent}")
+        assert new_agent.status_code == 200
+        assert f"setup {host} --new-agent-intent {intent}" in new_agent.text
+        assert "isolate the local OS-vault profile" in new_agent.text
+
     assert client.get("/connect/unknown").status_code == 422
+    assert client.get("/connect/codex?agent=not-a-uuid").status_code == 422
+    assert (
+        client.get(
+            "/connect/codex"
+            "?agent=5a7044c7-6a5e-48e9-90dd-78680c91dcb9"
+            "&new=40000000-0000-0000-0000-000000000001"
+        ).status_code
+        == 422
+    )
 
 
 def test_auth_config_exposes_only_release_enabled_codex_platforms(

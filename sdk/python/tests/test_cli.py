@@ -347,3 +347,64 @@ def test_setup_codex_pairs_registers_profile_and_never_prints_credentials(
         "status": "configured",
     }
     assert "agt_" not in output
+
+
+def test_setup_for_existing_agent_passes_only_the_hidden_target_intent(
+    monkeypatch,
+    capsys,
+) -> None:
+    connector = DummyConnector()
+    captured = {}
+
+    def connect(args):
+        captured["connector_type"] = args.connector_type
+        captured["existing_agent_id"] = args.existing_agent_id
+        connector.profile = f"{args.connector_type}:test-device"
+        return connector
+
+    monkeypatch.setattr(cli, "_connect", connect)
+    monkeypatch.setattr(
+        cli,
+        "_configure_host",
+        lambda *_args: CodexSetupResult(
+            server_name="agentpost",
+            approval_mode="writes",
+            config_path=Path("config.toml"),
+        ),
+    )
+    target = "5a7044c7-6a5e-48e9-90dd-78680c91dcb9"
+    assert (
+        cli.main(["--device-name", "test-device", "setup", "codex", "--existing-agent-id", target])
+        == 0
+    )
+    assert captured == {"connector_type": "codex", "existing_agent_id": target}
+    assert target not in capsys.readouterr().out
+
+
+def test_setup_new_agent_intent_isolates_same_host_device_vault_profiles() -> None:
+    parser = cli._parser()
+    first = parser.parse_args(
+        [
+            "--device-name",
+            "shared-device",
+            "setup",
+            "codex",
+            "--new-agent-intent",
+            "40000000-0000-0000-0000-000000000001",
+        ]
+    )
+    second = parser.parse_args(
+        [
+            "--device-name",
+            "shared-device",
+            "setup",
+            "codex",
+            "--new-agent-intent",
+            "40000000-0000-0000-0000-000000000002",
+        ]
+    )
+    first.connector_type = first.host
+    second.connector_type = second.host
+
+    assert cli._profile(first) != cli._profile(second)
+    assert cli._profile(first).startswith("codex:shared-device:")

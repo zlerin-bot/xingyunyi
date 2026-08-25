@@ -12,6 +12,7 @@ from agentpost.control.human_security import (
     HUMAN_CSRF_HEADER,
     HumanCsrfDep,
     add_human_action_audit,
+    human_session_id_from_request,
 )
 from agentpost.control.models import AgentOwnership, HumanSession
 from agentpost.control.organization_service import list_orbit_organizations
@@ -19,6 +20,7 @@ from agentpost.control.schemas import (
     HumanProfile,
     HumanSessionResponse,
     OrbitAgent,
+    OrbitAgentDelete,
     OrbitAgentHandleUpdate,
     OrbitDashboard,
     OrbitMessage,
@@ -26,7 +28,9 @@ from agentpost.control.schemas import (
     OrbitTask,
 )
 from agentpost.control.service import (
+    AgentOwnerActionDeniedError,
     build_orbit_dashboard,
+    disable_owned_agent,
     human_profile,
     list_orbit_messages,
     list_orbit_tasks,
@@ -295,6 +299,37 @@ def update_orbit_agent_handle(
     session.commit()
     session.refresh(agent)
     return agent_profile(agent)
+
+
+@router.delete(
+    "/api/v1/orbit/agents/{agent_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_orbit_agent(
+    agent_id: UUID,
+    payload: OrbitAgentDelete,
+    request: Request,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    csrf: HumanCsrfDep,
+) -> None:
+    _ = csrf, payload
+    try:
+        disable_owned_agent(
+            session,
+            user=current_human,
+            agent_id=agent_id,
+            human_session_id=human_session_id_from_request(request),
+            request_id=request.state.request_id,
+        )
+    except AgentOwnerActionDeniedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "agent_delete_access_denied",
+                "message": "Only the Human owner can delete this Agent",
+            },
+        ) from exc
 
 
 @router.get("/api/v1/orbit/organizations", response_model=list[OrbitOrganization])

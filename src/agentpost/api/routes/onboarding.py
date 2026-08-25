@@ -53,6 +53,7 @@ from agentpost.onboarding.service import (
     PairingInvalidStateError,
     PairingNotFoundError,
     PairingSlowDownError,
+    PairingTargetAgentMismatchError,
     PairingTargetAgentNotFoundError,
     create_pairing,
     decide_pairing,
@@ -538,6 +539,14 @@ def orbit_decide_pairing(
             detail={
                 "code": "agent_not_owned",
                 "message": "The selected Agent is not owned by the current Human",
+            },
+        ) from exc
+    except PairingTargetAgentMismatchError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "pairing_target_mismatch",
+                "message": "This pairing was started for a different existing Agent",
             },
         ) from exc
     except PairingInvalidStateError as exc:

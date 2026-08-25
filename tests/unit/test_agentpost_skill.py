@@ -215,3 +215,51 @@ def test_bootstrap_rejects_arbitrary_setup_targets() -> None:
     bootstrap = _load_bootstrap()
     with pytest.raises(bootstrap.BootstrapError, match="unsupported_resume_operation"):
         bootstrap.execute(["setup", "unknown"])
+
+
+def test_bootstrap_allows_only_a_uuid_existing_agent_target(tmp_path: Path) -> None:
+    bootstrap = _load_bootstrap()
+    target = "5a7044c7-6a5e-48e9-90dd-78680c91dcb9"
+    with pytest.raises(bootstrap.BootstrapError, match="unsupported_resume_operation"):
+        bootstrap.execute(["setup", "codex", "--existing-agent-id", "not-a-uuid"])
+
+    runtime = tmp_path / "runtime"
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command, **_kwargs):
+        normalized = tuple(str(item) for item in command)
+        calls.append(normalized)
+        if "-I" in normalized:
+            return SimpleNamespace(returncode=0, stdout="0.1.1\n")
+        return SimpleNamespace(returncode=0, stdout="")
+
+    connector = runtime / "bin" / "agentpost-connect"
+    connector.parent.mkdir(parents=True, exist_ok=True)
+    connector.touch(exist_ok=True)
+    assert (
+        bootstrap.execute(
+            ["setup", "codex", "--existing-agent-id", target],
+            fetcher=lambda **_kwargs: _release(bootstrap),
+            runtime=runtime,
+            runner=runner,
+        )
+        == 0
+    )
+    assert calls[-1] == (str(connector), "setup", "codex", "--existing-agent-id", target)
+
+    assert (
+        bootstrap.execute(
+            ["setup", "workbuddy", "--new-agent-intent", target],
+            fetcher=lambda **_kwargs: _release(bootstrap),
+            runtime=runtime,
+            runner=runner,
+        )
+        == 0
+    )
+    assert calls[-1] == (
+        str(connector),
+        "setup",
+        "workbuddy",
+        "--new-agent-intent",
+        target,
+    )

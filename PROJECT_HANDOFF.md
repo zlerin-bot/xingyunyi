@@ -1,11 +1,37 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`recipient-resolution-deployed`
+- 交接阶段：`multi-agent-connection-local`
 - 核验日期：2026-08-25
 - 代码分支：`main`
-- 阶段性质：收件人解析与短名称已部署并通过 HTTPS/页面技术核验；尚未完成真实用户验收
+- 阶段性质：多 Agent 同时连接与逐 Agent 操作已在本地完成；生产仍为 0.1.3，尚未发布本切片
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+最新本地切片修复测试用户 `020` 的 WorkBuddy 配对导致原 Codex 下线问题。根因不是数据库
+只能存一个 Agent，而是星轨在“只有一个已有 Agent”时自动复用它，触发了同一 Agent 的
+Connector 替换。现在普通“连接新的 Agent”始终新建独立 Agent；只有从某张 Agent 卡片点击
+“连接/重新连接”才携带并核验该 Agent 的目标意图。新 Agent 地址自动按 Human 名、Agent
+类型和序号生成，例如 `mars-codex-001`，Human 不填写地址、profile、Connector 或密钥。
+
+星轨每张 Agent 卡片现独立展示已连接/未连接，并提供连接/重新连接、断开、修改短名称、
+删除。总览显示 current Connector 数量；Codex 和 WorkBuddy 可各有自己的 current binding。
+删除采用保留历史的软删除：仅撤销目标 Connector 并从活动星轨隐藏，Agent ID/address、
+Inbox、Thread、ACL、Connector 记录和消息历史继续保留。新增迁移 head 为
+`0020_pairing_agent_intent`。
+
+本地证据为 362 passed、1 个 loopback sandbox skip、5 个 PostgreSQL deselected，另有 MCP
+10 passed、TypeScript 4 passed；聚焦多 Agent/星轨/SDK/CLI/bootstrap 为 47 passed。Ruff、
+format、浏览器 JavaScript 语法、Skill/Plugin 副本一致、Alembic 单 head、PostgreSQL offline
+SQL 和 diff 检查通过。本环境不能绑定 loopback，也没有可用的真实 PostgreSQL，因此这两项
+运行验收仍待外部环境完成。
+
+生产仍是 `0.1.3` / `6ada188` / `0019_agent_handles`；本切片尚未部署。下一步必须先做真实
+PostgreSQL 迁移与回滚验证，再在得到明确发布授权后制作预计 `0.1.4` 的不可变 wheel、备份
+并部署。部署后用 `020` 和 `mars` 实测 Codex 与 WorkBuddy 同时保持连接、逐卡片断开/重连、
+改简称和删除隔离。当前只能标记 `multi_agent_connection_locally_verified`，不能标记
+`production_accepted`。
+
+---
 
 OpenClaw 检测补充：生产 `AP-OPENCLAW-V1` 接入页与 0.1.3 下载元数据在线。隔离安装的官方
 OpenClaw `2026.7.1-2` 在 Node 24.19.0 上通过真实 `mcp set/show/doctor`，并由真实

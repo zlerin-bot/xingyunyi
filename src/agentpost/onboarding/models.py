@@ -117,6 +117,11 @@ class AgentPairingSession(Base):
     device_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     client_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
     requested_capabilities: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    requested_existing_agent_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        nullable=True,
+        index=True,
+    )
     credential_mode: Mapped[str] = mapped_column(
         String(32), nullable=False, default="agent_api_key"
     )

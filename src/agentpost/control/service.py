@@ -17,6 +17,7 @@ from agentpost.control.api_keys import (
 from agentpost.control.models import (
     AgentOwnership,
     HumanAccessKey,
+    HumanActionAudit,
     HumanAgentGrant,
     HumanUser,
     Organization,
@@ -54,6 +55,10 @@ class AgentAccessTargetNotFoundError(Exception):
 
 
 class AgentAccessNotFoundError(Exception):
+    pass
+
+
+class AgentOwnerActionDeniedError(Exception):
     pass
 
 
@@ -341,6 +346,80 @@ def list_agent_access(session: Session, user: HumanUser) -> list[AccessEntry]:
     return sorted(entries.values(), key=lambda entry: entry.agent.address)
 
 
+def disable_owned_agent(
+    session: Session,
+    *,
+    user: HumanUser,
+    agent_id: UUID,
+    human_session_id: UUID | None,
+    request_id: str,
+) -> None:
+    """Soft-delete one owned Agent while retaining its durable identity and history."""
+
+    from agentpost.identity.models import AgentApiKey
+    from agentpost.oauth.service import revoke_connector_oauth_tokens
+    from agentpost.onboarding.models import AgentConnectorBinding, ConnectorInstance
+
+    agent = session.scalar(
+        select(Agent)
+        .join(AgentOwnership, AgentOwnership.agent_id == Agent.id)
+        .where(
+            Agent.id == agent_id,
+            AgentOwnership.human_user_id == user.id,
+        )
+        .with_for_update()
+    )
+    if agent is None:
+        raise AgentOwnerActionDeniedError
+    if agent.status == "disabled":
+        return
+
+    now = utc_now()
+    binding = session.scalar(
+        select(AgentConnectorBinding)
+        .where(AgentConnectorBinding.agent_id == agent.id)
+        .with_for_update()
+    )
+    connector = (
+        session.get(ConnectorInstance, binding.connector_instance_id)
+        if binding is not None
+        else None
+    )
+    if binding is not None:
+        session.delete(binding)
+    if connector is not None:
+        connector.status = "revoked"
+        connector.revoked_at = connector.revoked_at or now
+        connector.revocation_reason = "agent_deleted_by_owner"
+        for credential in session.scalars(
+            select(AgentApiKey).where(AgentApiKey.connector_instance_id == connector.id)
+        ).all():
+            credential.revoked_at = credential.revoked_at or now
+        revoke_connector_oauth_tokens(session, connector.id, reason="agent_deleted")
+
+    agent.status = "disabled"
+    agent.updated_at = now
+    session.add(
+        HumanActionAudit(
+            human_user_id=user.id,
+            human_session_id=human_session_id,
+            action="control.agent_deleted",
+            target_type="agent",
+            target_id=str(agent.id),
+            outcome="success",
+            request_id=request_id,
+            audit_metadata={
+                "address": agent.address,
+                "handle": agent.handle,
+                "connector_id": connector.connector_id if connector is not None else None,
+                "deletion_mode": "soft_delete_preserve_history",
+            },
+            created_at=now,
+        )
+    )
+    session.commit()
+
+
 def _message_rows(
     session: Session,
     *,
@@ -528,8 +607,11 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
         list_human_approval_requests,
         pending_human_approval_count,
     )
+    from agentpost.onboarding.models import AgentConnectorBinding, ConnectorInstance
 
-    entries = list_agent_access(session, user)
+    entries = [
+        entry for entry in list_agent_access(session, user) if entry.agent.status != "disabled"
+    ]
     agent_ids = {entry.agent.id for entry in entries}
     role_map = {entry.agent.id: entry.role for entry in entries}
     tasks = list_orbit_tasks(session, user, limit=50)
@@ -604,10 +686,28 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
         if (seen := _as_utc(entry.agent.last_seen_at)) is not None
         and now - seen <= timedelta(minutes=5)
     )
+    connected_agent_count = 0
+    if agent_ids:
+        connected_agent_count = int(
+            session.scalar(
+                select(func.count())
+                .select_from(AgentConnectorBinding)
+                .join(
+                    ConnectorInstance,
+                    ConnectorInstance.id == AgentConnectorBinding.connector_instance_id,
+                )
+                .where(
+                    AgentConnectorBinding.agent_id.in_(agent_ids),
+                    ConnectorInstance.status == "active",
+                )
+            )
+            or 0
+        )
     return OrbitDashboard(
         user=human_profile(user),
         metrics=OrbitMetrics(
             agent_count=len(entries),
+            connected_agent_count=connected_agent_count,
             online_recently_count=online_recently,
             unread_delivery_count=sum(unread_by_agent.values()),
             pending_task_count=pending_task_count,

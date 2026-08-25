@@ -47,11 +47,15 @@ def _runtime_settings(settings: Settings, **updates: Any) -> Settings:
     return Settings(**values)
 
 
-def _create_human(client: TestClient, email: str = "owner@example.com") -> dict[str, Any]:
+def _create_human(
+    client: TestClient,
+    email: str = "owner@example.com",
+    display_name: str = "北辰",
+) -> dict[str, Any]:
     response = client.post(
         "/api/v1/admin/humans",
         headers={"Authorization": f"Bearer {ADMIN_KEY}"},
-        json={"email": email, "display_name": "北辰"},
+        json={"email": email, "display_name": display_name},
     )
     assert response.status_code == 201, response.text
     return response.json()
@@ -71,6 +75,7 @@ def _start_pairing(
     *,
     connector_type: str = "codex",
     name: str = "Codex on Mars MacBook",
+    requested_existing_agent_id: str | None = None,
 ) -> dict[str, Any]:
     response = client.post(
         "/api/v1/connect/pairings",
@@ -80,6 +85,7 @@ def _start_pairing(
             "device_name": "Mars MacBook",
             "client_version": "1.0.0",
             "capabilities": ["financial-research", "document-analysis"],
+            "requested_existing_agent_id": requested_existing_agent_id,
         },
     )
     assert response.status_code == 201, response.text
@@ -328,7 +334,7 @@ def test_automatic_new_agent_pairing_requires_no_address_or_profile_parameters(
         created = approved.json()["pairing"]["agent"]
         local_id, domain = created["address"].split("@", maxsplit=1)
         assert domain == "agents.local"
-        assert local_id.startswith("codex-")
+        assert local_id == "automatic-codex-001"
         assert len(local_id) <= 64
         assert created["display_name"] == "我的 Codex"
         assert created["handle"] == "kcode"
@@ -344,6 +350,152 @@ def test_automatic_new_agent_pairing_requires_no_address_or_profile_parameters(
         agent = session.scalar(select(Agent))
         assert agent is not None
         assert agent.capabilities == ["financial-research", "document-analysis"]
+
+
+def test_new_codex_and_workbuddy_pairings_stay_active_as_independent_agents(
+    settings: Settings,
+    database: Database,
+) -> None:
+    runtime = _runtime_settings(settings)
+    with TestClient(create_app(settings=runtime, database=database)) as client:
+        human = _create_human(client, "mars@example.com", "Mars")
+        csrf = _login(client, human)
+
+        codex_pairing = _start_pairing(client, connector_type="codex", name="Mars Codex")
+        codex_confirmation = _confirmation(
+            client,
+            human=human,
+            csrf=csrf,
+            pairing=codex_pairing,
+        )
+        codex_approved = _decide(
+            client,
+            pairing=codex_pairing,
+            csrf=csrf,
+            confirmation=codex_confirmation,
+            payload={"decision": "approved", "create_new_agent": True},
+            idempotency_key="mars-codex-new",
+        )
+        codex_token = client.post(
+            "/api/v1/connect/pairings/token",
+            json={"device_code": codex_pairing["device_code"]},
+        ).json()["api_key"]
+
+        workbuddy_pairing = _start_pairing(
+            client,
+            connector_type="workbuddy",
+            name="Mars WorkBuddy",
+        )
+        workbuddy_confirmation = _confirmation(
+            client,
+            human=human,
+            csrf=csrf,
+            pairing=workbuddy_pairing,
+        )
+        workbuddy_approved = _decide(
+            client,
+            pairing=workbuddy_pairing,
+            csrf=csrf,
+            confirmation=workbuddy_confirmation,
+            payload={"decision": "approved", "create_new_agent": True},
+            idempotency_key="mars-workbuddy-new",
+        )
+        workbuddy_token = client.post(
+            "/api/v1/connect/pairings/token",
+            json={"device_code": workbuddy_pairing["device_code"]},
+        ).json()["api_key"]
+
+        assert codex_approved.status_code == workbuddy_approved.status_code == 200
+        assert codex_approved.json()["pairing"]["agent"]["address"] == (
+            "mars-codex-001@agents.local"
+        )
+        assert workbuddy_approved.json()["pairing"]["agent"]["address"] == (
+            "mars-workbuddy-001@agents.local"
+        )
+        assert (
+            codex_approved.json()["pairing"]["agent"]["id"]
+            != (workbuddy_approved.json()["pairing"]["agent"]["id"])
+        )
+        assert (
+            client.get(
+                "/api/v1/inbox",
+                headers={"Authorization": f"Bearer {codex_token}"},
+            ).status_code
+            == 200
+        )
+        assert (
+            client.get(
+                "/api/v1/inbox",
+                headers={"Authorization": f"Bearer {workbuddy_token}"},
+            ).status_code
+            == 200
+        )
+        dashboard = client.get("/api/v1/orbit/dashboard").json()
+        connectors = client.get("/api/v1/orbit/connectors").json()["items"]
+
+    assert dashboard["metrics"]["agent_count"] == 2
+    assert dashboard["metrics"]["connected_agent_count"] == 2
+    assert len(dashboard["agents"]) == 2
+    assert len([item for item in connectors if item["is_current"]]) == 2
+    assert {item["status"] for item in connectors} == {"active"}
+    with database.session_factory() as session:
+        assert session.scalar(select(func.count()).select_from(AgentConnectorBinding)) == 2
+
+
+def test_existing_agent_reconnect_intent_preserves_identity_and_replaces_only_its_connector(
+    settings: Settings,
+    database: Database,
+) -> None:
+    runtime = _runtime_settings(settings)
+    with TestClient(create_app(settings=runtime, database=database)) as client:
+        human = _create_human(client, "reconnect@example.com", "Mars")
+        csrf = _login(client, human)
+        first_pairing = _start_pairing(client, connector_type="codex")
+        first_confirmation = _confirmation(
+            client,
+            human=human,
+            csrf=csrf,
+            pairing=first_pairing,
+        )
+        first = _decide(
+            client,
+            pairing=first_pairing,
+            csrf=csrf,
+            confirmation=first_confirmation,
+            payload={"decision": "approved", "create_new_agent": True},
+            idempotency_key="first-connector",
+        ).json()
+        agent_id = first["pairing"]["agent"]["id"]
+
+        reconnect_pairing = _start_pairing(
+            client,
+            connector_type="codex",
+            requested_existing_agent_id=agent_id,
+        )
+        preview = client.get(f"/api/v1/orbit/pairings/{reconnect_pairing['pairing_id']}").json()
+        assert preview["requested_existing_agent_id"] == agent_id
+        reconnect_confirmation = _confirmation(
+            client,
+            human=human,
+            csrf=csrf,
+            pairing=reconnect_pairing,
+        )
+        reconnected = _decide(
+            client,
+            pairing=reconnect_pairing,
+            csrf=csrf,
+            confirmation=reconnect_confirmation,
+            payload={"decision": "approved", "existing_agent_id": agent_id},
+            idempotency_key="replacement-connector",
+        )
+        connectors = client.get("/api/v1/orbit/connectors").json()["items"]
+
+    assert reconnected.status_code == 200
+    assert reconnected.json()["pairing"]["agent"]["id"] == agent_id
+    assert reconnected.json()["pairing"]["agent"]["address"] == first["pairing"]["agent"]["address"]
+    assert len(connectors) == 2
+    assert len([item for item in connectors if item["is_current"]]) == 1
+    assert {item["status"] for item in connectors} == {"active", "replaced"}
 
 
 def test_owner_can_revoke_connector_without_deleting_agent_or_inbox(
@@ -415,6 +567,61 @@ def test_owner_can_revoke_connector_without_deleting_agent_or_inbox(
         assert session.scalar(select(func.count()).select_from(AgentConnectorBinding)) == 0
         credential = session.scalar(select(AgentApiKey))
         assert credential is not None and credential.revoked_at is not None
+
+
+def test_owner_delete_soft_disables_only_one_agent_and_revokes_its_connector(
+    settings: Settings,
+    database: Database,
+) -> None:
+    runtime = _runtime_settings(settings)
+    with TestClient(create_app(settings=runtime, database=database)) as client:
+        human = _create_human(client, "delete@example.com", "Mars")
+        csrf = _login(client, human)
+        pairing = _start_pairing(client, connector_type="codex")
+        confirmation = _confirmation(client, human=human, csrf=csrf, pairing=pairing)
+        approved = _decide(
+            client,
+            pairing=pairing,
+            csrf=csrf,
+            confirmation=confirmation,
+            payload={"decision": "approved", "create_new_agent": True},
+            idempotency_key="delete-one-agent",
+        ).json()
+        agent_id = approved["pairing"]["agent"]["id"]
+        connector_id = approved["connector"]["connector_id"]
+        token = client.post(
+            "/api/v1/connect/pairings/token",
+            json={"device_code": pairing["device_code"]},
+        ).json()["api_key"]
+
+        deleted = client.request(
+            "DELETE",
+            f"/api/v1/orbit/agents/{agent_id}",
+            headers={"X-CSRF-Token": csrf, "Content-Type": "application/json"},
+            json={"confirmation": "delete"},
+        )
+        rejected_key = client.get(
+            "/api/v1/inbox",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        dashboard = client.get("/api/v1/orbit/dashboard").json()
+        connectors = client.get("/api/v1/orbit/connectors").json()["items"]
+
+    assert deleted.status_code == 204
+    assert rejected_key.status_code == 401
+    assert dashboard["agents"] == []
+    assert dashboard["metrics"]["agent_count"] == 0
+    assert connectors == []
+    with database.session_factory() as session:
+        agent = session.get(Agent, UUID(agent_id))
+        connector = session.scalar(
+            select(ConnectorInstance).where(ConnectorInstance.connector_id == connector_id)
+        )
+        assert agent is not None and agent.status == "disabled"
+        assert connector is not None and connector.status == "revoked"
+        assert connector.revocation_reason == "agent_deleted_by_owner"
+        assert session.get(AgentOwnership, UUID(agent_id)) is not None
+        assert session.get(AgentConnectorBinding, UUID(agent_id)) is None
 
 
 def test_denied_expired_and_unknown_pairings_never_create_identity(

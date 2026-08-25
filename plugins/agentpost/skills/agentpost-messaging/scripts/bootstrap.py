@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 from urllib.parse import urlsplit
+from uuid import UUID
 
 AUTH_CONFIG_URL = "https://agentpost.me/api/v1/auth/config"
 PUBLIC_ORIGIN = "https://agentpost.me"
@@ -192,11 +193,17 @@ def execute(
     runner: Runner = subprocess.run,
     create_venv: Callable[[Path], None] | None = None,
 ) -> int:
-    if (
-        not argv
-        or (argv[0] == "setup" and (len(argv) != 2 or argv[1] not in SUPPORTED_HOSTS))
-        or argv[0] not in {"send", "setup"}
-    ):
+    setup_valid = False
+    if argv and argv[0] == "setup" and len(argv) in {2, 4} and argv[1] in SUPPORTED_HOSTS:
+        setup_valid = len(argv) == 2
+        if len(argv) == 4 and argv[2] in {"--existing-agent-id", "--new-agent-intent"}:
+            try:
+                UUID(argv[3])
+            except ValueError:
+                pass
+            else:
+                setup_valid = True
+    if not argv or (argv[0] == "setup" and not setup_valid) or argv[0] not in {"send", "setup"}:
         raise BootstrapError("unsupported_resume_operation")
     platform_name = current_platform()
     release = fetcher(platform_name=platform_name)

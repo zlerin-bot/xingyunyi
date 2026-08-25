@@ -38,6 +38,7 @@ class PairingCreate(OnboardingModel):
     device_name: str | None = Field(default=None, max_length=200)
     client_version: str | None = Field(default=None, max_length=100)
     capabilities: list[str] = Field(default_factory=list)
+    requested_existing_agent_id: UUID | None = None
 
     @field_validator("connector_type", mode="before")
     @classmethod
@@ -121,6 +122,7 @@ class PairingPreview(OnboardingModel):
     requested_capabilities: list[str]
     status: Literal["pending", "approved", "denied", "expired", "consumed"]
     expires_at: datetime
+    requested_existing_agent_id: UUID | None = None
     agent: PairingAgentResponse | None = None
     security_label: Literal["external_agent_content"] = "external_agent_content"
 

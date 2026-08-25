@@ -369,6 +369,7 @@ class AgentPost:
         device_name: str | None = None,
         client_version: str | None = None,
         capabilities: list[str] | None = None,
+        requested_existing_agent_id: str | None = None,
         timeout: float | httpx.Timeout = 30.0,
         transport: httpx.BaseTransport | None = None,
     ) -> PairingSession:
@@ -384,6 +385,7 @@ class AgentPost:
             device_name=device_name,
             client_version=client_version,
             capabilities=capabilities,
+            requested_existing_agent_id=requested_existing_agent_id,
             timeout=timeout,
             transport=transport,
         )
@@ -398,6 +400,7 @@ class AgentPost:
         device_name: str | None = None,
         client_version: str | None = None,
         capabilities: list[str] | None = None,
+        requested_existing_agent_id: str | None = None,
         open_browser: bool = True,
         on_pairing: Callable[[PairingInstructions], None] | None = None,
         timeout: float | httpx.Timeout = 30.0,
@@ -414,6 +417,7 @@ class AgentPost:
             device_name=device_name,
             client_version=client_version,
             capabilities=capabilities,
+            requested_existing_agent_id=requested_existing_agent_id,
             timeout=timeout,
             transport=transport,
         )
@@ -438,6 +442,7 @@ class AgentPost:
         device_name: str | None = None,
         client_version: str | None = None,
         capabilities: list[str] | None = None,
+        requested_existing_agent_id: str | None = None,
         credential_store: CredentialStore | None = None,
         open_browser: bool = True,
         on_pairing: Callable[[PairingInstructions], None] | None = None,
@@ -458,6 +463,7 @@ class AgentPost:
             device_name=device_name,
             client_version=client_version,
             capabilities=capabilities,
+            requested_existing_agent_id=requested_existing_agent_id,
             credential_store=credential_store,
             open_browser=open_browser,
             on_pairing=on_pairing,

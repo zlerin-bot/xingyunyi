@@ -96,6 +96,10 @@ class PairingTargetAgentNotFoundError(Exception):
     pass
 
 
+class PairingTargetAgentMismatchError(Exception):
+    pass
+
+
 class PairingIdempotencyConflictError(Exception):
     pass
 
@@ -152,11 +156,33 @@ def _decision_hash(pairing_id: str, payload: PairingDecisionCreate) -> str:
     return hashlib.sha256(canonical).hexdigest()
 
 
-def _automatic_local_agent_id(pairing: AgentPairingSession) -> str:
-    connector_slug = re.sub(r"[^a-z0-9]+", "-", pairing.connector_type.lower()).strip("-")
-    prefix = connector_slug or "agent"
-    suffix = hashlib.sha256(pairing.pairing_id.encode("utf-8")).hexdigest()[:24]
-    return f"{prefix[:39]}-{suffix}"
+def _address_slug(value: str, *, fallback: str, max_length: int) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.casefold()).strip("-")
+    return (slug or fallback)[:max_length].rstrip("-")
+
+
+def _automatic_local_agent_id(
+    session: Session,
+    *,
+    user: HumanUser,
+    pairing: AgentPairingSession,
+    managed_domain: str,
+) -> str:
+    """Allocate a readable durable address without asking the Human for technical input."""
+
+    email_local = user.email.partition("@")[0]
+    human_slug = _address_slug(
+        user.display_name,
+        fallback=_address_slug(email_local, fallback="human", max_length=30),
+        max_length=30,
+    )
+    connector_slug = _address_slug(pairing.connector_type, fallback="agent", max_length=24)
+    for sequence in range(1, 10_000):
+        local_id = f"{human_slug}-{connector_slug}-{sequence:03d}"
+        address = canonicalize_agent_address(f"{local_id}@{managed_domain}")
+        if session.scalar(select(Agent.id).where(Agent.address == address)) is None:
+            return local_id
+    raise PairingAddressConflictError(f"{human_slug}-{connector_slug}")
 
 
 def _connector_response(connector: ConnectorInstance) -> PairingConnectorResponse:
@@ -199,6 +225,7 @@ def pairing_preview(session: Session, pairing: AgentPairingSession) -> PairingPr
         requested_capabilities=list(pairing.requested_capabilities),
         status=pairing.status,
         expires_at=pairing.expires_at,
+        requested_existing_agent_id=pairing.requested_existing_agent_id,
         agent=_agent_response(agent) if agent else None,
     )
 
@@ -243,6 +270,7 @@ def create_pairing(
             device_name=payload.device_name,
             client_version=payload.client_version,
             requested_capabilities=payload.capabilities,
+            requested_existing_agent_id=payload.requested_existing_agent_id,
             credential_mode=credential_mode,
             oauth_client_id=oauth_client_id,
             oauth_scope=oauth_scope,
@@ -473,6 +501,11 @@ def decide_pairing(
     if payload.decision == "denied":
         pairing.status = "denied"
     else:
+        if (
+            pairing.requested_existing_agent_id is not None
+            and payload.existing_agent_id != pairing.requested_existing_agent_id
+        ):
+            raise PairingTargetAgentMismatchError
         if payload.existing_agent_id is not None:
             agent = session.scalar(
                 select(Agent)
@@ -497,8 +530,14 @@ def decide_pairing(
                     raise _pairing_handle_conflict(session, payload.handle)
                 agent.handle = payload.handle
         else:
+            session.scalar(select(HumanUser).where(HumanUser.id == user.id).with_for_update())
             local_agent_id = (
-                _automatic_local_agent_id(pairing)
+                _automatic_local_agent_id(
+                    session,
+                    user=user,
+                    pairing=pairing,
+                    managed_domain=settings.managed_agent_domain,
+                )
                 if payload.create_new_agent
                 else payload.local_agent_id
             )
@@ -680,7 +719,10 @@ def list_human_connectors(session: Session, *, user: HumanUser) -> list[OrbitCon
         select(ConnectorInstance, Agent)
         .join(Agent, Agent.id == ConnectorInstance.agent_id)
         .join(AgentOwnership, AgentOwnership.agent_id == Agent.id)
-        .where(AgentOwnership.human_user_id == user.id)
+        .where(
+            AgentOwnership.human_user_id == user.id,
+            Agent.status != "disabled",
+        )
         .order_by(Agent.address, ConnectorInstance.created_at.desc())
     ).all()
     bindings = {
