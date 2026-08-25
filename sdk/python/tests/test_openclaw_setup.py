@@ -10,6 +10,7 @@ from agentpost_sdk.openclaw_setup import (
     EXPECTED_MCP_TOOLS,
     _config_path,
     configure_openclaw_mcp,
+    preflight_openclaw_mcp,
 )
 
 
@@ -37,7 +38,7 @@ def test_configure_openclaw_uses_validated_cli_and_profile_reference(
 
     def runner(command, **_kwargs):
         calls.append(tuple(command))
-        stdout = _successful_probe() if command[1:3] == ["mcp", "probe"] else ""
+        stdout = _successful_probe() if command[-2:] == ["agentpost", "--json"] else ""
         return SimpleNamespace(returncode=0, stdout=stdout)
 
     result = configure_openclaw_mcp(
@@ -50,9 +51,13 @@ def test_configure_openclaw_uses_validated_cli_and_profile_reference(
 
     assert result.approval_mode == "host"
     assert result.restart_required is False
-    assert calls[0][:4] == ("/opt/openclaw", "mcp", "set", "agentpost")
-    assert calls[1] == ("/opt/openclaw", "mcp", "probe", "agentpost", "--json")
-    definition = json.loads(calls[0][4])
+    assert calls[:2] == [
+        ("/opt/openclaw", "mcp", "set", "--help"),
+        ("/opt/openclaw", "mcp", "probe", "--help"),
+    ]
+    assert calls[2][:4] == ("/opt/openclaw", "mcp", "set", "agentpost")
+    assert calls[3] == ("/opt/openclaw", "mcp", "probe", "agentpost", "--json")
+    definition = json.loads(calls[2][4])
     assert definition == {
         "command": str(_executable(tmp_path).resolve()),
         "args": [],
@@ -61,18 +66,25 @@ def test_configure_openclaw_uses_validated_cli_and_profile_reference(
             "AGENTPOST_PROFILE": "openclaw:test-device",
         },
     }
-    assert "AGENTPOST_API_KEY" not in calls[0][4]
-    assert "agt_" not in calls[0][4]
+    assert "AGENTPOST_API_KEY" not in calls[2][4]
+    assert "agt_" not in calls[2][4]
 
 
 def test_configure_openclaw_sanitizes_cli_failure(tmp_path: Path) -> None:
+    calls = 0
+
+    def runner(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        return SimpleNamespace(returncode=1 if calls == 3 else 0, stdout="secret")
+
     with pytest.raises(ConfigurationError, match="OpenClaw MCP registration failed"):
         configure_openclaw_mcp(
             server="https://agentpost.me",
             profile="openclaw:test-device",
             mcp_command=_executable(tmp_path),
             openclaw_command="/opt/openclaw",
-            runner=lambda *_args, **_kwargs: SimpleNamespace(returncode=1, stdout="secret"),
+            runner=runner,
         )
 
 
@@ -102,7 +114,7 @@ def test_configure_openclaw_requires_a_successful_live_probe(
     def runner(_command, **_kwargs):
         nonlocal calls
         calls += 1
-        return SimpleNamespace(returncode=0, stdout=probe_stdout if calls == 2 else "")
+        return SimpleNamespace(returncode=0, stdout=probe_stdout if calls == 4 else "")
 
     with pytest.raises(ConfigurationError, match=message):
         configure_openclaw_mcp(
@@ -112,6 +124,19 @@ def test_configure_openclaw_requires_a_successful_live_probe(
             openclaw_command="/opt/openclaw",
             runner=runner,
         )
+
+
+def test_openclaw_preflight_reports_actionable_host_codes() -> None:
+    with pytest.raises(ConfigurationError) as missing:
+        preflight_openclaw_mcp(openclaw_command="", runner=lambda *_args, **_kwargs: None)
+    assert missing.value.code == "openclaw_not_available"
+
+    with pytest.raises(ConfigurationError) as outdated:
+        preflight_openclaw_mcp(
+            openclaw_command="/opt/openclaw",
+            runner=lambda *_args, **_kwargs: SimpleNamespace(returncode=1, stdout="secret"),
+        )
+    assert outdated.value.code == "openclaw_mcp_upgrade_required"
 
 
 def test_configure_openclaw_reports_official_config_path_precedence(

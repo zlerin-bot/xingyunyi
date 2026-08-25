@@ -91,6 +91,32 @@ def _verify_probe(payload_text: str) -> None:
         raise ConfigurationError("OpenClaw could not load the AgentPost MCP tools")
 
 
+def preflight_openclaw_mcp(
+    *,
+    openclaw_command: str | None = None,
+    runner: CommandRunner = subprocess.run,
+) -> str:
+    """Verify OpenClaw's MCP registry before Human pairing starts."""
+
+    resolved_openclaw = openclaw_command or shutil.which("openclaw")
+    if not resolved_openclaw:
+        raise ConfigurationError(
+            "OpenClaw is not installed or not available on PATH",
+            code="openclaw_not_available",
+        )
+    for subcommand in ("set", "probe"):
+        completed = _run_openclaw(
+            runner,
+            [resolved_openclaw, "mcp", subcommand, "--help"],
+        )
+        if completed.returncode != 0:
+            raise ConfigurationError(
+                "OpenClaw must be updated to a release with MCP set and probe support",
+                code="openclaw_mcp_upgrade_required",
+            )
+    return resolved_openclaw
+
+
 def configure_openclaw_mcp(
     *,
     server: str,
@@ -110,9 +136,10 @@ def configure_openclaw_mcp(
     executable = mcp_command.expanduser().resolve()
     if not executable.is_file() or not os.access(executable, os.X_OK):
         raise ConfigurationError("agentpost-mcp is not installed in this runtime")
-    resolved_openclaw = openclaw_command or shutil.which("openclaw")
-    if not resolved_openclaw:
-        raise ConfigurationError("OpenClaw is not installed or not available on PATH")
+    resolved_openclaw = preflight_openclaw_mcp(
+        openclaw_command=openclaw_command,
+        runner=runner,
+    )
 
     definition = {
         "command": str(executable),

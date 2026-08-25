@@ -143,6 +143,7 @@ class HumanAuthConfig(AccountModel):
     open_registration_enabled: bool
     enterprise_oidc_enabled: bool = False
     codex_setup_platforms: list[str] = Field(default_factory=list)
+    host_setup_platforms: dict[str, list[str]] = Field(default_factory=dict)
     connector_release: ConnectorReleaseInfo
     managed_agent_domain: str
     password_min_length: int = 12

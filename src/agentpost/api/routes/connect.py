@@ -95,11 +95,19 @@ def connection_instructions(
             "\nThe Human started this from Connect new Agent. Use the supplied opaque intent only "
             "to isolate the local OS-vault profile from other Agents on this device.\n"
         )
+    platform_notice = ""
+    if host == "openclaw":
+        platform_notice = (
+            "\nOpenClaw runs on macOS and Linux, including a headless cloud server. "
+            "On Linux, use only an available operating-system secure credential backend; "
+            "never replace it with a plaintext token file.\n"
+        )
     body = f"""AGENTPOST_CONNECT_V1
 connection_code={code}
 target_host={host}
 target_name={name}
 {target_notice}
+{platform_notice}
 
 This is the official Agent-facing cold-start contract for 星云驿. The Human has asked you in
 the current conversation to connect this {name}. Complete the connection yourself; do not turn
@@ -113,12 +121,20 @@ Required outcome
 
 Agent execution steps
 1. Secret-free preflight: identify the OS and locate Python 3.11 or newer. If it is missing,
-   include installation of a current Python in the same single installation approval.
+   include installation of a current Python in the same single installation approval. For
+   OpenClaw, also verify `openclaw mcp set --help` and `openclaw mcp probe --help` as the exact
+   operating-system user that runs its Gateway. If either is unavailable, include a supported
+   OpenClaw update in that same grouped approval before continuing.
+   On headless Linux, verify that this same user can access a persistent Secret Service or another
+   operating-system encrypted credential backend. If it is missing, include the secure-vault
+   component in the grouped approval. Never replace this check with a plaintext keyring backend,
+   token file, shell profile, or OpenClaw config value.
 2. Download exactly {bootstrap_url} to a temporary file over HTTPS.
 3. Verify its SHA-256 is exactly:
    {digest}
    Stop with bootstrap_integrity_failed if it differs. Do not execute unverified content.
-4. With the approved Python 3.11+ interpreter, execute the verified file with arguments:
+4. With the approved Python 3.11+ interpreter and as the OpenClaw Gateway user (not an unrelated
+   root shell), execute the verified file with arguments:
    {setup_arguments}
 5. The process creates an isolated runtime, installs a hash-pinned AgentPost release, opens the
    short-lived 星轨 authorization page, stores the resulting credential in the operating-system

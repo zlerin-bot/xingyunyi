@@ -29,6 +29,8 @@ def _control_client(settings: Settings, database: Database) -> TestClient:
         registration_token="register-secret",
         admin_token=ADMIN_KEY,
         codex_setup_platforms=settings.codex_setup_platforms,
+        workbuddy_setup_platforms=settings.workbuddy_setup_platforms,
+        openclaw_setup_platforms=settings.openclaw_setup_platforms,
         connector_release_version=settings.connector_release_version,
         connector_wheel_url=settings.connector_wheel_url,
         connector_wheel_sha256=settings.connector_wheel_sha256,
@@ -101,6 +103,11 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert auth_config.status_code == 200
     assert auth_config.json()["managed_agent_domain"] == "agents.local"
     assert auth_config.json()["codex_setup_platforms"] == []
+    assert auth_config.json()["host_setup_platforms"] == {
+        "codex": [],
+        "workbuddy": [],
+        "openclaw": [],
+    }
     assert auth_config.json()["connector_release"] == {
         "version": "0.1.0",
         "wheel_url": "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl",
@@ -235,6 +242,9 @@ def test_agent_facing_connection_contract_is_public_pinned_and_host_specific(
         assert "at most one grouped system approval" in instructions.text
         assert "one 星轨 browser authorization" in instructions.text
         assert "long-lived credential" in instructions.text
+        if host == "openclaw":
+            assert "headless cloud server" in instructions.text
+            assert "plaintext token file" in instructions.text
 
         target = "5a7044c7-6a5e-48e9-90dd-78680c91dcb9"
         reconnect = client.get(f"/connect/{host}?agent={target}")
@@ -260,7 +270,7 @@ def test_agent_facing_connection_contract_is_public_pinned_and_host_specific(
     )
 
 
-def test_auth_config_exposes_only_release_enabled_codex_platforms(
+def test_auth_config_exposes_release_platforms_per_host(
     settings: Settings,
     database: Database,
 ) -> None:
@@ -270,6 +280,8 @@ def test_auth_config_exposes_only_release_enabled_codex_platforms(
         storage_path=settings.storage_path,
         api_key_pepper="test-agent-pepper",
         codex_setup_platforms="mac,linux",
+        workbuddy_setup_platforms="mac",
+        openclaw_setup_platforms="mac,linux",
         connector_release_version="0.1.1",
         connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl"),
         connector_wheel_sha256="a" * 64,
@@ -280,6 +292,11 @@ def test_auth_config_exposes_only_release_enabled_codex_platforms(
 
     assert response.status_code == 200
     assert response.json()["codex_setup_platforms"] == ["mac", "linux"]
+    assert response.json()["host_setup_platforms"] == {
+        "codex": ["mac", "linux"],
+        "workbuddy": ["mac"],
+        "openclaw": ["mac", "linux"],
+    }
     assert response.json()["connector_release"] == {
         "version": "0.1.1",
         "wheel_url": "https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl",

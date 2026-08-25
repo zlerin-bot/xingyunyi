@@ -63,6 +63,10 @@ def human_auth_config(settings: SettingsDep) -> HumanAuthConfig:
         open_registration_enabled=settings.open_registration_enabled,
         enterprise_oidc_enabled=settings.enterprise_oidc_enabled,
         codex_setup_platforms=list(settings.enabled_codex_setup_platforms),
+        host_setup_platforms={
+            host: list(platforms)
+            for host, platforms in settings.enabled_host_setup_platforms.items()
+        },
         connector_release=ConnectorReleaseInfo(
             version=settings.connector_release_version,
             wheel_url=settings.connector_wheel_url,

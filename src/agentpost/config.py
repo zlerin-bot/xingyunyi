@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     remote_mcp_oauth_enabled: bool = False
     enterprise_oidc_enabled: bool = False
     codex_setup_platforms: str = ""
+    workbuddy_setup_platforms: str = ""
+    openclaw_setup_platforms: str = ""
     connector_release_version: str = "0.1.0"
     connector_wheel_url: str = "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl"
     connector_wheel_sha256: str = "1fc3f42e8c1141ce65481778587544fc9bf441438c852c0332594ab24a75fdf7"
@@ -115,15 +117,17 @@ class Settings(BaseSettings):
             raise ValueError("AGENTPOST_EMAIL_DELIVERY_MODE must be test or smtp")
         return canonical
 
-    @field_validator("codex_setup_platforms")
+    @field_validator(
+        "codex_setup_platforms",
+        "workbuddy_setup_platforms",
+        "openclaw_setup_platforms",
+    )
     @classmethod
-    def codex_setup_platforms_are_supported(cls, value: str) -> str:
+    def setup_platforms_are_supported(cls, value: str) -> str:
         supported = {"mac", "windows", "linux"}
         canonical = [item.strip().casefold() for item in value.split(",") if item.strip()]
         if any(item not in supported for item in canonical):
-            raise ValueError(
-                "AGENTPOST_CODEX_SETUP_PLATFORMS may contain only mac, windows, or linux"
-            )
+            raise ValueError("Agent setup platforms may contain only mac, windows, or linux")
         return ",".join(dict.fromkeys(canonical))
 
     @field_validator("connector_release_version")
@@ -240,6 +244,18 @@ class Settings(BaseSettings):
         return tuple(item for item in self.codex_setup_platforms.split(",") if item)
 
     @property
+    def enabled_host_setup_platforms(self) -> dict[str, tuple[str, ...]]:
+        codex = self.enabled_codex_setup_platforms
+        workbuddy = tuple(item for item in self.workbuddy_setup_platforms.split(",") if item)
+        openclaw = tuple(item for item in self.openclaw_setup_platforms.split(",") if item)
+        return {
+            "codex": codex,
+            # Empty host-specific settings preserve the pre-0.1.10 release policy.
+            "workbuddy": workbuddy or codex,
+            "openclaw": openclaw or codex,
+        }
+
+    @property
     def is_production(self) -> bool:
         return self.environment.casefold() == "production"
 
@@ -250,13 +266,12 @@ class Settings(BaseSettings):
             raise ValueError(
                 "AGENTPOST_CONNECTOR_WHEEL_URL must contain the configured release version"
             )
-        if self.enabled_codex_setup_platforms:
+        setup_is_enabled = any(self.enabled_host_setup_platforms.values())
+        if setup_is_enabled:
             version = tuple(int(part) for part in self.connector_release_version.split("."))
             if version < (0, 1, 1):
-                raise ValueError(
-                    "AGENTPOST_CODEX_SETUP_PLATFORMS requires Connector release 0.1.1 or newer"
-                )
-        if self.is_production and self.enabled_codex_setup_platforms:
+                raise ValueError("Agent setup platforms require Connector release 0.1.1 or newer")
+        if self.is_production and setup_is_enabled:
             release_origin = urlsplit(self.connector_wheel_url)
             public_origin = urlsplit(self.public_base_url)
             if (release_origin.scheme, release_origin.netloc) != (

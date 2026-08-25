@@ -10,6 +10,10 @@ class AgentPostError(Exception):
 class ConfigurationError(AgentPostError):
     """Client configuration is invalid before any HTTP request is attempted."""
 
+    def __init__(self, message: str, *, code: str = "ConfigurationError") -> None:
+        super().__init__(message)
+        self.code = code
+
 
 class TransportError(AgentPostError):
     """The HTTP exchange did not complete and server acceptance is unknown."""

@@ -412,6 +412,36 @@ def test_setup_failure_is_machine_readable_and_does_not_report_heartbeat(
     assert heartbeat_called is False
 
 
+def test_openclaw_host_preflight_fails_before_pairing(monkeypatch, capsys) -> None:
+    connected = False
+
+    def connect(_args):
+        nonlocal connected
+        connected = True
+        return DummyConnector()
+
+    monkeypatch.setattr(cli, "_connect", connect)
+    monkeypatch.setattr(
+        cli,
+        "preflight_openclaw_mcp",
+        lambda: (_ for _ in ()).throw(
+            cli.ConfigurationError(
+                "upgrade required",
+                code="openclaw_mcp_upgrade_required",
+            )
+        ),
+    )
+
+    assert cli.main(["setup", "openclaw"]) == 1
+    streams = capsys.readouterr()
+    assert json.loads(streams.out) == {
+        "error_code": "openclaw_mcp_upgrade_required",
+        "status": "failed",
+    }
+    assert "agentpost_error code=openclaw_mcp_upgrade_required" in streams.err
+    assert connected is False
+
+
 def test_setup_for_existing_agent_passes_only_the_hidden_target_intent(
     monkeypatch,
     capsys,

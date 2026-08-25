@@ -22,7 +22,11 @@ from agentpost_sdk.connector import ConnectorWorker, JsonCursorStore, ManagedCon
 from agentpost_sdk.errors import AgentPostError, ConfigurationError, ResponseError
 from agentpost_sdk.models import Message
 from agentpost_sdk.onboarding import PairingInstructions
-from agentpost_sdk.openclaw_setup import OpenClawSetupResult, configure_openclaw_mcp
+from agentpost_sdk.openclaw_setup import (
+    OpenClawSetupResult,
+    configure_openclaw_mcp,
+    preflight_openclaw_mcp,
+)
 from agentpost_sdk.workbuddy_setup import WorkBuddySetupResult, configure_workbuddy_mcp
 
 DEFAULT_SERVER = "https://agentpost.me"
@@ -374,6 +378,11 @@ def _run(args: argparse.Namespace) -> int:
         args.connector_type = args.host
     elif args.command == "send" and args.ensure_host:
         args.connector_type = args.ensure_host
+    if args.connector_type == "openclaw" and (
+        args.command == "setup" or (args.command == "send" and args.ensure_host)
+    ):
+        # Fail before pairing and browser authorization when the host itself cannot load MCP.
+        preflight_openclaw_mcp()
     with _connect(args) as connector:
         client = connector.client
         if args.command == "connect":
@@ -486,7 +495,9 @@ def main(argv: list[str] | None = None) -> int:
         print("stopped", file=sys.stderr)
         return 130
     except AgentPostError as exc:
-        code = exc.code if isinstance(exc, ResponseError) else type(exc).__name__
+        code = (
+            exc.code if isinstance(exc, (ConfigurationError, ResponseError)) else type(exc).__name__
+        )
         _json({"status": "failed", "error_code": code})
         print(f"agentpost_error code={code}", file=sys.stderr)
         return 1

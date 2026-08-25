@@ -68,7 +68,10 @@ class KeyringCredentialStore:
                 self._account(server, profile),
             )
         except Exception as exc:
-            raise ConfigurationError("OS credential storage is unavailable") from exc
+            raise ConfigurationError(
+                "OS credential storage is unavailable",
+                code="secure_credential_storage_unavailable",
+            ) from exc
         if raw is None:
             return None
         try:
@@ -107,7 +110,10 @@ class KeyringCredentialStore:
                 payload,
             )
         except Exception as exc:
-            raise ConfigurationError("OS credential storage is unavailable") from exc
+            raise ConfigurationError(
+                "OS credential storage is unavailable",
+                code="secure_credential_storage_unavailable",
+            ) from exc
 
     def delete(self, *, server: str, profile: str) -> None:
         try:

@@ -60,13 +60,25 @@ def _version_tuple(version: str) -> tuple[int, int, int]:
     return int(major), int(minor), int(patch)
 
 
-def parse_release(payload: object, *, platform_name: str) -> ConnectorRelease:
+def parse_release(
+    payload: object,
+    *,
+    host_name: str,
+    platform_name: str,
+) -> ConnectorRelease:
     if not isinstance(payload, dict):
         raise BootstrapError("invalid_release_metadata")
-    platforms = payload.get("codex_setup_platforms")
+    if host_name not in SUPPORTED_HOSTS:
+        raise BootstrapError("unsupported_host")
+    host_platforms = payload.get("host_setup_platforms")
+    if isinstance(host_platforms, dict):
+        platforms = host_platforms.get(host_name)
+    else:
+        # A pre-0.1.10 server published only one shared platform gate.
+        platforms = payload.get("codex_setup_platforms")
     release = payload.get("connector_release")
     if not isinstance(platforms, list) or platform_name not in platforms:
-        raise BootstrapError("setup_not_released_for_platform")
+        raise BootstrapError("setup_not_released_for_host_platform")
     if not isinstance(release, dict):
         raise BootstrapError("invalid_release_metadata")
     version = release.get("version")
@@ -95,6 +107,7 @@ def parse_release(payload: object, *, platform_name: str) -> ConnectorRelease:
 
 def fetch_release(
     *,
+    host_name: str,
     platform_name: str,
     opener: Callable[..., object] = urllib.request.urlopen,
 ) -> ConnectorRelease:
@@ -116,7 +129,21 @@ def fetch_release(
         payload = json.loads(raw.decode("utf-8"))
     except (UnicodeError, json.JSONDecodeError) as exc:
         raise BootstrapError("invalid_release_metadata") from exc
-    return parse_release(payload, platform_name=platform_name)
+    return parse_release(payload, host_name=host_name, platform_name=platform_name)
+
+
+def requested_host(argv: Sequence[str]) -> str:
+    if argv[0] == "setup":
+        return argv[1]
+    indices = [index for index, value in enumerate(argv) if value == "--ensure-host"]
+    if not indices:
+        return "codex"
+    if len(indices) != 1 or indices[0] + 1 >= len(argv):
+        raise BootstrapError("unsupported_resume_operation")
+    host_name = argv[indices[0] + 1]
+    if host_name not in SUPPORTED_HOSTS:
+        raise BootstrapError("unsupported_resume_operation")
+    return host_name
 
 
 def runtime_home() -> Path:
@@ -205,8 +232,9 @@ def execute(
                 setup_valid = True
     if not argv or (argv[0] == "setup" and not setup_valid) or argv[0] not in {"send", "setup"}:
         raise BootstrapError("unsupported_resume_operation")
+    host_name = requested_host(argv)
     platform_name = current_platform()
-    release = fetcher(platform_name=platform_name)
+    release = fetcher(host_name=host_name, platform_name=platform_name)
     connector = ensure_runtime(
         release,
         runtime=runtime or runtime_home(),

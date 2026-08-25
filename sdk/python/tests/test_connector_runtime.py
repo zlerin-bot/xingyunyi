@@ -38,6 +38,11 @@ class FakeKeyring:
         self.values.pop((service, account), None)
 
 
+class UnavailableKeyring:
+    def get_password(self, _service: str, _account: str) -> str | None:
+        raise RuntimeError("secret backend detail")
+
+
 class MemoryCredentialStore:
     def __init__(self, credential: ConnectorCredential | None = None) -> None:
         self.credential = credential
@@ -160,6 +165,16 @@ def test_keyring_store_masks_credentials_and_cursor_file_contains_only_cursor(
 
     store.delete(server=credential.server, profile=credential.profile)
     assert store.load(server=credential.server, profile=credential.profile) is None
+
+
+def test_keyring_store_fails_closed_with_a_machine_readable_secure_storage_code() -> None:
+    store = KeyringCredentialStore(backend=UnavailableKeyring())
+
+    with pytest.raises(Exception) as unavailable:
+        store.load(server="https://agentpost.me", profile="openclaw:cloud")
+
+    assert getattr(unavailable.value, "code", None) == "secure_credential_storage_unavailable"
+    assert "secret backend detail" not in str(unavailable.value)
 
 
 def test_managed_connector_restores_key_rotates_and_persists_replacement() -> None:

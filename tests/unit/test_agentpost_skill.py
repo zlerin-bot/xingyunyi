@@ -99,6 +99,11 @@ def test_release_metadata_must_enable_platform_and_match_trusted_origin() -> Non
     bootstrap = _load_bootstrap()
     payload = {
         "codex_setup_platforms": ["mac"],
+        "host_setup_platforms": {
+            "codex": ["mac"],
+            "workbuddy": ["mac"],
+            "openclaw": ["mac", "linux"],
+        },
         "connector_release": {
             "version": "0.1.1",
             "wheel_url": "https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl",
@@ -106,15 +111,65 @@ def test_release_metadata_must_enable_platform_and_match_trusted_origin() -> Non
         },
     }
 
-    assert bootstrap.parse_release(payload, platform_name="mac") == _release(bootstrap)
+    assert bootstrap.parse_release(
+        payload,
+        host_name="openclaw",
+        platform_name="linux",
+    ) == _release(bootstrap)
     with pytest.raises(bootstrap.BootstrapError, match="setup_not_released"):
-        bootstrap.parse_release(payload, platform_name="windows")
+        bootstrap.parse_release(payload, host_name="codex", platform_name="linux")
 
     payload["connector_release"]["wheel_url"] = (
         "https://example.com/downloads/agentpost-0.1.1-py3-none-any.whl"
     )
     with pytest.raises(bootstrap.BootstrapError, match="wheel_origin_mismatch"):
-        bootstrap.parse_release(payload, platform_name="mac")
+        bootstrap.parse_release(payload, host_name="openclaw", platform_name="linux")
+
+
+def test_release_metadata_keeps_pre_host_mapping_compatibility() -> None:
+    bootstrap = _load_bootstrap()
+    payload = {
+        "codex_setup_platforms": ["mac"],
+        "connector_release": {
+            "version": "0.1.1",
+            "wheel_url": "https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl",
+            "wheel_sha256": "a" * 64,
+        },
+    }
+
+    assert bootstrap.parse_release(
+        payload,
+        host_name="openclaw",
+        platform_name="mac",
+    ) == _release(bootstrap)
+
+
+def test_bootstrap_passes_requested_host_to_release_gate(tmp_path: Path) -> None:
+    bootstrap = _load_bootstrap()
+    connector = tmp_path / "runtime" / "bin" / "agentpost-connect"
+    connector.parent.mkdir(parents=True)
+    connector.touch()
+    observed: list[dict[str, str]] = []
+
+    def fetcher(**kwargs):
+        observed.append(kwargs)
+        return _release(bootstrap)
+
+    def runner(command, **_kwargs):
+        if "-I" in command:
+            return SimpleNamespace(returncode=0, stdout="0.1.1\n")
+        return SimpleNamespace(returncode=0, stdout="")
+
+    assert (
+        bootstrap.execute(
+            ["setup", "openclaw"],
+            fetcher=fetcher,
+            runtime=tmp_path / "runtime",
+            runner=runner,
+        )
+        == 0
+    )
+    assert observed == [{"host_name": "openclaw", "platform_name": bootstrap.current_platform()}]
 
 
 def test_bootstrap_installs_hash_pinned_release_once_and_resumes_original_send(
