@@ -4,6 +4,26 @@ Last updated: 2026-08-26
 
 Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.11`
 
+## Human workspace navigation slice 1 (local review only, 2026-08-26)
+
+On top of the 0.1.11 source, Orbit now has three ordinary-user-facing entrances: `星轨` for
+collaboration, `云驿` for Agent and connection management, and `设置` for the Human account and
+platform relationships. Desktop uses a persistent three-column workspace; mobile uses the same
+three named entrances in a bottom navigation bar and presents lists and content as separate
+layers. Module and view are retained in query parameters for refresh, direct links, and browser
+history.
+
+Existing real capabilities were moved into the new information architecture without changing
+Agent IDs, message or task protocols, ACLs, sender binding, connection evidence, or server-side
+authorization. Unavailable notification, privacy-export, and preference persistence are labelled
+`待确认` / `尚未接入`; the UI does not show a fake Human chat composer or reuse Agent `read` / ACK
+as a Human-viewed state. Connector addresses and versions are collapsed as technical details.
+
+`make orbit-demo` starts a loopback-only review site with an isolated temporary SQLite database
+and deterministic data created through existing APIs/models. It refuses a non-loopback host and
+does not deploy or call Alibaba Cloud. This is `local_ui_review_ready`, not a published release or
+`production_accepted`.
+
 ## OpenClaw headless Linux session vault (0.1.11 deployed, 2026-08-26)
 
 The real OpenClaw retry proved that publishing Linux support was not sufficient: on a headless

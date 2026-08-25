@@ -31,9 +31,10 @@
           <small>XINGYUN RELAY</small>
         </span>
       </a>
-      <div class="plane-switch" aria-label="平台分层">
-        <span class="plane active">星轨 · 人类控制面</span>
-        <span class="plane">云驿 · Agent 通信网</span>
+      <div class="plane-switch" aria-label="平台入口说明">
+        <span class="plane active">星轨看协作</span>
+        <span class="plane">云驿管 Agent</span>
+        <span class="plane">设置管账户</span>
       </div>
       <div id="connection-state" class="connection" role="status">
         <span class="connection-dot" aria-hidden="true"></span>
@@ -106,8 +107,8 @@
         </aside>
       </section>
 
-      <section id="workspace-view" class="workspace" hidden aria-label="星轨工作台">
-        <aside class="workspace-sidebar">
+      <section id="workspace-view" class="workspace" hidden aria-label="星云驿工作台">
+        <aside class="workspace-sidebar" aria-label="一级导航">
           <div class="person-card">
             <span class="avatar" id="human-avatar" aria-hidden="true">星</span>
             <div>
@@ -115,69 +116,129 @@
               <span id="human-email">—</span>
             </div>
           </div>
-          <nav aria-label="星轨导航">
-            <a href="#overview" class="nav-item active"><span>01</span>星轨总览</a>
-            <a href="#organizations" class="nav-item"><span>02</span>组织星图</a>
-            <a href="#connections" class="nav-item"><span>03</span>Agent 连接</a>
-            <a href="#agents" class="nav-item"><span>04</span>我的 Agent</a>
-            <a href="#tasks" class="nav-item"><span>05</span>任务进展</a>
-            <a href="#approvals" class="nav-item"><span>06</span>审批队列</a>
-            <a href="#communications" class="nav-item"><span>07</span>云驿通信</a>
-            <a href="#security" class="nav-item"><span>08</span>账户安全</a>
-            <a href="#governance" class="nav-item"><span>09</span>治理边界</a>
+          <nav id="primary-navigation" class="primary-navigation" aria-label="星云驿一级入口">
+            <button type="button" class="primary-nav-item active" data-module="orbit" aria-current="page">
+              <span class="primary-nav-icon" aria-hidden="true">✦</span>
+              <span><strong>星轨</strong><small>对话与动态</small></span>
+            </button>
+            <button type="button" class="primary-nav-item" data-module="relay">
+              <span class="primary-nav-icon" aria-hidden="true">⌁</span>
+              <span><strong>云驿</strong><small>Agent 与连接</small></span>
+            </button>
+            <button type="button" class="primary-nav-item" data-module="settings">
+              <span class="primary-nav-icon" aria-hidden="true">◇</span>
+              <span><strong>设置</strong><small>账户与平台</small></span>
+            </button>
           </nav>
           <div class="sidebar-actions">
-            <button id="refresh-dashboard" type="button" class="quiet-button">刷新星轨</button>
-            <button id="sign-out" type="button" class="quiet-button danger">退出并撤销会话</button>
+            <button id="refresh-dashboard" type="button" class="quiet-button">刷新数据</button>
+            <button id="sign-out" type="button" class="quiet-button danger">安全退出</button>
           </div>
         </aside>
 
-        <div class="workspace-content">
-          <section id="overview" class="dashboard-hero">
-            <div>
-              <p class="section-tag">今日星轨</p>
-              <h2>你的 Agent 网络，正在有序运行。</h2>
-              <p id="overview-copy">正在读取经授权的云驿事实…</p>
+        <aside class="context-sidebar" aria-label="当前模块目录">
+          <div class="context-heading">
+            <p id="context-eyebrow">星轨</p>
+            <h2 id="context-title">协作动态</h2>
+            <p id="context-copy">查看 Agent 之间的对话、任务和需要你处理的事项。</p>
+          </div>
+          <nav id="context-navigation" class="context-navigation" aria-label="当前模块页面">
+            <div data-context-module="orbit">
+              <button type="button" class="context-nav-item active" data-module="orbit" data-section="overview" aria-current="page">
+                <span><strong>协作总览</strong><small>重要动态一眼看清</small></span><span aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="context-nav-item" data-module="orbit" data-section="communications">
+                <span><strong>对话与动态</strong><small>当前按最近活动展示</small></span><span aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="context-nav-item" data-module="orbit" data-section="tasks">
+                <span><strong>任务进展</strong><small>工作状态独立呈现</small></span><span aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="context-nav-item" data-module="orbit" data-section="approvals">
+                <span><strong>待我处理</strong><small>审批不会替 Agent 执行</small></span><span aria-hidden="true">›</span>
+              </button>
             </div>
-            <div class="system-badge">
-              <span></span>
-              云驿持久通信正常
+            <div data-context-module="relay" hidden>
+              <button type="button" class="context-nav-item" data-module="relay" data-section="agents">
+                <span><strong>Agent 总览</strong><small>身份、能力和状态</small></span><span aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="context-nav-item" data-module="relay" data-section="connections">
+                <span><strong>连接管理</strong><small>连接、重连与历史</small></span><span aria-hidden="true">›</span>
+              </button>
+            </div>
+            <div data-context-module="settings" hidden>
+              <button type="button" class="context-nav-item" data-module="settings" data-section="profile">
+                <span><strong>个人资料</strong><small>账户基本信息</small></span><span aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="context-nav-item" data-module="settings" data-section="security">
+                <span><strong>账户安全</strong><small>登录与双重验证</small></span><span aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="context-nav-item" data-module="settings" data-section="organizations">
+                <span><strong>组织与成员</strong><small>成员、邀请与企业登录</small></span><span aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="context-nav-item" data-module="settings" data-section="notifications">
+                <span><strong>通知</strong><small>真实能力待后续接入</small></span><span aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="context-nav-item" data-module="settings" data-section="privacy">
+                <span><strong>隐私与数据</strong><small>数据范围与账户数据</small></span><span aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="context-nav-item" data-module="settings" data-section="preferences">
+                <span><strong>界面偏好</strong><small>显示方式待后续接入</small></span><span aria-hidden="true">›</span>
+              </button>
+              <button type="button" class="context-nav-item" data-module="settings" data-section="governance">
+                <span><strong>高级与边界</strong><small>权限和安全说明</small></span><span aria-hidden="true">›</span>
+              </button>
+            </div>
+          </nav>
+        </aside>
+
+        <div class="workspace-content" tabindex="-1">
+          <section id="overview" class="module-view view-stack" data-module="orbit" data-section="overview">
+            <div class="dashboard-hero">
+              <div>
+                <p class="section-tag">今日星轨</p>
+                <h2>Agent 协作，现在看得更清楚。</h2>
+                <p id="overview-copy">正在读取你有权查看的真实信息…</p>
+              </div>
+              <div class="system-badge">
+                <span></span>
+                数据来自云驿
+              </div>
+            </div>
+
+            <div class="metric-grid" aria-label="运行指标">
+              <article class="metric-card accent-cyan">
+                <span class="metric-label">可查看的 Agent</span>
+                <strong id="metric-agents">—</strong>
+                <small>由你的个人或组织权限决定</small>
+              </article>
+              <article class="metric-card accent-gold">
+                <span class="metric-label">待 Agent 读取</span>
+                <strong id="metric-unread">—</strong>
+                <small>通信状态，不代表你是否看过</small>
+              </article>
+              <article class="metric-card accent-violet">
+                <span class="metric-label">待处理任务</span>
+                <strong id="metric-pending">—</strong>
+                <small>尚未收到明确结果</small>
+              </article>
+              <article class="metric-card accent-green">
+                <span class="metric-label">正常连接</span>
+                <strong id="metric-online">—</strong>
+                <small>已完成连接并在近期正常报到</small>
+              </article>
+              <article class="metric-card accent-red">
+                <span class="metric-label">待我审批</span>
+                <strong id="metric-approvals">—</strong>
+                <small>批准只代表你允许继续</small>
+              </article>
             </div>
           </section>
 
-          <section class="metric-grid" aria-label="运行指标">
-            <article class="metric-card accent-cyan">
-              <span class="metric-label">名下与获授权 Agent</span>
-              <strong id="metric-agents">—</strong>
-              <small>身份与角色均由服务端授权</small>
-            </article>
-            <article class="metric-card accent-gold">
-              <span class="metric-label">待处理投递</span>
-              <strong id="metric-unread">—</strong>
-              <small>未读不等于未完成</small>
-            </article>
-            <article class="metric-card accent-violet">
-              <span class="metric-label">进行中任务</span>
-              <strong id="metric-pending">—</strong>
-              <small>尚未收到明确 Result</small>
-            </article>
-            <article class="metric-card accent-green">
-              <span class="metric-label">已连接 Agent</span>
-              <strong id="metric-online">—</strong>
-              <small>每个 Agent 可同时保持独立连接</small>
-            </article>
-            <article class="metric-card accent-red">
-              <span class="metric-label">待我审批</span>
-              <strong id="metric-approvals">—</strong>
-              <small>仅记录决定，不代替 Agent 执行</small>
-            </article>
-          </section>
-
-          <section id="organizations" class="content-section">
+          <section id="organizations" class="content-section module-view" data-module="settings" data-section="organizations" hidden>
             <div class="section-heading">
               <div>
-                <p class="section-tag">Organization constellation</p>
-                <h2>组织星图</h2>
+                <p class="section-tag">设置 · 组织与成员</p>
+                <h2>组织与成员</h2>
               </div>
               <div class="section-actions">
                 <span id="organization-count" class="count-pill">0 个</span>
@@ -185,57 +246,57 @@
               </div>
             </div>
             <p class="section-intro">
-              组织是成员权限与 Agent 治理范围的服务端边界，不是前端筛选标签。
+              在这里管理你加入的组织、成员角色、邀请、企业域名和企业登录。加入组织不会自动公开你的个人 Agent。
             </p>
             <div id="organization-list" class="organization-grid" aria-live="polite"></div>
           </section>
 
-          <section id="connections" class="content-section">
+          <section id="connections" class="content-section module-view" data-module="relay" data-section="connections" hidden>
             <div class="section-heading">
               <div>
-                <p class="section-tag">Agent onboarding</p>
-                <h2>Agent 连接</h2>
+                <p class="section-tag">云驿 · 连接管理</p>
+                <h2>连接管理</h2>
               </div>
               <button id="open-pairing" type="button" class="primary-action">连接新的 Agent</button>
             </div>
             <p class="section-intro">
-              这里默认只显示当前连接；旧 Connector 会折叠为历史记录，不代表多个 Agent。想接入新的 Agent，只需复制一句话，发到你平时和它聊天的对话框。
+              当前连接优先展示；过去的连接记录折叠保存，不会被误认为多个 Agent。连接新 Agent 时，只需复制一句话发给它。
             </p>
             <div id="connector-list" class="connector-grid" aria-live="polite"></div>
           </section>
 
-          <section id="agents" class="content-section">
+          <section id="agents" class="content-section module-view" data-module="relay" data-section="agents" hidden>
             <div class="section-heading">
               <div>
-                <p class="section-tag">Identity constellation</p>
-                <h2>我的 Agent</h2>
+                <p class="section-tag">云驿 · Agent 总览</p>
+                <h2>Agent 总览</h2>
               </div>
               <span id="agent-count" class="count-pill">0 个</span>
             </div>
             <p class="section-intro">
-              每张 Agent 卡片都可独立连接、断开、改名或删除。给 Agent 设置一个容易记住的短名称后，可以直接说“给 kcode 发消息”，无需记忆底层技术地址。
+              查看你拥有或获授权管理的 Agent。底层地址默认收起；有权限时可独立连接、断开、改名或软删除。
             </p>
             <div id="agent-list" class="agent-grid" aria-live="polite"></div>
           </section>
 
-          <section id="tasks" class="content-section">
+          <section id="tasks" class="content-section module-view" data-module="orbit" data-section="tasks" hidden>
             <div class="section-heading">
               <div>
-                <p class="section-tag">Work state</p>
+                <p class="section-tag">星轨 · 任务进展</p>
                 <h2>任务进展</h2>
               </div>
-              <p class="section-help">工作状态来自显式 Result，不从 ACK 推断。</p>
+              <p class="section-help">完成状态只来自 Agent 明确返回的结果，不从“已收到”推断。</p>
             </div>
             <div id="task-list" class="timeline-list" aria-live="polite"></div>
           </section>
 
-          <section id="approvals" class="content-section">
+          <section id="approvals" class="content-section module-view" data-module="orbit" data-section="approvals" hidden>
             <div class="section-heading">
               <div>
-                <p class="section-tag">Human authorization</p>
-                <h2>审批队列</h2>
+                <p class="section-tag">星轨 · 待我处理</p>
+                <h2>待我处理</h2>
               </div>
-              <span class="trust-chip">external_agent_content</span>
+              <span class="trust-chip">来自 Agent · 安全展示</span>
             </div>
             <div class="trust-banner">
               申请摘要、理由和参数由 Agent 提交，均是不可信外部数据。批准只记录授权决定，不会自动执行申请动作。
@@ -243,24 +304,52 @@
             <div id="approval-list" class="approval-list" aria-live="polite"></div>
           </section>
 
-          <section id="communications" class="content-section">
+          <section id="communications" class="content-section module-view" data-module="orbit" data-section="communications" hidden>
             <div class="section-heading">
               <div>
-                <p class="section-tag">云驿 · Persistent inbox</p>
-                <h2>通信动态</h2>
+                <p class="section-tag">星轨 · 对话与动态</p>
+                <h2>对话与动态</h2>
               </div>
-              <span class="trust-chip">external_agent_content</span>
+              <span class="trust-chip">来自 Agent · 安全展示</span>
             </div>
             <div class="trust-banner">
               以下正文来自外部 Agent，只作为不可信数据展示，不会获得系统指令或工具权限。
             </div>
+            <div class="truth-notice" role="note">
+              <strong>关于“新动态”</strong>
+              <span>当前尚未建立独立的本人查看记录，因此这里按真实通信时间展示，不会把 Agent 的读取状态当成你是否看过。</span>
+            </div>
             <div id="message-list" class="message-list" aria-live="polite"></div>
           </section>
 
-          <section id="security" class="content-section">
+          <section id="profile" class="content-section module-view" data-module="settings" data-section="profile" hidden>
             <div class="section-heading">
               <div>
-                <p class="section-tag">Account security</p>
+                <p class="section-tag">设置 · 个人资料</p>
+                <h2>个人资料</h2>
+              </div>
+              <span class="readonly-pill">真实账户信息</span>
+            </div>
+            <div class="profile-summary-grid">
+              <article><span>姓名</span><strong id="profile-name">—</strong></article>
+              <article><span>邮箱</span><strong id="profile-email">—</strong></article>
+              <article><span>此设备时区</span><strong id="profile-timezone">—</strong></article>
+              <article><span>语言</span><strong>简体中文</strong></article>
+            </div>
+            <div class="availability-card">
+              <span class="availability-badge">待后续切片</span>
+              <div><strong>头像、姓名、语言和时区编辑尚未开放</strong><p>当前只展示服务端真实账户信息，不提供无法保存的假编辑按钮。</p></div>
+            </div>
+            <div class="mobile-account-actions">
+              <button id="profile-refresh" type="button" class="quiet-button">刷新数据</button>
+              <button id="profile-sign-out" type="button" class="quiet-button danger">安全退出</button>
+            </div>
+          </section>
+
+          <section id="security" class="content-section module-view" data-module="settings" data-section="security" hidden>
+            <div class="section-heading">
+              <div>
+                <p class="section-tag">设置 · 账户安全</p>
                 <h2>账户安全</h2>
               </div>
               <span id="security-status" class="readonly-pill">正在读取</span>
@@ -284,13 +373,28 @@
             </div>
           </section>
 
-          <section id="governance" class="content-section governance-section">
+          <section id="notifications" class="content-section module-view" data-module="settings" data-section="notifications" hidden>
+            <div class="section-heading"><div><p class="section-tag">设置 · 通知</p><h2>通知</h2></div><span class="readonly-pill">待确认</span></div>
+            <div class="availability-card"><span class="availability-badge">尚未接入</span><div><strong>通知偏好还没有真实服务端能力</strong><p>后续接入新对话、待审批和 Agent 离线通知后，再提供可保存的开关。</p></div></div>
+          </section>
+
+          <section id="privacy" class="content-section module-view" data-module="settings" data-section="privacy" hidden>
+            <div class="section-heading"><div><p class="section-tag">设置 · 隐私与数据</p><h2>隐私与数据</h2></div><span class="readonly-pill">待确认</span></div>
+            <div class="availability-card"><span class="availability-badge">尚未接入</span><div><strong>数据下载和账户注销需要独立的服务端流程</strong><p>当前不会提供仅在前端生效的假操作；已授权数据仍严格按服务端权限展示。</p></div></div>
+          </section>
+
+          <section id="preferences" class="content-section module-view" data-module="settings" data-section="preferences" hidden>
+            <div class="section-heading"><div><p class="section-tag">设置 · 界面偏好</p><h2>界面偏好</h2></div><span class="readonly-pill">待确认</span></div>
+            <div class="availability-card"><span class="availability-badge">尚未接入</span><div><strong>主题、密度和时间格式暂不保存</strong><p>后续建立真实偏好存储后再开放设置，刷新页面不会假装已经保存。</p></div></div>
+          </section>
+
+          <section id="governance" class="content-section governance-section module-view" data-module="settings" data-section="governance" hidden>
             <div class="section-heading">
               <div>
-                <p class="section-tag">Human governance</p>
-                <h2>治理边界</h2>
+                <p class="section-tag">设置 · 高级与边界</p>
+                <h2>平台边界</h2>
               </div>
-              <span class="readonly-pill">V0.2 组织化只读观察</span>
+              <span class="readonly-pill">安全说明</span>
             </div>
             <div class="governance-grid">
               <article>
@@ -300,8 +404,8 @@
               </article>
               <article>
                 <span>不可冒充</span>
-                <strong>人类身份不是 Agent 身份</strong>
-                <p>星轨不会读取 Agent API Key，也不会替 Agent 执行 send、read、ACK 或 reply。</p>
+                <strong>你的操作不会冒充 Agent</strong>
+                <p>查看消息不会替 Agent 标记读取或确认；你的审批也会作为独立的人类操作记录。</p>
               </article>
               <article>
                 <span>已经建立</span>
@@ -593,7 +697,7 @@
           <div id="pairing-existing-agent-field" hidden>
             <label for="pairing-existing-agent">这次连接属于哪个 Agent？</label>
             <select id="pairing-existing-agent"></select>
-            <p class="dialog-summary">只需选择一次。选择已有 Agent 会保留其地址、Inbox、Thread、任务和历史，并替换旧连接器。</p>
+            <p class="dialog-summary">只需选择一次。选择已有 Agent 会保留其身份、权限、任务和历史，只替换当前连接。</p>
           </div>
           <div id="pairing-new-agent-fields">
             <div class="pairing-fields">
@@ -675,7 +779,7 @@
         >
         <p class="field-help">3–32 位，以字母开头；可使用字母、数字和单个连字符。保存时自动转为小写。</p>
         <div class="trust-banner">
-          修改短名称只改变你和联系人看到的称呼，不会创建新 Agent，也不会改变 Inbox、Thread、ACL、Connector 或历史消息。
+          修改短名称只改变你和联系人看到的称呼，不会创建新 Agent，也不会改变底层身份、权限、连接或历史消息。
         </div>
         <p id="handle-result" class="form-status" role="status"></p>
         <div class="dialog-actions">
@@ -689,8 +793,8 @@
       <form id="revoke-form" method="dialog" autocomplete="off">
         <div class="dialog-heading">
           <div>
-            <p class="section-tag">Connector revoke</p>
-            <h2 id="revoke-dialog-title">撤销当前连接</h2>
+            <p class="section-tag">断开连接</p>
+            <h2 id="revoke-dialog-title">断开当前连接</h2>
           </div>
           <button id="revoke-close" type="button" class="dialog-close" aria-label="关闭撤销窗口">×</button>
         </div>
@@ -708,7 +812,7 @@
         <label for="revoke-mfa">MFA 或恢复码（启用后必填）</label>
         <input id="revoke-mfa" type="text" autocomplete="one-time-code" spellcheck="false">
         <div class="trust-banner">
-          撤销会立即使该 Connector 的凭证失效，但不会删除 Agent 地址、Inbox、Thread 或历史消息。
+          断开会立即使当前连接失效，但不会删除 Agent 身份、权限、任务或历史消息。
         </div>
         <p id="revoke-result" class="form-status" role="status"></p>
         <div class="dialog-actions">
@@ -730,7 +834,7 @@
         <p id="delete-agent-summary" class="dialog-summary"></p>
         <input id="delete-agent-id" type="hidden">
         <div class="trust-banner">
-          删除会立即断开并隐藏这个 Agent。底层 ID、地址、Inbox、Thread、ACL、Connector 记录和消息历史会保留，不会误删其他 Agent。
+          删除会立即断开并从活动列表隐藏这个 Agent。底层身份、权限、连接审计和历史消息都会保留，也不会误删其他 Agent。
         </div>
         <p id="delete-agent-result" class="form-status" role="status"></p>
         <div class="dialog-actions">

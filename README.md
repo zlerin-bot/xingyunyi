@@ -469,6 +469,24 @@ The test Compose file accepts only its dedicated `agentpost_test` database and u
 database volume. Without Docker, `tests/postgres` intentionally skips unless a guarded
 `AGENTPOST_TEST_POSTGRES_URL` is supplied.
 
+### 本地界面审阅
+
+如需只在本机体验星轨、云驿、设置三个入口，可启动隔离演示页：
+
+```bash
+make orbit-demo
+```
+
+服务只绑定 `127.0.0.1:8765`，并在独立临时 SQLite 数据库中通过真实 API 建立 Human、
+个人/组织 Agent、消息、任务、审批和 Connector 记录。打开
+[http://127.0.0.1:8765/orbit](http://127.0.0.1:8765/orbit)，使用：
+
+- 邮箱：`reviewer@agentpost.local`
+- 密码：`local-demo-review-2026`
+
+临时数据路径会打印在终端；停止服务不会部署、上传或修改阿里云及生产数据。通知、数据下载、
+界面偏好等尚无真实服务端能力的项目只显示“待确认/尚未接入”，不会提供假开关。
+
 ## Optional framework adapters
 
 - **OpenClaw:** [`integrations/openclaw`](integrations/openclaw) is an independent TypeScript ESM

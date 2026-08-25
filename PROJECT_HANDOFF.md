@@ -4,8 +4,18 @@
 - 核验日期：2026-08-26
 - 代码分支：`main`
 - 阶段性质：OpenClaw headless Linux 会话密钥库已部署为 0.1.11；真实配对与收发待 Human 重试
+- 本地开发状态：0.1.11 源码上的 Human 三入口界面切片一已形成可审阅演示，未部署、未发布
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+本地新增的 Human 工作台把现有能力统一到三个一级入口：星轨看协作、云驿管 Agent、设置管
+Human 账户和平台关系。桌面使用三栏，移动端使用底部三个具名入口；`module` / `view` 查询参数
+保留刷新、深链接和浏览器返回上下文。通知、数据导出和界面偏好等未有真实服务端能力的项目
+明确标记为待确认，没有伪造开关；Human 新动态也没有复用 Agent `read` 或 ACK。`make
+orbit-demo` 只在 loopback 启动隔离的临时 SQLite 演示数据，未触碰阿里云或生产数据。当前证据
+标签为 `local_ui_review_ready`，不是发布或 `production_accepted`。
+
+以下 0.1.11 生产记录保持不变。
 
 测试者在 0.1.10 重试后确认：OpenClaw + Linux 发布门已经开放，但 headless 主机上的默认
 GNOME Keyring login collection 仍要求图形/系统级解锁，最终以

@@ -26,6 +26,13 @@ const state = {
   pairingTargetAgent: null,
   pairingNewAgentIntent: "",
   connectors: [],
+  activeModule: "orbit",
+  activeSection: "overview",
+  lastSectionByModule: {
+    orbit: "overview",
+    relay: "agents",
+    settings: "profile",
+  },
 };
 
 const elements = {
@@ -47,9 +54,23 @@ const elements = {
   connectionState: document.querySelector("#connection-state"),
   refresh: document.querySelector("#refresh-dashboard"),
   signOut: document.querySelector("#sign-out"),
+  profileRefresh: document.querySelector("#profile-refresh"),
+  profileSignOut: document.querySelector("#profile-sign-out"),
   humanName: document.querySelector("#human-name"),
   humanEmail: document.querySelector("#human-email"),
   humanAvatar: document.querySelector("#human-avatar"),
+  profileName: document.querySelector("#profile-name"),
+  profileEmail: document.querySelector("#profile-email"),
+  profileTimezone: document.querySelector("#profile-timezone"),
+  primaryNavigation: document.querySelector("#primary-navigation"),
+  primaryNavigationItems: Array.from(document.querySelectorAll(".primary-nav-item")),
+  contextNavigation: document.querySelector("#context-navigation"),
+  contextNavigationGroups: Array.from(document.querySelectorAll("[data-context-module]")),
+  contextNavigationItems: Array.from(document.querySelectorAll(".context-nav-item")),
+  moduleViews: Array.from(document.querySelectorAll(".module-view")),
+  contextEyebrow: document.querySelector("#context-eyebrow"),
+  contextTitle: document.querySelector("#context-title"),
+  contextCopy: document.querySelector("#context-copy"),
   overviewCopy: document.querySelector("#overview-copy"),
   metricAgents: document.querySelector("#metric-agents"),
   metricUnread: document.querySelector("#metric-unread"),
@@ -227,6 +248,144 @@ const elements = {
   organizationLeave: document.querySelector("#organization-leave"),
 };
 
+const MODULE_DEFINITIONS = Object.freeze({
+  orbit: Object.freeze({
+    label: "星轨",
+    title: "协作动态",
+    description: "查看 Agent 之间的对话、任务和需要你处理的事项。",
+    defaultSection: "overview",
+    sections: Object.freeze(["overview", "communications", "tasks", "approvals"]),
+  }),
+  relay: Object.freeze({
+    label: "云驿",
+    title: "Agent 与连接",
+    description: "管理 Agent 身份、真实连接状态和保留的连接历史。",
+    defaultSection: "agents",
+    sections: Object.freeze(["agents", "connections"]),
+  }),
+  settings: Object.freeze({
+    label: "设置",
+    title: "账户与平台",
+    description: "管理你的账户安全、组织关系和平台选项。",
+    defaultSection: "profile",
+    sections: Object.freeze([
+      "profile",
+      "security",
+      "organizations",
+      "notifications",
+      "privacy",
+      "preferences",
+      "governance",
+    ]),
+  }),
+});
+
+function normalizedRoute(module, section) {
+  const definition = MODULE_DEFINITIONS[module] || MODULE_DEFINITIONS.orbit;
+  const normalizedModule = MODULE_DEFINITIONS[module] ? module : "orbit";
+  const normalizedSection = definition.sections.includes(section)
+    ? section
+    : state.lastSectionByModule[normalizedModule] || definition.defaultSection;
+  return { module: normalizedModule, section: normalizedSection };
+}
+
+function routeUrl(module, section) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("module", module);
+  url.searchParams.set("view", section);
+  url.hash = "";
+  return `${url.pathname}${url.search}`;
+}
+
+function currentRouteUrlWithoutWorkflowParameters() {
+  const url = new URL(window.location.href);
+  ["pairing", "code"].forEach((name) => url.searchParams.delete(name));
+  url.searchParams.set("module", state.activeModule);
+  url.searchParams.set("view", state.activeSection);
+  url.hash = "";
+  return `${url.pathname}${url.search}`;
+}
+
+function activateRoute(module, section, { updateHistory = true, focusContent = false } = {}) {
+  const route = normalizedRoute(module, section);
+  const definition = MODULE_DEFINITIONS[route.module];
+  const routeChanged = state.activeModule !== route.module || state.activeSection !== route.section;
+  state.activeModule = route.module;
+  state.activeSection = route.section;
+  state.lastSectionByModule[route.module] = route.section;
+
+  elements.primaryNavigationItems.forEach((item) => {
+    const active = item.dataset.module === route.module;
+    item.classList.toggle("active", active);
+    if (active) {
+      item.setAttribute("aria-current", "page");
+    } else {
+      item.removeAttribute("aria-current");
+    }
+  });
+  elements.contextNavigationGroups.forEach((group) => {
+    group.hidden = group.dataset.contextModule !== route.module;
+  });
+  elements.contextNavigationItems.forEach((item) => {
+    const active = item.dataset.module === route.module && item.dataset.section === route.section;
+    item.classList.toggle("active", active);
+    if (active) {
+      item.setAttribute("aria-current", "page");
+    } else {
+      item.removeAttribute("aria-current");
+    }
+  });
+  elements.moduleViews.forEach((view) => {
+    view.hidden = !(view.dataset.module === route.module && view.dataset.section === route.section);
+  });
+  elements.contextEyebrow.textContent = definition.label;
+  elements.contextTitle.textContent = definition.title;
+  elements.contextCopy.textContent = definition.description;
+  document.title = `星云驿 · ${definition.label}`;
+  if (updateHistory && routeChanged) {
+    history.pushState({ module: route.module, section: route.section }, "", routeUrl(route.module, route.section));
+  }
+  if (focusContent && !elements.workspaceView.hidden) {
+    elements.workspaceView.querySelector(".workspace-content")?.focus({ preventScroll: true });
+  }
+}
+
+function initializeWorkspaceNavigation() {
+  const parameters = new URLSearchParams(window.location.search);
+  const route = normalizedRoute(parameters.get("module") || "orbit", parameters.get("view") || "");
+  activateRoute(route.module, route.section, { updateHistory: false });
+
+  elements.primaryNavigationItems.forEach((item) => {
+    item.addEventListener("click", () => {
+      const module = item.dataset.module;
+      activateRoute(module, state.lastSectionByModule[module] || MODULE_DEFINITIONS[module].defaultSection, {
+        focusContent: true,
+      });
+    });
+  });
+  elements.contextNavigationItems.forEach((item) => {
+    item.addEventListener("click", () => activateRoute(item.dataset.module, item.dataset.section, {
+      focusContent: true,
+    }));
+  });
+  [elements.primaryNavigation, elements.contextNavigation].forEach((navigation) => {
+    navigation.addEventListener("keydown", (event) => {
+      if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"].includes(event.key)) {
+        return;
+      }
+      const visibleItems = Array.from(navigation.querySelectorAll("button:not([hidden])"))
+        .filter((item) => item.offsetParent !== null);
+      const currentIndex = visibleItems.indexOf(document.activeElement);
+      if (currentIndex < 0 || visibleItems.length < 2) {
+        return;
+      }
+      event.preventDefault();
+      const direction = ["ArrowDown", "ArrowRight"].includes(event.key) ? 1 : -1;
+      visibleItems[(currentIndex + direction + visibleItems.length) % visibleItems.length].focus();
+    });
+  });
+}
+
 function setConnection(message, kind = "") {
   elements.connectionState.className = `connection ${kind}`.trim();
   const dot = document.createElement("span");
@@ -389,9 +548,26 @@ function emptyState(message) {
   return empty;
 }
 
-function statusLabel(value) {
+function emptyStateWithAction(message, label, action) {
+  const empty = document.createElement("div");
+  empty.className = "empty-state action-empty-state";
+  const copy = document.createElement("p");
+  copy.textContent = message;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "quiet-button";
+  button.textContent = label;
+  button.addEventListener("click", action);
+  empty.append(copy, button);
+  return empty;
+}
+
+function statusLabel(value, type = "status") {
+  if (type === "approval" && value === "pending") {
+    return "待审批";
+  }
   const labels = {
-    pending: "进行中",
+    pending: "待处理",
     approved: "已批准",
     rejected: "已拒绝",
     expired: "已过期",
@@ -399,9 +575,9 @@ function statusLabel(value) {
     partial: "部分完成",
     failed: "失败",
     cancelled: "已取消",
-    delivered: "已投递",
-    read: "已读取",
-    acked: "已确认",
+    delivered: "已送达",
+    read: "Agent 已读取",
+    acked: "Agent 已确认收到",
     active: "运行中",
     owner: "所有者",
     operator: "操作员",
@@ -428,7 +604,7 @@ function statusLabel(value) {
 function chip(value, type = "status") {
   const item = document.createElement("span");
   item.className = `data-chip ${type} ${safeText(value, "unknown")}`;
-  item.textContent = statusLabel(value);
+  item.textContent = statusLabel(value, type);
   return item;
 }
 
@@ -439,7 +615,7 @@ function renderMetrics(metrics, agents, organizations) {
   elements.metricOnline.textContent = safeText(metrics.connected_agent_count, "0");
   elements.metricApprovals.textContent = safeText(metrics.pending_approval_count, "0");
   const active = agents.filter((agent) => agent.status === "active").length;
-  elements.overviewCopy.textContent = `当前进入 ${organizations.length} 个组织治理范围，可观察 ${agents.length} 个 Agent，其中 ${active} 个身份处于 active；通信状态和工作状态仍分别呈现。`;
+  elements.overviewCopy.textContent = `你当前可查看 ${agents.length} 个 Agent，其中 ${active} 个处于可用状态，并加入 ${organizations.length} 个组织范围。通信是否送达、任务是否完成和审批是否通过会分别显示。`;
 }
 
 function renderOrganizations(organizations) {
@@ -1022,7 +1198,11 @@ function renderAgents(agents) {
   elements.agentList.replaceChildren();
   elements.agentCount.textContent = `${agents.length} 个`;
   if (agents.length === 0) {
-    elements.agentList.append(emptyState("尚未绑定 Agent。请由系统管理员在不暴露 Agent API Key 的前提下授予访问关系。"));
+    elements.agentList.append(emptyStateWithAction(
+      "你还没有连接 Agent。先到连接管理选择 Codex、WorkBuddy 或 OpenClaw，按页面提示完成授权。",
+      "前往连接管理",
+      () => activateRoute("relay", "connections", { focusContent: true }),
+    ));
     return;
   }
   const fragment = document.createDocumentFragment();
@@ -1063,8 +1243,8 @@ function renderAgents(agents) {
     connection.textContent = connectedConnector
       ? `${safeText(connectedConnector.display_name, connectedConnector.connector_type)} 已连接 · ${statusLabel(connectedConnector.health_status)}`
       : currentConnector
-      ? `${safeText(currentConnector.display_name, currentConnector.connector_type)} 已获授权，等待本机写入安全凭据、配置 MCP 并首次报到`
-      : "当前未连接；Agent 身份、Inbox 和历史仍保留";
+      ? `${safeText(currentConnector.display_name, currentConnector.connector_type)} 已获授权，等待 Agent 在本机完成安全设置并首次报到`
+      : "当前未连接；Agent 身份和历史仍保留";
 
     const identityDetails = document.createElement("details");
     identityDetails.className = "agent-identity-details";
@@ -1154,8 +1334,8 @@ function openHandleDialog(agent) {
   elements.agentHandle.value = safeText(agent.handle, "");
   elements.handleSummary.textContent = `为 ${safeText(agent.display_name, "这个 Agent")} 设置容易记住的称呼。`;
   elements.handleResult.textContent = agent.handle
-    ? "修改后，原 Inbox、Thread、权限、连接和历史消息都保持不变。"
-    : "设置后，你可以直接用这个短名称给 Agent 发消息。";
+    ? "修改后，底层身份、权限、连接和历史消息都保持不变。"
+    : "设置后，你可以在收件人、任务和 Agent 列表中使用这个短名称。";
   elements.handleResult.className = "form-status";
   elements.handleDialog.showModal();
   elements.agentHandle.focus();
@@ -1224,20 +1404,20 @@ function connectorCard(connector, historical = false) {
   heading.className = "connector-heading";
   const identity = document.createElement("div");
   const name = document.createElement("strong");
-  name.textContent = safeText(connector.display_name, connector.connector_type);
-  const address = document.createElement("span");
-  address.textContent = safeText(connector.agent?.address);
-  identity.append(name, address);
+  const agentLabel = connector.agent?.handle || connector.agent?.display_name || "这个 Agent";
+  name.textContent = safeText(agentLabel, "这个 Agent");
+  const connectionName = document.createElement("span");
+  connectionName.textContent = safeText(connector.display_name, "本机连接");
+  identity.append(name, connectionName);
   heading.append(identity, chip(historical ? connector.status : connector.connection_state));
 
   const facts = document.createElement("dl");
   [
-    ["宿主", connector.connector_type],
+    ["Agent 类型", connector.connector_type],
     ["设备", connector.device_name],
-    ["版本", connector.client_version],
     ["最近连接", dateText(connector.last_seen_at)],
-    ["心跳", dateText(connector.last_heartbeat_at)],
-    ["健康", statusLabel(connector.health_status)],
+    ["最近报到", dateText(connector.last_heartbeat_at)],
+    ["连接状态", statusLabel(connector.health_status)],
   ].forEach(([label, value]) => {
     const cell = document.createElement("div");
     const term = document.createElement("dt");
@@ -1248,13 +1428,34 @@ function connectorCard(connector, historical = false) {
     facts.append(cell);
   });
   card.append(heading, facts);
+
+  const technicalDetails = document.createElement("details");
+  technicalDetails.className = "connector-technical-details";
+  const technicalSummary = document.createElement("summary");
+  technicalSummary.textContent = "查看连接技术信息";
+  const technicalFacts = document.createElement("dl");
+  [
+    ["规范地址", connector.agent?.address],
+    ["连接版本", connector.client_version],
+  ].forEach(([label, value]) => {
+    const cell = document.createElement("div");
+    const term = document.createElement("dt");
+    term.textContent = label;
+    const detail = document.createElement("dd");
+    detail.textContent = safeText(value);
+    cell.append(term, detail);
+    technicalFacts.append(cell);
+  });
+  technicalDetails.append(technicalSummary, technicalFacts);
+  card.append(technicalDetails);
+
   if (connector.is_current && connector.status === "active") {
     const actions = document.createElement("div");
     actions.className = "connector-actions";
     const current = document.createElement("span");
     const connected = connector.connection_state === "connected";
     current.textContent = connected
-      ? "当前 Connector · Agent 身份与 Inbox 独立保留"
+      ? "当前连接 · Agent 身份和历史记录会独立保留"
       : "授权已完成，但本机配置和首次报到尚未完成；现在不能收发消息";
     const revoke = document.createElement("button");
     revoke.type = "button";
@@ -1270,7 +1471,11 @@ function connectorCard(connector, historical = false) {
 function renderConnectors(connectors) {
   elements.connectorList.replaceChildren();
   if (!connectors.length) {
-    elements.connectorList.append(emptyState("还没有连接 Agent。点击“连接新的 Agent”，复制一句话并发到它的普通对话框即可。"));
+    elements.connectorList.append(emptyStateWithAction(
+      "还没有连接 Agent。选择你常用的 Agent 类型，然后复制一句话发给它即可。",
+      "连接新的 Agent",
+      () => openPairingDialog(),
+    ));
     return;
   }
   const currentConnectors = connectors.filter(
@@ -1291,7 +1496,7 @@ function renderConnectors(connectors) {
     const summary = document.createElement("summary");
     summary.textContent = `查看 ${historicalConnectors.length} 条历史连接记录`;
     const explanation = document.createElement("p");
-    explanation.textContent = "这些是同一 Agent 曾使用过的旧 Connector，仅为审计保留，不是多个可删除的 Agent。";
+    explanation.textContent = "这些是同一 Agent 过去使用过的连接，仅为审计保留，不是多个可删除的 Agent。";
     const historyGrid = document.createElement("div");
     historyGrid.className = "connector-history-grid";
     historicalConnectors.forEach((connector) => {
@@ -1484,7 +1689,7 @@ function configurePairingTarget(pairing) {
     state.pairingTargetResolution = "automatic-existing";
     elements.pairingTargetMode.value = "existing";
     elements.pairingExistingAgent.value = requestedAgent.id;
-    elements.pairingTargetSummary.textContent = `将重新连接 ${safeText(requestedAgent.handle, requestedAgent.display_name)}；原地址、Inbox、Thread、权限和历史保持不变。`;
+    elements.pairingTargetSummary.textContent = `将重新连接 ${safeText(requestedAgent.handle, requestedAgent.display_name)}；原身份、权限、任务和历史保持不变。`;
     elements.pairingSubmit.disabled = false;
   } else if (requestedAgentId) {
     state.pairingTargetResolution = "invalid-target";
@@ -1526,7 +1731,7 @@ async function loadPairingPreview() {
     const pairing = await requestJson(`/api/v1/orbit/pairings/${encodeURIComponent(pairingId)}`);
     renderPairingPreview(pairing);
     configurePairingTarget(pairing);
-    elements.pairingResult.textContent = "请核对本地 Connector 展示的完整配对码和以上设备信息。";
+    elements.pairingResult.textContent = "请核对 Agent 上显示的完整配对码和以上设备信息。";
     elements.pairingResult.className = "form-status";
   } catch (error) {
     elements.pairingPreview.hidden = true;
@@ -1692,10 +1897,10 @@ async function decidePairing(event, forcedDecision = null) {
     }
     elements.pairingResult.textContent = decision === "approved"
       ? (payload.create_new_agent
-        ? "身份已确认，正在自动创建 Agent 身份与当前 Connector…"
+        ? "身份已确认，正在创建 Agent 并完成安全连接…"
         : payload.existing_agent_id
-        ? "身份已确认，正在迁移当前 Connector 并撤销旧凭证…"
-        : "身份已确认，正在创建 Agent 身份与当前 Connector…")
+        ? "身份已确认，正在替换当前连接并撤销旧凭证…"
+        : "身份已确认，正在创建 Agent 并完成安全连接…")
       : "身份已确认，正在拒绝本次配对…";
     await requestJson(`/api/v1/orbit/pairings/${encodeURIComponent(pairingId)}/decision`, {
       method: "POST",
@@ -1708,10 +1913,14 @@ async function decidePairing(event, forcedDecision = null) {
       body: JSON.stringify(payload),
     });
     closePairingDialog();
-    history.replaceState(null, "", "/orbit");
+    history.replaceState(
+      { module: state.activeModule, section: state.activeSection },
+      "",
+      currentRouteUrlWithoutWorkflowParameters(),
+    );
     await loadDashboard();
     setConnection(
-      decision === "approved" ? "Agent 已加入云驿，等待 Connector 领取凭证" : "配对已拒绝",
+      decision === "approved" ? "Agent 已加入云驿，等待它完成本机安全连接" : "配对已拒绝",
       "success",
     );
   } catch (error) {
@@ -1771,7 +1980,7 @@ async function revokeConnector(event) {
     });
     closeRevokeDialog();
     await loadDashboard();
-    setConnection("Connector 已撤销；Agent 身份与 Inbox 已保留", "success");
+    setConnection("连接已断开；Agent 身份和历史记录已保留", "success");
   } catch (error) {
     elements.revokeResult.textContent = error.message;
     elements.revokeResult.className = "form-status error";
@@ -1783,7 +1992,7 @@ async function revokeConnector(event) {
 function openDeleteAgentDialog(agent) {
   elements.deleteAgentId.value = safeText(agent.id, "");
   elements.deleteAgentSummary.textContent = `确定删除 ${safeText(agent.handle, agent.display_name)} 吗？这个操作只影响该 Agent，不会让其他 Agent 下线。`;
-  elements.deleteAgentResult.textContent = "删除后，该 Agent 的当前 Connector 会立即失效。";
+  elements.deleteAgentResult.textContent = "删除后，该 Agent 的当前连接会立即失效，历史记录仍会保留。";
   elements.deleteAgentResult.className = "form-status";
   elements.deleteAgentDialog.showModal();
   elements.deleteAgentCancel.focus();
@@ -1925,7 +2134,7 @@ function renderApprovals(approvals) {
     const title = document.createElement("strong");
     title.textContent = safeText(approval.requester_address);
     identity.append(type, title);
-    heading.append(identity, chip(approval.status));
+    heading.append(identity, chip(approval.status, "approval"));
 
     const summary = document.createElement("p");
     summary.className = "approval-summary";
@@ -1980,7 +2189,14 @@ function renderApprovals(approvals) {
 function renderMessages(messages) {
   elements.messageList.replaceChildren();
   if (!messages.length) {
-    elements.messageList.append(emptyState("当前没有与你获授权 Agent 相关的通信。"));
+    const hasAgents = Array.isArray(state.dashboard?.agents) && state.dashboard.agents.length > 0;
+    elements.messageList.append(hasAgents
+      ? emptyState("Agent 已连接或已授权，但目前还没有产生协作对话。")
+      : emptyStateWithAction(
+        "连接 Agent 后，它们之间的真实协作记录会出现在这里。",
+        "去云驿连接 Agent",
+        () => activateRoute("relay", "connections", { focusContent: true }),
+      ));
     return;
   }
   const fragment = document.createDocumentFragment();
@@ -2008,7 +2224,9 @@ function renderMessages(messages) {
     const footer = document.createElement("div");
     footer.className = "message-footer";
     const trust = document.createElement("span");
-    trust.textContent = safeText(message.security_label);
+    trust.textContent = message.security_label === "external_agent_content"
+      ? "来自 Agent 的外部内容"
+      : safeText(message.security_label);
     const identifier = document.createElement("span");
     identifier.textContent = safeText(message.message_id);
     footer.append(trust, identifier);
@@ -2118,6 +2336,12 @@ function renderDashboard(dashboard) {
   elements.humanName.textContent = safeText(user.display_name, "星轨用户");
   elements.humanEmail.textContent = safeText(user.email);
   elements.humanAvatar.textContent = safeText(user.display_name, "星").slice(0, 1);
+  elements.profileName.textContent = safeText(user.display_name, "未设置");
+  elements.profileEmail.textContent = safeText(user.email);
+  elements.profileTimezone.textContent = safeText(
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    "此设备未提供",
+  );
   renderMetrics(dashboard.metrics || {}, agents, organizations);
   renderOrganizations(organizations);
   renderAgents(agents);
@@ -2128,7 +2352,7 @@ function renderDashboard(dashboard) {
 
 async function loadDashboard() {
   elements.refresh.disabled = true;
-  setConnection("正在同步星轨", "loading");
+  setConnection("正在同步数据", "loading");
   try {
     const [dashboard, connectors, security] = await Promise.all([
       requestJson("/api/v1/orbit/dashboard"),
@@ -2141,11 +2365,11 @@ async function loadDashboard() {
     renderSecurity(security);
     elements.welcomeView.hidden = true;
     elements.workspaceView.hidden = false;
-    setConnection("星轨已连接", "success");
+    setConnection("数据已同步", "success");
     await maybeOpenRequestedPairing();
     await maybeAcceptOrganizationInvitation();
   } catch (error) {
-    setConnection("星轨连接失败", "error");
+    setConnection("数据同步失败", "error");
     throw error;
   } finally {
     elements.refresh.disabled = false;
@@ -2672,6 +2896,14 @@ elements.refresh.addEventListener("click", async () => {
   }
 });
 elements.signOut.addEventListener("click", signOut);
+elements.profileRefresh.addEventListener("click", async () => {
+  try {
+    await loadDashboard();
+  } catch (error) {
+    setConnection(error.message, "error");
+  }
+});
+elements.profileSignOut.addEventListener("click", signOut);
 elements.approvalForm.addEventListener("submit", decideApproval);
 elements.approvalClose.addEventListener("click", closeApprovalDialog);
 elements.approvalCancel.addEventListener("click", closeApprovalDialog);
@@ -2753,6 +2985,13 @@ elements.ssoLinkClose.addEventListener("click", closeSsoLinkDialog);
 elements.ssoLinkCancel.addEventListener("click", closeSsoLinkDialog);
 elements.ssoLinkDialog.addEventListener("close", closeSsoLinkDialog);
 
+window.addEventListener("popstate", () => {
+  const parameters = new URLSearchParams(window.location.search);
+  activateRoute(parameters.get("module") || "orbit", parameters.get("view") || "", {
+    updateHistory: false,
+  });
+});
+
 window.addEventListener("pagehide", () => {
   clearSensitiveInputs();
   state.csrfToken = "";
@@ -2761,11 +3000,14 @@ window.addEventListener("pagehide", () => {
 });
 
 async function initializeOrbit() {
+  initializeWorkspaceNavigation();
   const hashParameters = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   state.pendingOrganizationInvitation = hashParameters.get("organization-invitation") || "";
-  if (state.pendingOrganizationInvitation) {
-    history.replaceState(null, "", "/orbit");
-  }
+  history.replaceState(
+    { module: state.activeModule, section: state.activeSection },
+    "",
+    routeUrl(state.activeModule, state.activeSection),
+  );
   await loadAuthConfig();
   await restoreSession();
 }

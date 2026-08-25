@@ -1,4 +1,4 @@
-.PHONY: install test test-fast test-mcp test-typescript test-orbit test-postgres test-postgres-compose lint migrate run demo compose-up compose-down compose-production-config
+.PHONY: install test test-fast test-mcp test-typescript test-orbit test-postgres test-postgres-compose lint migrate run demo orbit-demo compose-up compose-down compose-production-config
 
 PYTHON := .venv/bin/python
 PYTEST := .venv/bin/pytest
@@ -41,6 +41,9 @@ run:
 
 demo:
 	$(PYTHON) scripts/demo.py
+
+orbit-demo:
+	PYTHONPATH=src $(PYTHON) scripts/orbit_demo.py
 
 compose-up:
 	docker compose up --build

@@ -94,8 +94,15 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
 
     assert home.status_code == orbit.status_code == 200
     assert "星云驿" in orbit.text
-    assert "星轨 · 人类控制面" in orbit.text
-    assert "云驿 · Agent 通信网" in orbit.text
+    assert "星轨看协作" in orbit.text
+    assert "云驿管 Agent" in orbit.text
+    assert "设置管账户" in orbit.text
+    assert 'data-module="orbit"' in orbit.text
+    assert 'data-module="relay"' in orbit.text
+    assert 'data-module="settings"' in orbit.text
+    assert "对话与动态" in orbit.text
+    assert "Agent 总览" in orbit.text
+    assert "个人资料" in orbit.text
     assert orbit.headers["Cache-Control"] == "no-store"
     assert "default-src 'none'" in orbit.headers["Content-Security-Policy"]
     assert orbit.headers["X-Content-Type-Options"] == "nosniff"
@@ -163,7 +170,7 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "AGENTPOST_API_KEY" not in orbit.text
     assert "agt_" not in orbit.text
     assert "账户安全" in orbit.text
-    assert "组织星图" in orbit.text
+    assert "组织与成员" in orbit.text
     assert "organization-list" in orbit.text
     assert "open-organization-create" in orbit.text
     assert "organization-manage-dialog" in orbit.text
@@ -175,7 +182,7 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "organizationDomainProofs.clear()" in script.text
     assert "TXT 记录" in orbit.text
     assert "Agent 连接" in orbit.text
-    assert "给 Agent 设置一个容易记住的短名称" in orbit.text
+    assert "短名称（可选）" in orbit.text
     assert "handle-dialog" in orbit.text
     assert "设置 Agent 短名称" in orbit.text
     assert "pairing-handle" in orbit.text
@@ -200,8 +207,8 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "重新连接" in script.text
     assert "断开" in script.text
     assert "删除 Agent" in script.text
-    assert "旧 Connector 会折叠为历史记录" in orbit.text
-    assert "每张 Agent 卡片都可独立连接、断开、改名或删除" in orbit.text
+    assert "过去的连接记录折叠保存" in orbit.text
+    assert "底层地址默认收起" in orbit.text
     assert "查看 ${historicalConnectors.length} 条历史连接记录" in script.text
     assert "不是多个可删除的 Agent" in script.text
     assert "等待 Agent 完成本机连接" in script.text
@@ -210,6 +217,17 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "connector-history-grid" in stylesheet.text
     assert "只需选择一次" in orbit.text
     assert "last_heartbeat_at" in script.text
+    assert 'delivered: "已送达"' in script.text
+    assert 'read: "Agent 已读取"' in script.text
+    assert 'acked: "Agent 已确认收到"' in script.text
+    assert "不会把 Agent 的读取状态当成你是否看过" in orbit.text
+    assert "Human 已查看" not in orbit.text
+    assert "chat-composer" not in orbit.text
+    assert "activateRoute" in script.text
+    assert "history.pushState" in script.text
+    assert ".primary-navigation" in stylesheet.text
+    assert ".context-sidebar" in stylesheet.text
+    assert "position: fixed" in stylesheet.text
     assert "长期凭证由本地连接器自动领取" in script.text
     assert 'elements.pairingAccessKey.value = ""' in script.text
     assert 'elements.revokeAccessKey.value = ""' in script.text
