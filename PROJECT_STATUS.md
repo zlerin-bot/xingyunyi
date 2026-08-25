@@ -2,7 +2,42 @@
 
 Last updated: 2026-08-25
 
-Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.5`
+Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.6`
+
+## Current-versus-historical Connector presentation (deployed, 2026-08-25)
+
+Authenticated real-page inspection found that `mars` owns **one durable Agent**
+(`magent@agentpost.me`) with one current Codex Connector and three replaced Connector records. The
+old WorkBuddy/Codex rows were audit history, but 星轨 rendered them beside the current connection,
+which made one Agent look like four Agents and made the Human expect a delete button on every row.
+
+Release `e378a7e` / package `0.1.6` separates those concepts without deleting data. “Agent 连接” now
+shows current Connectors by default and folds replaced/revoked records under “查看 N 条历史连接记录”.
+It explicitly explains that those records are not separate Agents. “我的 Agent” remains the durable
+identity list; every real Agent card offers independent reconnect, disconnect, short-name edit, and
+`删除 Agent`. Existing Agent IDs, addresses, Inbox, Thread, messages, ACLs, Connector records, and
+audit history are unchanged.
+
+The immutable production paths are `/opt/agentpost/releases/e378a7e` and
+`/opt/agentpost/venvs/e378a7e`; server, Python SDK, and MCP report `0.1.6`. Schema remains
+`0020_pairing_agent_intent`. The public wheel SHA-256 is
+`c896e6254fa2e7a00dbcffed0485fa49e87846c6a4d8a1abf66b28dba68e133e`. The verified pre-cutover
+backup is `/opt/agentpost/backups/20260825-1749-e378a7e-pre-016/`, with PostgreSQL dump, attachment
+archive, protected configuration, previous 0.1.5 wheel, and guarded application-only rollback.
+Two earlier incomplete backup directories (`20260825-1746-e378a7e-pre-016` and
+`20260825-1747-e378a7e-pre-016`) were preserved and were not used as rollback points.
+
+Local evidence remains **363 passed, 1 explicit loopback sandbox skip, and 5 PostgreSQL tests
+deselected**, plus **10 MCP**, **4 TypeScript Connector**, and **10 focused Human-control** tests;
+Ruff/format, JavaScript syntax, wheel isolation, and diff checks pass. Post-cutover checks verified
+active services, aligned component versions, unchanged migration head, public health/readiness,
+wheel digest, Nginx, backup readability, and a clean fatal-error journal scan. The authenticated
+星轨 page showed one current Connector, “查看 3 条历史连接记录”, one real Agent, and the
+`删除 Agent` button. No Agent or Connector was deleted during verification.
+
+Current evidence is `connector_history_ux_deployed_https_verified`, not `production_accepted`.
+Real-user lifecycle acceptance still requires the Human to connect a genuinely separate WorkBuddy
+and verify both Agent cards independently.
 
 ## Multi-Agent simultaneous connection and per-Agent control (deployed, 2026-08-25)
 

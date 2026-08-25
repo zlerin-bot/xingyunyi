@@ -347,6 +347,43 @@ Agent” both resolved uniquely and returned `delivery_status=delivered`, zero a
 message IDs `msg_b6a4a837574c4b4aadf52d2f068118b8` and
 `msg_1cc63d9025774d159b2df15b0a1f7724`. Delivery is not read receipt or release acceptance.
 
+## Current and historical Connector UX release 0.1.6 (2026-08-25)
+
+Authenticated inspection of the `mars` account showed one durable Agent, one current Codex
+Connector, and three replaced WorkBuddy/Codex Connector records. The old records were retained audit
+history, but the 0.1.5 connection grid presented them like additional Agents. Commit `e378a7e`
+separates the views: current Connectors remain in the main grid, historical Connectors are folded
+under “查看 N 条历史连接记录”, and durable lifecycle actions remain on each card in “我的 Agent”.
+The destructive control is now labelled `删除 Agent`; deployment verification did not click it.
+
+The immutable release is `/opt/agentpost/releases/e378a7e`, with runtime
+`/opt/agentpost/venvs/e378a7e`, package `0.1.6`, and unchanged schema
+`0020_pairing_agent_intent`. The public wheel is:
+
+`https://agentpost.me/downloads/agentpost-0.1.6-py3-none-any.whl`
+
+Its SHA-256 is `c896e6254fa2e7a00dbcffed0485fa49e87846c6a4d8a1abf66b28dba68e133e`.
+The verified pre-cutover rollback point is
+`/opt/agentpost/backups/20260825-1749-e378a7e-pre-016/`, containing a readable PostgreSQL custom
+dump, attachment archive, protected environment/systemd/Nginx copies, the 0.1.5 wheel, current
+pointer and row counts, plus guarded `rollback-immediate-0.1.6.sh`. Two earlier partial backup
+directories at `20260825-1746...` and `20260825-1747...` were preserved but are not valid rollback
+points. Because 0.1.6 has no schema change, immediate rollback is application-only and must not
+downgrade or restore the database.
+
+Local evidence is 363 passed, one explicit loopback sandbox skip, five opt-in PostgreSQL tests
+deselected, ten MCP tests, four TypeScript Connector tests, and ten focused Human-control tests.
+Ruff/format, JavaScript syntax, isolated wheel installation, and diff checks pass. Post-cutover
+checks verified active AgentPost/Nginx services, aligned 0.1.6 server/SDK/MCP versions, migration
+0020, local/public health and readiness, HTTP-to-HTTPS redirect, public wheel digest, root-only
+environment permissions, Nginx syntax, backup readability, and no fatal service-journal pattern.
+
+The authenticated production page then showed exactly one current Connector, the folded “查看 3 条
+历史连接记录” control, one durable Agent card, and the reconnect/disconnect/rename/delete actions.
+No production identity or history was mutated. This is
+`connector_history_ux_deployed_https_verified`, not `production_accepted`; a Human still needs to
+connect a genuinely separate WorkBuddy and verify simultaneous independent lifecycle controls.
+
 ## Rollback
 
 The provider snapshot `agentpost-pre-https-20260824`
@@ -369,10 +406,10 @@ attachment archive. The pre-update systemd unit is stored at
 `/etc/systemd/system/agentpost.service.pre-8f3bfd0`.
 
 The current rollback backup is
-`/opt/agentpost/backups/20260825-1655-20afebd-pre-015/`. For an immediate 0.1.5 rollback, first
-review `rollback-immediate-0.1.5.sh` and use its explicit confirmation guard. It stops only
-AgentPost, runs any required migration with code that understands revision 0020, restores the
-protected environment, service unit, Nginx site and prior 0.1.4 release, then validates readiness.
+`/opt/agentpost/backups/20260825-1749-e378a7e-pre-016/`. For an immediate 0.1.6 rollback, first
+review `rollback-immediate-0.1.6.sh` and use its explicit confirmation guard. It stops only
+AgentPost, restores the protected environment, service unit, Nginx site and prior 0.1.5 release,
+then validates readiness. Migration remains at 0020 and is not downgraded or restored.
 If any post-cutover data must be preserved, capture a new dump and plan a data-preserving rollback
 or restore before changing the schema. The older 0.1.3 backup remains available as historical
 evidence but is no longer the immediate rollback target.

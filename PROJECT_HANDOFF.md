@@ -1,11 +1,33 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`multi-agent-connection-deployed`
+- 交接阶段：`connector-history-ux-deployed`
 - 核验日期：2026-08-25
 - 代码分支：`main`
-- 阶段性质：多 Agent 同时连接与逐 Agent 操作已部署为 0.1.5；真实外部用户验收仍待完成
+- 阶段性质：当前/历史 Connector 分层已部署为 0.1.6；真实外部用户验收仍待完成
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+最新真实页面检查确认：`mars` 当前只有一个真实 Agent `magent@agentpost.me`，不是四个。
+页面中另外三条是这个 Agent 被重新配对后留下的 WorkBuddy/Codex Connector 审计记录。此前
+这些旧记录与当前连接并排显示，造成“多个 Agent 且没有删除按钮”的误解。0.1.6 已将“Agent
+连接”改为默认只显示 current Connector，旧记录折叠到“查看 3 条历史连接记录”；“我的
+Agent”才是可操作的 Agent 列表，每张卡片继续提供重连、断开、修改短名称和“删除 Agent”。
+验证期间没有点击删除，也没有清理历史记录。
+
+当前生产是 `0.1.6` / `e378a7e` / `0020_pairing_agent_intent`，路径为
+`/opt/agentpost/releases/e378a7e` 和 `/opt/agentpost/venvs/e378a7e`。server、Python SDK、MCP
+三处版本均为 0.1.6，公开 wheel SHA-256 为
+`c896e6254fa2e7a00dbcffed0485fa49e87846c6a4d8a1abf66b28dba68e133e`。0.1.6 切换前的有效
+回滚点是 `/opt/agentpost/backups/20260825-1749-e378a7e-pre-016/`；迁移版本未变化，因此立即
+回滚只切回 0.1.5 应用和配置，不应恢复或降级数据库。`20260825-1746...` 与
+`20260825-1747...` 是未完成备份，已保留但不得作为回滚点。
+
+部署后分段检查通过服务、组件版本、迁移、health/ready、HTTPS/301、公开 wheel 哈希、
+Nginx、备份可读性和 fatal journal 扫描。已登录星轨实页确认一条当前连接、三条折叠历史、
+一张真实 Agent 卡片和“删除 Agent”按钮。标签为
+`connector_history_ux_deployed_https_verified`，不能写成 `production_accepted`。
+
+以下 0.1.5 内容保留为上一切片的设计与发布历史。
 
 最新部署切片修复测试用户 `020` 的 WorkBuddy 配对导致原 Codex 下线问题。根因不是数据库
 只能存一个 Agent，而是星轨在“只有一个已有 Agent”时自动复用它，触发了同一 Agent 的
