@@ -2,15 +2,14 @@
 
 Last updated: 2026-08-25
 
-Frozen handoff stage: `v0.1.0-local.1`; current source candidate: `0.1.10`; pinned
-production release: `0.1.9`
+Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.10`
 
-## OpenClaw Linux/cloud-host onboarding (0.1.10 candidate, 2026-08-25)
+## OpenClaw Linux/cloud-host onboarding (0.1.10 deployed, 2026-08-25)
 
 The “only Mac is supported” result was an AgentPost release-gate defect, not an OpenClaw Linux
 limitation. The setup bootstrap always evaluated `codex_setup_platforms`, even when the selected
-host was OpenClaw. Production currently publishes Codex as Mac-only, so an OpenClaw process on
-Linux was rejected before host configuration could begin.
+host was OpenClaw. Production 0.1.9 published Codex as Mac-only, so an OpenClaw process on Linux
+was rejected before host configuration could begin.
 
 Commits `55ae339` and `3b46e45` separate setup platforms by host. The authenticated release
 contract now returns `host_setup_platforms`; OpenClaw is configured for `mac,linux`, while Codex
@@ -33,9 +32,23 @@ The 0.1.10 wheel is `dist/agentpost-0.1.10-py3-none-any.whl`, SHA-256
 `852d1bf4f1ca49abde9a2bd5e033332dc7842a0f7e5e1fa08bd1bc7e5ac00117`. Local evidence is **371
 passed, 1 explicit loopback sandbox skip, and 5 PostgreSQL tests deselected**, plus **9 MCP**, **4
 TypeScript Connector**, **4 OpenClaw plugin**, and **2 Orbit JavaScript** tests. Ruff/format,
-isolated wheel installation, packaged bootstrap contents, and diff checks pass. Production is
-still 0.1.9; deployment, cloud verification, and a real OpenClaw Linux pairing/send/receive remain
-pending and must not be labeled `production_accepted`.
+isolated wheel installation, packaged bootstrap contents, and diff checks pass.
+
+Production was atomically switched at `2026-08-25T23:30:51+08:00` to immutable source
+`/opt/agentpost/releases/3b46e45` and runtime `/opt/agentpost/venvs/3b46e45`; server, SDK, and MCP
+all report 0.1.10. Public health/readiness pass, the public wheel has the pinned digest, and the
+live auth contract reports Codex=`mac`, WorkBuddy=`mac`, OpenClaw=`mac,linux`. Schema remains
+`0020_pairing_agent_intent`; counts are unchanged across cutover at 22 Agents, 48 Messages, 48
+Deliveries, and 8 current Connector bindings. The verified rollback point is
+`/opt/agentpost/backups/20260825-2324-3b46e45-pre-010/`, including readable database and attachment
+archives, protected configs, checksums, and guarded `rollback-immediate-0.1.10.sh`.
+
+From the actual Alibaba Cloud Linux OpenClaw server, the public contract returned 0.1.10 with
+`['mac', 'linux']`, the downloaded wheel digest matched, and Orbit exposed the Linux copy. Its
+OpenClaw Gateway remained active with one process after deployment. The reported
+`setup_not_released_for_platform` gate is therefore fixed in production. A Human must now retry
+the connection and prove pair/send/receive/restart recovery; current evidence is
+`openclaw_linux_release_gate_deployed_https_verified`, not `production_accepted`.
 
 ## Orbit Agent deletion empty-response fix (deployed, 2026-08-25)
 

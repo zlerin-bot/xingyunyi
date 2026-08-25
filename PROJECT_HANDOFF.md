@@ -1,9 +1,9 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`openclaw-linux-0.1.10-candidate`
+- 交接阶段：`openclaw-linux-0.1.10-deployed`
 - 核验日期：2026-08-25
 - 代码分支：`main`
-- 阶段性质：OpenClaw Linux 接入修复已完成本地 0.1.10 候选版；生产仍为 0.1.9
+- 阶段性质：OpenClaw Linux 发布门已部署为 0.1.10；真实配对与收发待 Human 重试
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
@@ -23,9 +23,18 @@ OpenClaw 允许 Mac/Linux，Codex 与 WorkBuddy 不被连带放宽；旧服务�
 `852d1bf4f1ca49abde9a2bd5e033332dc7842a0f7e5e1fa08bd1bc7e5ac00117`。本地证据：371 个
 Python passed、1 个明确 sandbox skip、5 个 PostgreSQL deselected；另有 MCP 9、TypeScript
 Connector 4、OpenClaw plugin 4、Orbit JavaScript 2 passed，Ruff/format、隔离 wheel 与内容
-检查通过。生产仍是 0.1.9 / `c1c3a78`；下一步是经明确生产授权后做可回滚部署，再在真实
-OpenClaw Linux 上完成配对、收发和重启后恢复验证。当前标签是
-`openclaw_linux_0_1_10_local_verified`，不是 `production_accepted`。
+检查通过。生产已于 23:30 切到 0.1.10 / `3b46e45`，server、SDK、MCP 版本一致，schema
+保持 `0020_pairing_agent_intent`。公开 health/ready、host 平台契约、wheel 哈希、Nginx、迁移、
+数据计数和 journal 均通过；22 Agents、48 Messages、48 Deliveries、8 个 current Connector
+bindings 在切换前后不变。有效回滚点是
+`/opt/agentpost/backups/20260825-2324-3b46e45-pre-010/`，立即回滚到 0.1.9 / `c1c3a78`，不降级
+数据库。
+
+真实阿里云 Linux OpenClaw 服务器已能读取 0.1.10 与 OpenClaw=`mac,linux`，公开 wheel 哈希
+匹配，Gateway 服务仍 active。原 `setup_not_released_for_platform` 已在线消除。下一步让 Human
+重试同一官方接入步骤，再完成真实配对、发送给 `magent`、收件与 Gateway 重启后恢复验证。
+当前标签是 `openclaw_linux_release_gate_deployed_https_verified`，不是
+`production_accepted`。
 
 以下删除空响应内容保留为当前生产版本记录。
 
