@@ -192,6 +192,12 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "delete-agent-dialog" in orbit.text
     assert "重新连接" in script.text
     assert "断开" in script.text
+    assert "删除 Agent" in script.text
+    assert "旧 Connector 会折叠为历史记录" in orbit.text
+    assert "每张 Agent 卡片都可独立连接、断开、改名或删除" in orbit.text
+    assert "查看 ${historicalConnectors.length} 条历史连接记录" in script.text
+    assert "不是多个可删除的 Agent" in script.text
+    assert "connector-history-grid" in stylesheet.text
     assert "只需选择一次" in orbit.text
     assert "last_heartbeat_at" in script.text
     assert "长期凭证由本地连接器自动领取" in script.text

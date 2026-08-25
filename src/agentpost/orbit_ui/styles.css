@@ -924,6 +924,38 @@ footer {
   padding-inline: 12px;
 }
 
+.connector-history {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(5, 14, 28, 0.34);
+  padding: 15px;
+}
+
+.connector-history summary {
+  width: max-content;
+  color: var(--cyan);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.connector-history > p {
+  margin: 9px 0 13px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.6;
+}
+
+.connector-history-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.connector-card.historical {
+  opacity: 0.78;
+}
+
 .organization-card {
   display: grid;
   gap: 16px;
@@ -2079,7 +2111,8 @@ footer {
   .organization-invite-fields,
   .organization-domain-fields,
   .organization-oidc-fields,
-  .connector-card dl {
+  .connector-card dl,
+  .connector-history-grid {
     grid-template-columns: 1fr;
   }
 

@@ -1127,7 +1127,7 @@ function renderAgents(agents) {
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "quiet-button danger";
-      remove.textContent = "删除";
+      remove.textContent = "删除 Agent";
       remove.addEventListener("click", () => openDeleteAgentDialog(agent));
       actions.append(remove);
       card.append(actions);
@@ -1205,59 +1205,86 @@ function openRevokeDialog(connector) {
   elements.revokeAccessKey.focus();
 }
 
+function connectorCard(connector, historical = false) {
+  const card = document.createElement("article");
+  card.className = historical ? "connector-card historical" : "connector-card";
+  const heading = document.createElement("div");
+  heading.className = "connector-heading";
+  const identity = document.createElement("div");
+  const name = document.createElement("strong");
+  name.textContent = safeText(connector.display_name, connector.connector_type);
+  const address = document.createElement("span");
+  address.textContent = safeText(connector.agent?.address);
+  identity.append(name, address);
+  heading.append(identity, chip(connector.status));
+
+  const facts = document.createElement("dl");
+  [
+    ["宿主", connector.connector_type],
+    ["设备", connector.device_name],
+    ["版本", connector.client_version],
+    ["最近连接", dateText(connector.last_seen_at)],
+    ["心跳", dateText(connector.last_heartbeat_at)],
+    ["健康", statusLabel(connector.health_status)],
+  ].forEach(([label, value]) => {
+    const cell = document.createElement("div");
+    const term = document.createElement("dt");
+    term.textContent = label;
+    const detail = document.createElement("dd");
+    detail.textContent = safeText(value);
+    cell.append(term, detail);
+    facts.append(cell);
+  });
+  card.append(heading, facts);
+  if (connector.is_current && connector.status === "active") {
+    const actions = document.createElement("div");
+    actions.className = "connector-actions";
+    const current = document.createElement("span");
+    current.textContent = "当前 Connector · Agent 身份与 Inbox 独立保留";
+    const revoke = document.createElement("button");
+    revoke.type = "button";
+    revoke.className = "quiet-button danger";
+    revoke.textContent = "撤销连接";
+    revoke.addEventListener("click", () => openRevokeDialog(connector));
+    actions.append(current, revoke);
+    card.append(actions);
+  }
+  return card;
+}
+
 function renderConnectors(connectors) {
   elements.connectorList.replaceChildren();
   if (!connectors.length) {
     elements.connectorList.append(emptyState("还没有连接 Agent。点击“连接新的 Agent”，复制一句话并发到它的普通对话框即可。"));
     return;
   }
+  const currentConnectors = connectors.filter(
+    (connector) => connector.is_current && connector.status === "active",
+  );
+  const historicalConnectors = connectors.filter(
+    (connector) => !(connector.is_current && connector.status === "active"),
+  );
   const fragment = document.createDocumentFragment();
-  connectors.forEach((connector) => {
-    const card = document.createElement("article");
-    card.className = "connector-card";
-    const heading = document.createElement("div");
-    heading.className = "connector-heading";
-    const identity = document.createElement("div");
-    const name = document.createElement("strong");
-    name.textContent = safeText(connector.display_name, connector.connector_type);
-    const address = document.createElement("span");
-    address.textContent = safeText(connector.agent?.address);
-    identity.append(name, address);
-    heading.append(identity, chip(connector.status));
-
-    const facts = document.createElement("dl");
-    [
-      ["宿主", connector.connector_type],
-      ["设备", connector.device_name],
-      ["版本", connector.client_version],
-      ["最近连接", dateText(connector.last_seen_at)],
-      ["心跳", dateText(connector.last_heartbeat_at)],
-      ["健康", statusLabel(connector.health_status)],
-    ].forEach(([label, value]) => {
-      const cell = document.createElement("div");
-      const term = document.createElement("dt");
-      term.textContent = label;
-      const detail = document.createElement("dd");
-      detail.textContent = safeText(value);
-      cell.append(term, detail);
-      facts.append(cell);
+  if (currentConnectors.length === 0) {
+    fragment.append(emptyState("当前没有已连接的 Agent；已有身份和历史仍保留。"));
+  } else {
+    currentConnectors.forEach((connector) => fragment.append(connectorCard(connector)));
+  }
+  if (historicalConnectors.length > 0) {
+    const history = document.createElement("details");
+    history.className = "connector-history";
+    const summary = document.createElement("summary");
+    summary.textContent = `查看 ${historicalConnectors.length} 条历史连接记录`;
+    const explanation = document.createElement("p");
+    explanation.textContent = "这些是同一 Agent 曾使用过的旧 Connector，仅为审计保留，不是多个可删除的 Agent。";
+    const historyGrid = document.createElement("div");
+    historyGrid.className = "connector-history-grid";
+    historicalConnectors.forEach((connector) => {
+      historyGrid.append(connectorCard(connector, true));
     });
-    card.append(heading, facts);
-    if (connector.is_current && connector.status === "active") {
-      const actions = document.createElement("div");
-      actions.className = "connector-actions";
-      const current = document.createElement("span");
-      current.textContent = "当前 Connector · Agent 身份与 Inbox 独立保留";
-      const revoke = document.createElement("button");
-      revoke.type = "button";
-      revoke.className = "quiet-button danger";
-      revoke.textContent = "撤销连接";
-      revoke.addEventListener("click", () => openRevokeDialog(connector));
-      actions.append(current, revoke);
-      card.append(actions);
-    }
-    fragment.append(card);
-  });
+    history.append(summary, explanation, historyGrid);
+    fragment.append(history);
+  }
   elements.connectorList.append(fragment);
 }
 
