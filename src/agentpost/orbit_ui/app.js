@@ -22,6 +22,7 @@ const state = {
   organizationDomainProofs: new Map(),
   pairingTargetResolution: "pending",
   pairingCreateNewAutomatically: false,
+  selectedPairingHost: "",
 };
 
 const elements = {
@@ -89,6 +90,9 @@ const elements = {
   pairingDialogSummary: document.querySelector("#pairing-dialog-summary"),
   pairingGuide: document.querySelector("#pairing-guide"),
   pairingApproval: document.querySelector("#pairing-approval"),
+  pairingHostCards: Array.from(document.querySelectorAll(".pairing-host-card")),
+  pairingChatCard: document.querySelector("#pairing-chat-card"),
+  pairingHostName: document.querySelector("#pairing-host-name"),
   pairingChatPrompt: document.querySelector("#pairing-chat-prompt"),
   pairingCopyPrompt: document.querySelector("#pairing-copy-prompt"),
   pairingCopyResult: document.querySelector("#pairing-copy-result"),
@@ -1110,9 +1114,52 @@ function renderConnectors(connectors) {
 function showPairingGuide() {
   elements.pairingGuide.hidden = false;
   elements.pairingApproval.hidden = true;
-  elements.pairingDialogSummary.textContent = "不需要配置系统、服务器或密钥。把下面这句话发给你的 Agent，剩下的步骤由它完成。";
+  elements.pairingDialogSummary.textContent = "先选择你正在使用的 Agent。星轨会生成一段接入码，复制到它的普通对话框即可。";
+  state.selectedPairingHost = "";
+  elements.pairingHostCards.forEach((button) => {
+    button.classList.remove("selected");
+    button.setAttribute("aria-pressed", "false");
+  });
+  elements.pairingChatCard.hidden = true;
+  elements.pairingChatPrompt.textContent = "";
   elements.pairingCopyResult.textContent = "";
   elements.pairingCopyResult.className = "form-status";
+  elements.pairingHostCards[0]?.focus();
+}
+
+const PAIRING_HOSTS = Object.freeze({
+  codex: { name: "Codex", code: "AP-CODEX-V1" },
+  workbuddy: { name: "WorkBuddy", code: "AP-WORKBUDDY-V1" },
+  openclaw: { name: "OpenClaw", code: "AP-OPENCLAW-V1" },
+});
+
+function pairingPrompt(host) {
+  const selected = PAIRING_HOSTS[host];
+  if (!selected) {
+    return "";
+  }
+  return [
+    `请把当前 ${selected.name} 连接到我的星云驿。`,
+    `接入码：${selected.code} https://agentpost.me/connect/${host}`,
+    "请读取这个官方接入页并直接完成安装和授权。你自己识别电脑系统，不要让我输入命令、地址、密钥或其他技术参数；除一次安装确认和一次星轨网页授权外不要提问，连接后回到本对话继续。",
+  ].join("\n");
+}
+
+function selectPairingHost(host) {
+  const selected = PAIRING_HOSTS[host];
+  if (!selected) {
+    return;
+  }
+  state.selectedPairingHost = host;
+  elements.pairingHostCards.forEach((button) => {
+    const isSelected = button.dataset.connectorType === host;
+    button.classList.toggle("selected", isSelected);
+    button.setAttribute("aria-pressed", String(isSelected));
+  });
+  elements.pairingHostName.textContent = selected.name;
+  elements.pairingChatPrompt.textContent = pairingPrompt(host);
+  elements.pairingChatCard.hidden = false;
+  elements.pairingCopyResult.textContent = "";
   elements.pairingCopyPrompt.focus();
 }
 
@@ -1126,12 +1173,17 @@ function showPairingApproval({ allowBack = true } = {}) {
 
 async function copyPairingPrompt() {
   const prompt = elements.pairingChatPrompt.textContent.trim();
+  if (!prompt || !state.selectedPairingHost) {
+    elements.pairingCopyResult.textContent = "请先选择要连接的 Agent。";
+    elements.pairingCopyResult.className = "form-status error";
+    return;
+  }
   const button = elements.pairingCopyPrompt;
   const originalLabel = button.textContent;
   try {
     await navigator.clipboard.writeText(prompt);
     button.textContent = "已复制";
-    elements.pairingCopyResult.textContent = "已复制。现在粘贴到你的 Agent 对话框并发送。";
+    elements.pairingCopyResult.textContent = `已复制。现在粘贴到 ${PAIRING_HOSTS[state.selectedPairingHost].name} 的对话框并发送。`;
     elements.pairingCopyResult.className = "form-status success";
     setTimeout(() => {
       button.textContent = originalLabel;
@@ -2352,6 +2404,9 @@ elements.approvalClose.addEventListener("click", closeApprovalDialog);
 elements.approvalCancel.addEventListener("click", closeApprovalDialog);
 elements.approvalDialog.addEventListener("close", closeApprovalDialog);
 elements.openPairing.addEventListener("click", () => openPairingDialog());
+elements.pairingHostCards.forEach((button) => {
+  button.addEventListener("click", () => selectPairingHost(button.dataset.connectorType));
+});
 elements.pairingCopyPrompt.addEventListener("click", copyPairingPrompt);
 elements.pairingGuideBack.addEventListener("click", showPairingGuide);
 elements.pairingGuideCancel.addEventListener("click", () => closePairingDialog());

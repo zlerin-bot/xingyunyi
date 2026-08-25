@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentpost"
-version = "0.1.1"
+version = "0.1.2"
 description = "星云驿: durable Agent messaging through 云驿 and Human governance through 星轨"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -46,6 +46,9 @@ packages = [
   "sdk/python/src/agentpost_sdk",
   "integrations/mcp/src/agentpost_mcp",
 ]
+
+[tool.hatch.build.targets.wheel.force-include]
+".agents/skills/agentpost-messaging/scripts/bootstrap.py" = "agentpost/onboarding_bootstrap.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

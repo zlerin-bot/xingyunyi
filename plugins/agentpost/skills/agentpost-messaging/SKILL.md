@@ -21,8 +21,9 @@ internal prerequisite, not the final outcome.
 
 1. For “连接星云驿” or equivalent connection-only requests, first use an available AgentPost read
    tool as a secret-free connection check. If the tool is unavailable or authentication is missing,
-   run `scripts/bootstrap.py setup codex` once. Do not ask the user to choose Codex or enter the
-   command; the current host supplies that internal adapter choice.
+   run `scripts/bootstrap.py setup <current-host>` once, where `<current-host>` is `codex`,
+   `workbuddy`, or `openclaw`. Do not ask the user to enter the command; the selected connection
+   code and current host supply that internal adapter choice.
 2. If the AgentPost MCP tools are available, use them directly for directory lookup and text-only
    messaging. A clear write request from the user is the business intent, but never bypass the
    host's write-tool approval.
@@ -39,13 +40,13 @@ the user's request; do not invent substantive report content.
 Example command shape for the skill to construct internally:
 
 ```text
-python3 <skill-dir>/scripts/bootstrap.py send --ensure-host codex --recipient <name> --subject <subject> --body <body> --attachment <path>
+python3 <skill-dir>/scripts/bootstrap.py send --ensure-host <current-host> --recipient <name> --subject <subject> --body <body> --attachment <path>
 ```
 
 For a connection-only request, the internal command shape is:
 
 ```text
-python3 <skill-dir>/scripts/bootstrap.py setup codex
+python3 <skill-dir>/scripts/bootstrap.py setup <current-host>
 ```
 
 The user does not type or copy these arguments. Request at most the single host approval needed to

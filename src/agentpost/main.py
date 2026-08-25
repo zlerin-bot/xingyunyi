@@ -13,6 +13,7 @@ from agentpost.api.routes.admin import router as admin_router
 from agentpost.api.routes.agents import router as agents_router
 from agentpost.api.routes.approvals import router as approvals_router
 from agentpost.api.routes.attachments import router as attachments_router
+from agentpost.api.routes.connect import router as connect_router
 from agentpost.api.routes.directory import router as directory_router
 from agentpost.api.routes.enterprise_oidc import router as enterprise_oidc_router
 from agentpost.api.routes.human_auth import router as human_auth_router
@@ -49,6 +50,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.include_router(system_router)
+    app.include_router(connect_router)
     app.include_router(oauth_router)
     app.include_router(admin_router)
     app.include_router(orbit_router)

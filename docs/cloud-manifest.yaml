@@ -1,7 +1,7 @@
 schema_version: "1"
 project: xingyunyi-agentpost
-evidence_status: ordinary_user_uniform_prompt_web_ready_codex_plugin_installed
-verified_at: "2026-08-25T09:42:00+08:00"
+evidence_status: ordinary_user_connection_code_development
+verified_at: "2026-08-25T10:30:00+08:00"
 
 provider:
   name: aliyun
@@ -16,8 +16,8 @@ release:
   immutable_path: /opt/agentpost/releases/c7c7313
   virtualenv_path: /opt/agentpost/venvs/c7c7313
   alembic_revision: 0018_rate_limit_buckets
-  package_version: 0.1.1
-  connector_wheel_sha256: 908558e6c9c83401f5b2ca0ed0da645721d06789ed803b82c21be97b0c7b16b8
+  package_version: 0.1.2
+  connector_wheel_sha256: 29ab87057c214b283401732982b2fe85d620085e6ad98b04a306e49a466fcc99
 
 topology:
   reverse_proxy: nginx
@@ -83,19 +83,20 @@ acceptance:
   public_health: passed
   public_ready: passed
   orbit_render: passed
-  orbit_pairing_guide: ordinary_user_uniform_prompt_passed
-  orbit_tool_switching: absent_from_default_flow
+  orbit_pairing_guide: ordinary_user_agent_choice_and_connection_code_development
+  orbit_tool_switching: codex_workbuddy_openclaw_only
   orbit_manual_pairing_fallback: operator_only
   orbit_pairing_address_validation: passed
   orbit_authenticated_existing_agent_view: passed
-  orbit_codex_0_1_1_guide: superseded_by_uniform_prompt
+  orbit_codex_0_1_1_guide: superseded_by_connection_code_v1
   orbit_frontend_errors: none
   pinned_connector_wheel: passed
   codex_setup_platform_mac: passed
   natural_language_first_use_human_observation: pending
-  ordinary_user_uniform_prompt_source: deployed_and_browser_verified
-  ordinary_user_uniform_prompt_copy: passed
-  ordinary_user_host_or_os_choice: absent
+  ordinary_user_connection_code_source: local_automated_tests_passed
+  ordinary_user_connection_code_copy: local_automated_tests_passed
+  ordinary_user_host_choice: one_required_choice
+  ordinary_user_os_choice: absent
   connected_reuse_human_observation: pending
   schema_error_field_guidance: passed
   dns_resolution: passed

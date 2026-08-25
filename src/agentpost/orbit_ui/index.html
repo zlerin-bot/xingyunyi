@@ -499,32 +499,48 @@
           <button id="pairing-close" type="button" class="dialog-close" aria-label="关闭配对窗口">×</button>
         </div>
         <p id="pairing-dialog-summary" class="dialog-summary">
-          不需要配置系统、服务器或密钥。把下面这句话发给你的 Agent，剩下的步骤由它完成。
+          先选择你正在使用的 Agent。星轨会生成一段接入码，复制到它的普通对话框即可。
         </p>
 
         <section id="pairing-guide" class="pairing-guide" aria-label="Agent 连接向导">
           <ol class="pairing-progress" aria-label="连接步骤">
-            <li class="current"><span>1</span>复制一句话</li>
-            <li><span>2</span>发给你的 Agent</li>
+            <li class="current"><span>1</span>选择 Agent</li>
+            <li><span>2</span>复制并发送</li>
             <li><span>3</span>在星轨授权</li>
           </ol>
 
-          <article class="pairing-chat-card">
+          <fieldset class="pairing-host-picker">
+            <legend>你现在要连接哪个 Agent？</legend>
+            <button type="button" class="pairing-host-card" data-connector-type="codex">
+              <strong>Codex</strong>
+              <span>OpenAI 的 Codex</span>
+            </button>
+            <button type="button" class="pairing-host-card" data-connector-type="workbuddy">
+              <strong>WorkBuddy</strong>
+              <span>腾讯 WorkBuddy</span>
+            </button>
+            <button type="button" class="pairing-host-card" data-connector-type="openclaw">
+              <strong>OpenClaw</strong>
+              <span>你的 OpenClaw</span>
+            </button>
+          </fieldset>
+
+          <article id="pairing-chat-card" class="pairing-chat-card" hidden>
             <div>
-              <p class="pairing-chat-label">发给 Agent 的话</p>
-              <p id="pairing-chat-prompt" class="pairing-chat-prompt">请连接我的星云驿。如果还没有连接，请帮我完成安装并打开授权页面；连接好后回到这里告诉我。</p>
+              <p class="pairing-chat-label">复制下面整段，发给 <span id="pairing-host-name">Agent</span></p>
+              <p id="pairing-chat-prompt" class="pairing-chat-prompt"></p>
             </div>
-            <button id="pairing-copy-prompt" type="button" class="approval-submit">复制这句话</button>
+            <button id="pairing-copy-prompt" type="button" class="approval-submit">复制接入码</button>
           </article>
 
           <div class="pairing-plain-steps">
-            <p><strong>粘贴到哪里？</strong>粘贴到 Codex、WorkBuddy、OpenClaw 或其他 Agent 的普通对话框，就像平时和它说话一样。</p>
-            <p><strong>接下来会发生什么？</strong>Agent 自动识别自身和设备；需要安装时最多确认一次，然后自动打开星轨授权页。</p>
+            <p><strong>粘贴到哪里？</strong>粘贴到刚才所选 Agent 的普通对话框，就像平时和它说话一样。</p>
+            <p><strong>接下来会发生什么？</strong>Agent 自动识别电脑并完成接入；需要安装时最多确认一次，然后自动打开星轨授权页。</p>
             <p><strong>不用准备什么？</strong>不用准备任何技术信息，也不用输入命令或复制长期密钥。</p>
           </div>
 
           <div class="pairing-support-note" role="status">
-            目前可以真实体验：Mac 上的 Codex。其他 Agent 和电脑正在适配，之后仍然使用同一句话。
+            同一台电脑可以连接多个 Agent；每个 Agent 只需按这套步骤连接一次。
           </div>
 
           <p id="pairing-copy-result" class="form-status" role="status"></p>
@@ -536,8 +552,8 @@
 
         <section id="pairing-approval" class="pairing-approval" aria-label="确认 Agent 配对" hidden>
           <ol class="pairing-progress" aria-label="连接步骤">
-            <li class="complete"><span>1</span>复制一句话</li>
-            <li class="complete"><span>2</span>发给你的 Agent</li>
+            <li class="complete"><span>1</span>选择 Agent</li>
+            <li class="complete"><span>2</span>复制并发送</li>
             <li class="current"><span>3</span>在星轨授权</li>
           </ol>
           <button id="pairing-guide-back" type="button" class="text-button">← 返回连接说明</button>

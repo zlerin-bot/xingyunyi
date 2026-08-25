@@ -22,6 +22,8 @@ from agentpost_sdk.connector import ConnectorWorker, JsonCursorStore, ManagedCon
 from agentpost_sdk.errors import AgentPostError, ConfigurationError, ResponseError
 from agentpost_sdk.models import Message
 from agentpost_sdk.onboarding import PairingInstructions
+from agentpost_sdk.openclaw_setup import OpenClawSetupResult, configure_openclaw_mcp
+from agentpost_sdk.workbuddy_setup import WorkBuddySetupResult, configure_workbuddy_mcp
 
 DEFAULT_SERVER = "https://agentpost.me"
 MESSAGE_TYPES = (
@@ -103,7 +105,7 @@ def _parser() -> argparse.ArgumentParser:
         "setup",
         help="pair and register the local AgentPost tools in a supported host",
     )
-    setup.add_argument("host", choices=("codex",))
+    setup.add_argument("host", choices=("codex", "workbuddy", "openclaw"))
 
     send = commands.add_parser("send", help="send a message using the paired Agent identity")
     recipient = send.add_mutually_exclusive_group(required=True)
@@ -124,7 +126,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     send.add_argument(
         "--ensure-host",
-        choices=("codex",),
+        choices=("codex", "workbuddy", "openclaw"),
         help=argparse.SUPPRESS,
     )
 
@@ -257,14 +259,22 @@ def _upload_attachments(client: AgentPost, paths: list[Path]) -> list[str]:
     return attachment_ids
 
 
-def _configure_host(connector: ManagedConnector, host: str) -> CodexSetupResult:
-    if host != "codex":  # pragma: no cover - argparse enforces supported hosts
-        raise ConfigurationError("unsupported host setup")
-    return configure_codex_mcp(
-        server=connector.client.server,
-        profile=connector.profile,
-        mcp_command=_mcp_command(),
-    )
+def _configure_host(
+    connector: ManagedConnector,
+    host: str,
+) -> CodexSetupResult | WorkBuddySetupResult | OpenClawSetupResult:
+    options = {
+        "server": connector.client.server,
+        "profile": connector.profile,
+        "mcp_command": _mcp_command(),
+    }
+    if host == "codex":
+        return configure_codex_mcp(**options)
+    if host == "workbuddy":
+        return configure_workbuddy_mcp(**options)
+    if host == "openclaw":
+        return configure_openclaw_mcp(**options)
+    raise ConfigurationError("unsupported host setup")  # pragma: no cover
 
 
 def _content_fingerprint(message: Message) -> str:

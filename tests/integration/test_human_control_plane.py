@@ -126,14 +126,16 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "pairing-address-domain" in orbit.text
     assert "只填写 @ 前面的部分" in orbit.text
     assert 'pattern="[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?"' in orbit.text
-    assert "发给 Agent 的话" in orbit.text
-    assert "请连接我的星云驿" in orbit.text
-    assert "复制这句话" in orbit.text
+    assert "你现在要连接哪个 Agent" in orbit.text
+    assert "复制接入码" in orbit.text
     assert "不用准备任何技术信息" in orbit.text
     assert "连接新的 Agent" in orbit.text
-    assert 'data-connector-type="codex"' not in orbit.text
-    assert 'data-connector-type="workbuddy"' not in orbit.text
-    assert 'data-connector-type="openclaw"' not in orbit.text
+    assert 'data-connector-type="codex"' in orbit.text
+    assert 'data-connector-type="workbuddy"' in orbit.text
+    assert 'data-connector-type="openclaw"' in orbit.text
+    assert "AP-CODEX-V1" in script.text
+    assert "https://agentpost.me/connect/${host}" in script.text
+    assert "请先选择要连接的 Agent" in script.text
     assert "复制安装命令" not in orbit.text
     assert "复制连接命令" not in orbit.text
     assert "选择你正在使用的工具" not in orbit.text
@@ -178,6 +180,35 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert 'elements.revokeAccessKey.value = ""' in script.text
     assert ".welcome-shell[hidden]" in stylesheet.text
     assert "max-height: calc(100dvh - 32px)" in stylesheet.text
+
+
+def test_agent_facing_connection_contract_is_public_pinned_and_host_specific(
+    client: TestClient,
+) -> None:
+    bootstrap = client.get("/connect/bootstrap.py")
+    assert bootstrap.status_code == 200
+    assert bootstrap.headers["Content-Type"].startswith("text/x-python")
+    assert len(bootstrap.headers["X-AgentPost-Bootstrap-SHA256"]) == 64
+    assert "SUPPORTED_HOSTS" in bootstrap.text
+    assert "AGENTPOST_API_KEY" not in bootstrap.text
+
+    for host, code, name in (
+        ("codex", "AP-CODEX-V1", "Codex"),
+        ("workbuddy", "AP-WORKBUDDY-V1", "WorkBuddy"),
+        ("openclaw", "AP-OPENCLAW-V1", "OpenClaw"),
+    ):
+        instructions = client.get(f"/connect/{host}")
+        assert instructions.status_code == 200
+        assert instructions.headers["X-AgentPost-Connection-Code"] == code
+        assert f"target_host={host}" in instructions.text
+        assert f"target_name={name}" in instructions.text
+        assert f"setup {host}" in instructions.text
+        assert bootstrap.headers["X-AgentPost-Bootstrap-SHA256"] in instructions.text
+        assert "at most one grouped system approval" in instructions.text
+        assert "one 星轨 browser authorization" in instructions.text
+        assert "long-lived credential" in instructions.text
+
+    assert client.get("/connect/unknown").status_code == 422
 
 
 def test_auth_config_exposes_only_release_enabled_codex_platforms(

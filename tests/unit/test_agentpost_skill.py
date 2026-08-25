@@ -39,7 +39,7 @@ def test_skill_is_implicitly_discoverable_and_declares_agentpost_dependency() ->
 
     assert skill.startswith("---\nname: agentpost-messaging\n")
     assert "请连接我的星云驿" in skill
-    assert "scripts/bootstrap.py setup codex" in skill
+    assert "scripts/bootstrap.py setup <current-host>" in skill
     assert metadata["policy"]["allow_implicit_invocation"] is True
     assert metadata["dependencies"]["tools"] == [
         {
@@ -58,7 +58,7 @@ def test_plugin_packages_the_same_implicit_skill_without_machine_specific_mcp_co
 
     assert manifest["name"] == "agentpost"
     plugin_version, separator, cachebuster = manifest["version"].partition("+")
-    assert plugin_version == "0.1.1"
+    assert plugin_version == "0.1.2"
     assert separator == "+"
     assert cachebuster.startswith("codex.")
     assert manifest["skills"] == "./skills/"
@@ -146,7 +146,11 @@ def test_bootstrap_installs_hash_pinned_release_once_and_resumes_original_send(
     assert sum("pip" in call for call in calls) == 1
 
 
-def test_bootstrap_connection_prompt_installs_once_and_runs_host_setup(tmp_path: Path) -> None:
+@pytest.mark.parametrize("host", ["codex", "workbuddy", "openclaw"])
+def test_bootstrap_connection_prompt_installs_once_and_runs_host_setup(
+    tmp_path: Path,
+    host: str,
+) -> None:
     bootstrap = _load_bootstrap()
     runtime = tmp_path / "runtime"
     state = {"installed": False}
@@ -173,7 +177,7 @@ def test_bootstrap_connection_prompt_installs_once_and_runs_host_setup(tmp_path:
 
     assert (
         bootstrap.execute(
-            ["setup", "codex"],
+            ["setup", host],
             fetcher=lambda **_kwargs: _release(bootstrap),
             runtime=runtime,
             runner=runner,
@@ -182,11 +186,11 @@ def test_bootstrap_connection_prompt_installs_once_and_runs_host_setup(tmp_path:
         == 0
     )
 
-    assert calls[-1] == (str(runtime / "bin" / "agentpost-connect"), "setup", "codex")
+    assert calls[-1] == (str(runtime / "bin" / "agentpost-connect"), "setup", host)
     assert sum("pip" in call for call in calls) == 1
 
 
 def test_bootstrap_rejects_arbitrary_setup_targets() -> None:
     bootstrap = _load_bootstrap()
     with pytest.raises(bootstrap.BootstrapError, match="unsupported_resume_operation"):
-        bootstrap.execute(["setup", "openclaw"])
+        bootstrap.execute(["setup", "unknown"])

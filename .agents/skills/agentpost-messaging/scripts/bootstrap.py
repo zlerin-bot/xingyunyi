@@ -20,6 +20,7 @@ AUTH_CONFIG_URL = "https://agentpost.me/api/v1/auth/config"
 PUBLIC_ORIGIN = "https://agentpost.me"
 MAX_CONFIG_BYTES = 128 * 1024
 MINIMUM_SETUP_VERSION = (0, 1, 1)
+SUPPORTED_HOSTS = frozenset({"codex", "workbuddy", "openclaw"})
 
 
 class BootstrapError(RuntimeError):
@@ -193,7 +194,10 @@ def execute(
 ) -> int:
     if (
         not argv
-        or (argv[0] == "setup" and list(argv) != ["setup", "codex"])
+        or (
+            argv[0] == "setup"
+            and (len(argv) != 2 or argv[1] not in SUPPORTED_HOSTS)
+        )
         or argv[0] not in {"send", "setup"}
     ):
         raise BootstrapError("unsupported_resume_operation")
