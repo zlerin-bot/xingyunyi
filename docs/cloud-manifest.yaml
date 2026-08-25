@@ -1,6 +1,6 @@
 schema_version: "1"
 project: xingyunyi-agentpost
-evidence_status: natural_language_web_experience_ready
+evidence_status: production_0_1_1_manual_bootstrap_only
 verified_at: "2026-08-24T21:24:00+08:00"
 
 provider:
@@ -83,9 +83,9 @@ acceptance:
   public_health: passed
   public_ready: passed
   orbit_render: passed
-  orbit_pairing_guide: passed
-  orbit_tool_switching: passed
-  orbit_manual_pairing_fallback: passed
+  orbit_pairing_guide: rejected_too_technical
+  orbit_tool_switching: negative_evidence
+  orbit_manual_pairing_fallback: operator_only
   orbit_pairing_address_validation: passed
   orbit_authenticated_existing_agent_view: passed
   orbit_codex_0_1_1_guide: passed
@@ -93,6 +93,7 @@ acceptance:
   pinned_connector_wheel: passed
   codex_setup_platform_mac: passed
   natural_language_first_use_human_observation: pending
+  ordinary_user_uniform_prompt_source: implemented_not_deployed
   connected_reuse_human_observation: pending
   schema_error_field_guidance: passed
   dns_resolution: passed

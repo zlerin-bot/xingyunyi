@@ -38,6 +38,8 @@ def test_skill_is_implicitly_discoverable_and_declares_agentpost_dependency() ->
     metadata = yaml.safe_load((SKILL_ROOT / "agents" / "openai.yaml").read_text())
 
     assert skill.startswith("---\nname: agentpost-messaging\n")
+    assert "请连接我的星云驿" in skill
+    assert "scripts/bootstrap.py setup codex" in skill
     assert metadata["policy"]["allow_implicit_invocation"] is True
     assert metadata["dependencies"]["tools"] == [
         {
@@ -139,3 +141,49 @@ def test_bootstrap_installs_hash_pinned_release_once_and_resumes_original_send(
     assert exit_code == 0
     assert calls[-1] == (str(runtime / "bin" / "agentpost-connect"), *operation)
     assert sum("pip" in call for call in calls) == 1
+
+
+def test_bootstrap_connection_prompt_installs_once_and_runs_host_setup(tmp_path: Path) -> None:
+    bootstrap = _load_bootstrap()
+    runtime = tmp_path / "runtime"
+    state = {"installed": False}
+    calls: list[tuple[str, ...]] = []
+
+    def create_venv(path: Path) -> None:
+        bin_dir = path / "bin"
+        bin_dir.mkdir(parents=True)
+        (bin_dir / "python").write_text("", encoding="utf-8")
+
+    def runner(command, **_kwargs):
+        normalized = tuple(str(item) for item in command)
+        calls.append(normalized)
+        if "-I" in normalized:
+            return SimpleNamespace(
+                returncode=0 if state["installed"] else 1,
+                stdout="0.1.1\n" if state["installed"] else "",
+            )
+        if "pip" in normalized:
+            state["installed"] = True
+            (runtime / "bin" / "agentpost-connect").write_text("", encoding="utf-8")
+            return SimpleNamespace(returncode=0, stdout="")
+        return SimpleNamespace(returncode=0, stdout="")
+
+    assert (
+        bootstrap.execute(
+            ["setup", "codex"],
+            fetcher=lambda **_kwargs: _release(bootstrap),
+            runtime=runtime,
+            runner=runner,
+            create_venv=create_venv,
+        )
+        == 0
+    )
+
+    assert calls[-1] == (str(runtime / "bin" / "agentpost-connect"), "setup", "codex")
+    assert sum("pip" in call for call in calls) == 1
+
+
+def test_bootstrap_rejects_arbitrary_setup_targets() -> None:
+    bootstrap = _load_bootstrap()
+    with pytest.raises(bootstrap.BootstrapError, match="unsupported_resume_operation"):
+        bootstrap.execute(["setup", "openclaw"])

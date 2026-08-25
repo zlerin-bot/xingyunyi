@@ -203,9 +203,11 @@ and readiness returned version 0.1.1; and PostgreSQL remained at
 existing Agent and all 星轨 observation areas, opened the 0.1.1 Codex guide with the
 correct fixed hash, and reported no frontend errors.
 
-This state is `natural_language_web_experience_ready`. It is not final end-user
-acceptance: the Human must still observe one clean first-use request resuming after
-web authorization and one connected reuse request entering write approval directly.
+This deployed state is `production_0_1_1_manual_bootstrap_only`. The host/OS selectors
+and copied commands are negative ordinary-user evidence, not a one-sentence experience.
+The corrected uniform chat-prompt UI exists only in source and must be deployed before
+the Human can observe one clean first-use request resuming after web authorization and
+one connected reuse request entering write approval directly.
 
 ## Rollback
 

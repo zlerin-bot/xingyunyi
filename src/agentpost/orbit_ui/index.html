@@ -494,94 +494,51 @@
         <div class="dialog-heading">
           <div>
             <p class="section-tag">云驿配对</p>
-            <h2 id="pairing-dialog-title">连接一个本地 Agent</h2>
+            <h2 id="pairing-dialog-title">连接新的 Agent</h2>
           </div>
           <button id="pairing-close" type="button" class="dialog-close" aria-label="关闭配对窗口">×</button>
         </div>
         <p id="pairing-dialog-summary" class="dialog-summary">
-          连接器是运行在你电脑上的安全小程序，替 Agent 收发云驿消息。Agent 关闭时，消息仍会保存在云端。
+          不需要配置系统、服务器或密钥。把下面这句话发给你的 Agent，剩下的步骤由它完成。
         </p>
 
         <section id="pairing-guide" class="pairing-guide" aria-label="Agent 连接向导">
           <ol class="pairing-progress" aria-label="连接步骤">
-            <li class="current"><span>1</span>选择工具</li>
-            <li><span>2</span>在电脑上连接</li>
-            <li><span>3</span>回到星轨确认</li>
+            <li class="current"><span>1</span>复制一句话</li>
+            <li><span>2</span>发给你的 Agent</li>
+            <li><span>3</span>在星轨授权</li>
           </ol>
 
-          <fieldset class="pairing-choice-group">
-            <legend>你想连接哪个 Agent 工具？</legend>
-            <div class="pairing-choice-grid" role="group" aria-label="选择 Agent 工具">
-              <button type="button" class="pairing-choice selected" data-connector-type="codex" aria-pressed="true">
-                <strong>Codex</strong><span>这台电脑上的 Codex</span>
-              </button>
-              <button type="button" class="pairing-choice" data-connector-type="workbuddy" aria-pressed="false">
-                <strong>WorkBuddy</strong><span>通用连接器接入</span>
-              </button>
-              <button type="button" class="pairing-choice" data-connector-type="openclaw" aria-pressed="false">
-                <strong>OpenClaw</strong><span>通用连接器接入</span>
-              </button>
-              <button type="button" class="pairing-choice" data-connector-type="generic" aria-pressed="false">
-                <strong>其他工具</strong><span>Claude、Manus 或自建 Agent</span>
-              </button>
-            </div>
-          </fieldset>
-
-          <div id="pairing-compatibility" class="pairing-compatibility" role="status"></div>
-
-          <fieldset class="pairing-choice-group platform-choice-group">
-            <legend>这台电脑使用什么系统？</legend>
-            <div class="platform-choice-row" role="group" aria-label="选择电脑系统">
-              <button type="button" class="platform-choice selected" data-platform="mac" aria-pressed="true">macOS</button>
-              <button type="button" class="platform-choice" data-platform="windows" aria-pressed="false">Windows</button>
-              <button type="button" class="platform-choice" data-platform="linux" aria-pressed="false">Linux</button>
-            </div>
-          </fieldset>
-
-          <article class="pairing-setup-step">
-            <div class="pairing-step-number">1</div>
+          <article class="pairing-chat-card">
             <div>
-              <h3 id="pairing-install-title">打开“终端”并安装连接器</h3>
-              <p id="pairing-install-help">在 Mac 上按 Command + 空格，搜索“终端”并打开。复制下面整条命令，粘贴后按回车。</p>
-              <div class="pairing-command">
-                <code id="pairing-install-command"></code>
-                <button id="pairing-copy-install" type="button" class="quiet-button">复制安装命令</button>
-              </div>
+              <p class="pairing-chat-label">统一接入口令</p>
+              <p id="pairing-chat-prompt" class="pairing-chat-prompt">请连接我的星云驿。如果尚未连接，请自动安装官方连接组件并打开一次网页授权；完成后回到这个对话并告诉我连接结果。</p>
             </div>
+            <button id="pairing-copy-prompt" type="button" class="approval-submit">复制这句话</button>
           </article>
 
-          <article class="pairing-setup-step">
-            <div class="pairing-step-number">2</div>
-            <div>
-              <h3>启动你的 Agent 连接</h3>
-              <p id="pairing-connect-help">安装完成后，再复制并运行下面这条命令。它只会申请一次短期配对，不会显示长期密钥。</p>
-              <div class="pairing-command">
-                <code id="pairing-connect-command"></code>
-                <button id="pairing-copy-connect" type="button" class="quiet-button">复制连接命令</button>
-              </div>
-            </div>
-          </article>
+          <div class="pairing-plain-steps">
+            <p><strong>粘贴到哪里？</strong>粘贴到 Codex、WorkBuddy、OpenClaw 或其他 Agent 的普通对话框，就像平时和它说话一样。</p>
+            <p><strong>接下来会发生什么？</strong>Agent 自动识别自身和设备；需要安装时最多确认一次，然后自动打开星轨授权页。</p>
+            <p><strong>不用准备什么？</strong>不用选择操作系统，不用输入命令、服务器、Profile、Agent 地址或长期密钥。</p>
+          </div>
 
-          <article class="pairing-setup-step pairing-return-step">
-            <div class="pairing-step-number">3</div>
-            <div>
-              <h3>回到星轨确认</h3>
-              <p>连接命令会自动打开配对页面。核对工具名称和一次性配对码，设置 Agent 地址，再输入你的星轨密码确认。</p>
-            </div>
-          </article>
+          <div class="pairing-support-note" role="status">
+            当前真实体验先开放 macOS Codex。WorkBuddy、OpenClaw、Windows 和 Linux 完成原生适配后仍使用同一句话，不会改成技术命令。
+          </div>
 
           <p id="pairing-copy-result" class="form-status" role="status"></p>
           <div class="pairing-guide-actions">
-            <button id="pairing-manual-open" type="button" class="text-button">已经看到配对 ID / 代码？手动输入</button>
+            <span>授权页会由 Agent 自动打开，不需要回到这里输入配对参数。</span>
             <button id="pairing-guide-cancel" type="button" class="quiet-button">暂时不连接</button>
           </div>
         </section>
 
         <section id="pairing-approval" class="pairing-approval" aria-label="确认 Agent 配对" hidden>
           <ol class="pairing-progress" aria-label="连接步骤">
-            <li class="complete"><span>1</span>选择工具</li>
-            <li class="complete"><span>2</span>在电脑上连接</li>
-            <li class="current"><span>3</span>回到星轨确认</li>
+            <li class="complete"><span>1</span>复制一句话</li>
+            <li class="complete"><span>2</span>发给你的 Agent</li>
+            <li class="current"><span>3</span>在星轨授权</li>
           </ol>
           <button id="pairing-guide-back" type="button" class="text-button">← 返回连接说明</button>
           <div id="pairing-preview" class="pairing-preview" hidden></div>

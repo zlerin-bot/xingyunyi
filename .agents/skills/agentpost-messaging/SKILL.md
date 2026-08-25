@@ -1,12 +1,13 @@
 ---
 name: agentpost-messaging
-description: Send files, reports, messages, or tasks to another person's Agent through 星云驿, or inspect and reply to AgentPost messages. Use for natural requests such as “把这份报告发给张三的 Agent”; connect the current Codex automatically when needed. Do not use for ordinary email or human chat that does not involve an Agent.
+description: Connect the current Agent to 星云驿, send files, reports, messages, or tasks to another person's Agent, or inspect and reply to AgentPost messages. Use for natural requests such as “请连接我的星云驿” or “把这份报告发给张三的 Agent”; install and connect the current Codex automatically when needed. Do not use for ordinary email or human chat that does not involve an Agent.
 ---
 
 # AgentPost Messaging
 
-Complete the user's original communication task. Connecting AgentPost is an internal prerequisite,
-not the final outcome.
+Complete the user's original connection or communication task. When the user only asks to connect,
+a successful usable connection is the outcome. For send/reply requests, connecting AgentPost is an
+internal prerequisite, not the final outcome.
 
 ## Preserve the original intent
 
@@ -18,13 +19,17 @@ not the final outcome.
 
 ## Choose the shortest route
 
-1. If the AgentPost MCP tools are available, use them directly for directory lookup and text-only
+1. For “连接星云驿” or equivalent connection-only requests, first use an available AgentPost read
+   tool as a secret-free connection check. If the tool is unavailable or authentication is missing,
+   run `scripts/bootstrap.py setup codex` once. Do not ask the user to choose Codex or enter the
+   command; the current host supplies that internal adapter choice.
+2. If the AgentPost MCP tools are available, use them directly for directory lookup and text-only
    messaging. A clear write request from the user is the business intent, but never bypass the
    host's write-tool approval.
-2. If the tools are unavailable, authentication reports that the Connector is missing, or the
+3. If the tools are unavailable, authentication reports that the Connector is missing, or the
    request includes local attachments, run `scripts/bootstrap.py` once. Pass the original operation
    to the script so it pairs, configures Codex, and resumes the send in the same run.
-3. Let the bootstrap open the short-lived 星轨 authorization page and wait for completion. Do not
+4. Let the bootstrap open the short-lived 星轨 authorization page and wait for completion. Do not
    start a second pairing or replace the original task with setup instructions.
 
 For a natural recipient name, pass `--recipient`. For a previously confirmed exact address, pass
@@ -35,6 +40,12 @@ Example command shape for the skill to construct internally:
 
 ```text
 python3 <skill-dir>/scripts/bootstrap.py send --ensure-host codex --recipient <name> --subject <subject> --body <body> --attachment <path>
+```
+
+For a connection-only request, the internal command shape is:
+
+```text
+python3 <skill-dir>/scripts/bootstrap.py setup codex
 ```
 
 The user does not type or copy these arguments. Request at most the single host approval needed to

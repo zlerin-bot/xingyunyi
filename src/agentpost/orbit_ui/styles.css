@@ -1562,144 +1562,63 @@ footer {
   color: #9eb8c8;
 }
 
-.pairing-choice-group {
-  min-width: 0;
-  margin: 0;
-  border: 0;
-  padding: 0;
-}
-
-.pairing-choice-group legend {
-  margin-bottom: 9px;
-  color: #dce8f0;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.pairing-choice-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.pairing-choice,
-.platform-choice {
-  border: 1px solid var(--line-strong);
-  border-radius: 12px;
-  background: rgba(3, 11, 23, 0.64);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.pairing-choice {
-  display: grid;
-  gap: 5px;
-  min-height: 72px;
-  padding: 13px 14px;
-  text-align: left;
-}
-
-.pairing-choice span {
-  color: var(--muted);
-  font-size: 0.66rem;
-  line-height: 1.4;
-}
-
-.pairing-choice:hover,
-.pairing-choice.selected,
-.platform-choice:hover,
-.platform-choice.selected {
-  border-color: var(--cyan);
-  background: rgba(103, 216, 212, 0.08);
-}
-
-.pairing-choice.selected strong,
-.platform-choice.selected {
-  color: var(--cyan);
-}
-
-.pairing-compatibility {
-  border-left: 2px solid var(--cyan);
-  background: rgba(103, 216, 212, 0.05);
-  color: #a9c1d0;
-  padding: 10px 13px;
-  font-size: 0.7rem;
-  line-height: 1.6;
-}
-
-.platform-choice-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.platform-choice {
-  min-height: 38px;
-  padding: 0 15px;
-}
-
-.pairing-setup-step {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  gap: 12px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: rgba(3, 11, 23, 0.45);
-  padding: 15px;
-}
-
-.pairing-step-number {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 1px solid rgba(230, 189, 114, 0.38);
-  border-radius: 50%;
-  color: var(--gold);
-  font: 0.7rem ui-monospace, monospace;
-}
-
-.pairing-setup-step h3 {
-  margin: 1px 0 5px;
-  font-size: 0.84rem;
-}
-
-.pairing-setup-step p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.7rem;
-  line-height: 1.6;
-}
-
-.pairing-command {
+.pairing-chat-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid rgba(103, 216, 212, 0.34);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(103, 216, 212, 0.09), rgba(3, 11, 23, 0.72));
+  padding: 18px;
+}
+
+.pairing-chat-label {
+  margin: 0 0 7px;
+  color: var(--cyan);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.pairing-chat-prompt {
+  margin: 0;
+  color: #eaf7f7;
+  font-size: 0.86rem;
+  line-height: 1.75;
+}
+
+.pairing-chat-card .approval-submit {
+  min-width: 126px;
+  min-height: 44px;
+}
+
+.pairing-plain-steps {
+  display: grid;
   gap: 10px;
-  margin-top: 11px;
 }
 
-.pairing-command code {
-  display: block;
-  min-width: 0;
-  overflow-x: auto;
-  border: 1px solid rgba(103, 216, 212, 0.22);
-  border-radius: 10px;
-  background: rgba(2, 8, 18, 0.8);
-  color: #b9d9df;
-  padding: 11px 12px;
-  font: 0.66rem/1.55 ui-monospace, monospace;
-  white-space: nowrap;
+.pairing-plain-steps p {
+  margin: 0;
+  border-left: 2px solid rgba(230, 189, 114, 0.38);
+  color: var(--muted);
+  padding-left: 12px;
+  font-size: 0.72rem;
+  line-height: 1.65;
 }
 
-.pairing-command .quiet-button {
-  align-self: stretch;
-  min-height: 42px;
-  padding-inline: 13px;
+.pairing-plain-steps strong {
+  color: #dce8f0;
 }
 
-.pairing-return-step {
-  border-color: rgba(123, 212, 164, 0.24);
-  background: rgba(123, 212, 164, 0.04);
+.pairing-support-note {
+  border: 1px solid rgba(230, 189, 114, 0.24);
+  border-radius: 12px;
+  background: rgba(230, 189, 114, 0.05);
+  color: #c9b98e;
+  padding: 11px 13px;
+  font-size: 0.68rem;
+  line-height: 1.6;
 }
 
 .pairing-guide-actions {
@@ -1714,6 +1633,12 @@ footer {
 .pairing-guide-actions .quiet-button {
   min-height: 40px;
   padding-inline: 14px;
+}
+
+.pairing-guide-actions > span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.55;
 }
 
 .pairing-approval > .text-button {
@@ -2028,8 +1953,7 @@ footer {
   }
 
   .pairing-fields,
-  .pairing-choice-grid,
-  .pairing-command,
+  .pairing-chat-card,
   .organization-invite-fields,
   .organization-domain-fields,
   .organization-oidc-fields,
@@ -2052,7 +1976,7 @@ footer {
     display: none;
   }
 
-  .pairing-command .quiet-button {
+  .pairing-chat-card .approval-submit {
     justify-self: stretch;
   }
 }

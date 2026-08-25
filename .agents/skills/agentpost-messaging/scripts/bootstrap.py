@@ -191,7 +191,11 @@ def execute(
     runner: Runner = subprocess.run,
     create_venv: Callable[[Path], None] | None = None,
 ) -> int:
-    if not argv or argv[0] != "send":
+    if (
+        not argv
+        or (argv[0] == "setup" and list(argv) != ["setup", "codex"])
+        or argv[0] not in {"send", "setup"}
+    ):
         raise BootstrapError("unsupported_resume_operation")
     platform_name = current_platform()
     release = fetcher(platform_name=platform_name)
