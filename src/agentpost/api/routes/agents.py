@@ -16,6 +16,7 @@ from agentpost.identity.schemas import (
 )
 from agentpost.identity.service import (
     AddressAlreadyRegisteredError,
+    HandleAlreadyRegisteredError,
     agent_profile,
     get_agent_by_address,
     get_agent_by_id,
@@ -24,6 +25,20 @@ from agentpost.identity.service import (
 )
 
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
+
+
+def _handle_conflict(exc: HandleAlreadyRegisteredError) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "code": "handle_already_registered",
+            "message": "This short Agent name is already in use",
+            "details": {
+                "handle": exc.handle,
+                "suggestions": exc.suggestions,
+            },
+        },
+    )
 
 
 def _verify_registration_token(settings: SettingsDep, supplied_token: str | None) -> None:
@@ -60,6 +75,8 @@ def create_agent(
                 "message": "The canonical agent address is already registered",
             },
         ) from exc
+    except HandleAlreadyRegisteredError as exc:
+        raise _handle_conflict(exc) from exc
     return AgentRegistrationResponse(
         agent=agent_profile(registered.agent),
         api_key=registered.api_key,
@@ -111,4 +128,8 @@ def patch_agent(
                 "message": "An agent may only update its own profile",
             },
         )
-    return agent_profile(update_agent(session, current_agent, payload))
+    try:
+        updated = update_agent(session, current_agent, payload)
+    except HandleAlreadyRegisteredError as exc:
+        raise _handle_conflict(exc) from exc
+    return agent_profile(updated)

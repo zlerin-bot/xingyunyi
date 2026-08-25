@@ -21,6 +21,10 @@ class Agent(Base):
     __tablename__ = "agents"
     __table_args__ = (
         CheckConstraint("address = lower(address)", name="ck_agents_address_lowercase"),
+        CheckConstraint(
+            "handle IS NULL OR handle = lower(handle)",
+            name="ck_agents_handle_lowercase",
+        ),
         CheckConstraint("domain = lower(domain)", name="ck_agents_domain_lowercase"),
         CheckConstraint(
             "status IN ('active', 'suspended', 'disabled')",
@@ -34,6 +38,7 @@ class Agent(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     address: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
+    handle: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     owner_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -67,6 +72,7 @@ class Agent(Base):
         return {
             "id": self.id,
             "address": self.address,
+            "handle": self.handle,
             "display_name": self.display_name,
             "description": self.description,
             "domain": self.domain,

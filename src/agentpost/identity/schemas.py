@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from agentpost.identity.addressing import canonicalize_agent_address
+from agentpost.identity.handles import canonicalize_agent_handle
 
 
 class StrictModel(BaseModel):
@@ -31,6 +32,7 @@ def _normalize_capabilities(values: list[str]) -> list[str]:
 
 class AgentCreate(StrictModel):
     address: str = Field(min_length=3, max_length=320)
+    handle: str | None = None
     display_name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=10_000)
     capabilities: list[str] = Field(default_factory=list)
@@ -41,6 +43,11 @@ class AgentCreate(StrictModel):
     @classmethod
     def canonical_address(cls, value: str) -> str:
         return canonicalize_agent_address(value)
+
+    @field_validator("handle")
+    @classmethod
+    def canonical_handle(cls, value: str | None) -> str | None:
+        return canonicalize_agent_handle(value) if value is not None else None
 
     @field_validator("display_name")
     @classmethod
@@ -59,10 +66,16 @@ class AgentCreate(StrictModel):
 
 
 class AgentUpdate(StrictModel):
+    handle: str | None = None
     display_name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=10_000)
     capabilities: list[str] | None = None
     endpoint: str | None = Field(default=None, max_length=2048)
+
+    @field_validator("handle")
+    @classmethod
+    def canonical_handle(cls, value: str | None) -> str | None:
+        return canonicalize_agent_handle(value) if value is not None else None
 
     @field_validator("display_name")
     @classmethod
@@ -85,6 +98,7 @@ class AgentUpdate(StrictModel):
 class AgentProfile(StrictModel):
     id: UUID
     address: str
+    handle: str | None
     display_name: str
     description: str | None
     domain: str

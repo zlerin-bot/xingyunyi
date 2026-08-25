@@ -89,6 +89,57 @@ def test_registration_rejects_duplicate_canonical_address(client: TestClient) ->
     assert response.json()["error"]["code"] == "ADDRESS_ALREADY_REGISTERED"
 
 
+def test_agent_can_register_and_rename_a_global_short_handle(client: TestClient) -> None:
+    alice = register(client, "alice@agents.local", handle="  KCode  ")
+
+    assert alice["agent"]["handle"] == "kcode"
+    agent_id = alice["agent"]["id"]
+    updated = client.patch(
+        f"/api/v1/agents/{agent_id}",
+        headers=bearer(alice["api_key"]),
+        json={"handle": "ziliang-codex"},
+    )
+
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["id"] == agent_id
+    assert updated.json()["address"] == "alice@agents.local"
+    assert updated.json()["handle"] == "ziliang-codex"
+
+
+def test_duplicate_handle_returns_friendly_short_suggestions(client: TestClient) -> None:
+    register(client, "alice@agents.local", handle="kcode")
+
+    response = client.post(
+        "/api/v1/agents",
+        json={
+            "address": "bob@agents.local",
+            "display_name": "Bob",
+            "handle": "KCODE",
+        },
+    )
+
+    assert response.status_code == 409
+    error = response.json()["error"]
+    assert error["code"] == "HANDLE_ALREADY_REGISTERED"
+    assert error["details"]["handle"] == "kcode"
+    assert error["details"]["suggestions"] == ["kcode-agent", "kcode-2", "kcode-3"]
+
+
+def test_agent_can_clear_handle_without_changing_identity(client: TestClient) -> None:
+    alice = register(client, "alice@agents.local", handle="kcode")
+
+    updated = client.patch(
+        f"/api/v1/agents/{alice['agent']['id']}",
+        headers=bearer(alice["api_key"]),
+        json={"handle": None},
+    )
+
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["handle"] is None
+    assert updated.json()["id"] == alice["agent"]["id"]
+    assert updated.json()["address"] == alice["agent"]["address"]
+
+
 def test_registration_token_is_required_when_configured(
     settings: Settings,
     database: Database,

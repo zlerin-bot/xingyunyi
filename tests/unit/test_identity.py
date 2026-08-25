@@ -11,6 +11,10 @@ from agentpost.identity.addressing import (
     canonicalize_agent_address,
 )
 from agentpost.identity.api_keys import API_KEY_MARKER, digest_api_key, generate_api_key
+from agentpost.identity.handles import (
+    available_handle_suggestions,
+    canonicalize_agent_handle,
+)
 
 
 def test_address_is_canonical_ascii_lowercase() -> None:
@@ -55,3 +59,27 @@ def test_api_key_digest_is_hmac_sha256_and_pepper_bound() -> None:
     assert len(first) == 64
     assert first != api_key
     assert first != second
+
+
+def test_agent_handle_is_short_canonical_and_human_memorable() -> None:
+    assert canonicalize_agent_handle("  ZiLiang-Codex  ") == "ziliang-codex"
+
+
+@pytest.mark.parametrize(
+    "handle",
+    ["ab", "starts--twice", "-leading", "trailing-", "中文", "api", "a" * 33],
+)
+def test_invalid_or_reserved_agent_handles_are_rejected(handle: str) -> None:
+    with pytest.raises(ValueError):
+        canonicalize_agent_handle(handle)
+
+
+def test_handle_conflict_suggestions_are_short_and_deterministic() -> None:
+    unavailable = {"kcode-agent", "kcode-2"}
+
+    suggestions = available_handle_suggestions(
+        "kcode",
+        is_available=lambda candidate: candidate not in unavailable,
+    )
+
+    assert suggestions == ["kcode-3", "kcode-4", "kcode-5"]

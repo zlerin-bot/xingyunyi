@@ -5,16 +5,30 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
 
 from agentpost.api.dependencies import CurrentAgentDep, SessionDep
-from agentpost.directory.schemas import DirectorySearchResponse
+from agentpost.directory.schemas import (
+    DirectorySearchResponse,
+    RecipientResolution,
+    RecipientResolveRequest,
+)
 from agentpost.directory.service import (
     MAX_CAPABILITY_LENGTH,
     MAX_QUERY_LENGTH,
     DirectoryFilters,
     InvalidDirectoryFilterError,
+    resolve_recipient,
     search_directory,
 )
 
 router = APIRouter(prefix="/api/v1/directory", tags=["directory"])
+
+
+@router.post("/resolve", response_model=RecipientResolution)
+def resolve_agent_recipient(
+    payload: RecipientResolveRequest,
+    session: SessionDep,
+    current_agent: CurrentAgentDep,
+) -> RecipientResolution:
+    return resolve_recipient(session, caller=current_agent, query=payload.query)
 
 
 @router.get("/search", response_model=DirectorySearchResponse)
