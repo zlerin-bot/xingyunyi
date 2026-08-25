@@ -43,8 +43,8 @@ test("mobile navigation remains a three-entry bottom bar", () => {
 });
 
 test("human activity does not reuse Agent read or ACK state", () => {
-  assert.match(html, /尚未建立独立的本人查看记录/);
-  assert.match(html, /不会把 Agent 的读取状态当成你是否看过/);
+  assert.match(html, /“新动态”不会复用 Agent 的 read 或 ACK/);
+  assert.match(html, /打开本时间线不会替任何 Agent 执行 read 或 ACK/);
   assert.match(script, /delivered: "已送达"/);
   assert.match(script, /read: "Agent 已读取"/);
   assert.match(script, /acked: "Agent 已确认收到"/);
@@ -52,6 +52,35 @@ test("human activity does not reuse Agent read or ACK state", () => {
   const communicationEnd = html.indexOf("</section>", communicationStart);
   const communicationPanel = html.slice(communicationStart, communicationEnd);
   assert.doesNotMatch(communicationPanel, /chat-composer|message-input|<textarea|type="submit"/);
+});
+
+test("Orbit conversations are Thread-based, searchable, and deep-linkable", () => {
+  assert.match(html, /按 Thread 聚合/);
+  assert.match(html, /主题、Agent、正文或附件名/);
+  assert.match(html, /data-thread-filter="new" aria-disabled="true"/);
+  assert.match(html, /data-thread-filter="action" aria-disabled="true"/);
+  assert.match(script, /\/api\/v1\/orbit\/threads\?/);
+  assert.match(script, /\/api\/v1\/orbit\/threads\/\$\{encodeURIComponent\(threadId\)\}/);
+  assert.match(script, /thread: state\.selectedThreadId/);
+  assert.match(script, /state\.threadOrganization/);
+});
+
+test("Thread timeline keeps communication, work, replies, and system events distinct", () => {
+  assert.match(script, /document\.createTextNode\("通信状态"\)/);
+  assert.match(script, /document\.createTextNode\("工作状态"\)/);
+  assert.match(script, /replied: "已回复"/);
+  assert.match(script, /thread-reply-reference/);
+  assert.match(script, /scrollIntoView/);
+  assert.match(script, /\["event", "system", "error"\]/);
+  assert.match(script, /message\.task_expected_output/);
+  assert.match(script, /message\.requires_ack \? "是" : "否"/);
+  assert.match(script, /来自 Agent 的不可信外部内容/);
+});
+
+test("mobile Thread list and detail are separate layers", () => {
+  assert.match(stylesheet, /thread-workspace-mode:not\(\.thread-detail-open\).*?\.workspace-content/s);
+  assert.match(stylesheet, /thread-workspace-mode\.thread-detail-open \.context-sidebar/);
+  assert.match(html, /返回对话列表/);
 });
 
 test("unavailable settings are explanatory, not fake controls", () => {

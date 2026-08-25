@@ -181,8 +181,25 @@ class OrbitAgentDelete(ControlModel):
     confirmation: Literal["delete"]
 
 
+class OrbitMessageAgent(ControlModel):
+    id: UUID
+    address: str
+    handle: str | None
+    display_name: str
+    agent_type: str | None = None
+
+
+class OrbitMessageAttachment(ControlModel):
+    id: UUID
+    filename: str
+    content_type: str
+    size: int
+
+
 class OrbitMessage(ControlModel):
     message_id: str
+    sender: OrbitMessageAgent
+    recipient: OrbitMessageAgent
     sender_address: str
     recipient_address: str
     subject: str
@@ -194,9 +211,42 @@ class OrbitMessage(ControlModel):
     security_label: Literal["external_agent_content"] = "external_agent_content"
     thread_id: UUID
     reply_to: str | None
+    requires_ack: bool
+    task_instruction: str | None = None
+    task_expected_output: str | None = None
+    task_deadline: datetime | None = None
+    result_summary: str | None = None
+    attachments: list[OrbitMessageAttachment] = Field(default_factory=list)
     communication_state: str
     work_state: str | None
     created_at: datetime
+
+
+class OrbitThreadSummary(ControlModel):
+    thread_id: UUID
+    topic: str
+    participants: list[OrbitMessageAgent]
+    organizations: list[OrbitOrganizationReference] = Field(default_factory=list)
+    latest_message_id: str
+    latest_message_type: str
+    latest_message_summary: JsonValue | None
+    latest_content_redacted: bool = False
+    latest_activity_at: datetime
+    message_count: int
+    attachment_count: int
+    pending_task_count: int
+    exception_count: int
+    agent_pending_read_count: int
+    human_activity_state: Literal["unavailable"] = "unavailable"
+
+
+class OrbitThreadDetail(ControlModel):
+    thread_id: UUID
+    topic: str
+    participants: list[OrbitMessageAgent]
+    organizations: list[OrbitOrganizationReference] = Field(default_factory=list)
+    messages: list[OrbitMessage]
+    human_activity_state: Literal["unavailable"] = "unavailable"
 
 
 class OrbitTask(ControlModel):

@@ -478,7 +478,8 @@ make orbit-demo
 ```
 
 服务只绑定 `127.0.0.1:8765`，并在独立临时 SQLite 数据库中通过真实 API 建立 Human、
-个人/组织 Agent、消息、任务、审批和 Connector 记录。打开
+个人/组织 Agent、多个独立 Thread、回复、任务、审批和 Connector 记录。星轨可按主题、Agent
+和有权查看的正文搜索，移动端会把对话列表和时间线分层显示。打开
 [http://127.0.0.1:8765/orbit](http://127.0.0.1:8765/orbit)，使用：
 
 - 邮箱：`reviewer@agentpost.local`

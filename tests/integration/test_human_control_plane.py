@@ -220,9 +220,16 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert 'delivered: "已送达"' in script.text
     assert 'read: "Agent 已读取"' in script.text
     assert 'acked: "Agent 已确认收到"' in script.text
-    assert "不会把 Agent 的读取状态当成你是否看过" in orbit.text
+    assert "“新动态”不会复用 Agent 的 read 或 ACK" in orbit.text
     assert "Human 已查看" not in orbit.text
     assert "chat-composer" not in orbit.text
+    assert "按 Thread 聚合" in orbit.text
+    assert "搜索有权查看的对话" in orbit.text
+    assert 'data-thread-filter="new" aria-disabled="true"' in orbit.text
+    assert 'data-thread-filter="action" aria-disabled="true"' in orbit.text
+    assert "/api/v1/orbit/threads" in script.text
+    assert "打开本时间线不会替任何 Agent 执行 read 或 ACK" in orbit.text
+    assert "当前系统没有 Human 直接发消息的真实能力" in orbit.text
     assert "activateRoute" in script.text
     assert "history.pushState" in script.text
     assert ".primary-navigation" in stylesheet.text
@@ -641,6 +648,15 @@ def test_auditor_content_is_redacted_and_revocation_removes_all_visibility(
         assert sent.status_code == 201
         headers = {"Authorization": f"Bearer {auditor['access_key']}"}
         visible = client.get("/api/v1/orbit/messages", headers=headers)
+        thread_detail = client.get(
+            f"/api/v1/orbit/threads/{sent.json()['thread_id']}",
+            headers=headers,
+        )
+        body_search = client.get(
+            "/api/v1/orbit/threads",
+            params={"query": "sensitive-body-canary"},
+            headers=headers,
+        )
         revoked = client.delete(
             f"/api/v1/admin/humans/{auditor['user']['id']}/agents/{alice['agent']['id']}",
             headers=_admin_headers(),
@@ -652,10 +668,131 @@ def test_auditor_content_is_redacted_and_revocation_removes_all_visibility(
     assert visible.json()[0]["content_body"] is None
     assert visible.json()[0]["content_redacted"] is True
     assert "sensitive-body-canary" not in visible.text
+    assert thread_detail.status_code == 200
+    assert thread_detail.json()["messages"][0]["content_body"] is None
+    assert thread_detail.json()["messages"][0]["content_redacted"] is True
+    assert "sensitive-body-canary" not in thread_detail.text
+    assert body_search.status_code == 200
+    assert body_search.json() == []
     assert revoked.status_code == 204
     assert after.status_code == 200
     assert after.json()["metrics"]["agent_count"] == 0
     assert after.json()["recent_messages"] == []
+
+
+def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not_mark_read(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with _control_client(settings, database) as client:
+        alice = _create_agent(client, "alice@agents.local", "Alice")
+        bob = _create_agent(client, "bob@agents.local", "Bob")
+        human = _create_human(client, "threads@example.com", "对话观察者")
+        outsider = _create_human(client, "thread-outsider@example.com", "无权用户")
+        _grant(
+            client,
+            human_id=human["user"]["id"],
+            agent_id=alice["agent"]["id"],
+            role="owner",
+        )
+        first = client.post(
+            "/api/v1/messages",
+            headers={
+                "Authorization": f"Bearer {alice['api_key']}",
+                "Idempotency-Key": "orbit-human-thread-one",
+            },
+            json={
+                "to": [{"address": bob["agent"]["address"]}],
+                "type": "message",
+                "subject": "供应链风险",
+                "content": {"format": "text", "body": "first-thread-body"},
+            },
+        )
+        second = client.post(
+            "/api/v1/messages",
+            headers={
+                "Authorization": f"Bearer {alice['api_key']}",
+                "Idempotency-Key": "orbit-human-thread-two",
+            },
+            json={
+                "to": [{"address": bob["agent"]["address"]}],
+                "type": "message",
+                "subject": "市场周报",
+                "content": {"format": "text", "body": "separate-thread-body"},
+            },
+        )
+        assert first.status_code == second.status_code == 201
+        reply = client.post(
+            f"/api/v1/messages/{first.json()['message_id']}/reply",
+            headers={
+                "Authorization": f"Bearer {bob['api_key']}",
+                "Idempotency-Key": "orbit-human-thread-reply",
+            },
+            json={
+                "type": "response",
+                "subject": "供应链风险回复",
+                "content": {"format": "text", "body": "authorized-reply-canary"},
+            },
+        )
+        assert reply.status_code == 201
+        with database.session_factory() as session:
+            delivery_before = session.scalar(
+                select(Delivery).where(Delivery.message_id == first.json()["message_id"])
+            )
+            assert delivery_before is not None
+            state_before = (
+                delivery_before.delivery_status,
+                delivery_before.read_at,
+                delivery_before.acked_at,
+            )
+
+        headers = {"Authorization": f"Bearer {human['access_key']}"}
+        threads = client.get("/api/v1/orbit/threads", headers=headers)
+        detail = client.get(
+            f"/api/v1/orbit/threads/{first.json()['thread_id']}",
+            headers=headers,
+        )
+        search = client.get(
+            "/api/v1/orbit/threads",
+            params={"query": "authorized-reply-canary"},
+            headers=headers,
+        )
+        outsider_headers = {"Authorization": f"Bearer {outsider['access_key']}"}
+        hidden = client.get(
+            f"/api/v1/orbit/threads/{first.json()['thread_id']}",
+            headers=outsider_headers,
+        )
+        with database.session_factory() as session:
+            delivery_after = session.scalar(
+                select(Delivery).where(Delivery.message_id == first.json()["message_id"])
+            )
+            assert delivery_after is not None
+            state_after = (
+                delivery_after.delivery_status,
+                delivery_after.read_at,
+                delivery_after.acked_at,
+            )
+
+    assert threads.status_code == detail.status_code == search.status_code == 200
+    assert {item["topic"] for item in threads.json()} == {"供应链风险", "市场周报"}
+    first_summary = next(
+        item for item in threads.json() if item["thread_id"] == first.json()["thread_id"]
+    )
+    assert first_summary["message_count"] == 2
+    assert first_summary["human_activity_state"] == "unavailable"
+    assert {participant["display_name"] for participant in first_summary["participants"]} == {
+        "Alice",
+        "Bob",
+    }
+    assert [message["reply_to"] for message in detail.json()["messages"]] == [
+        None,
+        first.json()["message_id"],
+    ]
+    assert detail.json()["messages"][1]["content_body"] == "authorized-reply-canary"
+    assert len(search.json()) == 1
+    assert search.json()[0]["thread_id"] == first.json()["thread_id"]
+    assert hidden.status_code == 404
+    assert state_after == state_before
 
 
 def test_human_key_creates_revocable_short_lived_browser_session(

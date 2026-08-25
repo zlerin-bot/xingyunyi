@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -34,9 +35,13 @@ from agentpost.control.schemas import (
     OrbitAgent,
     OrbitDashboard,
     OrbitMessage,
+    OrbitMessageAgent,
+    OrbitMessageAttachment,
     OrbitMetrics,
     OrbitOrganizationReference,
     OrbitTask,
+    OrbitThreadDetail,
+    OrbitThreadSummary,
 )
 from agentpost.identity.models import Agent, utc_now
 from agentpost.messaging.models import AuditLog, Delivery, Message
@@ -59,6 +64,10 @@ class AgentAccessNotFoundError(Exception):
 
 
 class AgentOwnerActionDeniedError(Exception):
+    pass
+
+
+class OrbitThreadNotFoundError(Exception):
     pass
 
 
@@ -424,28 +433,31 @@ def _message_rows(
     session: Session,
     *,
     agent_ids: set[UUID],
-    limit: int,
+    limit: int | None,
+    thread_id: UUID | None = None,
 ) -> list[tuple[Message, Delivery, Agent, Agent]]:
     if not agent_ids:
         return []
     sender = aliased(Agent)
     recipient = aliased(Agent)
-    return list(
-        session.execute(
-            select(Message, Delivery, sender, recipient)
-            .join(Delivery, Delivery.message_id == Message.id)
-            .join(sender, sender.id == Message.sender_agent_id)
-            .join(recipient, recipient.id == Delivery.recipient_agent_id)
-            .where(
-                or_(
-                    Message.sender_agent_id.in_(agent_ids),
-                    Delivery.recipient_agent_id.in_(agent_ids),
-                )
+    statement = (
+        select(Message, Delivery, sender, recipient)
+        .join(Delivery, Delivery.message_id == Message.id)
+        .join(sender, sender.id == Message.sender_agent_id)
+        .join(recipient, recipient.id == Delivery.recipient_agent_id)
+        .where(
+            or_(
+                Message.sender_agent_id.in_(agent_ids),
+                Delivery.recipient_agent_id.in_(agent_ids),
             )
-            .order_by(desc(Message.created_at), desc(Message.id))
-            .limit(limit)
-        ).all()
+        )
+        .order_by(desc(Message.created_at), desc(Message.id))
     )
+    if thread_id is not None:
+        statement = statement.where(Message.thread_id == thread_id)
+    if limit is not None:
+        statement = statement.limit(limit)
+    return list(session.execute(statement).all())
 
 
 def _task_rows(
@@ -496,6 +508,36 @@ def _content_allowed(role_map: dict[UUID, str], sender_id: UUID, recipient_id: U
     return any(role != "auditor" for role in roles)
 
 
+def _connector_types_for_agents(session: Session, agent_ids: set[UUID]) -> dict[UUID, str]:
+    if not agent_ids:
+        return {}
+    from agentpost.onboarding.models import AgentConnectorBinding, ConnectorInstance
+
+    return dict(
+        session.execute(
+            select(AgentConnectorBinding.agent_id, ConnectorInstance.connector_type)
+            .join(
+                ConnectorInstance,
+                ConnectorInstance.id == AgentConnectorBinding.connector_instance_id,
+            )
+            .where(
+                AgentConnectorBinding.agent_id.in_(agent_ids),
+                ConnectorInstance.status == "active",
+            )
+        ).all()
+    )
+
+
+def _orbit_message_agent(agent: Agent, connector_types: dict[UUID, str]) -> OrbitMessageAgent:
+    return OrbitMessageAgent(
+        id=agent.id,
+        address=agent.address,
+        handle=agent.handle,
+        display_name=agent.display_name,
+        agent_type=connector_types.get(agent.id),
+    )
+
+
 def _as_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
@@ -520,6 +562,7 @@ def _orbit_message(
     *,
     role_map: dict[UUID, str],
     task_results: dict[str, Message],
+    connector_types: dict[UUID, str],
 ) -> OrbitMessage:
     message, delivery, sender, recipient = row
     content_allowed = _content_allowed(
@@ -527,8 +570,12 @@ def _orbit_message(
         message.sender_agent_id,
         delivery.recipient_agent_id,
     )
+    task_payload = message.task_payload or {}
+    result_payload = message.result_payload or {}
     return OrbitMessage(
         message_id=message.id,
+        sender=_orbit_message_agent(sender, connector_types),
+        recipient=_orbit_message_agent(recipient, connector_types),
         sender_address=sender.address,
         recipient_address=recipient.address,
         subject=message.subject,
@@ -539,6 +586,36 @@ def _orbit_message(
         content_redacted=not content_allowed,
         thread_id=message.thread_id,
         reply_to=message.reply_to_message_id,
+        requires_ack=message.requires_ack,
+        task_instruction=(
+            str(task_payload["instruction"])
+            if content_allowed and task_payload.get("instruction") is not None
+            else None
+        ),
+        task_expected_output=(
+            str(task_payload["expected_output"])
+            if content_allowed and task_payload.get("expected_output") is not None
+            else None
+        ),
+        task_deadline=task_payload.get("deadline") if content_allowed else None,
+        result_summary=(
+            str(result_payload["summary"])
+            if content_allowed and result_payload.get("summary") is not None
+            else None
+        ),
+        attachments=(
+            [
+                OrbitMessageAttachment(
+                    id=attachment.id,
+                    filename=attachment.filename,
+                    content_type=attachment.content_type,
+                    size=attachment.size,
+                )
+                for attachment in message.attachments
+            ]
+            if content_allowed
+            else []
+        ),
         communication_state=delivery.delivery_status,
         work_state=_work_state_for(message, task_results),
         created_at=message.created_at,
@@ -556,7 +633,217 @@ def list_orbit_messages(
     rows = _message_rows(session, agent_ids=set(role_map), limit=limit)
     task_ids = [row[0].id for row in rows if row[0].message_type == "task"]
     task_results = _results_for_tasks(session, task_ids)
-    return [_orbit_message(row, role_map=role_map, task_results=task_results) for row in rows]
+    connector_types = _connector_types_for_agents(session, set(role_map))
+    return [
+        _orbit_message(
+            row,
+            role_map=role_map,
+            task_results=task_results,
+            connector_types=connector_types,
+        )
+        for row in rows
+    ]
+
+
+def _thread_organizations(
+    entries_by_agent: dict[UUID, AccessEntry],
+    participant_ids: set[UUID],
+) -> list[OrbitOrganizationReference]:
+    organizations: dict[UUID, OrbitOrganizationReference] = {}
+    for agent_id in participant_ids:
+        entry = entries_by_agent.get(agent_id)
+        if entry is None or entry.organization is None:
+            continue
+        organizations[entry.organization.id] = OrbitOrganizationReference(
+            id=entry.organization.id,
+            slug=entry.organization.slug,
+            name=entry.organization.name,
+            membership_role=entry.organization_role,
+        )
+    return sorted(organizations.values(), key=lambda item: (item.name.casefold(), str(item.id)))
+
+
+def _thread_rows_match_query(
+    rows: list[tuple[Message, Delivery, Agent, Agent]],
+    *,
+    role_map: dict[UUID, str],
+    organizations: list[OrbitOrganizationReference],
+    query: str | None,
+) -> bool:
+    if query is None or not query.strip():
+        return True
+    needle = query.strip().casefold()
+    searchable: list[str] = [item.name for item in organizations]
+    for message, delivery, sender, recipient in rows:
+        searchable.extend(
+            [
+                message.subject,
+                sender.address,
+                sender.handle or "",
+                sender.display_name,
+                recipient.address,
+                recipient.handle or "",
+                recipient.display_name,
+            ]
+        )
+        if _content_allowed(role_map, message.sender_agent_id, delivery.recipient_agent_id):
+            searchable.append(json.dumps(message.content_body, ensure_ascii=False, default=str))
+            searchable.extend(attachment.filename for attachment in message.attachments)
+    return any(needle in value.casefold() for value in searchable)
+
+
+def _orbit_thread_data(
+    session: Session,
+    user: HumanUser,
+    *,
+    thread_id: UUID | None = None,
+) -> tuple[
+    list[AccessEntry],
+    dict[UUID, str],
+    dict[UUID, str],
+    dict[UUID, list[tuple[Message, Delivery, Agent, Agent]]],
+    dict[str, Message],
+]:
+    entries = list_agent_access(session, user)
+    role_map = {entry.agent.id: entry.role for entry in entries}
+    agent_ids = set(role_map)
+    rows = _message_rows(session, agent_ids=agent_ids, limit=None, thread_id=thread_id)
+    grouped: dict[UUID, list[tuple[Message, Delivery, Agent, Agent]]] = {}
+    for row in rows:
+        grouped.setdefault(row[0].thread_id, []).append(row)
+    for values in grouped.values():
+        values.sort(key=lambda row: (_as_utc(row[0].created_at), row[0].id))
+    task_results = _results_for_tasks(
+        session,
+        [row[0].id for row in rows if row[0].message_type == "task"],
+    )
+    return (
+        entries,
+        role_map,
+        _connector_types_for_agents(session, agent_ids),
+        grouped,
+        task_results,
+    )
+
+
+def list_orbit_threads(
+    session: Session,
+    user: HumanUser,
+    *,
+    limit: int,
+    query: str | None,
+) -> list[OrbitThreadSummary]:
+    entries, role_map, connector_types, grouped, task_results = _orbit_thread_data(
+        session,
+        user,
+    )
+    entries_by_agent = {entry.agent.id: entry for entry in entries}
+    summaries: list[OrbitThreadSummary] = []
+    for thread_id, rows in grouped.items():
+        participant_agents: dict[UUID, Agent] = {}
+        for _, _, sender, recipient in rows:
+            participant_agents[sender.id] = sender
+            participant_agents[recipient.id] = recipient
+        participant_ids = set(participant_agents)
+        organizations = _thread_organizations(entries_by_agent, participant_ids)
+        if not _thread_rows_match_query(
+            rows,
+            role_map=role_map,
+            organizations=organizations,
+            query=query,
+        ):
+            continue
+        first_message = rows[0][0]
+        latest_message, latest_delivery, _, _ = rows[-1]
+        latest_allowed = _content_allowed(
+            role_map,
+            latest_message.sender_agent_id,
+            latest_delivery.recipient_agent_id,
+        )
+        pending_tasks = sum(
+            message.message_type == "task" and message.id not in task_results
+            for message, _, _, _ in rows
+        )
+        exceptions = sum(
+            delivery.delivery_status in {"failed", "expired", "rejected"}
+            or message.message_type == "error"
+            or _work_state_for(message, task_results) == "failed"
+            for message, delivery, _, _ in rows
+        )
+        summaries.append(
+            OrbitThreadSummary(
+                thread_id=thread_id,
+                topic=first_message.subject or latest_message.subject or "无主题对话",
+                participants=[
+                    _orbit_message_agent(agent, connector_types)
+                    for agent in sorted(
+                        participant_agents.values(),
+                        key=lambda item: (item.display_name.casefold(), item.address),
+                    )
+                ],
+                organizations=organizations,
+                latest_message_id=latest_message.id,
+                latest_message_type=latest_message.message_type,
+                latest_message_summary=(latest_message.content_body if latest_allowed else None),
+                latest_content_redacted=not latest_allowed,
+                latest_activity_at=latest_message.created_at,
+                message_count=len(rows),
+                attachment_count=sum(len(message.attachments) for message, _, _, _ in rows),
+                pending_task_count=pending_tasks,
+                exception_count=exceptions,
+                agent_pending_read_count=sum(
+                    delivery.delivery_status == "delivered" and delivery.read_at is None
+                    for _, delivery, _, _ in rows
+                ),
+            )
+        )
+    summaries.sort(
+        key=lambda item: (_as_utc(item.latest_activity_at), item.latest_message_id),
+        reverse=True,
+    )
+    return summaries[:limit]
+
+
+def get_orbit_thread(
+    session: Session,
+    user: HumanUser,
+    *,
+    thread_id: UUID,
+) -> OrbitThreadDetail:
+    entries, role_map, connector_types, grouped, task_results = _orbit_thread_data(
+        session,
+        user,
+        thread_id=thread_id,
+    )
+    rows = grouped.get(thread_id)
+    if not rows:
+        raise OrbitThreadNotFoundError(str(thread_id))
+    participant_agents: dict[UUID, Agent] = {}
+    for _, _, sender, recipient in rows:
+        participant_agents[sender.id] = sender
+        participant_agents[recipient.id] = recipient
+    entries_by_agent = {entry.agent.id: entry for entry in entries}
+    return OrbitThreadDetail(
+        thread_id=thread_id,
+        topic=rows[0][0].subject or rows[-1][0].subject or "无主题对话",
+        participants=[
+            _orbit_message_agent(agent, connector_types)
+            for agent in sorted(
+                participant_agents.values(),
+                key=lambda item: (item.display_name.casefold(), item.address),
+            )
+        ],
+        organizations=_thread_organizations(entries_by_agent, set(participant_agents)),
+        messages=[
+            _orbit_message(
+                row,
+                role_map=role_map,
+                task_results=task_results,
+                connector_types=connector_types,
+            )
+            for row in rows
+        ],
+    )
 
 
 def list_orbit_tasks(
@@ -618,11 +905,13 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
     recent_rows = _message_rows(session, agent_ids=agent_ids, limit=12)
     recent_task_ids = [row[0].id for row in recent_rows if row[0].message_type == "task"]
     recent_task_results = _results_for_tasks(session, recent_task_ids)
+    connector_types = _connector_types_for_agents(session, agent_ids)
     recent_messages = [
         _orbit_message(
             row,
             role_map=role_map,
             task_results=recent_task_results,
+            connector_types=connector_types,
         )
         for row in recent_rows
     ]

@@ -189,6 +189,33 @@
               </button>
             </div>
           </nav>
+          <section id="thread-browser" class="thread-browser" hidden aria-label="对话列表">
+            <div class="thread-browser-heading">
+              <div>
+                <span>按 Thread 聚合</span>
+                <strong>协作对话</strong>
+              </div>
+              <span id="thread-count" class="count-pill">0 个</span>
+            </div>
+            <label class="thread-search" for="thread-search-input">
+              <span>搜索有权查看的对话</span>
+              <input id="thread-search-input" type="search" autocomplete="off" maxlength="200" placeholder="主题、Agent、正文或附件名">
+            </label>
+            <label class="thread-organization-filter" for="thread-organization-filter">
+              <span>组织范围</span>
+              <select id="thread-organization-filter">
+                <option value="">全部范围</option>
+              </select>
+            </label>
+            <div id="thread-filters" class="thread-filters" aria-label="对话筛选">
+              <button type="button" class="active" data-thread-filter="all" aria-pressed="true">全部</button>
+              <button type="button" data-thread-filter="new" aria-disabled="true" title="需要 Human 独立已查看状态">新动态 · 待接入</button>
+              <button type="button" data-thread-filter="action" aria-disabled="true" title="需要审批与 Thread 的真实关联">待我处理 · 待接入</button>
+              <button type="button" data-thread-filter="exception" aria-pressed="false">异常</button>
+            </div>
+            <p class="thread-capability-note">“新动态”不会复用 Agent 的 read 或 ACK；相关后端状态建立前保持不可用。</p>
+            <div id="thread-list" class="thread-list" aria-live="polite"></div>
+          </section>
         </aside>
 
         <div class="workspace-content" tabindex="-1">
@@ -305,21 +332,33 @@
           </section>
 
           <section id="communications" class="content-section module-view" data-module="orbit" data-section="communications" hidden>
-            <div class="section-heading">
-              <div>
-                <p class="section-tag">星轨 · 对话与动态</p>
-                <h2>对话与动态</h2>
+            <button id="thread-mobile-back" type="button" class="thread-mobile-back">‹ 返回对话列表</button>
+            <div id="thread-detail-empty" class="thread-detail-empty">
+              <span aria-hidden="true">✦</span>
+              <h2>选择一条协作对话</h2>
+              <p>同一组 Agent 的不同话题会保持为不同 Thread，不会错误合并。</p>
+            </div>
+            <div id="thread-detail" class="thread-detail" hidden>
+              <div class="thread-detail-heading">
+                <div>
+                  <p class="section-tag">星轨 · Thread 时间线</p>
+                  <h2 id="thread-detail-topic" tabindex="-1">—</h2>
+                  <div id="thread-detail-participants" class="thread-detail-participants"></div>
+                </div>
+                <div class="thread-detail-actions">
+                  <span class="trust-chip">来自 Agent · 安全展示</span>
+                  <button id="thread-latest" type="button" class="quiet-button">回到最新</button>
+                </div>
               </div>
-              <span class="trust-chip">来自 Agent · 安全展示</span>
+              <div class="truth-notice" role="note">
+                <strong>通信状态与 Human 查看状态相互独立</strong>
+                <span>打开本时间线不会替任何 Agent 执行 read 或 ACK，也不会产生“你已查看”的记录。</span>
+              </div>
+              <div id="message-list" class="message-list thread-timeline" aria-live="polite"></div>
+              <div class="thread-readonly-notice">
+                当前系统没有 Human 直接发消息的真实能力，因此不提供假输入框。审批操作继续作为独立的 Human 操作记录处理。
+              </div>
             </div>
-            <div class="trust-banner">
-              以下正文来自外部 Agent，只作为不可信数据展示，不会获得系统指令或工具权限。
-            </div>
-            <div class="truth-notice" role="note">
-              <strong>关于“新动态”</strong>
-              <span>当前尚未建立独立的本人查看记录，因此这里按真实通信时间展示，不会把 Agent 的读取状态当成你是否看过。</span>
-            </div>
-            <div id="message-list" class="message-list" aria-live="polite"></div>
           </section>
 
           <section id="profile" class="content-section module-view" data-module="settings" data-section="profile" hidden>

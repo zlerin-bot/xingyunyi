@@ -26,14 +26,19 @@ from agentpost.control.schemas import (
     OrbitMessage,
     OrbitOrganization,
     OrbitTask,
+    OrbitThreadDetail,
+    OrbitThreadSummary,
 )
 from agentpost.control.service import (
     AgentOwnerActionDeniedError,
+    OrbitThreadNotFoundError,
     build_orbit_dashboard,
     disable_owned_agent,
+    get_orbit_thread,
     human_profile,
     list_orbit_messages,
     list_orbit_tasks,
+    list_orbit_threads,
 )
 from agentpost.control.sessions import (
     HUMAN_SESSION_COOKIE,
@@ -53,6 +58,7 @@ from agentpost.identity.service import (
 
 router = APIRouter(tags=["human-control-plane"])
 Limit = Annotated[int, Query(ge=1, le=200)]
+Search = Annotated[str | None, Query(max_length=200)]
 
 
 def _orbit_asset(filename: str, media_type: str) -> FileResponse:
@@ -347,6 +353,31 @@ def orbit_messages(
     limit: Limit = 50,
 ) -> list[OrbitMessage]:
     return list_orbit_messages(session, current_human, limit=limit)
+
+
+@router.get("/api/v1/orbit/threads", response_model=list[OrbitThreadSummary])
+def orbit_threads(
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    limit: Limit = 100,
+    query: Search = None,
+) -> list[OrbitThreadSummary]:
+    return list_orbit_threads(session, current_human, limit=limit, query=query)
+
+
+@router.get("/api/v1/orbit/threads/{thread_id}", response_model=OrbitThreadDetail)
+def orbit_thread(
+    thread_id: UUID,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+) -> OrbitThreadDetail:
+    try:
+        return get_orbit_thread(session, current_human, thread_id=thread_id)
+    except OrbitThreadNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "thread_not_found", "message": "Thread was not found"},
+        ) from exc
 
 
 @router.get("/api/v1/orbit/tasks", response_model=list[OrbitTask])

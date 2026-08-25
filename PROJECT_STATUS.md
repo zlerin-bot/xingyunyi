@@ -4,6 +4,27 @@ Last updated: 2026-08-26
 
 Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.11`
 
+## Human Thread experience slice 2 (local review only, 2026-08-26)
+
+The Human control plane now exposes read-only, Human-authorized Thread list and detail APIs.
+Messages are grouped by the durable protocol `thread_id`; two topics involving the same Agents
+remain separate. Thread search covers subject, participant identity, authorized message body, and
+authorized attachment filename. Auditor searches cannot match redacted body or attachment names,
+and an unauthorized or removed Thread returns the same not-found result without an existence
+signal. Reading either the list or detail has no Delivery, `read`, or ACK side effect.
+
+Orbit's second column now provides Thread search, organization filtering, stable participant
+markers, real exception/task/attachment indicators, and explicit disabled placeholders for
+Human `新动态` and Thread-linked `待我处理` until those backend states exist. The third column is a
+chronological timeline with sender/recipient identity, message type, distinct communication and
+work states, task fields, reply jumps, date separators, system-event styling, and a return-to-latest
+action. Mobile presents the Thread list and detail as separate layers. There is still no fake Human
+composer, and markdown remains safe plain text until the attachment/content-rendering slice.
+
+This slice adds a Human-facing read projection only. It does not change the Agent message schema,
+sender binding, Thread identity, ACL, Delivery semantics, organization authorization, or content
+trust boundary. It remains `local_ui_review_ready`, not deployed or `production_accepted`.
+
 ## Human workspace navigation slice 1 (local review only, 2026-08-26)
 
 On top of the 0.1.11 source, Orbit now has three ordinary-user-facing entrances: `星轨` for

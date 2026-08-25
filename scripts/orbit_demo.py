@@ -203,6 +203,23 @@ def _seed(settings: Settings) -> None:
         )
         _require(
             client.post(
+                f"/api/v1/messages/{update['message_id']}/reply",
+                headers=_agent_headers(personal, "demo-research-update-reply"),
+                json={
+                    "type": "response",
+                    "subject": "研究资料核对回复",
+                    "content": {
+                        "format": "text",
+                        "body": "收到，请在摘要中保留来源日期和适用范围。",
+                    },
+                    "priority": "normal",
+                    "requires_ack": True,
+                },
+            ),
+            201,
+        )
+        _require(
+            client.post(
                 "/api/v1/approval-requests",
                 headers=_agent_headers(personal, "demo-approval"),
                 json={
