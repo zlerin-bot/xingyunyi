@@ -28,7 +28,7 @@ def test_server_package_metadata_import_does_not_require_sdk(tmp_path: Path) -> 
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert completed.stdout.strip() == "0.1.3"
+    assert completed.stdout.strip() == "0.1.4"
 
 
 def test_sdist_carries_the_forced_wheel_bootstrap_source() -> None:
