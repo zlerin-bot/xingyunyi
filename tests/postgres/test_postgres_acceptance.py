@@ -128,10 +128,12 @@ def test_alembic_upgrade_reaches_single_head_and_creates_expected_schema(
             )
         )
         table_names = set(inspect(connection).get_table_names())
+        agent_columns = {column["name"] for column in inspect(connection).get_columns("agents")}
 
     assert actual_revision == expected_head
     assert version_column_length is not None
     assert version_column_length >= len(expected_head)
+    assert "handle" in agent_columns
     assert {
         "access_rules",
         "agents",

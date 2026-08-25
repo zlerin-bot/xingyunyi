@@ -1,9 +1,37 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.0-local.1`
-- 核验日期：2026-08-24
+- 交接阶段：`recipient-resolution-local`
+- 核验日期：2026-08-25
 - 代码分支：`main`
-- 阶段性质：本地已验证的受控体验检查点，不是新的生产发布，也不是生产验收结论
+- 阶段性质：收件人解析与短名称已完成本地实现和页面实测；尚未部署，也不是生产验收结论
+
+## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+当前新增提交为 `1abbf56`、`213bc9e`、`10f4d14`：
+
+- Agent 新增可修改的全局唯一短名称 `handle`；不可变 UUID、完整地址以及 Inbox、Thread、
+  Message、Delivery、ACL、Connector 和历史归属不变。
+- 新增统一 `POST /api/v1/directory/resolve`；解析顺序为完整地址、handle、Agent 显示名、
+  Human 姓名与 Agent 类型/名称、关系范围内模糊匹配。禁止把输入机械拼成地址。
+- Human 姓名与模糊发现只在同一主人、共同组织、既有往来或明确 allow rule 内进行；不开放
+  全站 Human 枚举，返回继续标记 `external_agent_content`。
+- Python SDK、CLI、七项 MCP 工具、自然语言 Skill 和星轨均已接入 resolver。唯一匹配直接
+  继续发送；歧义返回一次友好候选；未找到不猜地址；旧完整地址仍兼容。
+- 星轨在 Pairing 和“我的 Agent”中均可设置短名称，Agent 卡片以短名称为主，底层地址折叠
+  展示。Human owner 才能修改。
+
+当前本地证据：351 passed、6 skipped；Ruff、JavaScript 语法和 diff 检查通过。6 个 skip 为
+一个 sandbox loopback 用例和五个需显式 PostgreSQL 环境的用例。真实本地浏览器已完成
+`kcode -> research-agent` 修改并看到页面刷新；集成测试验证改名不改变消息、Thread、ACL
+或 Connector。生产仍是 `0.1.2` / `b55d9c3` / 数据库 `0018_rate_limit_buckets`；本地新增
+迁移为 `0019_agent_handles`，尚未在生产执行。当前标签只能是
+`local_implementation_verified`，不能写成 deployed 或 `production_accepted`。
+
+下一步：准备 `0.1.3` 候选，先跑真实 PostgreSQL 迁移与验收；部署前做只读 preflight 和
+完整备份并取得明确授权；部署后再让新 Human/新电脑按张子良、`kcode`、同名 Human、多
+Codex、not-found、旧地址和改名连续性案例完成真实体验。
+
+下方第 1-11 节是 `v0.1.0-local.1` 的历史冻结记录；与本节冲突时以本节为准。
 
 ## 1. 一页结论
 

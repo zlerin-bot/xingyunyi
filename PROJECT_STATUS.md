@@ -4,6 +4,47 @@ Last updated: 2026-08-25
 
 Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.2`
 
+## Human/handle recipient resolution (local implementation, 2026-08-25)
+
+Commits `1abbf56`, `213bc9e`, and `10f4d14` implement the ordinary-user recipient naming layer
+without changing the immutable Agent identity. `Agent.id` and canonical `Agent.address` remain the
+Inbox, Thread, Delivery, ACL, Connector, and history keys. An optional globally unique `handle` is a
+separate mutable alias: 3-32 lowercase ASCII characters, beginning with a letter and containing
+letters, digits, or single internal hyphens. Reserved words are rejected; conflicts return short,
+deterministic alternatives instead of random identifiers.
+
+`POST /api/v1/directory/resolve` is now the single verified resolution path. It checks full address,
+exact handle, exact scoped Agent display name, scoped Human owner plus Agent type/name, and finally
+scoped fuzzy contact/organization matches. Full address and handle remain explicit identifiers;
+Human-name, display-name, and fuzzy discovery is restricted to the same owner, a shared active
+organization, previous correspondence, or an explicit inbound allow rule. The response is exactly
+`resolved`, `needs_clarification`, or `not_found`, retains `external_agent_content`, and never
+synthesizes `<input>@agentpost.me`. The existing delivery ACL remains authoritative after
+resolution.
+
+The Python SDK exposes `resolve_recipient`; the CLI uses it for `--recipient`; MCP now exposes seven
+tools including `agentpost_resolve_recipient`; and both installed Skill copies require resolver-first
+behavior and friendly one-question disambiguation. Existing `--to` and full-address HTTP sends remain
+compatible. 星轨 lets the Human owner set or change a handle during Pairing or from “我的 Agent”.
+Agent cards show the handle first, keep the display name visible, and place the immutable technical
+address behind “查看底层身份”.
+
+Local evidence: the full suite reports **351 passed and 6 explicit skips**. The skipped cases are one
+loopback sandbox demo and five opt-in PostgreSQL acceptance tests; therefore migration
+`0019_agent_handles` has not been executed against local PostgreSQL. Ruff, `git diff --check`, and
+JavaScript syntax pass. A real local browser session logged into 星轨, observed `kcode` as the primary
+card name, opened the short-name dialog, changed it to `research-agent`, observed the refreshed card
+and success status, and confirmed that the technical address remains available only on demand.
+Integration tests additionally prove that two handle changes preserve the same Agent ID/address,
+Message, Thread, Delivery, ACL, Connector binding, Connector instance, dashboard relationship, and
+audit trail.
+
+No Alibaba Cloud mutation, package publication, or production database migration was performed in
+this slice. Production remains release `0.1.2` at commit `b55d9c3` with database revision
+`0018_rate_limit_buckets`; the new resolver/handle code is local-only. No external tester has yet
+completed the Zhang Ziliang/`kcode` scenarios against production, so this is
+`local_implementation_verified`, not `deployed` and not `production_accepted`.
+
 ## Ordinary-user host selection and cold-start release (2026-08-25)
 
 Commit `8e7f105` is deployed at `https://agentpost.me` as release `0.1.2`. This release supersedes
@@ -786,12 +827,15 @@ have not yet been accepted.
 
 ## Immediate next action
 
-Assign a new immutable package version and public wheel path, rebuild and verify its checksum, then
-request explicit release authorization before publishing it or enabling `mac` in
-`AGENTPOST_CODEX_SETUP_PLATFORMS`. After release, restart Codex desktop, confirm the six tools
-persist, and complete an explicitly authorized send/inbox/read/ACK/reply/Directory flow without
-copying a key. The test must preserve write-tool approval prompts, `external_agent_content`,
-idempotency keys, and sanitized failures. A colleague should then create a separate Human account
-and Agent and complete the two-person offline flow in `docs/CONTROLLED_EXPERIENCE_TEST.md`.
-WorkBuddy/OpenClaw setup contracts, Windows, Remote MCP, and enterprise OIDC remain separate gates.
-Production hardening and later phases remain governed by `SECURITY.md` and `ROADMAP.md`.
+Prepare a new immutable release candidate (expected next package version `0.1.3`) and run the real
+PostgreSQL migration/acceptance suite for `0019_agent_handles`. Before any Alibaba Cloud mutation,
+perform the documented read-only preflight and database/attachment/configuration backups, then seek
+explicit deployment authorization. After a controlled cutover, verify public API/SDK/CLI/MCP/Skill
+and authenticated 星轨 behavior, including the seven-tool MCP list.
+
+Only after deployment should a separate Human/Agent fixture exercise the production cases: “给张子
+良的 Codex 发一段星云驿开发进度”, “给 kcode 发消息”, same-name Humans, multiple Codex Agents,
+not-found handle behavior, old full-address compatibility, and post-rename history/ACL/Connector
+continuity. Keep write-tool approval, `external_agent_content`, idempotency, and sanitized failures.
+WorkBuddy/OpenClaw execution, Windows/Linux, Remote MCP, and enterprise OIDC remain separate gates.
+Do not label local tests or deployment health as `production_accepted`.

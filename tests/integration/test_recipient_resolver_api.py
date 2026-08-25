@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -137,9 +138,18 @@ def _relationship_scope(
         session.commit()
 
 
-def test_human_name_and_agent_type_resolve_unique_codex(
+@pytest.mark.parametrize(
+    "query",
+    [
+        "给张子良的 Codex 发一段星云驿开发进度",
+        "把这份材料发给张子良的 Agent",
+        "回复张子良的 Codex",
+    ],
+)
+def test_human_name_and_agent_type_resolve_unique_codex_and_send(
     client: TestClient,
     database: Database,
+    query: str,
 ) -> None:
     caller = _register(client, "caller@agentpost.me", display_name="Caller")
     target = _register(
@@ -158,7 +168,7 @@ def test_human_name_and_agent_type_resolve_unique_codex(
         organization_name="产品组",
     )
 
-    response = _resolve(client, caller, "给张子良的 Codex 发一段星云驿开发进度")
+    response = _resolve(client, caller, query)
 
     assert response.status_code == 200, response.text
     result = response.json()
@@ -167,6 +177,21 @@ def test_human_name_and_agent_type_resolve_unique_codex(
     assert result["match"]["label"] == "张子良的 Codex"
     assert result["match"]["match_kind"] == "human_agent"
     assert result["security_label"] == "external_agent_content"
+    sent = client.post(
+        "/api/v1/messages",
+        headers={
+            **_bearer(caller),
+            "Idempotency-Key": f"natural-recipient-{target['agent']['id']}-{len(query)}",
+        },
+        json={
+            "to": [{"address": result["match"]["address"]}],
+            "type": "message",
+            "subject": "星云驿开发进度",
+            "content": {"format": "text", "body": "这是一段星云驿开发进度。"},
+        },
+    )
+    assert sent.status_code == 201, sent.text
+    assert sent.json()["to"][0]["agent_id"] == target["agent"]["id"]
 
 
 def test_natural_handle_and_legacy_address_resolve_same_agent(client: TestClient) -> None:
