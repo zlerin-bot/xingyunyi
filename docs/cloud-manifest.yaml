@@ -19,6 +19,22 @@ release:
   package_version: 0.1.9
   connector_wheel_sha256: 37f325fdfc6052be9abc08e2d4ae1c9d6e1fb57997722a27fb37275f1489a04b
 
+candidate_release:
+  git_commit: 3b46e45
+  package_version: 0.1.10
+  connector_wheel_sha256: 852d1bf4f1ca49abde9a2bd5e033332dc7842a0f7e5e1fa08bd1bc7e5ac00117
+  deployment_status: pending_explicit_production_authorization
+  schema_change: false
+  host_setup_platforms:
+    codex:
+      - mac
+    workbuddy:
+      - mac
+    openclaw:
+      - mac
+      - linux
+  local_evidence: openclaw_linux_0_1_10_local_verified
+
 topology:
   reverse_proxy: nginx
   application:
@@ -122,6 +138,10 @@ acceptance:
   orbit_connected_count_requires_first_heartbeat: passed
   workbuddy_host_config_before_first_heartbeat: passed_locally
   workbuddy_safe_machine_readable_setup_failure: passed_locally
+  openclaw_linux_release_gate: fixed_locally_0.1.10
+  openclaw_mcp_preflight_before_pairing: passed_locally
+  openclaw_secure_credential_failure_code: passed_locally
+  openclaw_linux_real_pairing_send_receive_restart: pending_deployment_and_human_acceptance
   workbuddy_020_current_connector: healthy_current
   workbuddy_020_message_to_mars: msg_3904d107573943528aea85861ffbaa09_delivered
   workbuddy_mars_connection: healthy_current

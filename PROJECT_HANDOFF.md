@@ -1,11 +1,33 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`orbit-empty-delete-response-deployed`
+- 交接阶段：`openclaw-linux-0.1.10-candidate`
 - 核验日期：2026-08-25
 - 代码分支：`main`
-- 阶段性质：Agent 删除空响应修复已部署为 0.1.9；真实删除仍待 Human 确认重试
+- 阶段性质：OpenClaw Linux 接入修复已完成本地 0.1.10 候选版；生产仍为 0.1.9
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+最新问题是 OpenClaw 在阿里云 Linux 服务器接入时被提示“只支持 Mac”。根因是接入脚本无论
+选择哪种 Agent 都读取 `codex_setup_platforms`，而生产的 Codex 策略确实只有 Mac。修复提交
+`55ae339` 将发布平台拆分为 Codex、WorkBuddy、OpenClaw 三类；`3b46e45` 形成 0.1.10 候选版。
+OpenClaw 允许 Mac/Linux，Codex 与 WorkBuddy 不被连带放宽；旧服务器仍兼容原字段。
+
+对用户另一台阿里云 OpenClaw 服务器的只读检查确认：Alibaba Cloud Linux 3 上的 OpenClaw
+`2026.4.27` Gateway 正在以普通用户的 user-systemd 服务运行，`mcp set`、`mcp probe` 命令均
+存在。真正剩余的主机前置条件是该无桌面 Linux 尚未注册可持久化的 Secret Service：D-Bus
+和 libsecret 已有，但 Gateway 用户没有加密凭据提供者。0.1.10 因此在网页配对前先做 MCP
+能力检查，并以结构化错误要求在同一次系统安装确认中补齐安全钥匙库；继续禁止明文密钥
+回退。诊断没有修改 OpenClaw 服务、配置、密钥或版本。
+
+0.1.10 wheel SHA-256 为
+`852d1bf4f1ca49abde9a2bd5e033332dc7842a0f7e5e1fa08bd1bc7e5ac00117`。本地证据：371 个
+Python passed、1 个明确 sandbox skip、5 个 PostgreSQL deselected；另有 MCP 9、TypeScript
+Connector 4、OpenClaw plugin 4、Orbit JavaScript 2 passed，Ruff/format、隔离 wheel 与内容
+检查通过。生产仍是 0.1.9 / `c1c3a78`；下一步是经明确生产授权后做可回滚部署，再在真实
+OpenClaw Linux 上完成配对、收发和重启后恢复验证。当前标签是
+`openclaw_linux_0_1_10_local_verified`，不是 `production_accepted`。
+
+以下删除空响应内容保留为当前生产版本记录。
 
 最新问题是星轨删除 Agent 时显示
 `Failed to execute 'json' on 'Response': Unexpected end of JSON input`。服务端实际上已经成功

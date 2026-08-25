@@ -513,6 +513,28 @@ automatic renewal, `/health`, `/ready`, `/orbit`, and the complete offline
 send/restart/read/ACK/reply/thread scenario all passed. AgentPost and PostgreSQL
 remain loopback-only behind Nginx.
 
+## OpenClaw Linux 0.1.10 candidate (2026-08-25)
+
+Read-only inspection confirmed that the separate Alibaba Cloud OpenClaw workload runs on Alibaba
+Cloud Linux 3 under the Gateway user's `systemd --user` service. OpenClaw `2026.4.27` exposes both
+`mcp set` and `mcp probe`; Linux host support is therefore available. The former “Mac only” error
+was caused by AgentPost applying `codex_setup_platforms` to every host.
+
+Candidate `3b46e45` / package 0.1.10 publishes host-specific setup platforms and permits OpenClaw
+on Mac and Linux. It preflights OpenClaw MCP capability before creating a pairing and surfaces
+missing secure credential storage as a stable configuration error. The inspected headless Linux
+host currently has D-Bus and libsecret but no active Secret Service provider for the Gateway user,
+so a persistent encrypted credential backend must be added as part of the user's single grouped
+installation approval. Plaintext credential fallback remains prohibited.
+
+The candidate wheel SHA-256 is
+`852d1bf4f1ca49abde9a2bd5e033332dc7842a0f7e5e1fa08bd1bc7e5ac00117`. There is no schema change.
+Production remains 0.1.9 at `/opt/agentpost/releases/c1c3a78`; its current verified backup and
+rollback procedure remain unchanged. No 0.1.10 cloud mutation has been made. Deployment requires
+an explicit production authorization, followed by a fresh pre-cutover backup, immutable release,
+atomic application cutover, protected-service verification, public contract/wheel verification,
+and a real OpenClaw Linux pair/send/receive/restart acceptance run.
+
 ## Remaining production work
 
 - automated encrypted PostgreSQL and attachment backups with restore drills

@@ -2,7 +2,40 @@
 
 Last updated: 2026-08-25
 
-Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.9`
+Frozen handoff stage: `v0.1.0-local.1`; current source candidate: `0.1.10`; pinned
+production release: `0.1.9`
+
+## OpenClaw Linux/cloud-host onboarding (0.1.10 candidate, 2026-08-25)
+
+The “only Mac is supported” result was an AgentPost release-gate defect, not an OpenClaw Linux
+limitation. The setup bootstrap always evaluated `codex_setup_platforms`, even when the selected
+host was OpenClaw. Production currently publishes Codex as Mac-only, so an OpenClaw process on
+Linux was rejected before host configuration could begin.
+
+Commits `55ae339` and `3b46e45` separate setup platforms by host. The authenticated release
+contract now returns `host_setup_platforms`; OpenClaw is configured for `mac,linux`, while Codex
+and WorkBuddy retain their existing policy. Old servers that do not yet publish the new mapping
+remain compatible through the previous Codex-platform field. OpenClaw Linux is preflighted for
+both `openclaw mcp set` and `openclaw mcp probe` before pairing is created. Missing host support
+and missing encrypted credential storage return stable, machine-readable errors. The setup guide
+requires the OpenClaw Gateway OS user and a persistent OS encrypted credential backend and
+continues to reject plaintext token, config, or keyring fallbacks.
+
+Read-only inspection of the user's separate Alibaba Cloud OpenClaw server confirmed Alibaba Cloud
+Linux 3, OpenClaw `2026.4.27`, a running user-systemd Gateway, and working `mcp set --help` and
+`mcp probe --help`. D-Bus and libsecret are present, but no Secret Service provider is registered
+for the Gateway user. Therefore the OpenClaw host is Linux-capable but still requires one grouped
+installation/configuration approval for a persistent secure vault before AgentPost can store its
+long-lived credential. No OpenClaw process, configuration, secret, or server package was changed
+during this read-only diagnosis.
+
+The 0.1.10 wheel is `dist/agentpost-0.1.10-py3-none-any.whl`, SHA-256
+`852d1bf4f1ca49abde9a2bd5e033332dc7842a0f7e5e1fa08bd1bc7e5ac00117`. Local evidence is **371
+passed, 1 explicit loopback sandbox skip, and 5 PostgreSQL tests deselected**, plus **9 MCP**, **4
+TypeScript Connector**, **4 OpenClaw plugin**, and **2 Orbit JavaScript** tests. Ruff/format,
+isolated wheel installation, packaged bootstrap contents, and diff checks pass. Production is
+still 0.1.9; deployment, cloud verification, and a real OpenClaw Linux pairing/send/receive remain
+pending and must not be labeled `production_accepted`.
 
 ## Orbit Agent deletion empty-response fix (deployed, 2026-08-25)
 
