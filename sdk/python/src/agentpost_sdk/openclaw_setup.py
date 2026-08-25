@@ -14,6 +14,17 @@ from typing import Protocol
 from agentpost_sdk.errors import ConfigurationError
 
 MCP_SERVER_NAME = "agentpost"
+EXPECTED_MCP_TOOLS = frozenset(
+    {
+        "agentpost_ack",
+        "agentpost_list_inbox",
+        "agentpost_read_message",
+        "agentpost_reply",
+        "agentpost_resolve_recipient",
+        "agentpost_search_directory",
+        "agentpost_send_message",
+    }
+)
 
 
 class CommandResult(Protocol):
@@ -30,6 +41,54 @@ class OpenClawSetupResult:
     approval_mode: str
     config_path: Path
     restart_required: bool = False
+
+
+def _config_path() -> Path:
+    explicit_config = os.environ.get("OPENCLAW_CONFIG_PATH", "").strip()
+    if explicit_config:
+        return Path(explicit_config).expanduser()
+    explicit_state = os.environ.get("OPENCLAW_STATE_DIR", "").strip()
+    if explicit_state:
+        return Path(explicit_state).expanduser() / "openclaw.json"
+    explicit_home = os.environ.get("OPENCLAW_HOME", "").strip()
+    home = Path(explicit_home).expanduser() if explicit_home else Path.home()
+    return home / ".openclaw" / "openclaw.json"
+
+
+def _run_openclaw(
+    runner: CommandRunner,
+    command: list[str],
+) -> CommandResult:
+    try:
+        return runner(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ConfigurationError("OpenClaw MCP registration could not be started") from exc
+
+
+def _verify_probe(payload_text: str) -> None:
+    try:
+        payload = json.loads(payload_text)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ConfigurationError("OpenClaw MCP verification returned malformed output") from exc
+    if not isinstance(payload, dict):
+        raise ConfigurationError("OpenClaw MCP verification returned malformed output")
+    raw_tools = payload.get("tools")
+    diagnostics = payload.get("diagnostics")
+    if not isinstance(raw_tools, list) or not isinstance(diagnostics, list):
+        raise ConfigurationError("OpenClaw MCP verification returned malformed output")
+    discovered = {
+        name.rsplit("__", 1)[-1]
+        for name in raw_tools
+        if isinstance(name, str) and name.rsplit("__", 1)[-1].startswith("agentpost_")
+    }
+    if diagnostics or not EXPECTED_MCP_TOOLS.issubset(discovered):
+        raise ConfigurationError("OpenClaw could not load the AgentPost MCP tools")
 
 
 def configure_openclaw_mcp(
@@ -70,25 +129,20 @@ def configure_openclaw_mcp(
         MCP_SERVER_NAME,
         json.dumps(definition, ensure_ascii=False, separators=(",", ":")),
     ]
-    try:
-        completed = runner(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise ConfigurationError("OpenClaw MCP registration could not be started") from exc
+    completed = _run_openclaw(runner, command)
     if completed.returncode != 0:
         raise ConfigurationError("OpenClaw MCP registration failed")
 
-    config_home = os.environ.get("OPENCLAW_HOME", "").strip()
-    config_path = (
-        Path(config_home).expanduser() if config_home else Path.home() / ".openclaw"
-    ) / "openclaw.json"
+    probe = _run_openclaw(
+        runner,
+        [resolved_openclaw, "mcp", "probe", MCP_SERVER_NAME, "--json"],
+    )
+    if probe.returncode != 0:
+        raise ConfigurationError("OpenClaw could not load the AgentPost MCP tools")
+    _verify_probe(probe.stdout)
+
     return OpenClawSetupResult(
         server_name=MCP_SERVER_NAME,
         approval_mode="host",
-        config_path=config_path,
+        config_path=_config_path(),
     )

@@ -7,6 +7,16 @@
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
+OpenClaw 检测补充：生产 `AP-OPENCLAW-V1` 接入页与 0.1.3 下载元数据在线。隔离安装的官方
+OpenClaw `2026.7.1-2` 在 Node 24.19.0 上通过真实 `mcp set/show/doctor`，并由真实
+`mcp probe` 启动生产 0.1.3 `agentpost-mcp`、发现含 resolver 在内的七项工具。检测同时发现
+OpenClaw 在 MCP 启动失败时仍可能返回退出码 0；本地源码现改为解析 probe JSON，只有七项
+工具齐全且 diagnostics 为空才返回 configured，并修正 OpenClaw 三个官方路径环境变量的
+优先级。全量本地结果为 356 passed、1 skip、5 PostgreSQL deselected，加独立 MCP 10
+passed；该增强尚未发布到生产 wheel，也未完成真实 Human 授权/收发/重启验收。可选原生
+OpenClaw HTTP plugin 在当前官方 CLI 的 build/validate 阶段仍遇到宿主 loader 错误，不能
+与已通过的普通用户 MCP 接入路径混为一谈。
+
 Ianw 实测补充：线上 `ianw` handle、`Ianw` Human 归属和 Codex Connector 数据均正确；失败
 来自发送端仍运行六工具版 AgentPost 0.1.1 和旧 0.1.2 插件。当前测试机已自动升级为 0.1.3
 七工具版，个人插件已刷新为 `0.1.3+codex.20260825045435`。两个原始自然语言表述均通过

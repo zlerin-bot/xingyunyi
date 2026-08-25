@@ -4,6 +4,32 @@ Last updated: 2026-08-25
 
 Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.3`
 
+## OpenClaw real-CLI compatibility gate (local, 2026-08-25)
+
+The ordinary-user OpenClaw path uses the shared stdio MCP adapter, not the older optional native
+HTTP plugin. Production serves `AP-OPENCLAW-V1 https://agentpost.me/connect/openclaw` and pins the
+0.1.3 wheel. A temporary, isolated install of the official OpenClaw `2026.7.1-2` package ran on Node
+24.19.0 and confirmed that `openclaw mcp set`, `show`, `doctor`, and `probe` use
+`mcp.servers` in `~/.openclaw/openclaw.json`. The real OpenClaw probe launched the production 0.1.3
+`agentpost-mcp` binary and discovered all seven AgentPost tools, including
+`agentpost_resolve_recipient`. The protocol-only probe used an explicitly fake temporary credential;
+no real long-lived key was printed or written outside `/private/tmp`.
+
+The check exposed an acceptance defect: OpenClaw can return exit code zero from `mcp probe` while
+reporting a failed server in its JSON diagnostics. The source adapter now performs `mcp set` and a
+live JSON `mcp probe`, requires the complete seven-tool set with no diagnostics, and only then
+returns `status=configured`. It also reports the correct config path precedence for
+`OPENCLAW_CONFIG_PATH`, `OPENCLAW_STATE_DIR`, and `OPENCLAW_HOME`. The local regression is **356
+passed, 1 sandbox skip, 5 PostgreSQL tests deselected**, plus **10 MCP tests**; the focused OpenClaw
+selection is 43 passed, and Ruff/format/diff checks pass.
+
+This strengthened setup gate is local source only and is not in the pinned production 0.1.3 wheel.
+No Human has yet completed the real OpenClaw paste-code, browser authorization, OS-vault profile,
+natural-language send/receive, and restart-persistence flow. The optional native OpenClaw tool
+plugin also remains a separate unaccepted path: its current `plugins build/validate` run against
+OpenClaw `2026.7.1-2` stopped in the OpenClaw plugin loader before validation. Current evidence is
+`openclaw_mcp_host_compatibility_locally_verified`, not `production_accepted`.
+
 ## Ianw controlled-test correction (2026-08-25)
 
 The first real `ianw` recipient test failed in Codex even though production stored the active Agent
