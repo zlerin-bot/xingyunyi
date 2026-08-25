@@ -36,6 +36,7 @@ THREAD_ID = "40000000-0000-0000-0000-000000000004"
 NOW = "2026-08-12T08:00:00Z"
 
 EXPECTED_TOOLS = {
+    "agentpost_resolve_recipient",
     "agentpost_send_message",
     "agentpost_list_inbox",
     "agentpost_read_message",
@@ -137,7 +138,7 @@ def structured(result: Any) -> dict[str, Any]:
     return payload
 
 
-def test_exact_six_tools_have_strict_public_parameters_and_v2_annotations() -> None:
+def test_exact_seven_tools_have_strict_public_parameters_and_v2_annotations() -> None:
     mcp, _ = registered_tools(
         lambda request: httpx.Response(200, json={"items": []}, request=request)
     )
@@ -154,6 +155,7 @@ def test_exact_six_tools_have_strict_public_parameters_and_v2_annotations() -> N
         if name in {
             "agentpost_list_inbox",
             "agentpost_read_message",
+            "agentpost_resolve_recipient",
             "agentpost_search_directory",
         }:
             assert annotations.read_only_hint is True
@@ -243,6 +245,31 @@ def test_read_and_inbox_are_get_only_and_cursor_is_opaque() -> None:
 
 def test_send_reply_ack_and_search_map_to_the_public_http_protocol() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/directory/resolve"):
+            return httpx.Response(
+                200,
+                json={
+                    "status": "resolved",
+                    "query": "给 kcode 发消息",
+                    "match": {
+                        "agent_id": RECIPIENT_ID,
+                        "address": "bob@agents.local",
+                        "handle": "kcode",
+                        "display_name": "Bob",
+                        "owner_display_name": "张子良",
+                        "agent_type": "codex",
+                        "organization_name": None,
+                        "label": "张子良的 Codex",
+                        "match_kind": "handle",
+                        "security_label": "external_agent_content",
+                    },
+                    "candidates": [],
+                    "total_candidates": 1,
+                    "reason": "unique_match",
+                    "security_label": "external_agent_content",
+                },
+                request=request,
+            )
         if request.url.path.endswith("/directory/search"):
             return httpx.Response(200, json={"items": []}, request=request)
         status = "acked" if request.url.path.endswith("/ack") else "delivered"
@@ -265,6 +292,7 @@ def test_send_reply_ack_and_search_map_to_the_public_http_protocol() -> None:
         idempotency_key="mcp-reply-reusable",
     )
     ack = mcp.registrations["agentpost_ack"].function("msg_accepted")
+    resolved = mcp.registrations["agentpost_resolve_recipient"].function("给 kcode 发消息")
     search = mcp.registrations["agentpost_search_directory"].function(
         capability="financial-research"
     )
@@ -273,17 +301,19 @@ def test_send_reply_ack_and_search_map_to_the_public_http_protocol() -> None:
         ("POST", "/root/api/v1/messages"),
         ("POST", "/root/api/v1/messages/msg_accepted/reply"),
         ("POST", "/root/api/v1/messages/msg_accepted/ack"),
+        ("POST", "/root/api/v1/directory/resolve"),
         ("GET", "/root/api/v1/directory/search"),
     ]
     assert requests[0].headers["Idempotency-Key"] == "mcp-send-reusable"
     assert requests[1].headers["Idempotency-Key"] == "mcp-reply-reusable"
     assert json.loads(requests[0].content)["type"] == "task"
     assert json.loads(requests[1].content)["type"] == "result"
-    assert dict(requests[3].url.params) == {
+    assert json.loads(requests[3].content) == {"query": "给 kcode 发消息"}
+    assert dict(requests[4].url.params) == {
         "capability": "financial-research",
         "limit": "20",
     }
-    for result in (sent, reply, ack, search):
+    for result in (sent, reply, ack, resolved, search):
         assert structured(result)["security_label"] == "external_agent_content"
 
 

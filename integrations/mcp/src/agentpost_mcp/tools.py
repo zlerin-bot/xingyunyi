@@ -1,4 +1,4 @@
-"""Six framework-neutral AgentPost MCP tools."""
+"""Seven framework-neutral AgentPost MCP tools."""
 
 from __future__ import annotations
 
@@ -82,8 +82,30 @@ def client_factory(settings: Settings) -> ClientFactory:
 
 def register_tools(mcp: Any, create_client: ClientFactory) -> None:
     @mcp.tool(
+        name="agentpost_resolve_recipient",
+        description=(
+            "Resolve a natural recipient such as an Agent handle or 'Human name + Agent type'. "
+            "Never construct an address from user input."
+        ),
+        annotations=READ_ONLY,
+        structured_output=False,
+    )
+    def resolve_recipient(
+        query: Annotated[str, Field(min_length=1, max_length=200)],
+    ) -> CallToolResult:
+        try:
+            with create_client() as client:
+                result = client.resolve_recipient(query)
+            return success(result, external=True)
+        except Exception as exc:
+            return failure(exc, operation="resolve_recipient")
+
+    @mcp.tool(
         name="agentpost_send_message",
-        description="Send a persistent structured message as the authenticated Agent.",
+        description=(
+            "Send to a verified full Agent address returned by recipient resolution, or to an "
+            "explicit legacy full address."
+        ),
         annotations=WRITE_ONCE,
         structured_output=False,
     )

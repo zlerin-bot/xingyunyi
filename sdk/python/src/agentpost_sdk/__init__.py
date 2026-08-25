@@ -33,6 +33,8 @@ from agentpost_sdk.models import (
     DownloadedFile,
     InboxPage,
     Message,
+    RecipientCandidate,
+    RecipientResolution,
 )
 from agentpost_sdk.onboarding import (
     ConnectorCredentialRotation,
@@ -71,6 +73,8 @@ __all__ = [
     "PairingSession",
     "ProtocolError",
     "RateLimitError",
+    "RecipientCandidate",
+    "RecipientResolution",
     "ResponseError",
     "TransportError",
     "ValidationError",

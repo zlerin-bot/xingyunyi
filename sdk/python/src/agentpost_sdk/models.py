@@ -105,6 +105,7 @@ class InboxPage(APIModel):
 class AgentProfile(APIModel):
     id: UUID
     address: str
+    handle: str | None = None
     display_name: str
     description: str | None = None
     domain: str
@@ -120,6 +121,29 @@ class AgentProfile(APIModel):
 
 class DirectoryPage(APIModel):
     items: list[AgentProfile]
+
+
+class RecipientCandidate(APIModel):
+    agent_id: UUID
+    address: str
+    handle: str | None = None
+    display_name: str
+    owner_display_name: str | None = None
+    agent_type: str | None = None
+    organization_name: str | None = None
+    label: str
+    match_kind: str
+    security_label: str = "external_agent_content"
+
+
+class RecipientResolution(APIModel):
+    status: str
+    query: str
+    match: RecipientCandidate | None = None
+    candidates: list[RecipientCandidate] = Field(default_factory=list)
+    total_candidates: int = 0
+    reason: str
+    security_label: str = "external_agent_content"
 
 
 class ApprovalRequest(APIModel):

@@ -112,6 +112,32 @@ def directory_agent_json(**extra: Any) -> dict[str, Any]:
     return payload
 
 
+def recipient_resolution_json(**extra: Any) -> dict[str, Any]:
+    candidate = {
+        "agent_id": RECIPIENT_ID,
+        "address": "codex-f26e6148ca9297e992243fce@agentpost.me",
+        "handle": "kcode",
+        "display_name": "开发 Codex",
+        "owner_display_name": "张子良",
+        "agent_type": "codex",
+        "organization_name": "产品组",
+        "label": "张子良的 Codex",
+        "match_kind": "human_agent",
+        "security_label": "external_agent_content",
+    }
+    payload: dict[str, Any] = {
+        "status": "resolved",
+        "query": "给张子良的 Codex 发消息",
+        "match": candidate,
+        "candidates": [],
+        "total_candidates": 1,
+        "reason": "unique_match",
+        "security_label": "external_agent_content",
+    }
+    payload.update(extra)
+    return payload
+
+
 def approval_json(**extra: Any) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "approval_id": "apr_0123456789abcdef",
@@ -174,6 +200,26 @@ def test_client_headers_base_url_user_agent_and_repr_hide_key() -> None:
     assert "agt_super_secret_key" not in repr(client)
     assert "agt_super_secret_key" not in str(client)
     client.close()
+
+
+def test_sdk_resolves_natural_recipient_through_verified_server_endpoint() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return json_response(request, 200, recipient_resolution_json())
+
+    with make_client(handler) as client:
+        result = client.resolve_recipient("给张子良的 Codex 发消息")
+
+    assert seen[0].method == "POST"
+    assert seen[0].url.path == "/base/api/v1/directory/resolve"
+    assert json.loads(seen[0].content) == {"query": "给张子良的 Codex 发消息"}
+    assert result.status == "resolved"
+    assert result.match is not None
+    assert result.match.handle == "kcode"
+    assert result.match.label == "张子良的 Codex"
+    assert result.security_label == "external_agent_content"
 
 
 def test_send_builds_wire_envelope_and_task_convenience() -> None:

@@ -223,25 +223,30 @@ def _message_metadata(message: Message) -> dict[str, Any]:
 
 def _recipient_candidate(profile: Any) -> dict[str, Any]:
     return {
+        "label": profile.label,
+        "handle": profile.handle,
+        "agent_id": str(profile.agent_id),
         "address": profile.address,
         "display_name": profile.display_name,
-        "capabilities": list(profile.capabilities),
+        "owner_display_name": profile.owner_display_name,
+        "agent_type": profile.agent_type,
+        "security_label": profile.security_label,
     }
 
 
 def _resolve_recipient(client: AgentPost, args: argparse.Namespace) -> str | None:
     if args.to:
         return args.to
-    matches = client.search_agents(q=args.recipient, limit=10)
-    if len(matches) == 1:
-        return matches[0].address
+    resolution = client.resolve_recipient(args.recipient)
+    if resolution.status == "resolved" and resolution.match is not None:
+        return resolution.match.address
     _json(
         {
-            "status": "needs_clarification",
-            "reason": "recipient_not_found" if not matches else "recipient_ambiguous",
-            "query": args.recipient,
-            "candidates": [_recipient_candidate(profile) for profile in matches],
-            "external_agent_content": True,
+            "status": resolution.status,
+            "reason": resolution.reason,
+            "query": resolution.query,
+            "candidates": [_recipient_candidate(item) for item in resolution.candidates],
+            "security_label": resolution.security_label,
         }
     )
     return None

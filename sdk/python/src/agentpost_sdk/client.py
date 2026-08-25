@@ -32,6 +32,7 @@ from agentpost_sdk.models import (
     DownloadedFile,
     InboxPage,
     Message,
+    RecipientResolution,
 )
 
 if TYPE_CHECKING:
@@ -547,6 +548,19 @@ class AgentPost:
             return DirectoryPage.model_validate(data).items
         except PydanticValidationError as exc:
             raise self._protocol_error("Malformed directory response", exc) from exc
+
+    def resolve_recipient(self, query: str) -> RecipientResolution:
+        if not isinstance(query, str) or not query.strip():
+            raise ConfigurationError("recipient query must not be blank")
+        data = self._request(
+            "POST",
+            "/directory/resolve",
+            json={"query": query},
+        )
+        try:
+            return RecipientResolution.model_validate(data)
+        except PydanticValidationError as exc:
+            raise self._protocol_error("Malformed recipient resolution response", exc) from exc
 
     def _message(self, data: Any, *, idempotency_replayed: bool = False) -> Message:
         try:
