@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-25
 
-Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.2`
+Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.3`
 
-## Human/handle recipient resolution (local implementation, 2026-08-25)
+## Human/handle recipient resolution (deployed, 2026-08-25)
 
 Commits `1abbf56`, `213bc9e`, and `10f4d14` implement the ordinary-user recipient naming layer
 without changing the immutable Agent identity. `Agent.id` and canonical `Agent.address` remain the
@@ -29,21 +29,28 @@ compatible. 星轨 lets the Human owner set or change a handle during Pairing or
 Agent cards show the handle first, keep the display name visible, and place the immutable technical
 address behind “查看底层身份”.
 
-Local evidence: the full suite reports **351 passed and 6 explicit skips**. The skipped cases are one
-loopback sandbox demo and five opt-in PostgreSQL acceptance tests; therefore migration
-`0019_agent_handles` has not been executed against local PostgreSQL. Ruff, `git diff --check`, and
-JavaScript syntax pass. A real local browser session logged into 星轨, observed `kcode` as the primary
-card name, opened the short-name dialog, changed it to `research-agent`, observed the refreshed card
-and success status, and confirmed that the technical address remains available only on demand.
-Integration tests additionally prove that two handle changes preserve the same Agent ID/address,
-Message, Thread, Delivery, ACL, Connector binding, Connector instance, dashboard relationship, and
-audit trail.
+Local evidence: the fast suite reports **352 passed, 1 explicit skip, and 5 PostgreSQL tests
+deselected**; the independent package-local MCP suite reports **10 passed**. Ruff,
+`git diff --check`, TypeScript Connector tests, and browser JavaScript syntax pass. Integration tests
+prove that two handle changes preserve the same Agent ID/address, Message, Thread, Delivery, ACL,
+Connector binding, Connector instance, dashboard relationship, and audit trail.
 
-No Alibaba Cloud mutation, package publication, or production database migration was performed in
-this slice. Production remains release `0.1.2` at commit `b55d9c3` with database revision
-`0018_rate_limit_buckets`; the new resolver/handle code is local-only. No external tester has yet
-completed the Zhang Ziliang/`kcode` scenarios against production, so this is
-`local_implementation_verified`, not `deployed` and not `production_accepted`.
+Release `6ada188` is deployed at `/opt/agentpost/releases/6ada188` with package `0.1.3`, runtime
+`/opt/agentpost/venvs/6ada188`, and production migration `0019_agent_handles`. An isolated real
+PostgreSQL database ran the five opt-in acceptance tests successfully before cutover. The public
+wheel SHA-256 is `c157dbfd7dbdfd1697c9c85651455beec30e7679062aa9e9b91cea1fd0956757`; a clean
+Python 3.12 environment installed that exact download and reported server, SDK, and MCP version
+0.1.3. Production Agent, Message, Delivery, and Attachment counts remained unchanged across the
+migration. The authenticated 星轨 page preserved the existing Agent and messages, exposed the
+friendly short-name editor and hid the immutable address behind the technical-identity disclosure.
+
+The verified pre-cutover backup and immediate rollback script are under
+`/opt/agentpost/backups/20260825-1210-5a5b509-pre-013/`. A fresh Alibaba Cloud snapshot could not be
+created because the account had reached its snapshot quota; no older snapshot was deleted, and the
+existing provider snapshots remain available. No external tester has yet completed the Zhang
+Ziliang/`kcode`, same-name Human, multiple-Codex, not-found, legacy-address, and rename-continuity
+cases against production. The current label is `recipient_resolution_deployed_https_verified`, not
+`production_accepted`.
 
 ## Ordinary-user host selection and cold-start release (2026-08-25)
 

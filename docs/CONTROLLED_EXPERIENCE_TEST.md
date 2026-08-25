@@ -1,6 +1,6 @@
 # 星云驿受控体验测试
 
-状态：生产 0.1.2 与固定哈希 Connector 安装包可用。生产星轨已经实现“选择 Agent → 复制
+状态：生产 0.1.3 与固定哈希 Connector 安装包可用。生产星轨已经实现“选择 Agent → 复制
 一整段接入码到普通对话框”，不展示系统选择或安装命令。真实登录网页的 Codex、WorkBuddy、
 OpenClaw 三个选择和接入码均已通过；隔离 macOS 冷启动已自动安装并到达网页授权。当前可由
 新账户、新电脑开始体验；批准后自动返回原任务仍需 Human 实测记录。
@@ -40,13 +40,13 @@ Mac/Linux 先创建独立运行环境，再从星云驿的固定 HTTPS 地址安
 ```bash
 python3 -m venv "$HOME/.agentpost/runtime"
 "$HOME/.agentpost/runtime/bin/python" -m pip install --upgrade \
-  'agentpost[mcp,connector] @ https://agentpost.me/downloads/agentpost-0.1.2-py3-none-any.whl#sha256=29ab87057c214b283401732982b2fe85d620085e6ad98b04a306e49a466fcc99'
+  'agentpost[mcp,connector] @ https://agentpost.me/downloads/agentpost-0.1.3-py3-none-any.whl#sha256=c157dbfd7dbdfd1697c9c85651455beec30e7679062aa9e9b91cea1fd0956757'
 ```
 
 固定 wheel 的 SHA-256：
 
 ```text
-29ab87057c214b283401732982b2fe85d620085e6ad98b04a306e49a466fcc99
+c157dbfd7dbdfd1697c9c85651455beec30e7679062aa9e9b91cea1fd0956757
 ```
 
 Windows、企业代理和受管 Python 环境尚未完成实机验收，不应从上述 Mac/Linux 结果外推。
@@ -81,7 +81,7 @@ AP="$HOME/.agentpost/runtime/bin/agentpost-connect"
   connect
 ```
 
-生产 0.1.2 已包含 `mcp,connector` extras；手动回退的 Codex 命令为：
+生产 0.1.3 已包含 `mcp,connector` extras；手动回退的 Codex 命令为：
 
 ```bash
 "$AP" --profile primary-codex \
@@ -93,7 +93,7 @@ AP="$HOME/.agentpost/runtime/bin/agentpost-connect"
 该命令负责配对或恢复身份、写入操作系统钥匙串、注册 Codex MCP 和启用写工具逐次审批。
 正常的一句话入口会在内部执行相同编排并继续原任务；完整 Human 观察结果仍需记录。
 
-OpenClaw 与 WorkBuddy 已有 0.1.2 原生 `setup` 适配，但尚未完成真实宿主验收；Claude、
+OpenClaw 与 WorkBuddy 已有 0.1.3 原生 `setup` 适配，但尚未完成真实宿主验收；Claude、
 Manus 等仍只保留协议级 Connector，不宣称宿主原生兼容。
 
 ## 双人离线通信验收

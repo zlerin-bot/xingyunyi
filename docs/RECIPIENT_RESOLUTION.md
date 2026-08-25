@@ -1,5 +1,11 @@
 # Recipient resolution and Agent handles
 
+Deployment status (2026-08-25): release `6ada188`, package `0.1.3`, and migration
+`0019_agent_handles` are live at `https://agentpost.me`. API/SDK/CLI/MCP/Skill and authenticated
+星轨 surfaces have deployment evidence. The real Zhang Ziliang/`kcode`, ambiguity, not-found,
+legacy-address, and rename-continuity cases remain controlled Human acceptance work; this is not
+`production_accepted`.
+
 This document defines the user-facing naming layer above the immutable Agent identity.
 An Agent's UUID and canonical `address` remain the durable routing identity. Changing a
 display name or handle never creates a new Agent and never changes Inbox, Thread, ACL,

@@ -1,6 +1,6 @@
 # Alibaba Cloud deployment runbook
 
-Status: current release deployed and HTTPS-verified on 2026-08-24 at
+Status: current release deployed and HTTPS-verified on 2026-08-25 at
 `https://agentpost.me`; this remains operational deployment evidence rather than
 full production acceptance.
 
@@ -15,10 +15,10 @@ full production acceptance.
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `8e7f105` at
-`/opt/agentpost/releases/8e7f105`, with its independent Python environment at
-`/opt/agentpost/venvs/8e7f105`. The database is at Alembic revision
-`0018_rate_limit_buckets`.
+The active application release is Git commit `6ada188` at
+`/opt/agentpost/releases/6ada188`, with its independent Python environment at
+`/opt/agentpost/venvs/6ada188`. The database is at Alembic revision
+`0019_agent_handles`.
 
 The environment file is root-readable only. Do not copy it into Git, command
 output, tickets, or chat. API keys remain one-time registration results and must
@@ -251,6 +251,47 @@ isolated local runtime with no AgentPost and no Codex config fetched the public 
 replacing the current sole production Connector. Tester-owned approval/return evidence and real
 WorkBuddy/OpenClaw/Windows/Linux host evidence remain separate acceptance gates.
 
+## Recipient-resolution release 0.1.3 (2026-08-25)
+
+Release `6ada188` is deployed at `/opt/agentpost/releases/6ada188`; systemd runs Alembic and
+Uvicorn through `/opt/agentpost/venvs/6ada188`. The production schema is
+`0019_agent_handles`. The public immutable package is:
+
+`https://agentpost.me/downloads/agentpost-0.1.3-py3-none-any.whl`
+
+Its SHA-256 is `c157dbfd7dbdfd1697c9c85651455beec30e7679062aa9e9b91cea1fd0956757`.
+The 0.1.2 wheel remains on the exact-path allowlist as the application rollback artifact; unknown
+download paths still return 404.
+
+Before mutation, the running release, service topology, loopback bindings, disk capacity, root-only
+environment permissions, current wheel hash, and migration head were checked read-only. The
+pre-cutover backup is `/opt/agentpost/backups/20260825-1210-5a5b509-pre-013/`; it contains a
+PostgreSQL custom dump, attachment archive, protected environment, systemd unit, Nginx site, 0.1.2
+wheel, pointer evidence, checksums, and `rollback-immediate-0.1.3.sh`. `pg_restore --list`, archive
+listing, and every stored checksum passed. Counts before and after migration remained 16 Agents,
+18 Messages, 18 Deliveries, and 0 Attachments.
+
+A new provider snapshot named `agentpost-pre-0.1.3-20260825` was attempted but Alibaba Cloud
+returned `SnapshotLimitExceed`. No existing snapshot was deleted to make room. The prior
+`agentpost-pre-https-20260824`, `agentpost-pre-8f3bfd0-20260819`, and
+`agentpost-baseline-20260813` snapshots remain available, but none is a point-in-time snapshot of
+the 0.1.3 pre-cutover state; use the verified application/database backup for immediate rollback.
+
+Before cutover, all five opt-in tests passed against a disposable real PostgreSQL database: complete
+Alembic upgrade/downgrade, handle migration, concurrency/rate limits, Pairing and restart durability,
+offline messaging, and the 100-Agent/idempotency case. After cutover, AgentPost, Nginx, and
+PostgreSQL remained active; local and public health/readiness returned 0.1.3; the service journal
+had zero errors from the cutover timestamp; HTTP redirected to HTTPS; and both the new and rollback
+wheels matched their pinned hashes. A clean Python 3.12 environment installed the public 0.1.3
+wheel and reported server, SDK, and MCP version 0.1.3.
+
+An authenticated Chrome session confirmed that 星轨 preserved the existing Agent and messages,
+showed the friendly short-name guidance and editor, and kept the immutable address behind “查看底层
+身份”. No handle or message was changed during this production UI check. The real Zhang Ziliang/
+`kcode`, same-name Human, multiple-Codex, not-found, legacy-address, and rename-continuity sends
+remain tester-owned acceptance cases. This release is
+`recipient_resolution_deployed_https_verified`, not `production_accepted`.
+
 ## Rollback
 
 The provider snapshot `agentpost-pre-https-20260824`
@@ -273,12 +314,12 @@ attachment archive. The pre-update systemd unit is stored at
 `/etc/systemd/system/agentpost.service.pre-8f3bfd0`.
 
 The current rollback backup is
-`/opt/agentpost/backups/20260824-172210-9f27d36/`. To roll back 0.1.1, restore its
-environment, Nginx site, and systemd unit; point `/opt/agentpost/current` to
-`/opt/agentpost/releases/dda639e`; reload systemd and Nginx; restart only AgentPost;
-then verify `/health`, `/ready`, `/orbit`, and the protected services. The backup
-also contains a PostgreSQL custom dump and attachment archive, although release
-0.1.1 did not add a migration and the database remains at revision 0018.
+`/opt/agentpost/backups/20260825-1210-5a5b509-pre-013/`. For an immediate 0.1.3 rollback before
+new handles have been written, review and run `rollback-immediate-0.1.3.sh` with its required
+`CONFIRM_IMMEDIATE_ROLLBACK=YES` guard. It stops only AgentPost, downgrades migration 0019 to 0018,
+restores the protected environment, service unit, Nginx site and 0.1.2 release, then validates
+readiness. If any 0.1.3 handles or subsequent data must be preserved, do not use the immediate
+downgrade blindly: capture a new dump and plan a data-preserving rollback or restore first.
 
 For an application-only incident:
 
