@@ -172,7 +172,10 @@ def _pairing_notice(instructions: PairingInstructions) -> None:
     print("authorization_required")
     print(f"user_code={instructions.user_code}")
     print(f"verification_url={instructions.verification_uri_complete}")
-    print("Complete approval in 星轨. This code is short-lived; no API key will be printed.")
+    print(
+        "Complete approval in 星轨. This code is short-lived; no API key will be printed.",
+        flush=True,
+    )
 
 
 def _profile(args: argparse.Namespace) -> str:

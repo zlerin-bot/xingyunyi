@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -78,6 +79,27 @@ def test_pairing_notice_contains_only_short_lived_human_instructions(capsys) -> 
     assert instructions.verification_uri_complete in output
     assert "agt_" not in output
     assert "dvc_" not in output
+
+
+def test_pairing_notice_flushes_for_non_interactive_agent_hosts(monkeypatch) -> None:
+    calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+    def recording_print(*args, **kwargs) -> None:
+        calls.append((args, kwargs))
+
+    monkeypatch.setattr(builtins, "print", recording_print)
+    instructions = PairingInstructions(
+        pairing_id="pair_test",
+        user_code="ABCD-EFGH",
+        verification_uri="https://agentpost.me/orbit/connect",
+        verification_uri_complete="https://agentpost.me/orbit/connect?code=ABCD-EFGH",
+        expires_at=datetime.now(UTC) + timedelta(minutes=15),
+        interval=5,
+    )
+
+    cli._pairing_notice(instructions)
+
+    assert calls[-1][1] == {"flush": True}
 
 
 def test_connect_and_rotate_never_print_credentials(monkeypatch, capsys) -> None:
