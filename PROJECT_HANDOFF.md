@@ -36,13 +36,18 @@ Nginx、0.1.4 wheel、校验和与受确认保护的一键回滚脚本。第一�
 随后发现 0.1.4 的 SDK/MCP 仍声明 0.1.3，因此没有覆盖不可变 0.1.4，而是增加包边界回归并
 发布 0.1.5。
 
-下一步不是继续部署，而是完成真实用户门槛：当前 `mars` Codex 的旧单 Agent 配置需在已打开
-的 0.1.5 星轨授权页重新确认，目标是原 Agent `91d935c3-1410-4c85-8b56-0b42f4df2da1`，不得
-新建或猜测身份。确认后，用统一 resolver 分别解析并通知 `020`、`ianw`；若 `020` 名下
-Codex/WorkBuddy 构成真实歧义，只询问一次。再由 `020` 验证 Codex 与 WorkBuddy 同时在线，
-由 `mars` 验证逐卡片断开/重连、改简称和历史保留。当前标签是
-`multi_agent_connection_deployed_https_verified`，不能写成 `production_accepted`，也不能在
-取得消息 ID 与 delivery status 前宣称通知已发送。
+`mars` Codex 的第一次重连确认因短期 Pairing 已过期而返回 HTTP 409；后台结果明确为
+`PAIRING_EXPIRED`，不是 Agent 冲突或数据丢失。重新发起的 Pairing 继续指向原 Agent
+`91d935c3-1410-4c85-8b56-0b42f4df2da1`，一次 Human 网页确认后恢复同一个
+`magent@agentpost.me`、历史和 scoped OS-vault profile，没有新建身份。原任务随后自动恢复：
+统一 resolver 分别把“用户020的 Agent”和“用户ianw的 Agent”解析为唯一真实收件人，两条
+零附件通知均为 `delivered`，消息 ID 分别为
+`msg_b6a4a837574c4b4aadf52d2f068118b8`、
+`msg_1cc63d9025774d159b2df15b0a1f7724`。
+
+下一步由 `020` 验证 Codex 与 WorkBuddy 同时在线，由 `mars` 验证逐卡片断开/重连、改简称和
+历史保留。当前标签是 `multi_agent_connection_deployed_https_verified`，不能写成
+`production_accepted`；`delivered` 也不能表述为对方已读或已接受发布。
 
 ---
 

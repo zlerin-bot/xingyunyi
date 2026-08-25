@@ -1,7 +1,7 @@
 schema_version: "1"
 project: xingyunyi-agentpost
 evidence_status: multi_agent_connection_deployed_https_verified
-verified_at: "2026-08-25T17:05:00+08:00"
+verified_at: "2026-08-25T17:14:00+08:00"
 
 provider:
   name: aliyun
@@ -108,6 +108,11 @@ acceptance:
   production_migration_0020_pairing_agent_intent: passed
   orbit_multi_agent_controls: passed
   orbit_multi_agent_real_user_experience: pending
+  existing_agent_reconnect_same_identity: passed
+  expired_pairing_retry: passed_without_new_agent
+  requested_recipient_resolution_sends: 2_delivered
+  requested_recipient_message_020: msg_b6a4a837574c4b4aadf52d2f068118b8
+  requested_recipient_message_ianw: msg_1cc63d9025774d159b2df15b0a1f7724
   post_cutover_journal_errors: 0
   recipient_real_user_cases: pending
   codex_setup_platform_mac: passed

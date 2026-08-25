@@ -337,6 +337,16 @@ had no cutover errors. This evidence is `multi_agent_connection_deployed_https_v
 `production_accepted`. The external `020` Codex-plus-WorkBuddy simultaneous-connection flow and the
 `mars` per-card lifecycle flow remain real-user acceptance gates.
 
+The post-deployment sender reconnect also exercised the expired-Pairing boundary. Its first Human
+confirmation arrived after the short-lived Pairing had reached `PAIRING_EXPIRED`, so the server
+returned HTTP 409 instead of performing an invalid transition. A fresh Pairing targeted the same
+existing Agent ID and completed one webpage authorization; it restored the same canonical address,
+history, and scoped OS-vault profile without creating a new Agent. The deferred original task then
+resumed automatically. Resolver-first natural-name sends to “用户020的 Agent” and “用户ianw的
+Agent” both resolved uniquely and returned `delivery_status=delivered`, zero attachments, and
+message IDs `msg_b6a4a837574c4b4aadf52d2f068118b8` and
+`msg_1cc63d9025774d159b2df15b0a1f7724`. Delivery is not read receipt or release acceptance.
+
 ## Rollback
 
 The provider snapshot `agentpost-pre-https-20260824`

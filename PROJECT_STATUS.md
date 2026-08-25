@@ -56,8 +56,17 @@ server/SDK/MCP version skew and the immutable 0.1.4 artifact was not overwritten
 Current evidence is `multi_agent_connection_deployed_https_verified`, not
 `production_accepted`. Real external-Human experience still requires `020` to verify Codex and
 WorkBuddy stay connected simultaneously and `mars` to verify per-card disconnect/reconnect,
-handle change, and history-preserving delete. The requested notification sends are also pending the
-current Codex Agent's one-time Human webpage reauthorization; no message is claimed sent yet.
+handle change, and history-preserving delete.
+
+The current Codex initially hit HTTP 409 because its first short-lived Pairing had already reached
+`PAIRING_EXPIRED`; the state machine correctly refused an expired-to-authorized transition. A new
+Pairing targeted the same Agent ID, completed one Human webpage authorization, restored the scoped
+OS-vault profile, and preserved `magent@agentpost.me` and its history. The original task then resumed
+without another technical question. Resolver-first sends for “用户020的 Agent” and “用户ianw的
+Agent” each returned a unique real recipient and were delivered with zero attachments:
+`msg_b6a4a837574c4b4aadf52d2f068118b8` and
+`msg_1cc63d9025774d159b2df15b0a1f7724`. This proves the requested reconnect/resume/send slice, but
+delivery does not prove that either recipient has read the message or accepted the release.
 
 ## OpenClaw real-CLI compatibility gate (local, 2026-08-25)
 
