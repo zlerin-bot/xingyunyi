@@ -361,8 +361,15 @@ def orbit_threads(
     session: SessionDep,
     limit: Limit = 100,
     query: Search = None,
+    agent_id: UUID | None = None,
 ) -> list[OrbitThreadSummary]:
-    return list_orbit_threads(session, current_human, limit=limit, query=query)
+    return list_orbit_threads(
+        session,
+        current_human,
+        limit=limit,
+        query=query,
+        agent_id=agent_id,
+    )
 
 
 @router.get("/api/v1/orbit/threads/{thread_id}", response_model=OrbitThreadDetail)

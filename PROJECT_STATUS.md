@@ -4,6 +4,38 @@ Last updated: 2026-08-26
 
 Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.11`
 
+## Agent management experience slice 3 (local review only, 2026-08-26)
+
+Orbit's `云驿` entrance now has an ordinary-user-facing Agent browser and detail workspace. Agents
+are grouped into `我的 Agent` and their real organization scopes, searchable by authorized
+identity/type/capability data, and shown once per durable Agent rather than once per Connector.
+The overview separates all, connected, awaiting-Agent, offline, and connection-error totals. Those
+states are projected from the current binding, Connector status, explicit health/error evidence,
+and a five-minute heartbeat window; Human approval without a first heartbeat remains
+`等待 Agent`, never connected.
+
+Agent detail provides overview, current connection, capabilities, permissions/relationships,
+collapsed connection history, related Threads, and permission-gated dangerous actions. Current
+and historical Connectors are never rendered as multiple Agents. Direct links retain `agent` and
+`agentTab`; Thread-to-Agent navigation records a return Thread, and related Threads return to
+`星轨`. On mobile, Agent list and detail are separate layers with a keyboard-focusable visible
+return action. Owner-only controls remain backed by existing server authorization; organization
+derived read access does not become ownership. Deletion remains the existing history-preserving
+soft delete.
+
+The local demo contains three durable Agents with real local records representing connected,
+awaiting-first-heartbeat, and no-current-connection states. Browser checks covered desktop and
+mobile layout, search/list/detail navigation, reload/deep links, current-versus-history separation,
+related-Thread jumps, read-only organization access, focus, overflow, and empty console logs.
+Local evidence is **379 passed, 1 explicit loopback sandbox skip, and 5 PostgreSQL tests
+deselected**, plus **10 MCP**, **14 Orbit JavaScript**, **4 TypeScript Connector**, and **4
+OpenClaw plugin** tests. Ruff/format, browser JavaScript syntax, and diff checks pass.
+
+This slice adds Human read projections and UI organization only. It does not change Agent IDs,
+message or attachment protocols, ACLs, sender binding, organization ownership rules, soft-delete
+semantics, credentials, or deployment structure. It remains `local_ui_review_ready`, not deployed
+or `production_accepted`.
+
 ## Human Thread experience slice 2 (local review only, 2026-08-26)
 
 The Human control plane now exposes read-only, Human-authorized Thread list and detail APIs.

@@ -732,12 +732,15 @@ def list_orbit_threads(
     *,
     limit: int,
     query: str | None,
+    agent_id: UUID | None = None,
 ) -> list[OrbitThreadSummary]:
     entries, role_map, connector_types, grouped, task_results = _orbit_thread_data(
         session,
         user,
     )
     entries_by_agent = {entry.agent.id: entry for entry in entries}
+    if agent_id is not None and agent_id not in entries_by_agent:
+        return []
     summaries: list[OrbitThreadSummary] = []
     for thread_id, rows in grouped.items():
         participant_agents: dict[UUID, Agent] = {}
@@ -745,6 +748,8 @@ def list_orbit_threads(
             participant_agents[sender.id] = sender
             participant_agents[recipient.id] = recipient
         participant_ids = set(participant_agents)
+        if agent_id is not None and agent_id not in participant_ids:
+            continue
         organizations = _thread_organizations(entries_by_agent, participant_ids)
         if not _thread_rows_match_query(
             rows,
@@ -889,12 +894,48 @@ def list_orbit_tasks(
     return tasks
 
 
+def _current_connectors_by_agent(session: Session, agent_ids: set[UUID]) -> dict[UUID, object]:
+    if not agent_ids:
+        return {}
+    from agentpost.onboarding.models import AgentConnectorBinding, ConnectorInstance
+
+    return {
+        agent_id: connector
+        for agent_id, connector in session.execute(
+            select(AgentConnectorBinding.agent_id, ConnectorInstance)
+            .join(
+                ConnectorInstance,
+                ConnectorInstance.id == AgentConnectorBinding.connector_instance_id,
+            )
+            .where(AgentConnectorBinding.agent_id.in_(agent_ids))
+        ).all()
+    }
+
+
+def _agent_connection_state(connector: object | None, now: datetime) -> str:
+    if connector is None:
+        return "disconnected"
+    if getattr(connector, "status", None) != "active":
+        return "connection_error"
+    if getattr(connector, "health_status", None) == "error" or getattr(
+        connector,
+        "last_error_code",
+        None,
+    ):
+        return "connection_error"
+    heartbeat = _as_utc(getattr(connector, "last_heartbeat_at", None))
+    if heartbeat is None:
+        return "awaiting_agent"
+    if now - heartbeat > timedelta(minutes=5):
+        return "offline"
+    return "connected"
+
+
 def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
     from agentpost.control.approval_service import (
         list_human_approval_requests,
         pending_human_approval_count,
     )
-    from agentpost.onboarding.models import AgentConnectorBinding, ConnectorInstance
 
     entries = [
         entry for entry in list_agent_access(session, user) if entry.agent.status != "disabled"
@@ -942,57 +983,55 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
     )
 
     now = datetime.now(UTC)
-    agents = [
-        OrbitAgent(
-            id=entry.agent.id,
-            address=entry.agent.address,
-            handle=entry.agent.handle,
-            display_name=entry.agent.display_name,
-            description=entry.agent.description,
-            status=entry.agent.status,
-            role=entry.role,
-            access_source=entry.source,
-            organization=(
-                OrbitOrganizationReference(
-                    id=entry.organization.id,
-                    slug=entry.organization.slug,
-                    name=entry.organization.name,
-                    membership_role=entry.organization_role,
-                )
-                if entry.organization is not None
-                else None
-            ),
-            capabilities=list(entry.agent.capabilities),
-            last_seen_at=entry.agent.last_seen_at,
-            unread_count=unread_by_agent.get(entry.agent.id, 0),
-            pending_task_count=pending_by_agent.get(entry.agent.id, 0),
+    current_connectors = _current_connectors_by_agent(session, agent_ids)
+    agents: list[OrbitAgent] = []
+    for entry in entries:
+        connector = current_connectors.get(entry.agent.id)
+        agents.append(
+            OrbitAgent(
+                id=entry.agent.id,
+                address=entry.agent.address,
+                handle=entry.agent.handle,
+                display_name=entry.agent.display_name,
+                description=entry.agent.description,
+                status=entry.agent.status,
+                role=entry.role,
+                access_source=entry.source,
+                organization=(
+                    OrbitOrganizationReference(
+                        id=entry.organization.id,
+                        slug=entry.organization.slug,
+                        name=entry.organization.name,
+                        membership_role=entry.organization_role,
+                    )
+                    if entry.organization is not None
+                    else None
+                ),
+                capabilities=list(entry.agent.capabilities),
+                last_seen_at=entry.agent.last_seen_at,
+                connection_state=_agent_connection_state(connector, now),
+                current_connector_type=getattr(connector, "connector_type", None),
+                current_connector_name=getattr(connector, "display_name", None),
+                current_connector_device=getattr(connector, "device_name", None),
+                current_connector_version=getattr(connector, "client_version", None),
+                current_connector_health=getattr(connector, "health_status", None),
+                current_connector_last_heartbeat_at=getattr(
+                    connector,
+                    "last_heartbeat_at",
+                    None,
+                ),
+                current_connector_error_code=getattr(connector, "last_error_code", None),
+                unread_count=unread_by_agent.get(entry.agent.id, 0),
+                pending_task_count=pending_by_agent.get(entry.agent.id, 0),
+            )
         )
-        for entry in entries
-    ]
     online_recently = sum(
         1
         for entry in entries
         if (seen := _as_utc(entry.agent.last_seen_at)) is not None
         and now - seen <= timedelta(minutes=5)
     )
-    connected_agent_count = 0
-    if agent_ids:
-        connected_agent_count = int(
-            session.scalar(
-                select(func.count())
-                .select_from(AgentConnectorBinding)
-                .join(
-                    ConnectorInstance,
-                    ConnectorInstance.id == AgentConnectorBinding.connector_instance_id,
-                )
-                .where(
-                    AgentConnectorBinding.agent_id.in_(agent_ids),
-                    ConnectorInstance.status == "active",
-                    ConnectorInstance.last_heartbeat_at.is_not(None),
-                )
-            )
-            or 0
-        )
+    connected_agent_count = sum(agent.connection_state == "connected" for agent in agents)
     return OrbitDashboard(
         user=human_profile(user),
         metrics=OrbitMetrics(

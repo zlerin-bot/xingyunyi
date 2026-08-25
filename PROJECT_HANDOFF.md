@@ -4,7 +4,7 @@
 - 核验日期：2026-08-26
 - 代码分支：`main`
 - 阶段性质：OpenClaw headless Linux 会话密钥库已部署为 0.1.11；真实配对与收发待 Human 重试
-- 本地开发状态：0.1.11 源码上的 Human 三入口与 Thread 体验切片二已形成可审阅演示，未部署、未发布
+- 本地开发状态：0.1.11 源码上的 Human 三入口、Thread 体验切片二和 Agent 管理切片三已形成可审阅演示，未部署、未发布
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
@@ -20,6 +20,18 @@ orbit-demo` 只在 loopback 启动隔离的临时 SQLite 演示数据，未触�
 统一返回 not found。时间线区分通信状态、工作状态、任务结果与回复关系，移动端使用列表/详情
 分层。页面打开和搜索均不会写 Delivery、read 或 ACK；Human 新动态状态和审批与 Thread 的真实
 关联仍明确标记待接入。该切片没有改变消息协议、ACL、发送者绑定或组织权限。
+
+切片三把云驿重构为 Agent 列表/总览/详情：按我的 Agent 与组织范围分组，基于 current binding、
+Connector 健康证据和五分钟心跳窗口严格区分正常连接、等待 Agent、未连接、离线和连接异常。
+Agent 详情把当前连接、能力、权限关系、历史连接、相关 Thread 和危险操作分开；current 与历史
+Connector 不会被误显示成多个 Agent。`agent` / `agentTab` 深链接、星轨往返和移动端列表/详情
+分层已在本地浏览器验证。组织派生访问不会变成 Agent 所有权，管理按钮仍以既有服务端权限为准，
+删除仍为保留身份、对话和审计的软删除。
+
+切片三本地证据：379 passed、1 个明确 loopback sandbox skip、5 个 PostgreSQL deselected；另有
+MCP 10、Orbit JavaScript 14、TypeScript Connector 4、OpenClaw plugin 4 passed。Ruff/format、
+JavaScript 语法、桌面/移动端浏览器交互和 diff 检查通过。未部署、未发布，协议、权限和安全边界
+未改变；后续仍是切片四设置/组织角色体验和切片五安全内容与附件预览。
 
 以下 0.1.11 生产记录保持不变。
 

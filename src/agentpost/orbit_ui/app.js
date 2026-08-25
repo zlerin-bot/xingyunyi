@@ -33,6 +33,11 @@ const state = {
   threadQuery: "",
   threadOrganization: "",
   threadSearchTimer: null,
+  selectedAgentId: "",
+  selectedAgent: null,
+  agentTab: "summary",
+  agentQuery: "",
+  agentRelatedThreads: [],
   activeModule: "orbit",
   activeSection: "overview",
   lastSectionByModule: {
@@ -90,6 +95,41 @@ const elements = {
   threadDetailTopic: document.querySelector("#thread-detail-topic"),
   threadDetailParticipants: document.querySelector("#thread-detail-participants"),
   threadLatest: document.querySelector("#thread-latest"),
+  agentBrowser: document.querySelector("#agent-browser"),
+  agentBrowserCount: document.querySelector("#agent-browser-count"),
+  agentSearchInput: document.querySelector("#agent-search-input"),
+  agentBrowserNew: document.querySelector("#agent-browser-new"),
+  agentBrowserList: document.querySelector("#agent-browser-list"),
+  agentMobileBack: document.querySelector("#agent-mobile-back"),
+  agentOverview: document.querySelector("#agent-overview"),
+  agentOverviewNew: document.querySelector("#agent-overview-new"),
+  agentStatAll: document.querySelector("#agent-stat-all"),
+  agentStatConnected: document.querySelector("#agent-stat-connected"),
+  agentStatAwaiting: document.querySelector("#agent-stat-awaiting"),
+  agentStatOffline: document.querySelector("#agent-stat-offline"),
+  agentStatError: document.querySelector("#agent-stat-error"),
+  agentOverviewGroups: document.querySelector("#agent-overview-groups"),
+  agentDetail: document.querySelector("#agent-detail"),
+  agentDetailMissing: document.querySelector("#agent-detail-missing"),
+  agentDetailAvatar: document.querySelector("#agent-detail-avatar"),
+  agentDetailName: document.querySelector("#agent-detail-name"),
+  agentDetailSubtitle: document.querySelector("#agent-detail-subtitle"),
+  agentDetailStatus: document.querySelector("#agent-detail-status"),
+  agentReturnThread: document.querySelector("#agent-return-thread"),
+  agentDetailTabs: Array.from(document.querySelectorAll("[data-agent-tab]")),
+  agentDetailPanels: Array.from(document.querySelectorAll("[data-agent-panel]")),
+  agentDetailSummary: document.querySelector("#agent-detail-summary"),
+  agentCurrentConnection: document.querySelector("#agent-current-connection"),
+  agentDetailCapabilities: document.querySelector("#agent-detail-capabilities"),
+  agentDetailAccess: document.querySelector("#agent-detail-access"),
+  agentConnectionHistory: document.querySelector("#agent-connection-history"),
+  agentRelatedThreads: document.querySelector("#agent-related-threads"),
+  agentOwnerActions: document.querySelector("#agent-owner-actions"),
+  agentReadonlyActions: document.querySelector("#agent-readonly-actions"),
+  agentReconnect: document.querySelector("#agent-reconnect"),
+  agentRename: document.querySelector("#agent-rename"),
+  agentDisconnect: document.querySelector("#agent-disconnect"),
+  agentDelete: document.querySelector("#agent-delete"),
   overviewCopy: document.querySelector("#overview-copy"),
   metricAgents: document.querySelector("#metric-agents"),
   metricUnread: document.querySelector("#metric-unread"),
@@ -99,8 +139,6 @@ const elements = {
   organizationCount: document.querySelector("#organization-count"),
   organizationList: document.querySelector("#organization-list"),
   openOrganizationCreate: document.querySelector("#open-organization-create"),
-  agentCount: document.querySelector("#agent-count"),
-  agentList: document.querySelector("#agent-list"),
   taskList: document.querySelector("#task-list"),
   approvalList: document.querySelector("#approval-list"),
   messageList: document.querySelector("#message-list"),
@@ -340,6 +378,24 @@ function applyThreadRouteParameters(parameters) {
   });
 }
 
+function applyAgentRouteParameters(parameters) {
+  const allowedTabs = new Set([
+    "summary",
+    "connection",
+    "capabilities",
+    "access",
+    "history",
+    "threads",
+    "danger",
+  ]);
+  state.selectedAgentId = parameters.get("agent") || "";
+  state.agentTab = allowedTabs.has(parameters.get("agentTab"))
+    ? parameters.get("agentTab")
+    : "summary";
+  state.agentQuery = parameters.get("agentQuery") || "";
+  elements.agentSearchInput.value = state.agentQuery;
+}
+
 function threadRouteUrl() {
   const url = new URL(window.location.href);
   url.searchParams.set("module", "orbit");
@@ -361,6 +417,26 @@ function threadRouteUrl() {
   return `${url.pathname}${url.search}`;
 }
 
+function agentRouteUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.set("module", "relay");
+  url.searchParams.set("view", "agents");
+  const values = {
+    agent: state.selectedAgentId,
+    agentTab: state.selectedAgentId && state.agentTab !== "summary" ? state.agentTab : "",
+    agentQuery: state.agentQuery,
+  };
+  Object.entries(values).forEach(([name, value]) => {
+    if (value) {
+      url.searchParams.set(name, value);
+    } else {
+      url.searchParams.delete(name);
+    }
+  });
+  url.hash = "";
+  return `${url.pathname}${url.search}`;
+}
+
 function updateThreadWorkspaceMode() {
   const active = state.activeModule === "orbit" && state.activeSection === "communications";
   elements.workspaceView.classList.toggle("thread-workspace-mode", active);
@@ -369,6 +445,16 @@ function updateThreadWorkspaceMode() {
     active && Boolean(state.selectedThreadId),
   );
   elements.threadBrowser.hidden = !active;
+}
+
+function updateAgentWorkspaceMode() {
+  const active = state.activeModule === "relay" && state.activeSection === "agents";
+  elements.workspaceView.classList.toggle("agent-workspace-mode", active);
+  elements.workspaceView.classList.toggle(
+    "agent-detail-open",
+    active && Boolean(state.selectedAgentId),
+  );
+  elements.agentBrowser.hidden = !active;
 }
 
 function activateRoute(module, section, { updateHistory = true, focusContent = false } = {}) {
@@ -408,6 +494,7 @@ function activateRoute(module, section, { updateHistory = true, focusContent = f
   elements.contextCopy.textContent = definition.description;
   document.title = `星云驿 · ${definition.label}`;
   updateThreadWorkspaceMode();
+  updateAgentWorkspaceMode();
   if (updateHistory && routeChanged) {
     history.pushState({ module: route.module, section: route.section }, "", routeUrl(route.module, route.section));
   }
@@ -419,6 +506,7 @@ function activateRoute(module, section, { updateHistory = true, focusContent = f
 function initializeWorkspaceNavigation() {
   const parameters = new URLSearchParams(window.location.search);
   applyThreadRouteParameters(parameters);
+  applyAgentRouteParameters(parameters);
   const route = normalizedRoute(parameters.get("module") || "orbit", parameters.get("view") || "");
   activateRoute(route.module, route.section, { updateHistory: false });
 
@@ -669,6 +757,8 @@ function statusLabel(value, type = "status") {
     error: "故障",
     connected: "已连接",
     disconnected: "未连接",
+    offline: "离线",
+    connection_error: "连接异常",
     awaiting_agent: "等待 Agent 完成本机连接",
   };
   return labels[value] || safeText(value);
@@ -687,8 +777,9 @@ function renderMetrics(metrics, agents, organizations) {
   elements.metricPending.textContent = safeText(metrics.pending_task_count, "0");
   elements.metricOnline.textContent = safeText(metrics.connected_agent_count, "0");
   elements.metricApprovals.textContent = safeText(metrics.pending_approval_count, "0");
-  const active = agents.filter((agent) => agent.status === "active").length;
-  elements.overviewCopy.textContent = `你当前可查看 ${agents.length} 个 Agent，其中 ${active} 个处于可用状态，并加入 ${organizations.length} 个组织范围。通信是否送达、任务是否完成和审批是否通过会分别显示。`;
+  const connected = agents.filter((agent) => agent.connection_state === "connected").length;
+  const awaiting = agents.filter((agent) => agent.connection_state === "awaiting_agent").length;
+  elements.overviewCopy.textContent = `你当前可查看 ${agents.length} 个 Agent：${connected} 个正常连接，${awaiting} 个等待 Agent 完成本机连接；另有 ${organizations.length} 个组织范围。通信、工作和审批状态会分别显示。`;
 }
 
 function renderOrganizations(organizations) {
@@ -1268,140 +1359,415 @@ async function maybeAcceptOrganizationInvitation() {
 }
 
 function renderAgents(agents) {
-  elements.agentList.replaceChildren();
-  elements.agentCount.textContent = `${agents.length} 个`;
-  if (agents.length === 0) {
-    elements.agentList.append(emptyStateWithAction(
-      "你还没有连接 Agent。先到连接管理选择 Codex、WorkBuddy 或 OpenClaw，按页面提示完成授权。",
-      "前往连接管理",
-      () => activateRoute("relay", "connections", { focusContent: true }),
+  renderAgentOverview(agents);
+  renderAgentBrowser(agents);
+  if (state.selectedAgentId) {
+    const agent = agents.find((item) => String(item.id) === state.selectedAgentId);
+    if (agent) {
+      renderAgentDetail(agent);
+      void loadAgentRelatedThreads(agent);
+    } else {
+      renderMissingAgent();
+    }
+  } else {
+    renderAgentOverviewState();
+  }
+}
+
+function agentConnectionCopy(agent) {
+  const copies = {
+    connected: `${safeText(agent.current_connector_name, agent.current_connector_type || "当前连接")} 正常连接，最近报到 ${dateText(agent.current_connector_last_heartbeat_at)}`,
+    awaiting_agent: "Human 已授权，等待 Agent 在本机完成安全设置和首次报到",
+    disconnected: "没有当前有效连接；Agent 身份和历史仍保留",
+    offline: `曾经连接，但最近报到已超时（${dateText(agent.current_connector_last_heartbeat_at)}）`,
+    connection_error: `检测到明确连接异常${agent.current_connector_error_code ? `：${safeText(agent.current_connector_error_code)}` : ""}`,
+  };
+  return copies[agent.connection_state] || "连接证据不足";
+}
+
+function agentMatchesQuery(agent) {
+  if (!state.agentQuery) {
+    return true;
+  }
+  const searchable = [
+    agent.handle,
+    agent.display_name,
+    agent.address,
+    agent.current_connector_type,
+    agent.organization?.name,
+    ...(agent.capabilities || []),
+  ].map((value) => safeText(value, "").toLocaleLowerCase("zh-CN"));
+  return searchable.some((value) => value.includes(state.agentQuery.toLocaleLowerCase("zh-CN")));
+}
+
+function groupedAgents(agents) {
+  const personal = [];
+  const organizations = new Map();
+  agents.forEach((agent) => {
+    if (agent.organization) {
+      const key = String(agent.organization.id);
+      if (!organizations.has(key)) {
+        organizations.set(key, { organization: agent.organization, agents: [] });
+      }
+      organizations.get(key).agents.push(agent);
+    } else {
+      personal.push(agent);
+    }
+  });
+  return { personal, organizations: Array.from(organizations.values()) };
+}
+
+function renderAgentOverview(agents) {
+  const counts = {
+    connected: 0,
+    awaiting_agent: 0,
+    offline: 0,
+    connection_error: 0,
+  };
+  agents.forEach((agent) => {
+    if (Object.hasOwn(counts, agent.connection_state)) {
+      counts[agent.connection_state] += 1;
+    }
+  });
+  elements.agentStatAll.textContent = String(agents.length);
+  elements.agentStatConnected.textContent = String(counts.connected);
+  elements.agentStatAwaiting.textContent = String(counts.awaiting_agent);
+  elements.agentStatOffline.textContent = String(counts.offline);
+  elements.agentStatError.textContent = String(counts.connection_error);
+  elements.agentOverviewGroups.replaceChildren();
+  if (!agents.length) {
+    elements.agentOverviewGroups.append(emptyState("还没有可查看的 Agent。连接新的 Agent 后会在这里出现。"));
+    return;
+  }
+  const groups = groupedAgents(agents);
+  const values = [["我的 Agent", groups.personal.length, "个人所有权和直接授权不会因加入组织而公开"]];
+  groups.organizations.forEach((group) => {
+    values.push([
+      safeText(group.organization.name),
+      group.agents.length,
+      `你的组织角色：${statusLabel(group.organization.membership_role)}`,
+    ]);
+  });
+  values.forEach(([name, count, copy]) => {
+    const card = document.createElement("article");
+    const label = document.createElement("span");
+    label.textContent = name;
+    const number = document.createElement("strong");
+    number.textContent = `${count} 个`;
+    const description = document.createElement("p");
+    description.textContent = copy;
+    card.append(label, number, description);
+    elements.agentOverviewGroups.append(card);
+  });
+}
+
+function agentBrowserButton(agent) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "agent-browser-item";
+  button.classList.toggle("active", String(agent.id) === state.selectedAgentId);
+  if (String(agent.id) === state.selectedAgentId) {
+    button.setAttribute("aria-current", "true");
+  }
+  const identity = document.createElement("span");
+  identity.className = "agent-browser-identity";
+  const avatar = agentAvatar(agent, "agent-mini-avatar");
+  const names = document.createElement("span");
+  const name = document.createElement("strong");
+  name.textContent = agentDisplayName(agent);
+  const display = document.createElement("small");
+  display.textContent = `${safeText(agent.display_name)} · ${agent.current_connector_type ? agentTypeLabel({ agent_type: agent.current_connector_type }) : "类型未提供"}`;
+  names.append(name, display);
+  identity.append(avatar, names);
+  const status = chip(agent.connection_state);
+  button.append(identity, status);
+  button.addEventListener("click", () => selectAgent(String(agent.id)));
+  return button;
+}
+
+function renderAgentBrowser(agents) {
+  const visible = agents.filter(agentMatchesQuery);
+  elements.agentBrowserCount.textContent = `${visible.length} 个`;
+  elements.agentBrowserList.replaceChildren();
+  if (!visible.length) {
+    elements.agentBrowserList.append(emptyState(
+      state.agentQuery ? "没有找到符合条件且你有权查看的 Agent。" : "当前没有可查看的 Agent。",
     ));
     return;
   }
-  const fragment = document.createDocumentFragment();
-  agents.forEach((agent) => {
-    const agentConnectors = state.connectors.filter(
-      (connector) => String(connector.agent?.id) === String(agent.id),
-    );
-    const currentConnector = agentConnectors.find(
-      (connector) => connector.is_current && connector.status === "active",
-    ) || null;
-    const connectedConnector = currentConnector?.connection_state === "connected"
-      ? currentConnector
-      : null;
-    const preferredConnector = currentConnector || agentConnectors[0] || null;
-    const card = document.createElement("article");
-    card.className = "agent-card";
-    card.dataset.agentId = String(agent.id);
-    card.tabIndex = -1;
-
-    const top = document.createElement("div");
-    top.className = "agent-card-top";
-    const identity = document.createElement("div");
-    const title = document.createElement("strong");
-    title.textContent = safeText(agent.handle, agent.display_name);
-    const displayName = document.createElement("span");
-    displayName.textContent = agent.handle
-      ? safeText(agent.display_name)
-      : "尚未设置短名称";
-    identity.append(title, displayName);
-    const badges = document.createElement("div");
-    badges.className = "agent-status-badges";
-    badges.append(chip(
-      connectedConnector ? "connected" : currentConnector ? "awaiting_agent" : "disconnected",
-    ));
-    badges.append(chip(agent.role, "role"));
-    top.append(identity, badges);
-
-    const connection = document.createElement("div");
-    connection.className = `agent-connection-state ${connectedConnector ? "connected" : currentConnector ? "awaiting" : "disconnected"}`;
-    connection.textContent = connectedConnector
-      ? `${safeText(connectedConnector.display_name, connectedConnector.connector_type)} 已连接 · ${statusLabel(connectedConnector.health_status)}`
-      : currentConnector
-      ? `${safeText(currentConnector.display_name, currentConnector.connector_type)} 已获授权，等待 Agent 在本机完成安全设置并首次报到`
-      : "当前未连接；Agent 身份和历史仍保留";
-
-    const identityDetails = document.createElement("details");
-    identityDetails.className = "agent-identity-details";
-    const identitySummary = document.createElement("summary");
-    identitySummary.textContent = "查看底层身份";
-    const technicalAddress = document.createElement("span");
-    technicalAddress.textContent = safeText(agent.address);
-    identityDetails.append(identitySummary, technicalAddress);
-
-    const capabilities = document.createElement("div");
-    capabilities.className = "capability-row";
-    const values = Array.isArray(agent.capabilities) ? agent.capabilities.slice(0, 4) : [];
-    if (values.length === 0) {
-      const value = document.createElement("span");
-      value.textContent = "未声明能力";
-      capabilities.append(value);
-    } else {
-      values.forEach((capability) => {
-        const value = document.createElement("span");
-        value.textContent = safeText(capability);
-        capabilities.append(value);
-      });
-    }
-
-    const stats = document.createElement("dl");
-    stats.className = "agent-stats";
-    [["待处理投递", agent.unread_count], ["进行中任务", agent.pending_task_count], ["最近活动", dateText(agent.last_seen_at)]].forEach(([label, value]) => {
-      const cell = document.createElement("div");
-      const term = document.createElement("dt");
-      term.textContent = label;
-      const detail = document.createElement("dd");
-      detail.textContent = safeText(value, "0");
-      cell.append(term, detail);
-      stats.append(cell);
-    });
-    card.append(top, connection, identityDetails);
-    if (agent.organization) {
-      const organization = document.createElement("div");
-      organization.className = "agent-organization";
-      organization.textContent = `${safeText(agent.organization.name)} · ${agent.access_source === "organization" ? "组织授权" : "直接授权"}`;
-      card.append(organization);
-    }
-    card.append(capabilities, stats);
-    if (agent.role === "owner") {
-      const actions = document.createElement("div");
-      actions.className = "agent-card-actions";
-      const connect = document.createElement("button");
-      connect.type = "button";
-      connect.className = "quiet-button";
-      connect.textContent = connectedConnector ? "重新连接" : currentConnector ? "继续连接" : "连接";
-      connect.addEventListener("click", () => openPairingDialog(
-        "",
-        "",
-        agent,
-        safeText(preferredConnector?.connector_type, ""),
-      ));
-      const editHandle = document.createElement("button");
-      editHandle.type = "button";
-      editHandle.className = "quiet-button";
-      editHandle.textContent = agent.handle ? "修改短名称" : "设置短名称";
-      editHandle.addEventListener("click", () => openHandleDialog(agent));
-      actions.append(connect);
-      if (currentConnector) {
-        const disconnect = document.createElement("button");
-        disconnect.type = "button";
-        disconnect.className = "quiet-button";
-        disconnect.textContent = connectedConnector ? "断开" : "取消未完成连接";
-        disconnect.addEventListener("click", () => openRevokeDialog(currentConnector));
-        actions.append(disconnect);
-      }
-      actions.append(editHandle);
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "quiet-button danger";
-      remove.textContent = "删除 Agent";
-      remove.addEventListener("click", () => openDeleteAgentDialog(agent));
-      actions.append(remove);
-      card.append(actions);
-    }
-    fragment.append(card);
+  const groups = groupedAgents(visible);
+  const appendGroup = (title, values) => {
+    if (!values.length) return;
+    const section = document.createElement("section");
+    section.className = "agent-browser-group";
+    const heading = document.createElement("h3");
+    heading.textContent = `${title} · ${values.length}`;
+    section.append(heading);
+    values.forEach((agent) => section.append(agentBrowserButton(agent)));
+    elements.agentBrowserList.append(section);
+  };
+  appendGroup("我的 Agent", groups.personal);
+  groups.organizations.forEach((group) => {
+    appendGroup(safeText(group.organization.name), group.agents);
   });
-  elements.agentList.append(fragment);
+}
+
+function renderAgentOverviewState() {
+  state.selectedAgent = null;
+  elements.agentOverview.hidden = false;
+  elements.agentDetail.hidden = true;
+  elements.agentDetailMissing.hidden = true;
+  updateAgentWorkspaceMode();
+  document.title = "星云驿 · 云驿";
+}
+
+function detailFact(label, value, copy = "") {
+  const card = document.createElement("article");
+  const name = document.createElement("span");
+  name.textContent = label;
+  const detail = document.createElement("strong");
+  detail.textContent = safeText(value);
+  card.append(name, detail);
+  if (copy) {
+    const description = document.createElement("p");
+    description.textContent = copy;
+    card.append(description);
+  }
+  return card;
+}
+
+function renderCurrentAgentConnection(agent) {
+  elements.agentCurrentConnection.replaceChildren();
+  const intro = document.createElement("div");
+  intro.className = `agent-connection-banner ${agent.connection_state}`;
+  const heading = document.createElement("strong");
+  heading.textContent = statusLabel(agent.connection_state);
+  const copy = document.createElement("p");
+  copy.textContent = agentConnectionCopy(agent);
+  intro.append(heading, copy);
+  elements.agentCurrentConnection.append(intro);
+  if (agent.connection_state === "disconnected") {
+    return;
+  }
+  const facts = document.createElement("div");
+  facts.className = "agent-detail-summary";
+  [
+    ["Agent 类型", agent.current_connector_type || "未提供"],
+    ["当前连接", agent.current_connector_name || "名称未提供"],
+    ["设备", agent.current_connector_device || "设备未提供"],
+    ["最近报到", dateText(agent.current_connector_last_heartbeat_at)],
+    ["健康证据", statusLabel(agent.current_connector_health || "unknown")],
+  ].forEach(([label, value]) => facts.append(detailFact(label, value)));
+  const technical = document.createElement("details");
+  technical.className = "agent-technical-details";
+  const summary = document.createElement("summary");
+  summary.textContent = "查看连接技术信息";
+  const version = document.createElement("p");
+  version.textContent = `连接版本：${safeText(agent.current_connector_version, "未提供")}`;
+  technical.append(summary, version);
+  elements.agentCurrentConnection.append(facts, technical);
+}
+
+function renderAgentConnectionHistory(agent) {
+  elements.agentConnectionHistory.replaceChildren();
+  if (agent.role !== "owner") {
+    elements.agentConnectionHistory.append(emptyState("连接历史属于 Agent 所有者的审计信息；当前权限只提供连接状态。"));
+    return;
+  }
+  const history = state.connectors.filter(
+    (connector) => String(connector.agent?.id) === String(agent.id)
+      && !(connector.is_current && connector.status === "active"),
+  );
+  if (!history.length) {
+    elements.agentConnectionHistory.append(emptyState("还没有过去的连接记录。"));
+    return;
+  }
+  history.forEach((connector) => elements.agentConnectionHistory.append(connectorCard(connector, true)));
+}
+
+function renderAgentAccess(agent) {
+  elements.agentDetailAccess.replaceChildren();
+  elements.agentDetailAccess.append(
+    detailFact("当前权限", statusLabel(agent.role), "按钮显示不代替服务端鉴权。"),
+    detailFact("权限来源", agent.access_source === "organization" ? "组织派生" : "直接关系"),
+    detailFact("所属组织", agent.organization?.name || "个人范围"),
+    detailFact(
+      "组织角色",
+      agent.organization?.membership_role ? statusLabel(agent.organization.membership_role) : "不适用",
+      "组织成员关系不会自动变成 Agent 所有权。",
+    ),
+  );
+}
+
+function renderAgentCapabilities(agent) {
+  elements.agentDetailCapabilities.replaceChildren();
+  const values = Array.isArray(agent.capabilities) ? agent.capabilities : [];
+  if (!values.length) {
+    const empty = document.createElement("span");
+    empty.textContent = "Agent 尚未声明能力";
+    elements.agentDetailCapabilities.append(empty);
+    return;
+  }
+  values.forEach((capability) => {
+    const value = document.createElement("span");
+    value.textContent = safeText(capability);
+    elements.agentDetailCapabilities.append(value);
+  });
+}
+
+function renderAgentTab() {
+  elements.agentDetailTabs.forEach((button) => {
+    const active = button.dataset.agentTab === state.agentTab;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  elements.agentDetailPanels.forEach((panel) => {
+    panel.hidden = panel.dataset.agentPanel !== state.agentTab;
+  });
+}
+
+function renderAgentDetail(agent) {
+  state.selectedAgent = agent;
+  elements.agentOverview.hidden = true;
+  elements.agentDetailMissing.hidden = true;
+  elements.agentDetail.hidden = false;
+  elements.agentDetailName.textContent = agentDisplayName(agent);
+  elements.agentDetailSubtitle.textContent = agent.handle
+    ? `${safeText(agent.display_name)} · ${agent.organization?.name || "个人范围"}`
+    : `${safeText(agent.display_name)} · 尚未设置短名称`;
+  elements.agentDetailAvatar.textContent = agentDisplayName(agent).slice(0, 1).toUpperCase();
+  elements.agentDetailAvatar.style.setProperty("--agent-hue", String(agentHue(agent)));
+  elements.agentDetailStatus.className = `data-chip ${agent.connection_state}`;
+  elements.agentDetailStatus.textContent = statusLabel(agent.connection_state);
+  elements.agentDetailSummary.replaceChildren(
+    detailFact("常用名称", agentDisplayName(agent)),
+    detailFact("显示名称", agent.display_name),
+    detailFact("最近活动", dateText(agent.last_seen_at)),
+    detailFact("待 Agent 读取", agent.unread_count, "这是 Agent Delivery 状态，不是 Human 新动态。"),
+    detailFact("进行中任务", agent.pending_task_count),
+  );
+  const identity = document.createElement("details");
+  identity.className = "agent-technical-details";
+  const identitySummary = document.createElement("summary");
+  identitySummary.textContent = "查看底层身份";
+  const address = document.createElement("p");
+  address.textContent = safeText(agent.address);
+  identity.append(identitySummary, address);
+  elements.agentDetailSummary.append(identity);
+  renderCurrentAgentConnection(agent);
+  renderAgentCapabilities(agent);
+  renderAgentAccess(agent);
+  renderAgentConnectionHistory(agent);
+  const owner = agent.role === "owner";
+  elements.agentOwnerActions.hidden = !owner;
+  elements.agentReadonlyActions.hidden = owner;
+  const currentOwnedConnector = state.connectors.find(
+    (connector) => String(connector.agent?.id) === String(agent.id)
+      && connector.is_current && connector.status === "active",
+  );
+  elements.agentDisconnect.hidden = !currentOwnedConnector;
+  elements.agentRename.textContent = agent.handle ? "修改短名称" : "设置短名称";
+  const returnThread = new URLSearchParams(window.location.search).get("returnThread");
+  elements.agentReturnThread.hidden = !returnThread;
+  renderAgentTab();
+  updateAgentWorkspaceMode();
+  document.title = `星云驿 · ${agentDisplayName(agent)}`;
+}
+
+function renderMissingAgent() {
+  state.selectedAgent = null;
+  elements.agentOverview.hidden = true;
+  elements.agentDetail.hidden = true;
+  elements.agentDetailMissing.hidden = false;
+  updateAgentWorkspaceMode();
+}
+
+async function loadAgentRelatedThreads(agent) {
+  state.agentRelatedThreads = [];
+  elements.agentRelatedThreads.replaceChildren(emptyState("正在读取相关对话…"));
+  try {
+    const threads = await requestJson(
+      `/api/v1/orbit/threads?limit=200&agent_id=${encodeURIComponent(agent.id)}`,
+    );
+    if (!state.selectedAgent || String(state.selectedAgent.id) !== String(agent.id)) {
+      return;
+    }
+    state.agentRelatedThreads = Array.isArray(threads) ? threads : [];
+    elements.agentRelatedThreads.replaceChildren();
+    if (!state.agentRelatedThreads.length) {
+      elements.agentRelatedThreads.append(emptyState("这个 Agent 还没有你有权查看的相关对话。"));
+      return;
+    }
+    state.agentRelatedThreads.forEach((thread) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "agent-related-thread";
+      const topic = document.createElement("strong");
+      topic.textContent = safeText(thread.topic, "无主题对话");
+      const meta = document.createElement("span");
+      meta.textContent = `${thread.message_count} 条消息 · ${dateText(thread.latest_activity_at)}`;
+      button.append(topic, meta);
+      button.addEventListener("click", () => openRelatedThread(String(thread.thread_id)));
+      elements.agentRelatedThreads.append(button);
+    });
+  } catch (_error) {
+    elements.agentRelatedThreads.replaceChildren(emptyState("相关对话暂时无法读取，请稍后刷新。"));
+  }
+}
+
+function openRelatedThread(threadId) {
+  state.selectedThreadId = threadId;
+  state.threadQuery = "";
+  state.threadFilter = "all";
+  state.threadOrganization = "";
+  const url = new URL(window.location.href);
+  ["agent", "agentTab", "agentQuery", "returnThread"].forEach((name) => url.searchParams.delete(name));
+  url.searchParams.set("module", "orbit");
+  url.searchParams.set("view", "communications");
+  url.searchParams.set("thread", threadId);
+  url.searchParams.delete("q");
+  url.searchParams.delete("filter");
+  url.searchParams.delete("organization");
+  history.pushState({ module: "orbit", section: "communications", thread: threadId }, "", `${url.pathname}${url.search}`);
+  activateRoute("orbit", "communications", { updateHistory: false, focusContent: true });
+  renderThreadList();
+  void loadThreadDetail(threadId);
+}
+
+function selectAgent(agentId, { updateHistory = true } = {}) {
+  state.selectedAgentId = String(agentId);
+  state.agentTab = "summary";
+  const agent = (state.dashboard?.agents || []).find(
+    (item) => String(item.id) === state.selectedAgentId,
+  );
+  renderAgentBrowser(state.dashboard?.agents || []);
+  if (updateHistory) {
+    history.pushState({ module: "relay", section: "agents", agent: agentId }, "", agentRouteUrl());
+  }
+  if (agent) {
+    renderAgentDetail(agent);
+    void loadAgentRelatedThreads(agent);
+    if (window.matchMedia("(max-width: 860px)").matches) {
+      elements.agentMobileBack.scrollIntoView({ block: "start" });
+      elements.agentMobileBack.focus({ preventScroll: true });
+    } else {
+      elements.agentDetailName.focus({ preventScroll: true });
+    }
+  } else {
+    renderMissingAgent();
+  }
+}
+
+function clearAgentSelection({ updateHistory = true } = {}) {
+  state.selectedAgentId = "";
+  state.selectedAgent = null;
+  state.agentTab = "summary";
+  renderAgentBrowser(state.dashboard?.agents || []);
+  renderAgentOverviewState();
+  if (updateHistory) {
+    history.pushState({ module: "relay", section: "agents" }, "", agentRouteUrl());
+  }
 }
 
 function openHandleDialog(agent) {
@@ -2468,12 +2834,7 @@ function openThreadAgent(agent) {
   }
   history.pushState({ module: "relay", section: "agents" }, "", `${url.pathname}${url.search}`);
   activateRoute("relay", "agents", { updateHistory: false, focusContent: true });
-  const card = document.querySelector(`[data-agent-id="${CSS.escape(String(agent.id))}"]`);
-  if (card) {
-    card.classList.add("jump-highlight");
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
-    card.focus({ preventScroll: true });
-  }
+  selectAgent(String(agent.id), { updateHistory: false });
 }
 
 function participantChip(agent) {
@@ -2739,7 +3100,12 @@ async function selectThread(threadId, { updateHistory = true } = {}) {
     history.pushState({ module: "orbit", section: "communications", thread: threadId }, "", threadRouteUrl());
   }
   await loadThreadDetail(threadId);
-  elements.threadDetailTopic.focus?.({ preventScroll: true });
+  if (window.matchMedia("(max-width: 860px)").matches) {
+    elements.threadMobileBack.scrollIntoView({ block: "start" });
+    elements.threadMobileBack.focus({ preventScroll: true });
+  } else {
+    elements.threadDetailTopic.focus?.({ preventScroll: true });
+  }
 }
 
 function clearThreadSelection({ updateHistory = true } = {}) {
@@ -3531,6 +3897,66 @@ elements.threadMobileBack.addEventListener("click", () => clearThreadSelection()
 elements.threadLatest.addEventListener("click", () => {
   elements.messageList.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "end" });
 });
+elements.agentSearchInput.addEventListener("input", () => {
+  state.agentQuery = elements.agentSearchInput.value.trim();
+  renderAgentBrowser(state.dashboard?.agents || []);
+  history.replaceState(
+    { module: "relay", section: "agents", agent: state.selectedAgentId || null },
+    "",
+    agentRouteUrl(),
+  );
+});
+[elements.agentBrowserNew, elements.agentOverviewNew].forEach((button) => {
+  button.addEventListener("click", () => openPairingDialog());
+});
+elements.agentMobileBack.addEventListener("click", () => clearAgentSelection());
+elements.agentDetailTabs.forEach((button) => {
+  button.addEventListener("click", () => {
+    state.agentTab = button.dataset.agentTab || "summary";
+    renderAgentTab();
+    history.replaceState(
+      { module: "relay", section: "agents", agent: state.selectedAgentId, agentTab: state.agentTab },
+      "",
+      agentRouteUrl(),
+    );
+  });
+});
+elements.agentBrowserList.addEventListener("keydown", (event) => {
+  if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+  const items = Array.from(elements.agentBrowserList.querySelectorAll(".agent-browser-item"));
+  const index = items.indexOf(document.activeElement);
+  if (index < 0 || items.length < 2) return;
+  event.preventDefault();
+  const direction = event.key === "ArrowDown" ? 1 : -1;
+  items[(index + direction + items.length) % items.length].focus();
+});
+elements.agentReturnThread.addEventListener("click", () => {
+  const threadId = new URLSearchParams(window.location.search).get("returnThread");
+  if (threadId) openRelatedThread(threadId);
+});
+elements.agentReconnect.addEventListener("click", () => {
+  const agent = state.selectedAgent;
+  if (!agent || agent.role !== "owner") return;
+  const connector = state.connectors.find(
+    (item) => String(item.agent?.id) === String(agent.id) && item.is_current,
+  ) || state.connectors.find((item) => String(item.agent?.id) === String(agent.id));
+  openPairingDialog("", "", agent, safeText(connector?.connector_type, agent.current_connector_type || ""));
+});
+elements.agentRename.addEventListener("click", () => {
+  if (state.selectedAgent?.role === "owner") openHandleDialog(state.selectedAgent);
+});
+elements.agentDisconnect.addEventListener("click", () => {
+  const agent = state.selectedAgent;
+  if (!agent || agent.role !== "owner") return;
+  const connector = state.connectors.find(
+    (item) => String(item.agent?.id) === String(agent.id)
+      && item.is_current && item.status === "active",
+  );
+  if (connector) openRevokeDialog(connector);
+});
+elements.agentDelete.addEventListener("click", () => {
+  if (state.selectedAgent?.role === "owner") openDeleteAgentDialog(state.selectedAgent);
+});
 elements.approvalForm.addEventListener("submit", decideApproval);
 elements.approvalClose.addEventListener("click", closeApprovalDialog);
 elements.approvalCancel.addEventListener("click", closeApprovalDialog);
@@ -3616,6 +4042,7 @@ window.addEventListener("popstate", () => {
   const parameters = new URLSearchParams(window.location.search);
   const previousQuery = state.threadQuery;
   applyThreadRouteParameters(parameters);
+  applyAgentRouteParameters(parameters);
   activateRoute(parameters.get("module") || "orbit", parameters.get("view") || "", {
     updateHistory: false,
   });
@@ -3628,6 +4055,8 @@ window.addEventListener("popstate", () => {
     } else {
       setThreadDetailEmpty("选择一条协作对话", "同一组 Agent 的不同话题会保持为不同 Thread，不会错误合并。");
     }
+  } else if (state.activeModule === "relay" && state.activeSection === "agents") {
+    renderAgents(state.dashboard?.agents || []);
   }
 });
 

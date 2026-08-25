@@ -216,6 +216,21 @@
             <p class="thread-capability-note">“新动态”不会复用 Agent 的 read 或 ACK；相关后端状态建立前保持不可用。</p>
             <div id="thread-list" class="thread-list" aria-live="polite"></div>
           </section>
+          <section id="agent-browser" class="agent-browser" hidden aria-label="Agent 列表">
+            <div class="thread-browser-heading">
+              <div>
+                <span>真实身份与连接</span>
+                <strong>Agent</strong>
+              </div>
+              <span id="agent-browser-count" class="count-pill">0 个</span>
+            </div>
+            <label class="thread-search" for="agent-search-input">
+              <span>搜索 Agent</span>
+              <input id="agent-search-input" type="search" autocomplete="off" maxlength="200" placeholder="名称、短名称、类型或能力">
+            </label>
+            <button id="agent-browser-new" type="button" class="primary-action agent-browser-new">连接新的 Agent</button>
+            <div id="agent-browser-list" class="agent-browser-list" aria-live="polite"></div>
+          </section>
         </aside>
 
         <div class="workspace-content" tabindex="-1">
@@ -293,17 +308,85 @@
           </section>
 
           <section id="agents" class="content-section module-view" data-module="relay" data-section="agents" hidden>
-            <div class="section-heading">
-              <div>
-                <p class="section-tag">云驿 · Agent 总览</p>
-                <h2>Agent 总览</h2>
+            <button id="agent-mobile-back" type="button" class="thread-mobile-back">‹ 返回 Agent 列表</button>
+            <div id="agent-overview" class="agent-overview">
+              <div class="section-heading">
+                <div>
+                  <p class="section-tag">云驿 · Agent 总览</p>
+                  <h2>Agent 与连接状态</h2>
+                </div>
+                <button id="agent-overview-new" type="button" class="primary-action">连接新的 Agent</button>
               </div>
-              <span id="agent-count" class="count-pill">0 个</span>
+              <p class="section-intro">状态只依据当前连接、最近报到和明确错误；Human 批准配对不会立即显示为已连接。</p>
+              <div class="agent-overview-metrics" aria-label="Agent 连接统计">
+                <article><span>全部 Agent</span><strong id="agent-stat-all">0</strong></article>
+                <article><span>正常连接</span><strong id="agent-stat-connected">0</strong></article>
+                <article><span>等待 Agent</span><strong id="agent-stat-awaiting">0</strong></article>
+                <article><span>离线</span><strong id="agent-stat-offline">0</strong></article>
+                <article><span>连接异常</span><strong id="agent-stat-error">0</strong></article>
+              </div>
+              <div id="agent-overview-groups" class="agent-overview-groups"></div>
             </div>
-            <p class="section-intro">
-              查看你拥有或获授权管理的 Agent。底层地址默认收起；有权限时可独立连接、断开、改名或软删除。
-            </p>
-            <div id="agent-list" class="agent-grid" aria-live="polite"></div>
+
+            <div id="agent-detail" class="agent-detail" hidden>
+              <div class="agent-detail-heading">
+                <div class="agent-detail-identity">
+                  <span id="agent-detail-avatar" class="agent-detail-avatar" aria-hidden="true">A</span>
+                  <div>
+                    <p class="section-tag">云驿 · Agent 详情</p>
+                    <h2 id="agent-detail-name" tabindex="-1">—</h2>
+                    <p id="agent-detail-subtitle">—</p>
+                  </div>
+                </div>
+                <div class="agent-detail-heading-actions">
+                  <button id="agent-return-thread" type="button" class="quiet-button" hidden>返回原对话</button>
+                  <span id="agent-detail-status" class="data-chip disconnected">未连接</span>
+                </div>
+              </div>
+              <nav id="agent-detail-tabs" class="agent-detail-tabs" aria-label="Agent 详情页面">
+                <button type="button" class="active" data-agent-tab="summary" aria-current="page">概览</button>
+                <button type="button" data-agent-tab="connection">当前连接</button>
+                <button type="button" data-agent-tab="capabilities">能力</button>
+                <button type="button" data-agent-tab="access">权限与关系</button>
+                <button type="button" data-agent-tab="history">历史连接</button>
+                <button type="button" data-agent-tab="threads">相关对话</button>
+                <button type="button" data-agent-tab="danger">危险操作</button>
+              </nav>
+              <section class="agent-detail-panel" data-agent-panel="summary">
+                <div id="agent-detail-summary" class="agent-detail-summary"></div>
+              </section>
+              <section class="agent-detail-panel" data-agent-panel="connection" hidden>
+                <div id="agent-current-connection" class="agent-current-connection"></div>
+              </section>
+              <section class="agent-detail-panel" data-agent-panel="capabilities" hidden>
+                <div id="agent-detail-capabilities" class="capability-row"></div>
+              </section>
+              <section class="agent-detail-panel" data-agent-panel="access" hidden>
+                <div id="agent-detail-access" class="agent-detail-summary"></div>
+              </section>
+              <section class="agent-detail-panel" data-agent-panel="history" hidden>
+                <div id="agent-connection-history" class="connector-history-grid"></div>
+              </section>
+              <section class="agent-detail-panel" data-agent-panel="threads" hidden>
+                <div id="agent-related-threads" class="agent-related-threads"></div>
+              </section>
+              <section class="agent-detail-panel" data-agent-panel="danger" hidden>
+                <div id="agent-owner-actions" class="agent-owner-actions">
+                  <button id="agent-reconnect" type="button" class="quiet-button">重新连接这个 Agent</button>
+                  <button id="agent-rename" type="button" class="quiet-button">修改短名称</button>
+                  <button id="agent-disconnect" type="button" class="quiet-button danger">断开当前连接</button>
+                  <button id="agent-delete" type="button" class="quiet-button danger">删除 Agent</button>
+                </div>
+                <div id="agent-readonly-actions" class="availability-card" hidden>
+                  <span class="availability-badge">只读</span>
+                  <div><strong>你可以查看，但不能管理这个 Agent</strong><p>连接、重命名、断开和删除仍由服务端 Agent 所有权鉴权。</p></div>
+                </div>
+                <p class="agent-delete-note">删除采用软删除：Agent 会从活动列表移除并停止连接，但不可变身份、历史对话和审计记录都会保留。</p>
+              </section>
+            </div>
+            <div id="agent-detail-missing" class="thread-detail-empty" hidden>
+              <span aria-hidden="true">◇</span><h2>无法打开这个 Agent</h2><p>Agent 不存在，或已从你的当前授权范围移除。</p>
+            </div>
           </section>
 
           <section id="tasks" class="content-section module-view" data-module="orbit" data-section="tasks" hidden>

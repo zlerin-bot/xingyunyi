@@ -206,9 +206,8 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "delete-agent-dialog" in orbit.text
     assert "重新连接" in script.text
     assert "断开" in script.text
-    assert "删除 Agent" in script.text
+    assert "删除 Agent" in orbit.text
     assert "过去的连接记录折叠保存" in orbit.text
-    assert "底层地址默认收起" in orbit.text
     assert "查看 ${historicalConnectors.length} 条历史连接记录" in script.text
     assert "不是多个可删除的 Agent" in script.text
     assert "等待 Agent 完成本机连接" in script.text
@@ -230,6 +229,15 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "/api/v1/orbit/threads" in script.text
     assert "打开本时间线不会替任何 Agent 执行 read 或 ACK" in orbit.text
     assert "当前系统没有 Human 直接发消息的真实能力" in orbit.text
+    assert "Agent 与连接状态" in orbit.text
+    assert "等待 Agent" in orbit.text
+    assert "连接异常" in orbit.text
+    assert "重新连接这个 Agent" in orbit.text
+    assert "权限与关系" in orbit.text
+    assert "删除采用软删除" in orbit.text
+    assert "按钮显示不代替服务端鉴权" in script.text
+    assert "current_connector_last_heartbeat_at" in script.text
+    assert "agent-workspace-mode:not(.agent-detail-open)" in stylesheet.text
     assert "activateRoute" in script.text
     assert "history.pushState" in script.text
     assert ".primary-navigation" in stylesheet.text
@@ -757,6 +765,16 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
             params={"query": "authorized-reply-canary"},
             headers=headers,
         )
+        related = client.get(
+            "/api/v1/orbit/threads",
+            params={"agent_id": alice["agent"]["id"]},
+            headers=headers,
+        )
+        hidden_related = client.get(
+            "/api/v1/orbit/threads",
+            params={"agent_id": bob["agent"]["id"]},
+            headers=headers,
+        )
         outsider_headers = {"Authorization": f"Bearer {outsider['access_key']}"}
         hidden = client.get(
             f"/api/v1/orbit/threads/{first.json()['thread_id']}",
@@ -774,6 +792,7 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
             )
 
     assert threads.status_code == detail.status_code == search.status_code == 200
+    assert related.status_code == hidden_related.status_code == 200
     assert {item["topic"] for item in threads.json()} == {"供应链风险", "市场周报"}
     first_summary = next(
         item for item in threads.json() if item["thread_id"] == first.json()["thread_id"]
@@ -791,8 +810,81 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
     assert detail.json()["messages"][1]["content_body"] == "authorized-reply-canary"
     assert len(search.json()) == 1
     assert search.json()[0]["thread_id"] == first.json()["thread_id"]
+    assert len(related.json()) == 2
+    assert hidden_related.json() == []
     assert hidden.status_code == 404
     assert state_after == state_before
+
+
+def test_agent_connection_projection_uses_current_binding_heartbeat_and_error_evidence(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with _control_client(settings, database) as client:
+        human = _create_human(client, "connection-viewer@example.com", "连接观察者")
+        agents = {
+            state: _create_agent(client, f"{state}@agents.local", state)
+            for state in ["connected", "awaiting", "offline", "broken", "disconnected"]
+        }
+        for agent in agents.values():
+            _grant(
+                client,
+                human_id=human["user"]["id"],
+                agent_id=agent["agent"]["id"],
+                role="viewer",
+            )
+        with database.session_factory() as session:
+            now = datetime.now(UTC)
+            connector_specs = {
+                "connected": {"health_status": "healthy", "last_heartbeat_at": now},
+                "awaiting": {"health_status": "unknown", "last_heartbeat_at": None},
+                "offline": {
+                    "health_status": "healthy",
+                    "last_heartbeat_at": now - timedelta(minutes=6),
+                },
+                "broken": {
+                    "health_status": "error",
+                    "last_heartbeat_at": now,
+                    "last_error_code": "demo_connection_error",
+                },
+            }
+            for name, connector_values in connector_specs.items():
+                agent_id = UUID(str(agents[name]["agent"]["id"]))
+                connector = ConnectorInstance(
+                    connector_id=f"con_{name}",
+                    agent_id=agent_id,
+                    human_user_id=UUID(str(human["user"]["id"])),
+                    connector_type="codex",
+                    display_name=f"{name} connector",
+                    status="active",
+                    **connector_values,
+                )
+                session.add(connector)
+                session.flush()
+                session.add(
+                    AgentConnectorBinding(
+                        agent_id=agent_id,
+                        connector_instance_id=connector.id,
+                    )
+                )
+            session.commit()
+        dashboard = client.get(
+            "/api/v1/orbit/dashboard",
+            headers={"Authorization": f"Bearer {human['access_key']}"},
+        )
+
+    assert dashboard.status_code == 200
+    projected = {agent["address"].partition("@")[0]: agent for agent in dashboard.json()["agents"]}
+    assert {name: agent["connection_state"] for name, agent in projected.items()} == {
+        "awaiting": "awaiting_agent",
+        "broken": "connection_error",
+        "connected": "connected",
+        "disconnected": "disconnected",
+        "offline": "offline",
+    }
+    assert projected["connected"]["current_connector_type"] == "codex"
+    assert projected["broken"]["current_connector_error_code"] == "demo_connection_error"
+    assert dashboard.json()["metrics"]["connected_agent_count"] == 1
 
 
 def test_human_key_creates_revocable_short_lived_browser_session(

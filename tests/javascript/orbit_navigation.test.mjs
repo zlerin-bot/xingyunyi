@@ -83,6 +83,47 @@ test("mobile Thread list and detail are separate layers", () => {
   assert.match(html, /返回对话列表/);
 });
 
+test("Relay groups Agents and derives five explicit connection states", () => {
+  assert.match(html, /我的 Agent/);
+  assert.match(html, /全部 Agent/);
+  assert.match(html, /正常连接/);
+  assert.match(html, /等待 Agent/);
+  assert.match(html, /离线/);
+  assert.match(html, /连接异常/);
+  assert.match(script, /connection_state/);
+  assert.match(script, /current_connector_last_heartbeat_at/);
+  assert.match(script, /Human 已授权，等待 Agent/);
+  assert.match(script, /曾经连接，但最近报到已超时/);
+});
+
+test("Agent detail keeps current connection, history, access and actions distinct", () => {
+  for (const tab of ["summary", "connection", "capabilities", "access", "history", "threads", "danger"]) {
+    assert.match(html, new RegExp(`data-agent-tab="${tab}"`));
+  }
+  assert.match(html, /重新连接这个 Agent/);
+  assert.match(html, /历史连接/);
+  assert.match(html, /删除采用软删除/);
+  assert.match(script, /connector\.is_current && connector\.status === "active"/);
+  assert.match(script, /agent\.role === "owner"/);
+  assert.match(script, /按钮显示不代替服务端鉴权/);
+  assert.match(script, /\/api\/v1\/orbit\/threads\?limit=200&agent_id=/);
+});
+
+test("Agent selection and tab survive deep links and browser history", () => {
+  assert.match(script, /parameters\.get\("agent"\)/);
+  assert.match(script, /parameters\.get\("agentTab"\)/);
+  assert.match(script, /agent: state\.selectedAgentId/);
+  assert.match(script, /agentTab: state\.agentTab/);
+  assert.match(script, /applyAgentRouteParameters\(parameters\)/);
+  assert.match(script, /returnThread/);
+});
+
+test("mobile Agent list and detail are separate layers", () => {
+  assert.match(stylesheet, /agent-workspace-mode:not\(\.agent-detail-open\).*?\.workspace-content/s);
+  assert.match(stylesheet, /agent-workspace-mode\.agent-detail-open \.context-sidebar/);
+  assert.match(html, /返回 Agent 列表/);
+});
+
 test("unavailable settings are explanatory, not fake controls", () => {
   for (const section of ["notifications", "privacy", "preferences"]) {
     const start = html.indexOf(`id="${section}"`);

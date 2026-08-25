@@ -98,9 +98,24 @@ def _seed(settings: Settings) -> None:
             name="研究 Agent",
             capabilities=["financial-research", "source-verification"],
         )
+        waiting = _agent(
+            client,
+            address="voyager@agents.local",
+            handle="voyager",
+            name="行舟助理",
+            capabilities=["calendar-planning", "follow-up"],
+        )
         _require(
             client.put(
                 f"/api/v1/admin/humans/{human_id}/agents/{personal['agent']['id']}",
+                headers=admin_headers,
+                json={"role": "owner"},
+            ),
+            200,
+        )
+        _require(
+            client.put(
+                f"/api/v1/admin/humans/{human_id}/agents/{waiting['agent']['id']}",
                 headers=admin_headers,
                 json={"role": "owner"},
             ),
@@ -237,10 +252,12 @@ def _seed(settings: Settings) -> None:
             now = datetime.now(UTC)
             personal_agent = session.get(Agent, UUID(personal["agent"]["id"]))
             research_agent = session.get(Agent, UUID(research["agent"]["id"]))
-            if personal_agent is None or research_agent is None:
+            waiting_agent = session.get(Agent, UUID(waiting["agent"]["id"]))
+            if personal_agent is None or research_agent is None or waiting_agent is None:
                 raise RuntimeError("demo Agents were not persisted")
             personal_agent.last_seen_at = now
             research_agent.last_seen_at = now - timedelta(minutes=3)
+            waiting_agent.last_seen_at = None
             current = ConnectorInstance(
                 connector_id="demo-codex-current",
                 agent_id=personal_agent.id,
@@ -270,14 +287,36 @@ def _seed(settings: Settings) -> None:
                 activated_at=now - timedelta(days=9),
                 last_seen_at=now - timedelta(days=3),
             )
-            session.add_all([current, historical])
+            awaiting = ConnectorInstance(
+                connector_id="demo-workbuddy-awaiting",
+                agent_id=waiting_agent.id,
+                human_user_id=UUID(human_id),
+                connector_type="workbuddy",
+                display_name="这台 Mac 上的 WorkBuddy",
+                device_name="等待完成设置",
+                client_version="agentpost-connect/0.1.11",
+                status="active",
+                health_status="unknown",
+                created_at=now - timedelta(minutes=8),
+                activated_at=now - timedelta(minutes=8),
+                last_seen_at=None,
+                last_heartbeat_at=None,
+            )
+            session.add_all([current, historical, awaiting])
             session.flush()
-            session.add(
-                AgentConnectorBinding(
-                    agent_id=personal_agent.id,
-                    connector_instance_id=current.id,
-                    bound_at=now - timedelta(days=2),
-                )
+            session.add_all(
+                [
+                    AgentConnectorBinding(
+                        agent_id=personal_agent.id,
+                        connector_instance_id=current.id,
+                        bound_at=now - timedelta(days=2),
+                    ),
+                    AgentConnectorBinding(
+                        agent_id=waiting_agent.id,
+                        connector_instance_id=awaiting.id,
+                        bound_at=now - timedelta(minutes=8),
+                    ),
+                ]
             )
             session.commit()
 

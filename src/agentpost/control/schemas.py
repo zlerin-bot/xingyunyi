@@ -164,6 +164,20 @@ class OrbitAgent(ControlModel):
     organization: OrbitOrganizationReference | None = None
     capabilities: list[str]
     last_seen_at: datetime | None
+    connection_state: Literal[
+        "connected",
+        "awaiting_agent",
+        "disconnected",
+        "offline",
+        "connection_error",
+    ]
+    current_connector_type: str | None = None
+    current_connector_name: str | None = None
+    current_connector_device: str | None = None
+    current_connector_version: str | None = None
+    current_connector_health: str | None = None
+    current_connector_last_heartbeat_at: datetime | None = None
+    current_connector_error_code: str | None = None
     unread_count: int
     pending_task_count: int
 
