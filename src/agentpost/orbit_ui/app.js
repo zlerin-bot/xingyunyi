@@ -282,7 +282,11 @@ async function requestJson(path, options = {}) {
     body: options.body,
   });
   const contentType = response.headers.get("content-type") || "";
-  const payload = contentType.includes("application/json") ? await response.json() : null;
+  let payload = null;
+  if (contentType.includes("application/json")) {
+    const responseBody = await response.text();
+    payload = responseBody.trim() ? JSON.parse(responseBody) : null;
+  }
   if (!response.ok) {
     const error = new Error(errorMessage(payload, response.status));
     error.status = response.status;

@@ -620,6 +620,7 @@ def test_owner_delete_soft_disables_only_one_agent_and_revokes_its_connector(
         connectors = client.get("/api/v1/orbit/connectors").json()["items"]
 
     assert deleted.status_code == 204
+    assert deleted.content == b""
     assert rejected_key.status_code == 401
     assert dashboard["agents"] == []
     assert dashboard["metrics"]["agent_count"] == 0

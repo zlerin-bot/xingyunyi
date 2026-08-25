@@ -1,4 +1,4 @@
-.PHONY: install test test-fast test-mcp test-typescript test-postgres test-postgres-compose lint migrate run demo compose-up compose-down compose-production-config
+.PHONY: install test test-fast test-mcp test-typescript test-orbit test-postgres test-postgres-compose lint migrate run demo compose-up compose-down compose-production-config
 
 PYTHON := .venv/bin/python
 PYTEST := .venv/bin/pytest
@@ -19,6 +19,9 @@ test-mcp:
 
 test-typescript:
 	$(NODE) --test sdk/typescript/test/*.test.mjs
+
+test-orbit:
+	$(NODE) --test tests/javascript/*.test.mjs
 
 test-postgres:
 	$(PYTEST) tests/postgres
