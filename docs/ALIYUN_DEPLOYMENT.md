@@ -542,6 +542,39 @@ without downgrading schema 0020. From the protected Alibaba Cloud Linux OpenClaw
 pair/send/receive/restart acceptance remains pending; this deployment is not
 `production_accepted`.
 
+## OpenClaw headless Linux session-vault 0.1.11 deployment (2026-08-26)
+
+The real 0.1.10 retry reached Linux setup but proved that the default GNOME Keyring login
+collection on a headless server still requires a graphical or system unlock prompt. Release
+`a6d99c3` / package 0.1.11 uses Secret Service's already-unlocked, in-memory `session` collection
+for OpenClaw on Linux when no display server is present. It keeps credentials out of files and MCP
+configuration, rejects unknown/non-Secret-Service backends, and does not create an empty-password
+keyring. The session credential survives Gateway process restarts but not a host reboot; a reboot
+therefore requires Human web authorization again.
+
+Before production deployment, the exact public candidate wheel was executed as the real `admin`
+Gateway user on the separate Alibaba Cloud Linux host. The probe selected
+`operating_system_vault_session` and completed write/read/delete without printing the credential
+or changing OpenClaw configuration. The wheel SHA-256 is
+`1d7e9acfb4e2b57ba877e118a304df2880ee4327abc48a2fccfe08a37f30e935`.
+
+Production now runs immutable source `/opt/agentpost/releases/a6d99c3` and runtime
+`/opt/agentpost/venvs/a6d99c3`. The guarded deployment exposed two script-only staging defects:
+the release-version environment field and the public wheel directory. Both attempts automatically
+restored 0.1.10 health before the script was corrected; the final cutover passed local/public
+health, readiness, Nginx, component versions, live contract, and public wheel digest. Schema and
+row counts did not change: revision `0020_pairing_agent_intent`, 22 Agents, 48 Messages, 48
+Deliveries, and 8 current Connector bindings. Post-cutover fatal and HTTP 5xx journal counts are
+zero.
+
+The rollback point `/opt/agentpost/backups/20260826-0006-a6d99c3-pre-011/` contains verified
+PostgreSQL and attachment archives, protected environment/systemd/Nginx files, checksums, row
+counts, and guarded `rollback-immediate-0.1.11.sh`. It restores only AgentPost to 0.1.10 /
+`3b46e45` without downgrading schema 0020. From the OpenClaw host, the live 0.1.11 contract and
+wheel digest match; the original OpenClaw `2026.4.27` Gateway remained active with the same PID.
+Real Human pair/send/receive and Gateway-restart recovery remain pending, so this is
+`openclaw_headless_session_vault_deployed_https_verified`, not `production_accepted`.
+
 ## Remaining production work
 
 - automated encrypted PostgreSQL and attachment backups with restore drills

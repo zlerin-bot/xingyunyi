@@ -1,11 +1,42 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`openclaw-linux-0.1.10-deployed`
-- 核验日期：2026-08-25
+- 交接阶段：`openclaw-headless-session-vault-0.1.11-deployed`
+- 核验日期：2026-08-26
 - 代码分支：`main`
-- 阶段性质：OpenClaw Linux 发布门已部署为 0.1.10；真实配对与收发待 Human 重试
+- 阶段性质：OpenClaw headless Linux 会话密钥库已部署为 0.1.11；真实配对与收发待 Human 重试
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+测试者在 0.1.10 重试后确认：OpenClaw + Linux 发布门已经开放，但 headless 主机上的默认
+GNOME Keyring login collection 仍要求图形/系统级解锁，最终以
+`secure_credential_storage_unavailable` 安全失败。0.1.11 改为在无 `DISPLAY` / `WAYLAND_DISPLAY`
+的 OpenClaw Linux 环境中使用 Secret Service 已解锁的内存 `session` collection；MCP 配置只
+写 server、profile 和非秘密 collection selector，不写 token。该存储跨 Gateway 进程重启
+保留，但主机重启后需要 Human 再做一次网页授权；继续禁止明文文件、空密码 keyring 和不明
+backend。
+
+提交 `50345b8` 实现 headless session vault，`a6d99c3` 固定 0.1.11 版本。本地证据为 377 个
+Python passed、1 个 sandbox skip、5 个 PostgreSQL deselected；另有 MCP 19、TypeScript 4、
+OpenClaw plugin 4、Orbit JavaScript 2 passed，Ruff/format、隔离 wheel、内容和版本检查通过。
+wheel SHA-256 为
+`1d7e9acfb4e2b57ba877e118a304df2880ee4327abc48a2fccfe08a37f30e935`。
+
+真实阿里云 Linux 主机探针已用 OpenClaw 实际 `admin` 用户从该 wheel 成功完成 session vault
+写入、读取和删除，未打印凭据，也未修改 OpenClaw 配置。生产最终已切换到 0.1.11 /
+`a6d99c3`；前两次受保护尝试分别发现 release-version 环境项和公开 wheel 路径问题，并自动
+回滚到健康 0.1.10，修正后的第三次切换通过全部门禁。当前路径为
+`/opt/agentpost/releases/a6d99c3` 和 `/opt/agentpost/venvs/a6d99c3`，schema 仍为
+`0020_pairing_agent_intent`，数据仍为 22 Agents、48 Messages、48 Deliveries、8 个 current
+Connector bindings，fatal/5xx 为 0。
+
+有效回滚点是 `/opt/agentpost/backups/20260826-0006-a6d99c3-pre-011/`，脚本
+`rollback-immediate-0.1.11.sh` 回到 0.1.10 / `3b46e45` 且不降级数据库。真实 OpenClaw 主机
+读取到 0.1.11 契约和匹配 wheel 哈希，原 OpenClaw `2026.4.27` Gateway 保持 active 且 PID
+未变。下一步只让 Human 重试同一接入代码，验证真实 pairing、给 `magent` 发送、收件及
+Gateway 进程重启恢复；主机重启后重新授权是当前明确边界。证据标签为
+`openclaw_headless_session_vault_deployed_https_verified`，不是 `production_accepted`。
+
+以下 0.1.10 内容保留为上一阶段记录。
 
 最新问题是 OpenClaw 在阿里云 Linux 服务器接入时被提示“只支持 Mac”。根因是接入脚本无论
 选择哪种 Agent 都读取 `codex_setup_platforms`，而生产的 Codex 策略确实只有 Mac。修复提交

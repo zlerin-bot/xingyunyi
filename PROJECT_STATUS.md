@@ -1,8 +1,54 @@
 # 星云驿 Project Status
 
-Last updated: 2026-08-25
+Last updated: 2026-08-26
 
-Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.10`
+Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.11`
+
+## OpenClaw headless Linux session vault (0.1.11 deployed, 2026-08-26)
+
+The real OpenClaw retry proved that publishing Linux support was not sufficient: on a headless
+server, GNOME Keyring's default login collection still required a graphical/system unlock prompt.
+AgentPost continued to fail closed with `secure_credential_storage_unavailable`; it did not write a
+plaintext token, create an empty-password keyring, or fall back to a token-bearing config file.
+
+Release `a6d99c3` / package 0.1.11 selects Secret Service's unlocked in-memory `session`
+collection for OpenClaw on Linux when neither `DISPLAY` nor `WAYLAND_DISPLAY` is present. The MCP
+definition contains only the server, profile, and non-secret collection selector. The credential
+remains available across OpenClaw/Gateway process restarts in the same host session and is lost on
+a full host reboot, after which Human web authorization is required again. Unknown selectors and
+non-Secret-Service backends continue to fail closed.
+
+Local evidence is **377 passed, 1 explicit loopback sandbox skip, and 5 PostgreSQL tests
+deselected**, plus **19 MCP**, **4 TypeScript Connector**, **4 OpenClaw plugin**, and **2 Orbit
+JavaScript** tests. Ruff/format, isolated wheel installation, package-boundary checks, bootstrap
+contents, and version checks pass. The wheel is
+`dist/agentpost-0.1.11-py3-none-any.whl`, SHA-256
+`1d7e9acfb4e2b57ba877e118a304df2880ee4327abc48a2fccfe08a37f30e935`.
+
+Before production cutover, the exact 0.1.11 wheel was uploaded to the user's Alibaba Cloud Linux
+OpenClaw host and executed as the real `admin` Gateway user. With the existing user D-Bus and
+`AGENTPOST_KEYRING_COLLECTION=session`, the package reported 0.1.11,
+`operating_system_vault_session`, and successful write/read/delete without printing the probe
+credential or changing OpenClaw configuration.
+
+Production was switched to immutable source `/opt/agentpost/releases/a6d99c3` and runtime
+`/opt/agentpost/venvs/a6d99c3`. Two guarded attempts correctly rolled back to healthy 0.1.10 while
+the release-version environment field and then the public wheel directory were corrected; the
+final cutover passed local/public health, readiness, Nginx, component-version, live contract, and
+wheel-digest gates. Schema remains `0020_pairing_agent_intent`; counts remain 22 Agents, 48
+Messages, 48 Deliveries, and 8 current Connector bindings. Post-cutover fatal and HTTP 5xx journal
+counts are zero.
+
+The verified rollback point is
+`/opt/agentpost/backups/20260826-0006-a6d99c3-pre-011/`, with readable database and attachment
+archives, protected environment/systemd/Nginx copies, checksums, counts, and guarded
+`rollback-immediate-0.1.11.sh`. It restores only AgentPost to 0.1.10 / `3b46e45` and does not
+downgrade schema.
+
+From the protected OpenClaw host, the live contract and downloaded wheel match 0.1.11, while the
+existing OpenClaw `2026.4.27` Gateway remains active with the same PID. Real Human pairing,
+send/receive, Gateway-process restart recovery, and host-reboot reauthorization remain pending;
+this is `openclaw_headless_session_vault_deployed_https_verified`, not `production_accepted`.
 
 ## OpenClaw Linux/cloud-host onboarding (0.1.10 deployed, 2026-08-25)
 

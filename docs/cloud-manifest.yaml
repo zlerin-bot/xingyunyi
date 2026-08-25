@@ -1,7 +1,7 @@
 schema_version: "1"
 project: xingyunyi-agentpost
-evidence_status: openclaw_linux_release_gate_deployed_https_verified
-verified_at: "2026-08-25T23:30:51+08:00"
+evidence_status: openclaw_headless_session_vault_deployed_https_verified
+verified_at: "2026-08-26T00:18:24+08:00"
 
 provider:
   name: aliyun
@@ -11,13 +11,13 @@ provider:
   operating_system: ubuntu-24.04
 
 release:
-  git_commit: 3b46e45
+  git_commit: a6d99c3
   current_path: /opt/agentpost/current
-  immutable_path: /opt/agentpost/releases/3b46e45
-  virtualenv_path: /opt/agentpost/venvs/3b46e45
+  immutable_path: /opt/agentpost/releases/a6d99c3
+  virtualenv_path: /opt/agentpost/venvs/a6d99c3
   alembic_revision: 0020_pairing_agent_intent
-  package_version: 0.1.10
-  connector_wheel_sha256: 852d1bf4f1ca49abde9a2bd5e033332dc7842a0f7e5e1fa08bd1bc7e5ac00117
+  package_version: 0.1.11
+  connector_wheel_sha256: 1d7e9acfb4e2b57ba877e118a304df2880ee4327abc48a2fccfe08a37f30e935
   schema_change: false
 
 topology:
@@ -80,13 +80,13 @@ rollback:
     fresh_0_1_3_attempt: failed_snapshot_limit_exceeded
     existing_snapshots_preserved: true
   application_backup: /opt/agentpost/backups/20260824-https
-  current_update_backup: /opt/agentpost/backups/20260825-2324-3b46e45-pre-010
+  current_update_backup: /opt/agentpost/backups/20260826-0006-a6d99c3-pre-011
   incomplete_backups_preserved:
     - /opt/agentpost/backups/20260825-1746-e378a7e-pre-016
     - /opt/agentpost/backups/20260825-1747-e378a7e-pre-016
-  prior_release: /opt/agentpost/releases/c1c3a78
-  prior_unit: /opt/agentpost/backups/20260825-2324-3b46e45-pre-010/agentpost.service
-  immediate_script: /opt/agentpost/backups/20260825-2324-3b46e45-pre-010/rollback-immediate-0.1.10.sh
+  prior_release: /opt/agentpost/releases/3b46e45
+  prior_unit: /opt/agentpost/backups/20260826-0006-a6d99c3-pre-011/agentpost.service
+  immediate_script: /opt/agentpost/backups/20260826-0006-a6d99c3-pre-011/rollback-immediate-0.1.11.sh
   database_dump_verified: true
   attachment_archive_verified: true
 
@@ -106,9 +106,9 @@ acceptance:
   orbit_codex_0_1_1_guide: superseded_by_connection_code_v1
   orbit_frontend_errors: none
   pinned_connector_wheel: passed
-  public_connector_wheel_version: 0.1.10
+  public_connector_wheel_version: 0.1.11
   clean_public_wheel_install: passed
-  server_sdk_mcp_package_versions: aligned_0.1.10
+  server_sdk_mcp_package_versions: aligned_0.1.11
   package_boundary_regression: passed
   recipient_resolver_api_sdk_cli_mcp_skill_ui: deployed
   recipient_handle_editor: passed_without_mutation
@@ -132,6 +132,10 @@ acceptance:
   openclaw_linux_release_gate: passed_live_contract_from_real_openclaw_server
   openclaw_mcp_preflight_before_pairing: passed_locally
   openclaw_secure_credential_failure_code: passed_locally
+  openclaw_headless_session_vault_probe: passed_write_read_delete_as_gateway_user
+  openclaw_headless_session_vault_plaintext_fallback: prohibited
+  openclaw_gateway_process_preserved_during_deploy: passed_same_pid
+  openclaw_host_reboot_reauthorization: required_by_design
   openclaw_linux_real_pairing_send_receive_restart: pending_human_retry
   workbuddy_020_current_connector: healthy_current
   workbuddy_020_message_to_mars: msg_3904d107573943528aea85861ffbaa09_delivered
