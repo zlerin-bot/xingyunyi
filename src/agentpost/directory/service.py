@@ -214,10 +214,8 @@ def _related_agent_ids(session: Session, caller: Agent) -> set[UUID]:
             select(AccessRule.owner_agent_id).where(
                 AccessRule.effect == "allow",
                 or_(
-                    (AccessRule.subject_type == "agent")
-                    & (AccessRule.subject == caller.address),
-                    (AccessRule.subject_type == "domain")
-                    & (AccessRule.subject == caller.domain),
+                    (AccessRule.subject_type == "agent") & (AccessRule.subject == caller.address),
+                    (AccessRule.subject_type == "domain") & (AccessRule.subject == caller.domain),
                 ),
             )
         )
@@ -392,9 +390,7 @@ def resolve_recipient(session: Session, *, caller: Agent, query: str) -> Recipie
         exact = session.scalar(
             select(Agent).where(Agent.address == address, Agent.status == "active")
         )
-        contexts = (
-            [_context_for_exact_agent(exact, scoped_by_id)] if exact is not None else []
-        )
+        contexts = [_context_for_exact_agent(exact, scoped_by_id)] if exact is not None else []
         return _resolution(cleaned_query, contexts, "address")
 
     handles = _handle_tokens(cleaned_query)

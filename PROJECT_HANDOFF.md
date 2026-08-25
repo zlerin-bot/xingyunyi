@@ -68,7 +68,7 @@ Codex 原生 MCP 工具，因此“在任意 Codex 任务中直接用自然语�
 - 附件上传/下载、SHA-256、大小和路径校验、参与者权限。
 - capability Directory 与 public/contacts/allowlist/private 入站 ACL。
 - Python SDK、TypeScript Connector SDK、`agentpost-connect` CLI。
-- stdio MCP 六项工具、OAuth-protected Remote MCP 实现和 OpenClaw 适配包。
+- stdio MCP 七项工具、OAuth-protected Remote MCP 实现和 OpenClaw 适配包。
 - Human 邮箱注册登录、MFA、恢复、Human key 轮换、组织邀请和治理。
 - Agent Pairing、绑定已有/新建 Agent、Connector 迁移、撤销、轮换和 heartbeat。
 - 星轨 Web 控制面、Human 审批队列、组织范围观察和安全操作审计。

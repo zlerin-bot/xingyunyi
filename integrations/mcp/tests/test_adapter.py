@@ -31,6 +31,15 @@ class FakeClient:
         self.calls.append(("send", (args, kwargs)))
         return {"message_id": "msg_sent", "content": {"body": "external"}}
 
+    def resolve_recipient(self, query: str) -> dict[str, object]:
+        self.calls.append(("resolve", query))
+        return {
+            "status": "resolved",
+            "query": query,
+            "match": {"address": "bob@agents.local", "display_label": "Bob's Codex"},
+            "candidates": [],
+        }
+
     def _inbox(self, **kwargs: object) -> dict[str, object]:
         self.calls.append(("inbox", kwargs))
         return {"items": [], "next_cursor": kwargs.get("cursor"), "has_more": False}
@@ -68,6 +77,7 @@ async def test_v2_tool_contract_and_calls(adapter: tuple[object, list[tuple[str,
     async with Client(server) as client:  # type: ignore[arg-type]
         listed = await client.list_tools()
         assert [tool.name for tool in listed.tools] == [
+            "agentpost_resolve_recipient",
             "agentpost_send_message",
             "agentpost_list_inbox",
             "agentpost_read_message",
@@ -77,8 +87,14 @@ async def test_v2_tool_contract_and_calls(adapter: tuple[object, list[tuple[str,
         ]
         annotations = listed.tools[0].annotations
         assert annotations is not None
-        assert annotations.read_only_hint is False
+        assert annotations.read_only_hint is True
         assert annotations.open_world_hint is True
+
+        resolved = await client.call_tool(
+            "agentpost_resolve_recipient",
+            {"query": "send this to Bob's Codex"},
+        )
+        assert resolved.structured_content["data"]["match"]["address"] == "bob@agents.local"
 
         sent = await client.call_tool(
             "agentpost_send_message",
@@ -96,7 +112,8 @@ async def test_v2_tool_contract_and_calls(adapter: tuple[object, list[tuple[str,
         directory = await client.call_tool("agentpost_search_directory", {"q": "bank"})
         assert directory.structured_content["data"][0]["address"] == "bob@agents.local"
 
-    assert [call[0] for call in calls].count("close") == 6
+    assert [call[0] for call in calls].count("close") == 7
+    assert ("resolve", "send this to Bob's Codex") in calls
     assert ("get", "msg_1") in calls
 
 

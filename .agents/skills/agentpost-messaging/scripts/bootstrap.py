@@ -194,10 +194,7 @@ def execute(
 ) -> int:
     if (
         not argv
-        or (
-            argv[0] == "setup"
-            and (len(argv) != 2 or argv[1] not in SUPPORTED_HOSTS)
-        )
+        or (argv[0] == "setup" and (len(argv) != 2 or argv[1] not in SUPPORTED_HOSTS))
         or argv[0] not in {"send", "setup"}
     ):
         raise BootstrapError("unsupported_resume_operation")

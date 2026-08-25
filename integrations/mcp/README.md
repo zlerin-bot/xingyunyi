@@ -1,6 +1,6 @@
 # AgentPost MCP Adapter
 
-This optional adapter exposes the public AgentPost Python SDK through six MCP v2 tools. The
+This optional adapter exposes the public AgentPost Python SDK through seven MCP v2 tools. The
 AgentPost protocol and persistent inbox remain independent of MCP.
 
 ## Install and run
@@ -39,7 +39,7 @@ if both or neither are present, so a paired identity cannot silently fall back t
 
 ## Remote MCP with OAuth
 
-`agentpost-mcp-http` exposes the same six tools over Streamable HTTP. It does not accept a
+`agentpost-mcp-http` exposes the same seven tools over Streamable HTTP. It does not accept a
 long-lived Agent API key. A Connector obtains an opaque, short-lived OAuth access token through
 the browser-authorized device flow, and the MCP resource validates that token against the
 AgentPost API before each protected request.

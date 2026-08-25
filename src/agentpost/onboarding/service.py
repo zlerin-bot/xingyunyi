@@ -508,9 +508,11 @@ def decide_pairing(
             )
             if session.scalar(select(Agent.id).where(Agent.address == address)) is not None:
                 raise PairingAddressConflictError(address)
-            if payload.handle is not None and session.scalar(
-                select(Agent.id).where(Agent.handle == payload.handle)
-            ) is not None:
+            if (
+                payload.handle is not None
+                and session.scalar(select(Agent.id).where(Agent.handle == payload.handle))
+                is not None
+            ):
                 raise _pairing_handle_conflict(session, payload.handle)
             capabilities = (
                 list(pairing.requested_capabilities)
@@ -639,9 +641,10 @@ def decide_pairing(
         session.commit()
     except IntegrityError as exc:
         session.rollback()
-        if payload.handle is not None and session.scalar(
-            select(Agent.id).where(Agent.handle == payload.handle)
-        ) is not None:
+        if (
+            payload.handle is not None
+            and session.scalar(select(Agent.id).where(Agent.handle == payload.handle)) is not None
+        ):
             raise _pairing_handle_conflict(session, payload.handle) from exc
         raise PairingAddressConflictError(payload.local_agent_id or "automatic") from exc
     return PairingDecisionResult(pairing=pairing, replayed=False)
@@ -650,10 +653,9 @@ def decide_pairing(
 def _pairing_handle_conflict(session: Session, handle: str) -> PairingHandleConflictError:
     suggestions = available_handle_suggestions(
         handle,
-        is_available=lambda candidate: session.scalar(
-            select(Agent.id).where(Agent.handle == candidate)
-        )
-        is None,
+        is_available=lambda candidate: (
+            session.scalar(select(Agent.id).where(Agent.handle == candidate)) is None
+        ),
     )
     return PairingHandleConflictError(handle, suggestions)
 
