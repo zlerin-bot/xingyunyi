@@ -31,6 +31,7 @@ ADMIN_KEY = "postgres-admin-secret-postgres-admin-secret"
 def _settings(database_url: str, storage_path: Path) -> Settings:
     return Settings(
         environment="test",
+        registration_token=None,
         database_url=database_url,
         storage_path=storage_path,
         api_key_pepper="postgres-acceptance-pepper",
