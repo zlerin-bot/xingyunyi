@@ -1002,6 +1002,35 @@ footer {
   padding: 19px;
 }
 
+.agent-identity-details {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.agent-identity-details summary {
+  width: max-content;
+  color: var(--cyan);
+  cursor: pointer;
+}
+
+.agent-identity-details span {
+  display: block;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+
+.agent-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
+  padding-top: 13px;
+}
+
+.agent-card-actions .quiet-button {
+  min-height: 36px;
+}
+
 .agent-organization {
   border-left: 2px solid var(--violet);
   color: #c1b8ff;

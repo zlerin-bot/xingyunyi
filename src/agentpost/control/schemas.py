@@ -8,6 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
 from agentpost.control.approval_schemas import OrbitApprovalRequest
+from agentpost.identity.handles import canonicalize_agent_handle
 
 _EMAIL_PATTERN = re.compile(
     r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$",
@@ -154,6 +155,7 @@ class AgentAccessResponse(ControlModel):
 class OrbitAgent(ControlModel):
     id: UUID
     address: str
+    handle: str | None
     display_name: str
     description: str | None
     status: str
@@ -164,6 +166,15 @@ class OrbitAgent(ControlModel):
     last_seen_at: datetime | None
     unread_count: int
     pending_task_count: int
+
+
+class OrbitAgentHandleUpdate(ControlModel):
+    handle: str | None
+
+    @field_validator("handle")
+    @classmethod
+    def canonical_handle(cls, value: str | None) -> str | None:
+        return canonicalize_agent_handle(value) if value is not None else None
 
 
 class OrbitMessage(ControlModel):

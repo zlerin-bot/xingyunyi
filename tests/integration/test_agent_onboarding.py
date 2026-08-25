@@ -319,7 +319,7 @@ def test_automatic_new_agent_pairing_requires_no_address_or_profile_parameters(
             pairing=pairing,
             csrf=csrf,
             confirmation=confirmation,
-            payload={"decision": "approved", "create_new_agent": True},
+            payload={"decision": "approved", "create_new_agent": True, "handle": "kcode"},
             idempotency_key="automatic-new-agent",
         )
 
@@ -331,6 +331,7 @@ def test_automatic_new_agent_pairing_requires_no_address_or_profile_parameters(
         assert local_id.startswith("codex-")
         assert len(local_id) <= 64
         assert created["display_name"] == "我的 Codex"
+        assert created["handle"] == "kcode"
 
         issued = client.post(
             "/api/v1/connect/pairings/token",
@@ -677,6 +678,7 @@ def test_existing_agent_moves_to_new_connector_and_rotates_credential(
         assert migrated.json()["pairing"]["agent"] == {
             "id": agent_id,
             "address": agent_address,
+            "handle": None,
             "display_name": "stable-researcher",
         }
         assert migrated.json()["connector"]["connector_id"] != old_connector_id

@@ -47,6 +47,7 @@ from agentpost.onboarding.service import (
     PairingDeniedError,
     PairingDisabledError,
     PairingExpiredError,
+    PairingHandleConflictError,
     PairingIdempotencyConflictError,
     PairingInvalidIdempotencyKeyError,
     PairingInvalidStateError,
@@ -520,6 +521,15 @@ def orbit_decide_pairing(
             detail={
                 "code": "agent_address_conflict",
                 "message": "The requested Agent address is already registered",
+            },
+        ) from exc
+    except PairingHandleConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "handle_already_registered",
+                "message": "This short Agent name is already in use",
+                "details": {"handle": exc.handle, "suggestions": exc.suggestions},
             },
         ) from exc
     except PairingTargetAgentNotFoundError as exc:

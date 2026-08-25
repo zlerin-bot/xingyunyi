@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
+from agentpost.identity.handles import canonicalize_agent_handle
+
 
 class OnboardingModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -80,6 +82,7 @@ class PairingTokenRequest(OnboardingModel):
 class PairingAgentResponse(OnboardingModel):
     id: UUID
     address: str
+    handle: str | None
     display_name: str
 
 
@@ -139,6 +142,7 @@ class PairingConfirmationResponse(OnboardingModel):
 
 class PairingDecisionCreate(OnboardingModel):
     decision: Literal["approved", "denied"]
+    handle: str | None = None
     create_new_agent: bool = False
     local_agent_id: str | None = Field(
         default=None,
@@ -150,6 +154,11 @@ class PairingDecisionCreate(OnboardingModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
     capabilities: list[str] | None = None
+
+    @field_validator("handle")
+    @classmethod
+    def canonical_handle(cls, value: str | None) -> str | None:
+        return canonicalize_agent_handle(value) if value is not None else None
 
     @field_validator("local_agent_id", mode="before")
     @classmethod
@@ -199,6 +208,7 @@ class PairingDecisionCreate(OnboardingModel):
             or any(
                 value is not None
                 for value in (
+                    self.handle,
                     self.local_agent_id,
                     self.existing_agent_id,
                     self.display_name,

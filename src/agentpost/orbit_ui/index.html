@@ -212,6 +212,9 @@
               </div>
               <span id="agent-count" class="count-pill">0 个</span>
             </div>
+            <p class="section-intro">
+              给 Agent 设置一个容易记住的短名称。以后可以直接说“给 kcode 发消息”，无需记忆底层技术地址。
+            </p>
             <div id="agent-list" class="agent-grid" aria-live="polite"></div>
           </section>
 
@@ -572,6 +575,21 @@
             </select>
           </div>
           <p id="pairing-target-summary" class="form-status" role="status" hidden></p>
+          <div id="pairing-handle-field">
+            <label for="pairing-handle">短名称（可选）</label>
+            <input
+              id="pairing-handle"
+              type="text"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+              minlength="3"
+              maxlength="32"
+              pattern="[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*"
+              placeholder="例如 kcode"
+            >
+            <p class="field-help">连接时就可以设置；以后仍可在“我的 Agent”修改，不影响消息和历史。</p>
+          </div>
           <div id="pairing-existing-agent-field" hidden>
             <label for="pairing-existing-agent">这次连接属于哪个 Agent？</label>
             <select id="pairing-existing-agent"></select>
@@ -629,6 +647,41 @@
             </div>
           </div>
         </section>
+      </form>
+    </dialog>
+
+    <dialog id="handle-dialog" class="approval-dialog" aria-labelledby="handle-dialog-title">
+      <form id="handle-form" method="dialog" autocomplete="off">
+        <div class="dialog-heading">
+          <div>
+            <p class="section-tag">Easy Agent name</p>
+            <h2 id="handle-dialog-title">设置 Agent 短名称</h2>
+          </div>
+          <button id="handle-close" type="button" class="dialog-close" aria-label="关闭短名称窗口">×</button>
+        </div>
+        <p id="handle-summary" class="dialog-summary"></p>
+        <input id="handle-agent-id" type="hidden">
+        <label for="agent-handle">短名称</label>
+        <input
+          id="agent-handle"
+          type="text"
+          autocomplete="off"
+          autocapitalize="none"
+          spellcheck="false"
+          minlength="3"
+          maxlength="32"
+          pattern="[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*"
+          placeholder="例如 kcode"
+        >
+        <p class="field-help">3–32 位，以字母开头；可使用字母、数字和单个连字符。保存时自动转为小写。</p>
+        <div class="trust-banner">
+          修改短名称只改变你和联系人看到的称呼，不会创建新 Agent，也不会改变 Inbox、Thread、ACL、Connector 或历史消息。
+        </div>
+        <p id="handle-result" class="form-status" role="status"></p>
+        <div class="dialog-actions">
+          <button id="handle-cancel" type="button" class="quiet-button">取消</button>
+          <button id="handle-submit" type="submit" class="approval-submit">保存短名称</button>
+        </div>
       </form>
     </dialog>
 

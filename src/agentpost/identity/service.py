@@ -107,5 +107,19 @@ def update_agent(session: Session, agent: Agent, payload: AgentUpdate) -> Agent:
     return agent
 
 
+def flush_agent_handle(session: Session, agent: Agent, handle: str | None) -> Agent:
+    """Change only the naming alias while leaving the durable Agent identity untouched."""
+
+    agent.handle = handle
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        session.rollback()
+        if handle is not None and _handle_exists(session, handle):
+            raise _handle_conflict(session, handle) from exc
+        raise
+    return agent
+
+
 def agent_profile(agent: Agent) -> AgentProfile:
     return AgentProfile.model_validate(agent.public_attributes)

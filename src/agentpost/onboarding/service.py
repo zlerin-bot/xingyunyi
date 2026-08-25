@@ -22,6 +22,7 @@ from agentpost.identity.addressing import (
     canonicalize_agent_address,
 )
 from agentpost.identity.api_keys import api_key_prefix, digest_api_key, generate_api_key
+from agentpost.identity.handles import available_handle_suggestions
 from agentpost.identity.models import Agent, AgentApiKey, utc_now
 from agentpost.messaging.models import AuditLog
 from agentpost.onboarding.crypto import (
@@ -82,6 +83,13 @@ class PairingSlowDownError(Exception):
 
 class PairingAddressConflictError(Exception):
     pass
+
+
+class PairingHandleConflictError(Exception):
+    def __init__(self, handle: str, suggestions: list[str]) -> None:
+        super().__init__(handle)
+        self.handle = handle
+        self.suggestions = suggestions
 
 
 class PairingTargetAgentNotFoundError(Exception):
@@ -174,6 +182,7 @@ def _agent_response(agent: Agent) -> PairingAgentResponse:
     return PairingAgentResponse(
         id=agent.id,
         address=agent.address,
+        handle=agent.handle,
         display_name=agent.display_name,
     )
 
@@ -477,6 +486,16 @@ def decide_pairing(
             )
             if agent is None:
                 raise PairingTargetAgentNotFoundError
+            if payload.handle is not None:
+                conflict_id = session.scalar(
+                    select(Agent.id).where(
+                        Agent.handle == payload.handle,
+                        Agent.id != agent.id,
+                    )
+                )
+                if conflict_id is not None:
+                    raise _pairing_handle_conflict(session, payload.handle)
+                agent.handle = payload.handle
         else:
             local_agent_id = (
                 _automatic_local_agent_id(pairing)
@@ -489,6 +508,10 @@ def decide_pairing(
             )
             if session.scalar(select(Agent.id).where(Agent.address == address)) is not None:
                 raise PairingAddressConflictError(address)
+            if payload.handle is not None and session.scalar(
+                select(Agent.id).where(Agent.handle == payload.handle)
+            ) is not None:
+                raise _pairing_handle_conflict(session, payload.handle)
             capabilities = (
                 list(pairing.requested_capabilities)
                 if payload.create_new_agent
@@ -500,6 +523,7 @@ def decide_pairing(
             )
             agent = Agent(
                 address=address,
+                handle=payload.handle,
                 display_name=(
                     pairing.connector_display_name
                     if payload.create_new_agent
@@ -615,8 +639,23 @@ def decide_pairing(
         session.commit()
     except IntegrityError as exc:
         session.rollback()
+        if payload.handle is not None and session.scalar(
+            select(Agent.id).where(Agent.handle == payload.handle)
+        ) is not None:
+            raise _pairing_handle_conflict(session, payload.handle) from exc
         raise PairingAddressConflictError(payload.local_agent_id or "automatic") from exc
     return PairingDecisionResult(pairing=pairing, replayed=False)
+
+
+def _pairing_handle_conflict(session: Session, handle: str) -> PairingHandleConflictError:
+    suggestions = available_handle_suggestions(
+        handle,
+        is_available=lambda candidate: session.scalar(
+            select(Agent.id).where(Agent.handle == candidate)
+        )
+        is None,
+    )
+    return PairingHandleConflictError(handle, suggestions)
 
 
 def pairing_decision_response(

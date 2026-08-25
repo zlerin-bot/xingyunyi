@@ -104,6 +104,7 @@ const elements = {
   pairingTargetModeField: document.querySelector("#pairing-target-mode-field"),
   pairingTargetMode: document.querySelector("#pairing-target-mode"),
   pairingTargetSummary: document.querySelector("#pairing-target-summary"),
+  pairingHandle: document.querySelector("#pairing-handle"),
   pairingExistingAgentField: document.querySelector("#pairing-existing-agent-field"),
   pairingExistingAgent: document.querySelector("#pairing-existing-agent"),
   pairingNewAgentFields: document.querySelector("#pairing-new-agent-fields"),
@@ -115,6 +116,15 @@ const elements = {
   pairingMfa: document.querySelector("#pairing-mfa"),
   pairingPreview: document.querySelector("#pairing-preview"),
   pairingResult: document.querySelector("#pairing-result"),
+  handleDialog: document.querySelector("#handle-dialog"),
+  handleForm: document.querySelector("#handle-form"),
+  handleClose: document.querySelector("#handle-close"),
+  handleCancel: document.querySelector("#handle-cancel"),
+  handleSubmit: document.querySelector("#handle-submit"),
+  handleAgentId: document.querySelector("#handle-agent-id"),
+  agentHandle: document.querySelector("#agent-handle"),
+  handleSummary: document.querySelector("#handle-summary"),
+  handleResult: document.querySelector("#handle-result"),
   revokeDialog: document.querySelector("#revoke-dialog"),
   revokeForm: document.querySelector("#revoke-form"),
   revokeClose: document.querySelector("#revoke-close"),
@@ -236,7 +246,13 @@ function errorMessage(payload, status) {
     if (fields.has("display_name")) {
       return "Agent 名称格式不正确：名称不能为空，且不能超过 200 个字符。";
     }
+    if (fields.has("handle")) {
+      return "短名称格式不正确：请使用 3–32 位字母、数字和单个连字符，并以字母开头。";
+    }
     return "提交内容格式不正确。请检查页面中填写的 Agent 地址、名称和能力标签。";
+  }
+  if (status === 409 && Array.isArray(error?.details?.suggestions)) {
+    return `这个短名称已被使用。可以试试：${error.details.suggestions.join("、")}。`;
   }
   if (error && typeof error.message === "string") {
     return `星轨请求失败（${status}）：${error.message}`;
@@ -1000,12 +1016,22 @@ function renderAgents(agents) {
     top.className = "agent-card-top";
     const identity = document.createElement("div");
     const title = document.createElement("strong");
-    title.textContent = safeText(agent.display_name, agent.address);
-    const address = document.createElement("span");
-    address.textContent = safeText(agent.address);
-    identity.append(title, address);
+    title.textContent = safeText(agent.handle, agent.display_name);
+    const displayName = document.createElement("span");
+    displayName.textContent = agent.handle
+      ? safeText(agent.display_name)
+      : "尚未设置短名称";
+    identity.append(title, displayName);
     const role = chip(agent.role, "role");
     top.append(identity, role);
+
+    const identityDetails = document.createElement("details");
+    identityDetails.className = "agent-identity-details";
+    const identitySummary = document.createElement("summary");
+    identitySummary.textContent = "查看底层身份";
+    const technicalAddress = document.createElement("span");
+    technicalAddress.textContent = safeText(agent.address);
+    identityDetails.append(identitySummary, technicalAddress);
 
     const capabilities = document.createElement("div");
     capabilities.className = "capability-row";
@@ -1033,7 +1059,7 @@ function renderAgents(agents) {
       cell.append(term, detail);
       stats.append(cell);
     });
-    card.append(top);
+    card.append(top, identityDetails);
     if (agent.organization) {
       const organization = document.createElement("div");
       organization.className = "agent-organization";
@@ -1041,9 +1067,78 @@ function renderAgents(agents) {
       card.append(organization);
     }
     card.append(capabilities, stats);
+    if (agent.role === "owner") {
+      const actions = document.createElement("div");
+      actions.className = "agent-card-actions";
+      const editHandle = document.createElement("button");
+      editHandle.type = "button";
+      editHandle.className = "quiet-button";
+      editHandle.textContent = agent.handle ? "修改短名称" : "设置短名称";
+      editHandle.addEventListener("click", () => openHandleDialog(agent));
+      actions.append(editHandle);
+      card.append(actions);
+    }
     fragment.append(card);
   });
   elements.agentList.append(fragment);
+}
+
+function openHandleDialog(agent) {
+  elements.handleAgentId.value = safeText(agent.id, "");
+  elements.agentHandle.value = safeText(agent.handle, "");
+  elements.handleSummary.textContent = `为 ${safeText(agent.display_name, "这个 Agent")} 设置容易记住的称呼。`;
+  elements.handleResult.textContent = agent.handle
+    ? "修改后，原 Inbox、Thread、权限、连接和历史消息都保持不变。"
+    : "设置后，你可以直接用这个短名称给 Agent 发消息。";
+  elements.handleResult.className = "form-status";
+  elements.handleDialog.showModal();
+  elements.agentHandle.focus();
+}
+
+function closeHandleDialog() {
+  elements.handleAgentId.value = "";
+  elements.agentHandle.value = "";
+  elements.handleResult.textContent = "";
+  if (elements.handleDialog.open) {
+    elements.handleDialog.close();
+  }
+}
+
+async function saveAgentHandle(event) {
+  event.preventDefault();
+  const agentId = elements.handleAgentId.value.trim();
+  const handle = elements.agentHandle.value.trim().toLowerCase();
+  elements.agentHandle.value = handle;
+  if (
+    !agentId
+    || (handle && (
+      handle.length < 3
+      || handle.length > 32
+      || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(handle)
+    ))
+  ) {
+    elements.handleResult.textContent = "请使用 3–32 位字母、数字和单个连字符，并以字母开头。";
+    elements.handleResult.className = "form-status error";
+    return;
+  }
+  elements.handleSubmit.disabled = true;
+  elements.handleResult.textContent = "正在保存短名称…";
+  elements.handleResult.className = "form-status";
+  try {
+    await requestJson(`/api/v1/orbit/agents/${encodeURIComponent(agentId)}/handle`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+      body: JSON.stringify({ handle: handle || null }),
+    });
+    closeHandleDialog();
+    await loadDashboard();
+    setConnection(handle ? `短名称 ${handle} 已保存` : "Agent 短名称已移除", "success");
+  } catch (error) {
+    elements.handleResult.textContent = error.message;
+    elements.handleResult.className = "form-status error";
+  } finally {
+    elements.handleSubmit.disabled = false;
+  }
 }
 
 function openRevokeDialog(connector) {
@@ -1207,6 +1302,7 @@ function closePairingDialog({ clear = true } = {}) {
     elements.pairingLocalId.value = "";
     elements.pairingDisplayName.value = "";
     elements.pairingCapabilities.value = "";
+    elements.pairingHandle.value = "";
     elements.pairingPreview.replaceChildren();
     elements.pairingPreview.hidden = true;
     state.pairingTargetResolution = "pending";
@@ -1229,7 +1325,9 @@ function populateExistingAgentOptions() {
   owned.forEach((agent) => {
     const option = document.createElement("option");
     option.value = agent.id;
-    option.textContent = `${safeText(agent.display_name, agent.address)} · ${agent.address}`;
+    option.textContent = agent.handle
+      ? `${safeText(agent.handle)} · ${safeText(agent.display_name)}`
+      : safeText(agent.display_name, agent.address);
     elements.pairingExistingAgent.append(option);
   });
   if (!owned.length) {
@@ -1345,13 +1443,16 @@ function pairingPayload(decision) {
   if (decision === "denied") {
     return { decision: "denied" };
   }
+  const handle = elements.pairingHandle.value.trim().toLowerCase() || null;
+  elements.pairingHandle.value = handle || "";
   if (state.pairingCreateNewAutomatically) {
-    return { decision: "approved", create_new_agent: true };
+    return { decision: "approved", create_new_agent: true, handle };
   }
   if (elements.pairingTargetMode.value === "existing") {
     return {
       decision: "approved",
       existing_agent_id: elements.pairingExistingAgent.value || null,
+      handle,
     };
   }
   const capabilities = [...new Set(
@@ -1364,6 +1465,7 @@ function pairingPayload(decision) {
   elements.pairingLocalId.value = localAgentId;
   return {
     decision: "approved",
+    handle,
     local_agent_id: localAgentId,
     display_name: elements.pairingDisplayName.value.trim() || null,
     capabilities: capabilities.length ? capabilities : null,
@@ -1384,7 +1486,20 @@ function canonicalPairingLocalId(value) {
 }
 
 function pairingPayloadProblem(decision, payload) {
-  if (decision !== "approved" || payload.create_new_agent || payload.existing_agent_id) {
+  if (decision !== "approved") {
+    return "";
+  }
+  if (
+    payload.handle
+    && (
+      payload.handle.length < 3
+      || payload.handle.length > 32
+      || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(payload.handle)
+    )
+  ) {
+    return "短名称请使用 3–32 位字母、数字和单个连字符，并以字母开头。";
+  }
+  if (payload.create_new_agent || payload.existing_agent_id) {
     return "";
   }
   if (!payload.local_agent_id) {
@@ -2415,6 +2530,10 @@ elements.pairingDeny.addEventListener("click", (event) => decidePairing(event, "
 elements.pairingClose.addEventListener("click", () => closePairingDialog());
 elements.pairingCancel.addEventListener("click", () => closePairingDialog());
 elements.pairingDialog.addEventListener("close", () => closePairingDialog());
+elements.handleForm.addEventListener("submit", saveAgentHandle);
+elements.handleClose.addEventListener("click", closeHandleDialog);
+elements.handleCancel.addEventListener("click", closeHandleDialog);
+elements.handleDialog.addEventListener("close", closeHandleDialog);
 elements.pairingId.addEventListener("change", loadPairingPreview);
 elements.pairingTargetMode.addEventListener("change", updatePairingTargetMode);
 elements.pairingExistingAgent.addEventListener("change", () => {

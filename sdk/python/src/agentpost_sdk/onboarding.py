@@ -32,6 +32,7 @@ class ConnectorAgent(BaseModel):
 
     id: str
     address: str
+    handle: str | None = None
     display_name: str
 
 

@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from agentpost.access.models import AccessRule
 from agentpost.config import Settings
-from agentpost.control.models import HumanAccessKey, HumanSession, HumanUser
+from agentpost.control.models import HumanAccessKey, HumanActionAudit, HumanSession, HumanUser
 from agentpost.db import Database
+from agentpost.identity.models import Agent
 from agentpost.main import create_app
+from agentpost.messaging.models import Delivery, Message
+from agentpost.onboarding.models import AgentConnectorBinding, ConnectorInstance
 
 ADMIN_KEY = "admin-secret-admin-secret-admin-secret"
 
@@ -163,6 +168,15 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "organizationDomainProofs.clear()" in script.text
     assert "TXT 记录" in orbit.text
     assert "Agent 连接" in orbit.text
+    assert "给 Agent 设置一个容易记住的短名称" in orbit.text
+    assert "handle-dialog" in orbit.text
+    assert "设置 Agent 短名称" in orbit.text
+    assert "pairing-handle" in orbit.text
+    assert "连接时就可以设置" in orbit.text
+    assert "/api/v1/orbit/agents/${encodeURIComponent(agentId)}/handle" in script.text
+    assert "does-not-exist@agentpost.me" not in script.text
+    assert "查看底层身份" in script.text
+    assert "修改短名称" in script.text
     assert "pairing-dialog" in orbit.text
     assert "revoke-dialog" in orbit.text
     assert "/api/v1/orbit/pairings/" in script.text
@@ -287,6 +301,143 @@ def test_human_identity_uses_a_separate_one_time_key_and_admin_boundary(
         assert user is not None and stored_key is not None
         assert stored_key.key_digest != key
         assert key not in stored_key.key_digest
+
+
+def test_human_owner_can_rename_handle_without_changing_durable_agent_state(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with _control_client(settings, database) as client:
+        sender = _create_agent(client, "sender@agents.local", "Sender")
+        target = _create_agent(client, "stable-target@agents.local", "Research Codex")
+        owner = _create_human(client, "owner@example.com", "张子良")
+        _grant(
+            client,
+            human_id=owner["user"]["id"],
+            agent_id=target["agent"]["id"],
+            role="owner",
+        )
+        sent = client.post(
+            "/api/v1/messages",
+            headers={
+                "Authorization": f"Bearer {sender['api_key']}",
+                "Idempotency-Key": "handle-history-invariant",
+            },
+            json={
+                "to": [{"address": target["agent"]["address"]}],
+                "type": "message",
+                "subject": "历史消息",
+                "content": {"format": "text", "body": "必须保留"},
+            },
+        )
+        assert sent.status_code == 201, sent.text
+
+        with database.session_factory() as session:
+            target_id = UUID(str(target["agent"]["id"]))
+            owner_id = UUID(str(owner["user"]["id"]))
+            connector = ConnectorInstance(
+                connector_id="con_handle_invariant",
+                agent_id=target_id,
+                human_user_id=owner_id,
+                connector_type="codex",
+                display_name="Codex on Mars Mac",
+                status="active",
+                health_status="healthy",
+            )
+            session.add(connector)
+            session.flush()
+            binding = AgentConnectorBinding(
+                agent_id=target_id,
+                connector_instance_id=connector.id,
+            )
+            rule = AccessRule(
+                owner_agent_id=target_id,
+                effect="allow",
+                subject_type="agent",
+                subject=sender["agent"]["address"],
+            )
+            session.add_all([binding, rule])
+            session.commit()
+            durable_before = {
+                "agent_id": target["agent"]["id"],
+                "address": target["agent"]["address"],
+                "message_id": sent.json()["message_id"],
+                "thread_id": sent.json()["thread_id"],
+                "delivery_id": sent.json()["delivery"]["delivery_id"],
+                "rule_id": rule.id,
+                "connector_id": connector.id,
+                "binding_connector_id": binding.connector_instance_id,
+            }
+
+        human_headers = {"Authorization": f"Bearer {owner['access_key']}"}
+        first = client.patch(
+            f"/api/v1/orbit/agents/{target['agent']['id']}/handle",
+            headers=human_headers,
+            json={"handle": "  KCode  "},
+        )
+        second = client.patch(
+            f"/api/v1/orbit/agents/{target['agent']['id']}/handle",
+            headers=human_headers,
+            json={"handle": "ziliang-codex"},
+        )
+        dashboard = client.get("/api/v1/orbit/dashboard", headers=human_headers)
+
+    assert first.status_code == second.status_code == dashboard.status_code == 200
+    assert first.json()["handle"] == "kcode"
+    assert second.json()["handle"] == "ziliang-codex"
+    assert second.json()["id"] == durable_before["agent_id"]
+    assert second.json()["address"] == durable_before["address"]
+    assert dashboard.json()["agents"][0]["handle"] == "ziliang-codex"
+
+    with database.session_factory() as session:
+        agent = session.get(Agent, UUID(str(target["agent"]["id"])))
+        message = session.get(Message, durable_before["message_id"])
+        delivery = session.scalar(
+            select(Delivery).where(Delivery.message_id == durable_before["message_id"])
+        )
+        rule = session.get(AccessRule, durable_before["rule_id"])
+        binding = session.get(AgentConnectorBinding, UUID(str(target["agent"]["id"])))
+        connector = session.get(ConnectorInstance, durable_before["connector_id"])
+        audits = list(
+            session.scalars(
+                select(HumanActionAudit).where(
+                    HumanActionAudit.action == "control.agent_handle_updated"
+                )
+            )
+        )
+        assert agent is not None and agent.handle == "ziliang-codex"
+        assert agent.address == durable_before["address"]
+        assert message is not None and str(message.thread_id) == durable_before["thread_id"]
+        assert delivery is not None and str(delivery.id) == durable_before["delivery_id"]
+        assert rule is not None and rule.id == durable_before["rule_id"]
+        assert binding is not None
+        assert binding.connector_instance_id == durable_before["binding_connector_id"]
+        assert connector is not None and connector.id == durable_before["connector_id"]
+        assert len(audits) == 2
+
+
+def test_non_owner_cannot_change_agent_handle(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with _control_client(settings, database) as client:
+        target = _create_agent(client, "target@agents.local", "Target")
+        viewer = _create_human(client, "viewer@example.com", "Viewer")
+        _grant(
+            client,
+            human_id=viewer["user"]["id"],
+            agent_id=target["agent"]["id"],
+            role="viewer",
+        )
+
+        denied = client.patch(
+            f"/api/v1/orbit/agents/{target['agent']['id']}/handle",
+            headers={"Authorization": f"Bearer {viewer['access_key']}"},
+            json={"handle": "stolen-name"},
+        )
+
+    assert denied.status_code == 403
+    assert denied.json()["error"]["code"] == "AGENT_HANDLE_ACCESS_DENIED"
 
 
 def test_owner_dashboard_separates_delivery_from_work_and_isolates_other_agents(

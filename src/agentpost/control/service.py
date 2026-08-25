@@ -575,6 +575,7 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
         OrbitAgent(
             id=entry.agent.id,
             address=entry.agent.address,
+            handle=entry.agent.handle,
             display_name=entry.agent.display_name,
             description=entry.agent.description,
             status=entry.agent.status,

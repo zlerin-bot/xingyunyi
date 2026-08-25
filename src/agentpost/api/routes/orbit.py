@@ -8,13 +8,18 @@ from fastapi.responses import FileResponse
 
 from agentpost.api.dependencies import SessionDep, SettingsDep
 from agentpost.control.auth import CurrentHumanDep, HumanAccessKeyDep
-from agentpost.control.human_security import HUMAN_CSRF_HEADER, add_human_action_audit
-from agentpost.control.models import HumanSession
+from agentpost.control.human_security import (
+    HUMAN_CSRF_HEADER,
+    HumanCsrfDep,
+    add_human_action_audit,
+)
+from agentpost.control.models import AgentOwnership, HumanSession
 from agentpost.control.organization_service import list_orbit_organizations
 from agentpost.control.schemas import (
     HumanProfile,
     HumanSessionResponse,
     OrbitAgent,
+    OrbitAgentHandleUpdate,
     OrbitDashboard,
     OrbitMessage,
     OrbitOrganization,
@@ -33,6 +38,13 @@ from agentpost.control.sessions import (
     revoke_human_session,
     rotate_human_csrf_token,
     verify_human_csrf_token,
+)
+from agentpost.identity.models import Agent
+from agentpost.identity.schemas import AgentProfile
+from agentpost.identity.service import (
+    HandleAlreadyRegisteredError,
+    agent_profile,
+    flush_agent_handle,
 )
 
 router = APIRouter(tags=["human-control-plane"])
@@ -226,6 +238,63 @@ def orbit_agents(
     session: SessionDep,
 ) -> list[OrbitAgent]:
     return build_orbit_dashboard(session, current_human).agents
+
+
+@router.patch("/api/v1/orbit/agents/{agent_id}/handle", response_model=AgentProfile)
+def update_orbit_agent_handle(
+    agent_id: UUID,
+    payload: OrbitAgentHandleUpdate,
+    request: Request,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    csrf: HumanCsrfDep,
+) -> AgentProfile:
+    _ = csrf
+    ownership = session.get(AgentOwnership, agent_id)
+    if ownership is None or ownership.human_user_id != current_human.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "agent_handle_access_denied",
+                "message": "Only the Human owner can change this Agent short name",
+            },
+        )
+    agent = session.get(Agent, agent_id)
+    if agent is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "agent_not_found", "message": "Agent was not found"},
+        )
+    previous_handle = agent.handle
+    try:
+        flush_agent_handle(session, agent, payload.handle)
+    except HandleAlreadyRegisteredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "handle_already_registered",
+                "message": "This short Agent name is already in use",
+                "details": {"handle": exc.handle, "suggestions": exc.suggestions},
+            },
+        ) from exc
+    add_human_action_audit(
+        session,
+        human_user_id=current_human.id,
+        human_session_id=(
+            UUID(request.state.human_session_id)
+            if getattr(request.state, "human_session_id", None)
+            else None
+        ),
+        action="control.agent_handle_updated",
+        target_type="agent",
+        target_id=str(agent.id),
+        outcome="success",
+        request_id=request.state.request_id,
+        audit_metadata={"previous_handle": previous_handle, "handle": agent.handle},
+    )
+    session.commit()
+    session.refresh(agent)
+    return agent_profile(agent)
 
 
 @router.get("/api/v1/orbit/organizations", response_model=list[OrbitOrganization])
