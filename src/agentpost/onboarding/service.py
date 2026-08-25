@@ -733,14 +733,24 @@ def list_human_connectors(session: Session, *, user: HumanUser) -> list[OrbitCon
             )
         ).all()
     }
-    return [
-        OrbitConnector(
-            **_connector_response(connector).model_dump(),
-            agent=_agent_response(agent),
-            is_current=connector.id in bindings,
+    results: list[OrbitConnector] = []
+    for connector, agent in rows:
+        is_current = connector.id in bindings
+        if not is_current or connector.status != "active":
+            connection_state = "historical"
+        elif connector.last_heartbeat_at is None:
+            connection_state = "awaiting_agent"
+        else:
+            connection_state = "connected"
+        results.append(
+            OrbitConnector(
+                **_connector_response(connector).model_dump(),
+                agent=_agent_response(agent),
+                is_current=is_current,
+                connection_state=connection_state,
+            )
         )
-        for connector, agent in rows
-    ]
+    return results
 
 
 def get_owned_connector(

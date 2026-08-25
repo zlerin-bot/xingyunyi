@@ -416,6 +416,7 @@ function statusLabel(value) {
     error: "故障",
     connected: "已连接",
     disconnected: "未连接",
+    awaiting_agent: "等待 Agent 完成本机连接",
   };
   return labels[value] || safeText(value);
 }
@@ -1028,6 +1029,9 @@ function renderAgents(agents) {
     const currentConnector = agentConnectors.find(
       (connector) => connector.is_current && connector.status === "active",
     ) || null;
+    const connectedConnector = currentConnector?.connection_state === "connected"
+      ? currentConnector
+      : null;
     const preferredConnector = currentConnector || agentConnectors[0] || null;
     const card = document.createElement("article");
     card.className = "agent-card";
@@ -1044,14 +1048,18 @@ function renderAgents(agents) {
     identity.append(title, displayName);
     const badges = document.createElement("div");
     badges.className = "agent-status-badges";
-    badges.append(chip(currentConnector ? "connected" : "disconnected"));
+    badges.append(chip(
+      connectedConnector ? "connected" : currentConnector ? "awaiting_agent" : "disconnected",
+    ));
     badges.append(chip(agent.role, "role"));
     top.append(identity, badges);
 
     const connection = document.createElement("div");
-    connection.className = `agent-connection-state ${currentConnector ? "connected" : "disconnected"}`;
-    connection.textContent = currentConnector
-      ? `${safeText(currentConnector.display_name, currentConnector.connector_type)} 已连接 · ${statusLabel(currentConnector.health_status)}`
+    connection.className = `agent-connection-state ${connectedConnector ? "connected" : currentConnector ? "awaiting" : "disconnected"}`;
+    connection.textContent = connectedConnector
+      ? `${safeText(connectedConnector.display_name, connectedConnector.connector_type)} 已连接 · ${statusLabel(connectedConnector.health_status)}`
+      : currentConnector
+      ? `${safeText(currentConnector.display_name, currentConnector.connector_type)} 已获授权，等待本机写入安全凭据、配置 MCP 并首次报到`
       : "当前未连接；Agent 身份、Inbox 和历史仍保留";
 
     const identityDetails = document.createElement("details");
@@ -1102,7 +1110,7 @@ function renderAgents(agents) {
       const connect = document.createElement("button");
       connect.type = "button";
       connect.className = "quiet-button";
-      connect.textContent = currentConnector ? "重新连接" : "连接";
+      connect.textContent = connectedConnector ? "重新连接" : currentConnector ? "继续连接" : "连接";
       connect.addEventListener("click", () => openPairingDialog(
         "",
         "",
@@ -1119,7 +1127,7 @@ function renderAgents(agents) {
         const disconnect = document.createElement("button");
         disconnect.type = "button";
         disconnect.className = "quiet-button";
-        disconnect.textContent = "断开";
+        disconnect.textContent = connectedConnector ? "断开" : "取消未完成连接";
         disconnect.addEventListener("click", () => openRevokeDialog(currentConnector));
         actions.append(disconnect);
       }
@@ -1216,7 +1224,7 @@ function connectorCard(connector, historical = false) {
   const address = document.createElement("span");
   address.textContent = safeText(connector.agent?.address);
   identity.append(name, address);
-  heading.append(identity, chip(connector.status));
+  heading.append(identity, chip(historical ? connector.status : connector.connection_state));
 
   const facts = document.createElement("dl");
   [
@@ -1240,11 +1248,14 @@ function connectorCard(connector, historical = false) {
     const actions = document.createElement("div");
     actions.className = "connector-actions";
     const current = document.createElement("span");
-    current.textContent = "当前 Connector · Agent 身份与 Inbox 独立保留";
+    const connected = connector.connection_state === "connected";
+    current.textContent = connected
+      ? "当前 Connector · Agent 身份与 Inbox 独立保留"
+      : "授权已完成，但本机配置和首次报到尚未完成；现在不能收发消息";
     const revoke = document.createElement("button");
     revoke.type = "button";
     revoke.className = "quiet-button danger";
-    revoke.textContent = "撤销连接";
+    revoke.textContent = connected ? "撤销连接" : "取消未完成连接";
     revoke.addEventListener("click", () => openRevokeDialog(connector));
     actions.append(current, revoke);
     card.append(actions);

@@ -386,8 +386,8 @@ def _run(args: argparse.Namespace) -> int:
         elif args.command == "status":
             _json(connector.heartbeat())
         elif args.command == "setup":
-            heartbeat = connector.heartbeat()
             configured = _configure_host(connector, args.host)
+            heartbeat = connector.heartbeat()
             _json(
                 {
                     "status": "configured",
@@ -403,8 +403,8 @@ def _run(args: argparse.Namespace) -> int:
         elif args.command == "send":
             configured = None
             if args.ensure_host:
-                connector.heartbeat()
                 configured = _configure_host(connector, args.ensure_host)
+                connector.heartbeat()
             recipient_address = _resolve_recipient(client, args)
             if recipient_address is None:
                 return 2
@@ -484,9 +484,11 @@ def main(argv: list[str] | None = None) -> int:
         return 130
     except AgentPostError as exc:
         code = exc.code if isinstance(exc, ResponseError) else type(exc).__name__
+        _json({"status": "failed", "error_code": code})
         print(f"agentpost_error code={code}", file=sys.stderr)
         return 1
     except OSError:
+        _json({"status": "failed", "error_code": "local_runtime_error"})
         print("local_runtime_error", file=sys.stderr)
         return 1
 

@@ -197,6 +197,9 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "每张 Agent 卡片都可独立连接、断开、改名或删除" in orbit.text
     assert "查看 ${historicalConnectors.length} 条历史连接记录" in script.text
     assert "不是多个可删除的 Agent" in script.text
+    assert "等待 Agent 完成本机连接" in script.text
+    assert 'connector.connection_state === "connected"' in script.text
+    assert "现在不能收发消息" in script.text
     assert "connector-history-grid" in stylesheet.text
     assert "只需选择一次" in orbit.text
     assert "last_heartbeat_at" in script.text

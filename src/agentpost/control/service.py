@@ -699,6 +699,7 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
                 .where(
                     AgentConnectorBinding.agent_id.in_(agent_ids),
                     ConnectorInstance.status == "active",
+                    ConnectorInstance.last_heartbeat_at.is_not(None),
                 )
             )
             or 0

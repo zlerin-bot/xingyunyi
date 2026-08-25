@@ -311,6 +311,7 @@ def test_setup_codex_pairs_registers_profile_and_never_prints_credentials(
 ) -> None:
     connector = DummyConnector()
     captured = {}
+    events = []
 
     def connect(args):
         captured["connector_type"] = args.connector_type
@@ -318,6 +319,7 @@ def test_setup_codex_pairs_registers_profile_and_never_prints_credentials(
         return connector
 
     def configure(**kwargs):
+        events.append("configured")
         captured.update(kwargs)
         return CodexSetupResult(
             server_name="agentpost",
@@ -326,6 +328,13 @@ def test_setup_codex_pairs_registers_profile_and_never_prints_credentials(
         )
 
     monkeypatch.setattr(cli, "_connect", connect)
+    original_heartbeat = connector.heartbeat
+
+    def heartbeat():
+        events.append("heartbeat")
+        return original_heartbeat()
+
+    connector.heartbeat = heartbeat
     monkeypatch.setattr(cli, "_mcp_command", lambda: tmp_path / "agentpost-mcp")
     monkeypatch.setattr(cli, "configure_codex_mcp", configure)
 
@@ -334,6 +343,7 @@ def test_setup_codex_pairs_registers_profile_and_never_prints_credentials(
     result = json.loads(output)
 
     assert captured["connector_type"] == "codex"
+    assert events == ["configured", "heartbeat"]
     assert captured["server"] == "https://agentpost.me"
     assert captured["profile"] == "codex:test-device"
     assert result == {
@@ -347,6 +357,37 @@ def test_setup_codex_pairs_registers_profile_and_never_prints_credentials(
         "status": "configured",
     }
     assert "agt_" not in output
+
+
+def test_setup_failure_is_machine_readable_and_does_not_report_heartbeat(
+    monkeypatch,
+    capsys,
+) -> None:
+    connector = DummyConnector()
+    heartbeat_called = False
+    original_heartbeat = connector.heartbeat
+
+    def heartbeat():
+        nonlocal heartbeat_called
+        heartbeat_called = True
+        return original_heartbeat()
+
+    monkeypatch.setattr(cli, "_connect", lambda _args: connector)
+    monkeypatch.setattr(
+        cli,
+        "_configure_host",
+        lambda *_args: (_ for _ in ()).throw(cli.ConfigurationError("host setup failed")),
+    )
+    monkeypatch.setattr(connector, "heartbeat", heartbeat)
+
+    assert cli.main(["setup", "workbuddy"]) == 1
+    streams = capsys.readouterr()
+    assert json.loads(streams.out) == {
+        "error_code": "ConfigurationError",
+        "status": "failed",
+    }
+    assert "agentpost_error code=ConfigurationError" in streams.err
+    assert heartbeat_called is False
 
 
 def test_setup_for_existing_agent_passes_only_the_hidden_target_intent(

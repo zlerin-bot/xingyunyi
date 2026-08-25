@@ -1086,6 +1086,11 @@ footer {
   color: var(--green);
 }
 
+.agent-connection-state.awaiting {
+  border-left-color: var(--gold);
+  color: var(--gold);
+}
+
 .data-chip.connected {
   border-color: rgba(123, 212, 164, 0.38);
   color: var(--green);
@@ -1093,6 +1098,11 @@ footer {
 
 .data-chip.disconnected {
   color: var(--muted);
+}
+
+.data-chip.awaiting_agent {
+  border-color: rgba(230, 189, 114, 0.42);
+  color: var(--gold);
 }
 
 .agent-organization {

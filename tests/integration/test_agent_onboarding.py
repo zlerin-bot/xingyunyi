@@ -430,6 +430,17 @@ def test_new_codex_and_workbuddy_pairings_stay_active_as_independent_agents(
             ).status_code
             == 200
         )
+        awaiting_dashboard = client.get("/api/v1/orbit/dashboard").json()
+        awaiting_connectors = client.get("/api/v1/orbit/connectors").json()["items"]
+        assert awaiting_dashboard["metrics"]["connected_agent_count"] == 0
+        assert {item["connection_state"] for item in awaiting_connectors} == {"awaiting_agent"}
+        for token in (codex_token, workbuddy_token):
+            heartbeat = client.post(
+                "/api/v1/connect/heartbeat",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"health_status": "healthy"},
+            )
+            assert heartbeat.status_code == 200, heartbeat.text
         dashboard = client.get("/api/v1/orbit/dashboard").json()
         connectors = client.get("/api/v1/orbit/connectors").json()["items"]
 
@@ -438,6 +449,7 @@ def test_new_codex_and_workbuddy_pairings_stay_active_as_independent_agents(
     assert len(dashboard["agents"]) == 2
     assert len([item for item in connectors if item["is_current"]]) == 2
     assert {item["status"] for item in connectors} == {"active"}
+    assert {item["connection_state"] for item in connectors} == {"connected"}
     with database.session_factory() as session:
         assert session.scalar(select(func.count()).select_from(AgentConnectorBinding)) == 2
 
