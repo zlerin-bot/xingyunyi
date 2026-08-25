@@ -292,6 +292,51 @@ showed the friendly short-name guidance and editor, and kept the immutable addre
 remain tester-owned acceptance cases. This release is
 `recipient_resolution_deployed_https_verified`, not `production_accepted`.
 
+## Multi-Agent connection release 0.1.5 (2026-08-25)
+
+Commit `79c34cb` added explicit new-Agent versus reconnect-existing-Agent pairing intents, readable
+Human/type/sequence addresses, current-Connector counts, and per-Agent connect/reconnect,
+disconnect, handle edit, and history-preserving soft delete. Release commit `f6bb927` packaged this
+as immutable 0.1.4. Before cutover, the server was checked read-only at 0.1.3/`6ada188`/migration
+0019 with AgentPost, Nginx, and PostgreSQL active and sufficient disk capacity. The protected
+backup `/opt/agentpost/backups/20260825-1425-f6bb927-pre-014/` contains a PostgreSQL custom dump,
+attachment archive, environment, systemd/Nginx configuration, current wheel, checksums, and a
+guarded rollback script. A disposable real PostgreSQL database completed
+`0019 -> 0020 -> 0019 -> 0020`, including the pairing-intent UUID column and index checks.
+
+The first 0.1.4 cutover used a two-second readiness check. Startup had not completed when the check
+ran, so the automated rollback path started; its old 0.1.3 Alembic could not interpret revision
+0020. No schema, production row, attachment, or backup was deleted. The service was forward-recovered
+with the new release, and the guarded rollback script was corrected to run the 0020-to-0019 downgrade
+with 0.1.4 migration code before restoring the 0.1.3 application. The deployment readiness loop was
+expanded to 30 seconds. Nginx's explicit immutable-download allowlist was also updated for 0.1.4;
+unknown download paths remain denied.
+
+Post-cutover validation then found that the 0.1.4 server package reported 0.1.4 while its bundled
+Python SDK and MCP still declared 0.1.3. The immutable 0.1.4 artifact was not overwritten. Commit
+`20afebd` aligned all three packages at 0.1.5 and added a package-boundary regression test. Local
+evidence for the final candidate is 363 passed, one explicit loopback sandbox skip, five opt-in
+PostgreSQL tests deselected, ten package-local MCP tests, four TypeScript Connector tests, and clean
+Ruff/format/diff/JavaScript/Alembic checks.
+
+The final release is `/opt/agentpost/releases/20afebd`, with runtime
+`/opt/agentpost/venvs/20afebd`, schema `0020_pairing_agent_intent`, and public immutable wheel:
+
+`https://agentpost.me/downloads/agentpost-0.1.5-py3-none-any.whl`
+
+Its SHA-256 is `38dc93bdb9de5938b56d5fb95403ce50e0044b7e3b26304fcf7fb07bcf84b1f7`.
+The verified 0.1.5 pre-cutover backup is
+`/opt/agentpost/backups/20260825-1655-20afebd-pre-015/`; it includes the 0.1.4 rollback wheel and
+`rollback-immediate-0.1.5.sh`. `pg_restore --list`, attachment listing, stored hashes, and script
+syntax passed before cutover.
+
+After the 30-second guarded cutover, AgentPost, Nginx, and PostgreSQL were active; local/public
+health and readiness reported 0.1.5; server, SDK, and MCP versions were aligned; the public wheel
+hash and pinned auth metadata matched; 星轨 contained all per-Agent controls; and the service journal
+had no cutover errors. This evidence is `multi_agent_connection_deployed_https_verified`, not
+`production_accepted`. The external `020` Codex-plus-WorkBuddy simultaneous-connection flow and the
+`mars` per-card lifecycle flow remain real-user acceptance gates.
+
 ## Rollback
 
 The provider snapshot `agentpost-pre-https-20260824`
@@ -314,12 +359,13 @@ attachment archive. The pre-update systemd unit is stored at
 `/etc/systemd/system/agentpost.service.pre-8f3bfd0`.
 
 The current rollback backup is
-`/opt/agentpost/backups/20260825-1210-5a5b509-pre-013/`. For an immediate 0.1.3 rollback before
-new handles have been written, review and run `rollback-immediate-0.1.3.sh` with its required
-`CONFIRM_IMMEDIATE_ROLLBACK=YES` guard. It stops only AgentPost, downgrades migration 0019 to 0018,
-restores the protected environment, service unit, Nginx site and 0.1.2 release, then validates
-readiness. If any 0.1.3 handles or subsequent data must be preserved, do not use the immediate
-downgrade blindly: capture a new dump and plan a data-preserving rollback or restore first.
+`/opt/agentpost/backups/20260825-1655-20afebd-pre-015/`. For an immediate 0.1.5 rollback, first
+review `rollback-immediate-0.1.5.sh` and use its explicit confirmation guard. It stops only
+AgentPost, runs any required migration with code that understands revision 0020, restores the
+protected environment, service unit, Nginx site and prior 0.1.4 release, then validates readiness.
+If any post-cutover data must be preserved, capture a new dump and plan a data-preserving rollback
+or restore before changing the schema. The older 0.1.3 backup remains available as historical
+evidence but is no longer the immediate rollback target.
 
 For an application-only incident:
 

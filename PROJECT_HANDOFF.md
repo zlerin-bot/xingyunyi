@@ -1,13 +1,13 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`multi-agent-connection-local`
+- 交接阶段：`multi-agent-connection-deployed`
 - 核验日期：2026-08-25
 - 代码分支：`main`
-- 阶段性质：多 Agent 同时连接与逐 Agent 操作已在本地完成；生产仍为 0.1.3，尚未发布本切片
+- 阶段性质：多 Agent 同时连接与逐 Agent 操作已部署为 0.1.5；真实外部用户验收仍待完成
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-最新本地切片修复测试用户 `020` 的 WorkBuddy 配对导致原 Codex 下线问题。根因不是数据库
+最新部署切片修复测试用户 `020` 的 WorkBuddy 配对导致原 Codex 下线问题。根因不是数据库
 只能存一个 Agent，而是星轨在“只有一个已有 Agent”时自动复用它，触发了同一 Agent 的
 Connector 替换。现在普通“连接新的 Agent”始终新建独立 Agent；只有从某张 Agent 卡片点击
 “连接/重新连接”才携带并核验该 Agent 的目标意图。新 Agent 地址自动按 Human 名、Agent
@@ -19,37 +19,51 @@ Connector 替换。现在普通“连接新的 Agent”始终新建独立 Agent�
 Inbox、Thread、ACL、Connector 记录和消息历史继续保留。新增迁移 head 为
 `0020_pairing_agent_intent`。
 
-本地证据为 362 passed、1 个 loopback sandbox skip、5 个 PostgreSQL deselected，另有 MCP
-10 passed、TypeScript 4 passed；聚焦多 Agent/星轨/SDK/CLI/bootstrap 为 47 passed。Ruff、
-format、浏览器 JavaScript 语法、Skill/Plugin 副本一致、Alembic 单 head、PostgreSQL offline
-SQL 和 diff 检查通过。本环境不能绑定 loopback，也没有可用的真实 PostgreSQL，因此这两项
-运行验收仍待外部环境完成。
+当前生产是 `0.1.5` / `20afebd` / `0020_pairing_agent_intent`，路径为
+`/opt/agentpost/releases/20afebd` 和 `/opt/agentpost/venvs/20afebd`。server、Python SDK、MCP
+三处版本均为 0.1.5，公开 wheel SHA-256 为
+`38dc93bdb9de5938b56d5fb95403ce50e0044b7e3b26304fcf7fb07bcf84b1f7`。本地证据为 363
+passed、1 个 loopback sandbox skip、5 个 PostgreSQL deselected，另有 MCP 10 passed、
+TypeScript 4 passed；Ruff、format、浏览器 JavaScript 语法、Skill/Plugin 副本一致、Alembic
+单 head、PostgreSQL offline SQL 和 diff 检查通过。隔离的真实 PostgreSQL 已通过
+`0019 -> 0020 -> 0019 -> 0020` 迁移/回滚循环，线上 health、ready、服务、公开 wheel、星轨
+逐 Agent 控件和 journal 均已验证。
 
-生产仍是 `0.1.3` / `6ada188` / `0019_agent_handles`；本切片尚未部署。下一步必须先做真实
-PostgreSQL 迁移与回滚验证，再在得到明确发布授权后制作预计 `0.1.4` 的不可变 wheel、备份
-并部署。部署后用 `020` 和 `mars` 实测 Codex 与 WorkBuddy 同时保持连接、逐卡片断开/重连、
-改简称和删除隔离。当前只能标记 `multi_agent_connection_locally_verified`，不能标记
-`production_accepted`。
+0.1.5 切换前备份在
+`/opt/agentpost/backups/20260825-1655-20afebd-pre-015/`，含数据库、附件、环境、systemd、
+Nginx、0.1.4 wheel、校验和与受确认保护的一键回滚脚本。第一次 0.1.4 切换因 readiness 等待
+仅两秒而触发失败；未删除或重建数据，已以前向恢复完成，并修正跨 0020/0019 的回滚顺序。
+随后发现 0.1.4 的 SDK/MCP 仍声明 0.1.3，因此没有覆盖不可变 0.1.4，而是增加包边界回归并
+发布 0.1.5。
+
+下一步不是继续部署，而是完成真实用户门槛：当前 `mars` Codex 的旧单 Agent 配置需在已打开
+的 0.1.5 星轨授权页重新确认，目标是原 Agent `91d935c3-1410-4c85-8b56-0b42f4df2da1`，不得
+新建或猜测身份。确认后，用统一 resolver 分别解析并通知 `020`、`ianw`；若 `020` 名下
+Codex/WorkBuddy 构成真实歧义，只询问一次。再由 `020` 验证 Codex 与 WorkBuddy 同时在线，
+由 `mars` 验证逐卡片断开/重连、改简称和历史保留。当前标签是
+`multi_agent_connection_deployed_https_verified`，不能写成 `production_accepted`，也不能在
+取得消息 ID 与 delivery status 前宣称通知已发送。
 
 ---
 
-OpenClaw 检测补充：生产 `AP-OPENCLAW-V1` 接入页与 0.1.3 下载元数据在线。隔离安装的官方
+OpenClaw 检测补充：生产 `AP-OPENCLAW-V1` 接入页与 0.1.5 下载元数据在线。隔离安装的官方
 OpenClaw `2026.7.1-2` 在 Node 24.19.0 上通过真实 `mcp set/show/doctor`，并由真实
-`mcp probe` 启动生产 0.1.3 `agentpost-mcp`、发现含 resolver 在内的七项工具。检测同时发现
+`mcp probe` 启动当时的生产 0.1.3 `agentpost-mcp`、发现含 resolver 在内的七项工具。检测同时发现
 OpenClaw 在 MCP 启动失败时仍可能返回退出码 0；本地源码现改为解析 probe JSON，只有七项
 工具齐全且 diagnostics 为空才返回 configured，并修正 OpenClaw 三个官方路径环境变量的
 优先级。全量本地结果为 356 passed、1 skip、5 PostgreSQL deselected，加独立 MCP 10
-passed；该增强尚未发布到生产 wheel，也未完成真实 Human 授权/收发/重启验收。可选原生
+passed；该增强已进入生产 0.1.5 wheel，但尚未在切换后重跑真实 OpenClaw CLI，也未完成真实
+Human 授权/收发/重启验收。可选原生
 OpenClaw HTTP plugin 在当前官方 CLI 的 build/validate 阶段仍遇到宿主 loader 错误，不能
 与已通过的普通用户 MCP 接入路径混为一谈。
 
 Ianw 实测补充：线上 `ianw` handle、`Ianw` Human 归属和 Codex Connector 数据均正确；失败
-来自发送端仍运行六工具版 AgentPost 0.1.1 和旧 0.1.2 插件。当前测试机已自动升级为 0.1.3
+来自发送端仍运行六工具版 AgentPost 0.1.1 和旧 0.1.2 插件。该次检查时测试机已自动升级为 0.1.3
 七工具版，个人插件已刷新为 `0.1.3+codex.20260825045435`。两个原始自然语言表述均通过
 现有钥匙串身份只读解析到唯一 `ianw`，未发送消息；需在新 Codex 任务中复测实际发送。
 技能已增加旧 MCP 自动升级并恢复原操作的规则。另发现公网 bootstrap 在 macOS 系统
-Python 下受 `dataclass(slots=True)` 阻断；源码已修复并加回归测试，但生产公共副本仍待单独
-授权的 0.1.4 发布，不能将本机修复写成生产已修复。
+Python 下受 `dataclass(slots=True)` 阻断；修复与回归测试已部署在公共 0.1.5。当前 Codex
+身份仍须完成一次网页重连授权，取得实际消息 ID 前不能写成通知已发送。
 
 当前功能提交为 `1abbf56`、`213bc9e`、`10f4d14`、`c62319a`；0.1.3 候选与生产验收修正为
 `5a5b509`、`6ada188`：
@@ -67,7 +81,7 @@ Python 下受 `dataclass(slots=True)` 阻断；源码已修复并加回归测试
 
 当前本地证据：352 passed、1 skipped、5 PostgreSQL tests deselected；独立 MCP 10 passed；
 Ruff、TypeScript Connector、JavaScript 语法和 diff 检查通过。部署前在隔离的真实
-PostgreSQL 数据库执行了五项迁移/并发/重启/100-Agent 验收并全部通过。生产现为 `0.1.3` /
+PostgreSQL 数据库执行了五项迁移/并发/重启/100-Agent 验收并全部通过。该切片部署时为 `0.1.3` /
 `6ada188` / 数据库 `0019_agent_handles`；公开 wheel 哈希为
 `c157dbfd7dbdfd1697c9c85651455beec30e7679062aa9e9b91cea1fd0956757`。生产登录页保留现有
 Agent 与历史消息，并可打开短名称编辑器；公开安装包已在全新 Python 3.12 环境安装验证。

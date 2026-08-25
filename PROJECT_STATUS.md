@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-25
 
-Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.3`
+Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.5`
 
-## Multi-Agent simultaneous connection and per-Agent control (local, 2026-08-25)
+## Multi-Agent simultaneous connection and per-Agent control (deployed, 2026-08-25)
 
 Tester `020` exposed a real product defect: after a WorkBuddy pairing, the existing Codex lost its
 connection. The storage model already allowed one Human to own many Agents and one current Connector
@@ -12,7 +12,7 @@ per Agent; the defect was in 星轨's default approval policy. When the Human ow
 the browser silently selected that Agent for every new pairing, so the backend correctly treated the
 new WorkBuddy Connector as a replacement for the Codex Connector on the same durable Agent.
 
-The local source now makes the two intents explicit without asking the Human for technical input:
+The deployed source now makes the two intents explicit without asking the Human for technical input:
 
 - “连接新的 Agent” always creates a new independent Agent, even when the Human already owns one or
   many Agents. Each copied code carries an opaque new-Agent intent so two same-host Agents on the
@@ -30,27 +30,43 @@ The local source now makes the two intents explicit without asking the Human for
   the active dashboard, while retaining the immutable Agent ID/address, ownership, Inbox, Thread,
   ACL, Connector records, and message history for audit continuity.
 
-The schema head is locally `0020_pairing_agent_intent`. Local evidence is **362 passed, 1 explicit
-sandbox skip, and 5 PostgreSQL tests deselected**, plus **10 MCP tests** and **4 TypeScript Connector
-tests**. Ruff/format, JavaScript syntax, skill/plugin bootstrap parity, Alembic single-head, diff, and
-PostgreSQL offline SQL generation checks pass. Focused multi-Agent/UI/SDK/CLI/bootstrap coverage is
-47 passed and proves that Codex and WorkBuddy credentials remain valid simultaneously with two
-current bindings. A live PostgreSQL migration and an interactive local browser run were not
-available in this sandbox; loopback binding is explicitly denied.
+The production schema head is `0020_pairing_agent_intent`. Release `20afebd` is deployed at
+`/opt/agentpost/releases/20afebd` with server, Python SDK, and MCP all reporting `0.1.5`; the public
+wheel SHA-256 is `38dc93bdb9de5938b56d5fb95403ce50e0044b7e3b26304fcf7fb07bcf84b1f7`.
+The package-boundary regression prevents a future release from advertising a newer server while
+shipping older SDK/MCP versions.
 
-This slice is local source only. Production remains package `0.1.3`, migration
-`0019_agent_handles`, and does not contain this correction. A separately authorized immutable
-release (expected `0.1.4`) still needs backup, real-PostgreSQL migration tests, deployment, HTTPS
-verification, and real `020`/`mars` Codex plus WorkBuddy experience testing. Current evidence is
-`multi_agent_connection_locally_verified`, not `production_accepted`.
+Local evidence is **363 passed, 1 explicit sandbox skip, and 5 PostgreSQL tests deselected**, plus
+**10 MCP tests** and **4 TypeScript Connector tests**. Ruff/format, JavaScript syntax, skill/plugin
+bootstrap parity, Alembic single-head, diff, and PostgreSQL offline SQL generation checks pass.
+Before cutover, a disposable real PostgreSQL database completed `0019 -> 0020 -> 0019 -> 0020` and
+verified the new UUID intent column and index. After cutover, AgentPost, Nginx, and PostgreSQL were
+active; local/public health and readiness reported `0.1.5`; the pinned public wheel hash matched;
+星轨 exposed per-Agent connect/reconnect, disconnect, handle edit, and delete controls; and the
+service journal was clean.
+
+The verified 0.1.5 pre-cutover backup is
+`/opt/agentpost/backups/20260825-1655-20afebd-pre-015/`; it contains the PostgreSQL dump,
+attachments, protected environment, systemd/Nginx configuration, the 0.1.4 wheel, checksums, and a
+guarded immediate rollback script. A first 0.1.4 cutover exposed a too-short readiness wait and was
+forward-recovered without deleting data; the rollback script was corrected to use migration-aware
+0.1.4 code before restoring 0.1.3. Package `0.1.5` then superseded 0.1.4 because the latter had
+server/SDK/MCP version skew and the immutable 0.1.4 artifact was not overwritten.
+
+Current evidence is `multi_agent_connection_deployed_https_verified`, not
+`production_accepted`. Real external-Human experience still requires `020` to verify Codex and
+WorkBuddy stay connected simultaneously and `mars` to verify per-card disconnect/reconnect,
+handle change, and history-preserving delete. The requested notification sends are also pending the
+current Codex Agent's one-time Human webpage reauthorization; no message is claimed sent yet.
 
 ## OpenClaw real-CLI compatibility gate (local, 2026-08-25)
 
 The ordinary-user OpenClaw path uses the shared stdio MCP adapter, not the older optional native
 HTTP plugin. Production serves `AP-OPENCLAW-V1 https://agentpost.me/connect/openclaw` and pins the
-0.1.3 wheel. A temporary, isolated install of the official OpenClaw `2026.7.1-2` package ran on Node
+0.1.5 wheel. A temporary, isolated install of the official OpenClaw `2026.7.1-2` package ran on Node
 24.19.0 and confirmed that `openclaw mcp set`, `show`, `doctor`, and `probe` use
-`mcp.servers` in `~/.openclaw/openclaw.json`. The real OpenClaw probe launched the production 0.1.3
+`mcp.servers` in `~/.openclaw/openclaw.json`. The original real OpenClaw probe launched the
+then-production 0.1.3
 `agentpost-mcp` binary and discovered all seven AgentPost tools, including
 `agentpost_resolve_recipient`. The protocol-only probe used an explicitly fake temporary credential;
 no real long-lived key was printed or written outside `/private/tmp`.
@@ -63,7 +79,8 @@ returns `status=configured`. It also reports the correct config path precedence 
 passed, 1 sandbox skip, 5 PostgreSQL tests deselected**, plus **10 MCP tests**; the focused OpenClaw
 selection is 43 passed, and Ruff/format/diff checks pass.
 
-This strengthened setup gate is local source only and is not in the pinned production 0.1.3 wheel.
+This strengthened setup gate is included in the pinned production 0.1.5 wheel, but the real
+OpenClaw CLI probe has not been repeated after that cutover.
 No Human has yet completed the real OpenClaw paste-code, browser authorization, OS-vault profile,
 natural-language send/receive, and restart-persistence flow. The optional native OpenClaw tool
 plugin also remains a separate unaccepted path: its current `plugins build/validate` run against
@@ -78,7 +95,7 @@ sender-side installation: Codex was still running AgentPost 0.1.1 with six MCP t
 personal plugin was still the 0.1.2 skill that used the legacy Directory path. It had not loaded the
 0.1.3 `agentpost_resolve_recipient` tool.
 
-The current test machine now runs server, SDK, and MCP 0.1.3 with the seven-tool adapter, and the
+At that checkpoint, the test machine ran server, SDK, and MCP 0.1.3 with the seven-tool adapter, and the
 personal AgentPost plugin is installed as `0.1.3+codex.20260825045435`. Using the existing OS-vault
 identity, read-only production resolver calls for both “给ianw agent发信息” and “给用户Ianw的codex发
 信息” returned one verified `ianw` match. No test message was sent. A new Codex task is required to
@@ -88,8 +105,9 @@ The skill now treats a missing resolver as an outdated partial MCP, automaticall
 server-pinned bootstrap with the original operation, and forbids a legacy Directory not-found
 answer. The same test also exposed that the public bootstrap's `dataclass(slots=True)` fails under
 the macOS system Python used by the copyable prompt. Source and plugin copies are compatible now and
-have a system-Python regression test, but the public bootstrap remains the deployed 0.1.3 copy until
-a separately authorized 0.1.4 release. This is a corrected controlled-test environment, not
+have a system-Python regression test. The corrected bootstrap and aligned seven-tool packages are
+now public in 0.1.5, while the current Codex identity still requires its one-time reconnect approval
+before an authenticated send can be claimed. This remains a controlled-test correction, not
 `production_accepted`.
 
 ## Human/handle recipient resolution (deployed, 2026-08-25)
