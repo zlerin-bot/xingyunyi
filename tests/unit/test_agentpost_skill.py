@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -40,6 +41,9 @@ def test_skill_is_implicitly_discoverable_and_declares_agentpost_dependency() ->
     assert skill.startswith("---\nname: agentpost-messaging\n")
     assert "请连接我的星云驿" in skill
     assert "scripts/bootstrap.py setup <current-host>" in skill
+    assert "Treat a partially loaded or outdated AgentPost MCP as unavailable" in skill
+    assert "never report\n   `not_found` from that legacy path" in skill
+    assert "upgrades to the server-pinned release and resumes the send" in skill
     assert metadata["policy"]["allow_implicit_invocation"] is True
     assert metadata["dependencies"]["tools"] == [
         {
@@ -72,6 +76,23 @@ def test_plugin_packages_the_same_implicit_skill_without_machine_specific_mcp_co
         assert (PLUGIN_SKILL_ROOT / relative_path).read_bytes() == (
             SKILL_ROOT / relative_path
         ).read_bytes()
+
+
+def test_bootstrap_imports_with_the_system_python_used_by_the_copyable_prompt() -> None:
+    system_python = Path("/usr/bin/python3")
+    if not system_python.is_file():
+        pytest.skip("macOS system python is not present on this host")
+    completed = subprocess.run(
+        [str(system_python), str(SKILL_ROOT / "scripts" / "bootstrap.py")],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert completed.returncode == 1
+    assert "agentpost_bootstrap_error code=unsupported_resume_operation" in completed.stderr
+    assert "Traceback" not in completed.stderr
 
 
 def test_release_metadata_must_enable_platform_and_match_trusted_origin() -> None:

@@ -35,7 +35,7 @@ class CommandResult(Protocol):
 Runner = Callable[..., CommandResult]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ConnectorRelease:
     version: str
     wheel_url: str

@@ -24,14 +24,19 @@ internal prerequisite, not the final outcome.
    run `scripts/bootstrap.py setup <current-host>` once, where `<current-host>` is `codex`,
    `workbuddy`, or `openclaw`. Do not ask the user to enter the command; the selected connection
    code and current host supply that internal adapter choice.
-2. If the AgentPost MCP tools are available, call `agentpost_resolve_recipient` with the user's
-   natural recipient wording, then use `agentpost_send_message` only after the resolver returns one
-   verified match. A clear write request from the user is the business intent, but never bypass the
-   host's write-tool approval.
-3. If the tools are unavailable, authentication reports that the Connector is missing, or the
-   request includes local attachments, run `scripts/bootstrap.py` once. Pass the original operation
-   to the script so it pairs, configures Codex, and resumes the send in the same run.
-4. Let the bootstrap open the short-lived 星轨 authorization page and wait for completion. Do not
+2. If the AgentPost MCP tools include `agentpost_resolve_recipient`, call it with the user's natural
+   recipient wording, then use `agentpost_send_message` only after the resolver returns one verified
+   match. A clear write request from the user is the business intent, but never bypass the host's
+   write-tool approval.
+3. Treat a partially loaded or outdated AgentPost MCP as unavailable when the natural-recipient
+   resolver is missing. In particular, the presence of legacy send/inbox tools is not enough: never
+   replace `agentpost_resolve_recipient` with an older Directory search and never report
+   `not_found` from that legacy path. Run `scripts/bootstrap.py` once with the original operation;
+   it upgrades to the server-pinned release and resumes the send in the same process.
+4. Also run the same bootstrap path when all tools are unavailable, authentication reports that the
+   Connector is missing, or the request includes local attachments. Pass the original operation to
+   the script so it pairs, configures Codex, and resumes the send in the same run.
+5. Let the bootstrap open the short-lived 星轨 authorization page and wait for completion. Do not
    start a second pairing or replace the original task with setup instructions.
 
 For a natural recipient name, pass `--recipient`. For a previously confirmed exact address, pass

@@ -4,6 +4,28 @@ Last updated: 2026-08-25
 
 Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.3`
 
+## Ianw controlled-test correction (2026-08-25)
+
+The first real `ianw` recipient test failed in Codex even though production stored the active Agent
+handle `ianw`, Human display name `Ianw`, and active Codex Connector correctly. The cause was the
+sender-side installation: Codex was still running AgentPost 0.1.1 with six MCP tools, while its
+personal plugin was still the 0.1.2 skill that used the legacy Directory path. It had not loaded the
+0.1.3 `agentpost_resolve_recipient` tool.
+
+The current test machine now runs server, SDK, and MCP 0.1.3 with the seven-tool adapter, and the
+personal AgentPost plugin is installed as `0.1.3+codex.20260825045435`. Using the existing OS-vault
+identity, read-only production resolver calls for both “给ianw agent发信息” and “给用户Ianw的codex发
+信息” returned one verified `ianw` match. No test message was sent. A new Codex task is required to
+load the refreshed plugin and MCP tool list.
+
+The skill now treats a missing resolver as an outdated partial MCP, automatically runs the
+server-pinned bootstrap with the original operation, and forbids a legacy Directory not-found
+answer. The same test also exposed that the public bootstrap's `dataclass(slots=True)` fails under
+the macOS system Python used by the copyable prompt. Source and plugin copies are compatible now and
+have a system-Python regression test, but the public bootstrap remains the deployed 0.1.3 copy until
+a separately authorized 0.1.4 release. This is a corrected controlled-test environment, not
+`production_accepted`.
+
 ## Human/handle recipient resolution (deployed, 2026-08-25)
 
 Commits `1abbf56`, `213bc9e`, and `10f4d14` implement the ordinary-user recipient naming layer
