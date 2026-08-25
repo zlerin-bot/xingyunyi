@@ -18,7 +18,12 @@ from typing import Any
 from agentpost_sdk import __version__
 from agentpost_sdk.client import AgentPost
 from agentpost_sdk.codex_setup import CodexSetupResult, configure_codex_mcp
-from agentpost_sdk.connector import ConnectorWorker, JsonCursorStore, ManagedConnector
+from agentpost_sdk.connector import (
+    ConnectorWorker,
+    JsonCursorStore,
+    KeyringCredentialStore,
+    ManagedConnector,
+)
 from agentpost_sdk.errors import AgentPostError, ConfigurationError, ResponseError
 from agentpost_sdk.models import Message
 from agentpost_sdk.onboarding import PairingInstructions
@@ -200,6 +205,14 @@ def _display_name(args: argparse.Namespace) -> str:
 
 
 def _connect(args: argparse.Namespace) -> ManagedConnector:
+    collection = None
+    if (
+        args.connector_type == "openclaw"
+        and sys.platform.startswith("linux")
+        and not os.environ.get("DISPLAY")
+        and not os.environ.get("WAYLAND_DISPLAY")
+    ):
+        collection = "session"
     return AgentPost.connect_managed(
         args.server,
         connector_type=args.connector_type,
@@ -209,6 +222,7 @@ def _connect(args: argparse.Namespace) -> ManagedConnector:
         client_version=f"agentpost-connect/{__version__}",
         capabilities=args.capability,
         requested_existing_agent_id=getattr(args, "existing_agent_id", None),
+        credential_store=KeyringCredentialStore(collection=collection),
         open_browser=not args.no_browser,
         on_pairing=_pairing_notice,
     )
@@ -297,7 +311,15 @@ def _configure_host(
     if host == "workbuddy":
         return configure_workbuddy_mcp(**options)
     if host == "openclaw":
-        return configure_openclaw_mcp(**options)
+        collection = getattr(
+            getattr(connector, "credential_store", None),
+            "collection",
+            "default",
+        )
+        return configure_openclaw_mcp(
+            **options,
+            keyring_collection=collection if collection != "default" else None,
+        )
     raise ConfigurationError("unsupported host setup")  # pragma: no cover
 
 
@@ -385,6 +407,11 @@ def _run(args: argparse.Namespace) -> int:
         preflight_openclaw_mcp()
     with _connect(args) as connector:
         client = connector.client
+        credential_storage = getattr(
+            getattr(connector, "credential_store", None),
+            "storage_mode",
+            "operating_system_vault",
+        )
         if args.command == "connect":
             heartbeat = connector.heartbeat()
             _json(
@@ -392,7 +419,7 @@ def _run(args: argparse.Namespace) -> int:
                     "status": "connected",
                     "address": heartbeat.agent.address,
                     "profile": connector.profile,
-                    "credential_storage": "operating_system_vault",
+                    "credential_storage": credential_storage,
                 }
             )
         elif args.command == "status":
@@ -400,18 +427,19 @@ def _run(args: argparse.Namespace) -> int:
         elif args.command == "setup":
             configured = _configure_host(connector, args.host)
             heartbeat = connector.heartbeat()
-            _json(
-                {
-                    "status": "configured",
-                    "host": args.host,
-                    "address": heartbeat.agent.address,
-                    "profile": connector.profile,
-                    "mcp_server": configured.server_name,
-                    "approval_mode": configured.approval_mode,
-                    "credential_storage": "operating_system_vault",
-                    "restart_required": configured.restart_required,
-                }
-            )
+            result = {
+                "status": "configured",
+                "host": args.host,
+                "address": heartbeat.agent.address,
+                "profile": connector.profile,
+                "mcp_server": configured.server_name,
+                "approval_mode": configured.approval_mode,
+                "credential_storage": credential_storage,
+                "restart_required": configured.restart_required,
+            }
+            if credential_storage == "operating_system_vault_session":
+                result["credential_persistence"] = "until_host_reboot"
+            _json(result)
         elif args.command == "send":
             configured = None
             if args.ensure_host:

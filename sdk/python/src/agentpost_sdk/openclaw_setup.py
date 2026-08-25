@@ -123,6 +123,7 @@ def configure_openclaw_mcp(
     profile: str,
     mcp_command: Path,
     openclaw_command: str | None = None,
+    keyring_collection: str | None = None,
     runner: CommandRunner = subprocess.run,
 ) -> OpenClawSetupResult:
     """Idempotently add AgentPost through OpenClaw's validated MCP CLI."""
@@ -133,6 +134,8 @@ def configure_openclaw_mcp(
         raise ConfigurationError("AgentPost server must not be empty")
     if not cleaned_profile or len(cleaned_profile) > 200:
         raise ConfigurationError("Connector profile must contain 1-200 characters")
+    if keyring_collection not in {None, "session"}:
+        raise ConfigurationError("unsupported AgentPost keyring collection")
     executable = mcp_command.expanduser().resolve()
     if not executable.is_file() or not os.access(executable, os.X_OK):
         raise ConfigurationError("agentpost-mcp is not installed in this runtime")
@@ -141,13 +144,16 @@ def configure_openclaw_mcp(
         runner=runner,
     )
 
+    environment = {
+        "AGENTPOST_SERVER": cleaned_server,
+        "AGENTPOST_PROFILE": cleaned_profile,
+    }
+    if keyring_collection:
+        environment["AGENTPOST_KEYRING_COLLECTION"] = keyring_collection
     definition = {
         "command": str(executable),
         "args": [],
-        "env": {
-            "AGENTPOST_SERVER": cleaned_server,
-            "AGENTPOST_PROFILE": cleaned_profile,
-        },
+        "env": environment,
     }
     command = [
         resolved_openclaw,

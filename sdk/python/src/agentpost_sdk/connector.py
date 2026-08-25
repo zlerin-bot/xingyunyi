@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import secrets
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -16,6 +17,9 @@ import httpx
 from agentpost_sdk.errors import AuthenticationError, ConfigurationError
 from agentpost_sdk.models import Message
 from agentpost_sdk.onboarding import PairingInstructions
+
+SECRET_SERVICE_SESSION_COLLECTION = "/org/freedesktop/secrets/collection/session"
+_SUPPORTED_KEYRING_COLLECTIONS = {"session": SECRET_SERVICE_SESSION_COLLECTION}
 
 
 @dataclass(frozen=True)
@@ -44,18 +48,56 @@ class CursorStore(Protocol):
 class KeyringCredentialStore:
     """Store Connector credentials in the operating-system credential vault."""
 
-    def __init__(self, *, service_name: str = "me.agentpost.connector", backend=None) -> None:
+    def __init__(
+        self,
+        *,
+        service_name: str = "me.agentpost.connector",
+        backend=None,
+        collection: str | None = None,
+    ) -> None:
         if not service_name or len(service_name) > 200:
             raise ConfigurationError("keyring service_name must contain 1-200 characters")
+        selected_collection = (
+            collection
+            if collection is not None
+            else os.environ.get("AGENTPOST_KEYRING_COLLECTION", "")
+        ).strip()
+        if selected_collection not in {"", *_SUPPORTED_KEYRING_COLLECTIONS}:
+            raise ConfigurationError(
+                "AGENTPOST_KEYRING_COLLECTION must be empty or session",
+                code="unsupported_credential_storage",
+            )
         if backend is None:
             try:
-                import keyring as backend
+                import keyring
             except ImportError as exc:
                 raise ConfigurationError(
                     "OS credential storage requires the agentpost[connector] extra"
                 ) from exc
+            if selected_collection:
+                backend = keyring.get_keyring()
+                if backend.__class__.__module__ != "keyring.backends.SecretService":
+                    raise ConfigurationError(
+                        "The session credential collection requires Linux Secret Service",
+                        code="secure_credential_storage_unavailable",
+                    )
+            else:
+                backend = keyring
+        if selected_collection:
+            if not sys.platform.startswith("linux"):
+                raise ConfigurationError(
+                    "The session credential collection requires Linux Secret Service",
+                    code="secure_credential_storage_unavailable",
+                )
+            backend.preferred_collection = _SUPPORTED_KEYRING_COLLECTIONS[selected_collection]
         self._service_name = service_name
         self._backend = backend
+        self.collection = selected_collection or "default"
+        self.storage_mode = (
+            "operating_system_vault_session"
+            if selected_collection == "session"
+            else "operating_system_vault"
+        )
 
     @staticmethod
     def _account(server: str, profile: str) -> str:

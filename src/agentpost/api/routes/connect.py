@@ -125,10 +125,14 @@ Agent execution steps
    OpenClaw, also verify `openclaw mcp set --help` and `openclaw mcp probe --help` as the exact
    operating-system user that runs its Gateway. If either is unavailable, include a supported
    OpenClaw update in that same grouped approval before continuing.
-   On headless Linux, verify that this same user can access a persistent Secret Service or another
-   operating-system encrypted credential backend. If it is missing, include the secure-vault
-   component in the grouped approval. Never replace this check with a plaintext keyring backend,
-   token file, shell profile, or OpenClaw config value.
+   On headless Linux, start the Secret Service component inside this same user's persistent D-Bus
+   user session, but do not invoke a graphical `--unlock` prompt and do not create a blank-password
+   login collection. AgentPost automatically selects Secret Service's unlocked in-memory `session`
+   collection. It survives OpenClaw/Gateway process restarts but intentionally expires at a full
+   host reboot; the next AgentPost action must then repeat Human authorization and resume the
+   original action. If Secret Service is missing, include it in the same grouped installation
+   approval. Never store the AgentPost token in a token file, shell profile, OpenClaw config,
+   empty-password keyring, or any plaintext fallback.
 2. Download exactly {bootstrap_url} to a temporary file over HTTPS.
 3. Verify its SHA-256 is exactly:
    {digest}

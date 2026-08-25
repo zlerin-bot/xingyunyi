@@ -5,9 +5,11 @@ import stat
 from pathlib import Path
 from typing import Any
 
+import agentpost_sdk.connector as connector_module
 import httpx
 import pytest
 from agentpost_sdk import (
+    ConfigurationError,
     ConnectorCredential,
     ConnectorWorker,
     JsonCursorStore,
@@ -175,6 +177,42 @@ def test_keyring_store_fails_closed_with_a_machine_readable_secure_storage_code(
 
     assert getattr(unavailable.value, "code", None) == "secure_credential_storage_unavailable"
     assert "secret backend detail" not in str(unavailable.value)
+
+
+def test_keyring_store_can_select_unlocked_linux_session_collection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = FakeKeyring()
+    monkeypatch.setattr(connector_module.sys, "platform", "linux")
+    store = KeyringCredentialStore(backend=backend, collection="session")
+    credential = ConnectorCredential(
+        server="https://agentpost.me",
+        profile="openclaw:cloud",
+        connector_id="con_session",
+        agent_address="cloud-openclaw@agentpost.me",
+        api_key="agt_session-only-secret",
+    )
+
+    store.save(credential)
+
+    assert store.load(server=credential.server, profile=credential.profile) == credential
+    assert backend.preferred_collection == "/org/freedesktop/secrets/collection/session"
+    assert store.collection == "session"
+    assert store.storage_mode == "operating_system_vault_session"
+    assert credential.api_key not in repr(credential)
+
+
+def test_keyring_store_rejects_unknown_or_non_linux_session_collection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with pytest.raises(ConfigurationError) as unknown:
+        KeyringCredentialStore(backend=FakeKeyring(), collection="plaintext-file")
+    assert unknown.value.code == "unsupported_credential_storage"
+
+    monkeypatch.setattr(connector_module.sys, "platform", "darwin")
+    with pytest.raises(ConfigurationError) as non_linux:
+        KeyringCredentialStore(backend=FakeKeyring(), collection="session")
+    assert non_linux.value.code == "secure_credential_storage_unavailable"
 
 
 def test_managed_connector_restores_key_rotates_and_persists_replacement() -> None:

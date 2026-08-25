@@ -70,6 +70,45 @@ def test_configure_openclaw_uses_validated_cli_and_profile_reference(
     assert "agt_" not in calls[2][4]
 
 
+def test_configure_openclaw_passes_only_non_secret_session_collection_hint(
+    tmp_path: Path,
+) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command, **_kwargs):
+        calls.append(tuple(command))
+        stdout = _successful_probe() if command[-2:] == ["agentpost", "--json"] else ""
+        return SimpleNamespace(returncode=0, stdout=stdout)
+
+    configure_openclaw_mcp(
+        server="https://agentpost.me",
+        profile="openclaw:headless-linux",
+        mcp_command=_executable(tmp_path),
+        openclaw_command="/opt/openclaw",
+        keyring_collection="session",
+        runner=runner,
+    )
+
+    definition = json.loads(calls[2][4])
+    assert definition["env"] == {
+        "AGENTPOST_SERVER": "https://agentpost.me",
+        "AGENTPOST_PROFILE": "openclaw:headless-linux",
+        "AGENTPOST_KEYRING_COLLECTION": "session",
+    }
+    assert "agt_" not in calls[2][4]
+
+
+def test_configure_openclaw_rejects_unknown_keyring_collection(tmp_path: Path) -> None:
+    with pytest.raises(ConfigurationError, match="unsupported AgentPost keyring collection"):
+        configure_openclaw_mcp(
+            server="https://agentpost.me",
+            profile="openclaw:headless-linux",
+            mcp_command=_executable(tmp_path),
+            openclaw_command="/opt/openclaw",
+            keyring_collection="plaintext-file",
+        )
+
+
 def test_configure_openclaw_sanitizes_cli_failure(tmp_path: Path) -> None:
     calls = 0
 

@@ -10,6 +10,7 @@ from uuid import UUID
 from agentpost_sdk import ConnectorCredentialRotation, ConnectorHeartbeat, cli
 from agentpost_sdk.codex_setup import CodexSetupResult
 from agentpost_sdk.onboarding import PairingInstructions
+from agentpost_sdk.openclaw_setup import OpenClawSetupResult
 
 
 class DummyConnector:
@@ -130,6 +131,69 @@ def test_profile_and_display_name_are_stable_without_human_configuration() -> No
     )
     assert cli._profile(args) == "codex:mars-mac"
     assert cli._display_name(args) == "codex on mars-mac"
+
+
+def test_headless_linux_openclaw_selects_session_vault_before_pairing(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    store = SimpleNamespace(
+        collection="session",
+        storage_mode="operating_system_vault_session",
+    )
+
+    def credential_store(*, collection):
+        captured["collection"] = collection
+        return store
+
+    def connect_managed(*_args, **kwargs):
+        captured["credential_store"] = kwargs["credential_store"]
+        return DummyConnector()
+
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.delenv("DISPLAY", raising=False)
+    monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+    monkeypatch.setattr(cli, "KeyringCredentialStore", credential_store)
+    monkeypatch.setattr(cli.AgentPost, "connect_managed", connect_managed)
+    args = cli._parser().parse_args(["--device-name", "cloud", "setup", "openclaw"])
+    args.connector_type = args.host
+
+    cli._connect(args)
+
+    assert captured == {"collection": "session", "credential_store": store}
+
+
+def test_openclaw_session_vault_is_persisted_as_non_secret_mcp_hint(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    connector = DummyConnector()
+    connector.profile = "openclaw:cloud"
+    connector.credential_store = SimpleNamespace(
+        collection="session",
+        storage_mode="operating_system_vault_session",
+    )
+    captured: dict[str, object] = {}
+
+    def configure(**kwargs):
+        captured.update(kwargs)
+        return OpenClawSetupResult(
+            server_name="agentpost",
+            approval_mode="host",
+            config_path=tmp_path / "openclaw.json",
+        )
+
+    monkeypatch.setattr(cli, "_connect", lambda _args: connector)
+    monkeypatch.setattr(cli, "_mcp_command", lambda: tmp_path / "agentpost-mcp")
+    monkeypatch.setattr(cli, "preflight_openclaw_mcp", lambda: "/opt/openclaw")
+    monkeypatch.setattr(cli, "configure_openclaw_mcp", configure)
+
+    assert cli.main(["--device-name", "cloud", "setup", "openclaw"]) == 0
+
+    result = json.loads(capsys.readouterr().out)
+    assert captured["keyring_collection"] == "session"
+    assert result["credential_storage"] == "operating_system_vault_session"
+    assert result["credential_persistence"] == "until_host_reboot"
+    assert "agt_" not in str(captured)
 
 
 def test_result_reply_is_available_only_on_reply_command() -> None:
