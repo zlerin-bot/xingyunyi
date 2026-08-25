@@ -384,6 +384,76 @@ No production identity or history was mutated. This is
 `connector_history_ux_deployed_https_verified`, not `production_accepted`; a Human still needs to
 connect a genuinely separate WorkBuddy and verify simultaneous independent lifecycle controls.
 
+## WorkBuddy completed-setup truth release 0.1.7 (2026-08-25)
+
+The prior UI treated a current active binding as connected before the local host had completed
+credential persistence and MCP registration. The old setup CLI also emitted its healthy heartbeat
+before calling the host configurator. Production evidence reproduced the exact false-positive
+boundary: a WorkBuddy pairing could be consumed and heartbeat once while the foreground host setup
+still failed or was interrupted before `~/.workbuddy/mcp.json` was created.
+
+Commit `e22bfeb` introduces the API state `awaiting_agent` for a current Connector with no completed
+heartbeat and excludes it from `connected_agent_count`. 星轨 renders “等待 Agent 完成本机连接”,
+“继续连接”, and “取消未完成连接”, and explicitly states that the Agent cannot yet send or receive.
+The CLI now configures and verifies Codex/WorkBuddy/OpenClaw before its first heartbeat. Safe setup
+failures are written as structured stdout JSON as well as stderr, so an Agent host no longer sees an
+empty result. Vault credentials remain absent from all files and output.
+
+The immutable production release is `/opt/agentpost/releases/e22bfeb`, with runtime
+`/opt/agentpost/venvs/e22bfeb`, package `0.1.7`, and unchanged migration
+`0020_pairing_agent_intent`. The public wheel is:
+
+`https://agentpost.me/downloads/agentpost-0.1.7-py3-none-any.whl`
+
+Its SHA-256 is `5447ca2c460f9eb7489a602166acbaee7233badbf085354514ab5e2ed948bd86`.
+The verified rollback point `/opt/agentpost/backups/20260825-1841-e22bfeb-pre-017/` contains the
+PostgreSQL custom dump, attachment archive, protected environment/systemd/Nginx copies, prior 0.1.6
+wheel, counts, SHA256SUMS, and guarded application-only `rollback-immediate-0.1.7.sh`.
+
+Local evidence is 364 passed, one explicit loopback sandbox skip, five opt-in PostgreSQL tests
+deselected, ten MCP tests, and four TypeScript Connector tests. Ruff/format, JavaScript syntax,
+isolated wheel installation, and diff checks pass. The first cutover invocation used an unsupported
+`ERR` trap under the server's POSIX shell and failed before changing any file; 0.1.6 health and the
+release pointer were reverified. The POSIX-compatible guarded cutover then succeeded. Postflight
+verified services, versions, migration, local/public health and readiness, auth metadata, the public
+WorkBuddy contract, wheel digest, Nginx, backup readability, and no fatal journal pattern.
+
+Read-only production verification showed that `020-workbuddy-001@agentpost.me` is a current healthy
+WorkBuddy and sent `msg_3904d107573943528aea85861ffbaa09` to `magent@agentpost.me`. The authenticated
+`mars` page separately showed its new `wordbuddy` Agent as `awaiting_agent` with no activity or
+heartbeat. This is `workbuddy_setup_truthful_state_deployed_https_verified`, not
+`production_accepted`; the Mars WorkBuddy retry and bidirectional message flow remain external gates.
+
+## Orbit empty delete-response fix 0.1.9 (2026-08-25)
+
+The Agent delete endpoint performs a history-preserving soft delete and intentionally returns HTTP
+204 with an empty body. Orbit's request helper previously chose `response.json()` from the JSON
+content type alone. This raised `Unexpected end of JSON input` after the server had already applied
+the mutation and prevented the UI refresh.
+
+Commit `c1c3a78` reads JSON-labelled responses as text and parses only non-empty bodies. The API
+regression asserts the empty 204 contract, while a browser-side JavaScript regression exercises the
+actual helper for empty and non-empty JSON. The immutable production release is
+`/opt/agentpost/releases/c1c3a78`, the runtime is `/opt/agentpost/venvs/c1c3a78`, package version is
+`0.1.9`, and the schema remains `0020_pairing_agent_intent`. The public wheel is:
+
+`https://agentpost.me/downloads/agentpost-0.1.9-py3-none-any.whl`
+
+Its SHA-256 is `37f325fdfc6052be9abc08e2d4ae1c9d6e1fb57997722a27fb37275f1489a04b`.
+The verified rollback point `/opt/agentpost/backups/20260825-2230-c1c3a78-pre-019/` contains the
+PostgreSQL dump, attachment archive, protected environment/systemd/Nginx copies, prior 0.1.8 wheel,
+counts, SHA256SUMS, and guarded application-only `rollback-immediate-0.1.9.sh`.
+
+Local evidence is 365 passed, one explicit loopback sandbox skip, five opt-in PostgreSQL tests
+deselected, ten MCP tests, four TypeScript Connector tests, and two Orbit JavaScript tests.
+Ruff/format, JavaScript syntax, isolated wheel installation, wheel-content, and diff checks pass.
+Postflight verified services, aligned versions, migration, local/public health and readiness,
+public wheel digest, the deployed Orbit asset, Nginx, backup readability, unchanged row counts, and
+zero fatal journal matches. An authenticated page showed two active and connected Agents with
+independent delete controls; no live delete was clicked. This is
+`orbit_empty_response_delete_fix_deployed_https_verified`, not `production_accepted`; a Human must
+confirm the intended target and retry the live action.
+
 ## Rollback
 
 The provider snapshot `agentpost-pre-https-20260824`
@@ -406,10 +476,10 @@ attachment archive. The pre-update systemd unit is stored at
 `/etc/systemd/system/agentpost.service.pre-8f3bfd0`.
 
 The current rollback backup is
-`/opt/agentpost/backups/20260825-1749-e378a7e-pre-016/`. For an immediate 0.1.6 rollback, first
-review `rollback-immediate-0.1.6.sh` and use its explicit confirmation guard. It stops only
-AgentPost, restores the protected environment, service unit, Nginx site and prior 0.1.5 release,
-then validates readiness. Migration remains at 0020 and is not downgraded or restored.
+`/opt/agentpost/backups/20260825-2230-c1c3a78-pre-019/`. For an immediate 0.1.9 rollback, first
+review `rollback-immediate-0.1.9.sh` and use its explicit confirmation guard. It stops only
+AgentPost, restores the protected environment, service unit, Nginx site and prior 0.1.8 release
+`19e406b`, then validates readiness. Migration remains at 0020 and is not downgraded or restored.
 If any post-cutover data must be preserved, capture a new dump and plan a data-preserving rollback
 or restore before changing the schema. The older 0.1.3 backup remains available as historical
 evidence but is no longer the immediate rollback target.

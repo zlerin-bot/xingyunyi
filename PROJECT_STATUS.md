@@ -2,7 +2,90 @@
 
 Last updated: 2026-08-25
 
-Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.6`
+Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.9`
+
+## Orbit Agent deletion empty-response fix (deployed, 2026-08-25)
+
+The Agent deletion API correctly completes a history-preserving soft delete and returns HTTP
+`204 No Content`. The Orbit browser client nevertheless called `response.json()` whenever the
+response headers declared JSON. An empty successful body therefore raised
+`Unexpected end of JSON input` after the server mutation had already succeeded. The false error
+also prevented the dashboard refresh, making a completed deletion appear to have failed.
+
+Release `c1c3a78` / package `0.1.9` reads a JSON-labelled response as text first and parses it only
+when the body is non-empty. Non-empty JSON and HTTP error handling remain unchanged. The API
+regression also asserts that soft delete returns an empty body and preserves the Agent's immutable
+identity, address, ownership, Inbox, Thread, ACL, Connector records, and message history while
+revoking only its current access. A dedicated JavaScript regression reproduces the former browser
+exception and verifies both empty-204 and non-empty-JSON behavior against the real frontend helper.
+
+The immutable production paths are `/opt/agentpost/releases/c1c3a78` and
+`/opt/agentpost/venvs/c1c3a78`; server, Python SDK, and MCP report `0.1.9`. Schema remains
+`0020_pairing_agent_intent`. The public wheel SHA-256 is
+`37f325fdfc6052be9abc08e2d4ae1c9d6e1fb57997722a27fb37275f1489a04b`. The verified pre-cutover
+rollback point is `/opt/agentpost/backups/20260825-2230-c1c3a78-pre-019/`, containing the database
+dump, attachments, protected configuration, prior 0.1.8 wheel, checksums, counts, and guarded
+application-only rollback script. Data counts were unchanged across cutover: 22 Agents, 46
+Messages, 46 Deliveries, and 19 Connectors.
+
+Local evidence is **365 passed, 1 explicit loopback sandbox skip, and 5 PostgreSQL tests
+deselected**, plus **10 MCP**, **4 TypeScript Connector**, and **2 Orbit JavaScript** tests.
+Ruff/format, JavaScript syntax, isolated wheel installation, wheel contents, and diff checks pass.
+Post-cutover health/readiness, component versions, public wheel digest, migration head, Nginx,
+backup readability, data counts, and fatal-journal checks pass. The deployed public Orbit asset
+contains the fix and is served with `cache-control: no-store`.
+
+An authenticated `mars` page currently shows two active and connected Agents, Codex `codex` and
+WorkBuddy `buddy`, each with its own delete action. No real Agent was deleted during verification.
+Because the old exception occurred after a successful 204, the user's earlier attempted deletion
+may already have completed, but the current-only view cannot safely identify the former target.
+The Human must refresh and retry the intended remaining Agent deletion before this interaction can
+be accepted. Current evidence is `orbit_empty_response_delete_fix_deployed_https_verified`, not
+`production_accepted`.
+
+Release `19e406b` / package `0.1.8`, which fixed non-interactive authorization-result flushing, is
+the immediate previous release and current application rollback baseline.
+
+## WorkBuddy completed-setup truth (deployed, 2026-08-25)
+
+A real WorkBuddy report exposed that 星轨 treated Human approval and a current binding as a usable
+connection before the local process had stored its vault credential and written WorkBuddy's MCP
+configuration. The old CLI also sent its first healthy heartbeat **before** host registration. If
+the foreground process stopped at that point, 星轨 displayed “已连接” while WorkBuddy had no MCP
+entry and could not send.
+
+Release `e22bfeb` / package `0.1.7` makes the completion boundary explicit. A current active
+Connector with no successful heartbeat has `connection_state=awaiting_agent`; it is excluded from
+the connected-Agent metric and is shown as “等待 Agent 完成本机连接”, with “继续连接” and “取消未
+完成连接” actions. The CLI now writes and verifies the host MCP configuration first and reports its
+first heartbeat only afterwards. Setup failures return a safe machine-readable stdout result instead
+of appearing as empty output. No long-lived credential is added to a file or response.
+
+Production read-only evidence separated two different machines. `020` now has a genuinely current,
+healthy WorkBuddy Connector at `020-workbuddy-001@agentpost.me`, with its first heartbeat at 18:36;
+it successfully sent `msg_3904d107573943528aea85861ffbaa09` to `magent@agentpost.me`. The `mars`
+account has a different new Agent (`wordbuddy`) whose 0.1.6 WorkBuddy Connector has no heartbeat;
+the authenticated 0.1.7 page now correctly shows it as waiting and says that it cannot yet send or
+receive. No Connector or Agent was deleted during diagnosis.
+
+The immutable production paths are `/opt/agentpost/releases/e22bfeb` and
+`/opt/agentpost/venvs/e22bfeb`; server, Python SDK, and MCP report `0.1.7`. Schema remains
+`0020_pairing_agent_intent`. The public wheel SHA-256 is
+`5447ca2c460f9eb7489a602166acbaee7233badbf085354514ab5e2ed948bd86`. The verified pre-cutover
+backup is `/opt/agentpost/backups/20260825-1841-e22bfeb-pre-017/` and contains the PostgreSQL dump,
+attachment archive, protected configuration, prior 0.1.6 wheel, checksums, counts, and guarded
+application-only rollback.
+
+Local evidence is **364 passed, 1 explicit loopback sandbox skip, and 5 PostgreSQL tests
+deselected**, plus **10 MCP** and **4 TypeScript Connector** tests. Ruff/format, JavaScript syntax,
+isolated wheel installation, diff, production health/readiness, auth metadata, public WorkBuddy
+contract, wheel digest, Nginx, backup readability, migration head, and fatal-journal checks pass.
+The first cutover command used an unsupported POSIX-shell `ERR` trap and stopped before any mutation;
+0.1.6 was reverified, then the guarded POSIX-compatible cutover succeeded.
+
+Current evidence is `workbuddy_setup_truthful_state_deployed_https_verified`, not
+`production_accepted`. `mars` still needs to finish its one WorkBuddy authorization/retry and prove
+send/receive from that new independent Agent.
 
 ## Current-versus-historical Connector presentation (deployed, 2026-08-25)
 

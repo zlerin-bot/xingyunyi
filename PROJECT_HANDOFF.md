@@ -1,11 +1,60 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`connector-history-ux-deployed`
+- 交接阶段：`orbit-empty-delete-response-deployed`
 - 核验日期：2026-08-25
 - 代码分支：`main`
-- 阶段性质：当前/历史 Connector 分层已部署为 0.1.6；真实外部用户验收仍待完成
+- 阶段性质：Agent 删除空响应修复已部署为 0.1.9；真实删除仍待 Human 确认重试
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+最新问题是星轨删除 Agent 时显示
+`Failed to execute 'json' on 'Response': Unexpected end of JSON input`。服务端实际上已经成功
+执行保留历史的软删除并返回 `204 No Content`；错误来自浏览器请求封装按 JSON 响应头直接
+调用 `response.json()`，空 body 因而在服务端完成操作后抛异常，同时跳过页面刷新。0.1.9
+已改为先读取文本，仅对非空 JSON body 做解析；非空 JSON 与 HTTP 错误路径保持不变。
+
+当前生产是 `0.1.9` / `c1c3a78` / `0020_pairing_agent_intent`，路径为
+`/opt/agentpost/releases/c1c3a78` 与 `/opt/agentpost/venvs/c1c3a78`，server、SDK、MCP 版本
+一致。公开 wheel SHA-256 为
+`37f325fdfc6052be9abc08e2d4ae1c9d6e1fb57997722a27fb37275f1489a04b`。有效回滚点是
+`/opt/agentpost/backups/20260825-2230-c1c3a78-pre-019/`，立即回滚目标为 0.1.8 /
+`19e406b`，迁移不降级。切换前后数据计数一致：Agents 22、Messages 46、Deliveries 46、
+Connectors 19。
+
+本地证据为 365 passed、1 个 loopback sandbox skip、5 个 PostgreSQL deselected，另有 MCP
+10、TypeScript Connector 4、Orbit JavaScript 2 passed；格式、语法、隔离 wheel、wheel 内容
+和 diff 检查通过。线上已验证 health/ready、版本、公开 wheel 哈希、迁移、Nginx、备份、
+数据计数及 journal。已登录的 `mars` 实页当前显示 Codex `codex` 和 WorkBuddy `buddy` 两个
+活动且已连接的 Agent，每张卡片都有删除操作。核验没有点击真实删除。由于旧异常发生在
+成功 204 之后，用户此前尝试删除的对象可能已被软删除，但仅凭当前页面无法可靠归因；需
+Human 刷新后对仍需删除的目标再次确认。证据标签是
+`orbit_empty_response_delete_fix_deployed_https_verified`，不是 `production_accepted`。
+
+0.1.8 / `19e406b` 修复了非交互式授权结果 flush，现作为直接回滚基线。以下 0.1.7 内容
+保留为前一切片历史。
+
+最新问题是星轨曾把“Human 已批准并建立 current binding”提前显示为“已连接”，而旧 CLI 又在
+写 WorkBuddy MCP 配置前先上报健康心跳，导致前台进程若在两步之间停止，就出现“网页已连接、
+本机没有 MCP 配置”的假阳性。0.1.7 已改为：本机 MCP 配置先写入并核验，之后才发首次心跳；
+current 但无心跳的 Connector 状态为 `awaiting_agent`，不计入已连接数量，并显示“等待 Agent
+完成本机连接”“继续连接”“取消未完成连接”。失败命令会在 stdout 返回安全结构化错误，不再
+只有空输出。
+
+生产只读检查确认 `020` 和 `mars` 是两个不同情况：`020` 已有 current + healthy 的独立
+WorkBuddy `020-workbuddy-001@agentpost.me`，18:36 首次心跳，并成功向 `magent` 投递消息
+`msg_3904d107573943528aea85861ffbaa09`。`mars` 新建的 `wordbuddy` 仍是 0.1.6、无心跳；新版
+真实星轨已把它显示为等待状态并明确“现在不能收发消息”。诊断和部署均未删除 Agent、
+Connector、Inbox、Thread 或历史。
+
+当前生产是 `0.1.7` / `e22bfeb` / `0020_pairing_agent_intent`，路径为
+`/opt/agentpost/releases/e22bfeb` 与 `/opt/agentpost/venvs/e22bfeb`，server、SDK、MCP 版本
+一致。公开 wheel SHA-256 为
+`5447ca2c460f9eb7489a602166acbaee7233badbf085354514ab5e2ed948bd86`。有效回滚点是
+`/opt/agentpost/backups/20260825-1841-e22bfeb-pre-017/`，无数据库迁移，回滚只切回 0.1.6
+应用与配置。当前证据标签为 `workbuddy_setup_truthful_state_deployed_https_verified`，不能
+写成 `production_accepted`；下一真实门槛是完成 `mars` WorkBuddy 的续接与双向收发。
+
+以下 0.1.6 内容保留为上一切片的发布历史。
 
 最新真实页面检查确认：`mars` 当前只有一个真实 Agent `magent@agentpost.me`，不是四个。
 页面中另外三条是这个 Agent 被重新配对后留下的 WorkBuddy/Codex Connector 审计记录。此前

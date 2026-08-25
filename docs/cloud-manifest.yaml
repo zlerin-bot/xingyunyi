@@ -1,7 +1,7 @@
 schema_version: "1"
 project: xingyunyi-agentpost
-evidence_status: connector_history_ux_deployed_https_verified
-verified_at: "2026-08-25T18:06:13+08:00"
+evidence_status: orbit_empty_response_delete_fix_deployed_https_verified
+verified_at: "2026-08-25T22:35:00+08:00"
 
 provider:
   name: aliyun
@@ -11,13 +11,13 @@ provider:
   operating_system: ubuntu-24.04
 
 release:
-  git_commit: e378a7e
+  git_commit: c1c3a78
   current_path: /opt/agentpost/current
-  immutable_path: /opt/agentpost/releases/e378a7e
-  virtualenv_path: /opt/agentpost/venvs/e378a7e
+  immutable_path: /opt/agentpost/releases/c1c3a78
+  virtualenv_path: /opt/agentpost/venvs/c1c3a78
   alembic_revision: 0020_pairing_agent_intent
-  package_version: 0.1.6
-  connector_wheel_sha256: c896e6254fa2e7a00dbcffed0485fa49e87846c6a4d8a1abf66b28dba68e133e
+  package_version: 0.1.9
+  connector_wheel_sha256: 37f325fdfc6052be9abc08e2d4ae1c9d6e1fb57997722a27fb37275f1489a04b
 
 topology:
   reverse_proxy: nginx
@@ -73,13 +73,13 @@ rollback:
     fresh_0_1_3_attempt: failed_snapshot_limit_exceeded
     existing_snapshots_preserved: true
   application_backup: /opt/agentpost/backups/20260824-https
-  current_update_backup: /opt/agentpost/backups/20260825-1749-e378a7e-pre-016
+  current_update_backup: /opt/agentpost/backups/20260825-2230-c1c3a78-pre-019
   incomplete_backups_preserved:
     - /opt/agentpost/backups/20260825-1746-e378a7e-pre-016
     - /opt/agentpost/backups/20260825-1747-e378a7e-pre-016
-  prior_release: /opt/agentpost/releases/20afebd
-  prior_unit: /opt/agentpost/backups/20260825-1749-e378a7e-pre-016/agentpost.service
-  immediate_script: /opt/agentpost/backups/20260825-1749-e378a7e-pre-016/rollback-immediate-0.1.6.sh
+  prior_release: /opt/agentpost/releases/19e406b
+  prior_unit: /opt/agentpost/backups/20260825-2230-c1c3a78-pre-019/agentpost.service
+  immediate_script: /opt/agentpost/backups/20260825-2230-c1c3a78-pre-019/rollback-immediate-0.1.9.sh
   database_dump_verified: true
   attachment_archive_verified: true
 
@@ -99,9 +99,9 @@ acceptance:
   orbit_codex_0_1_1_guide: superseded_by_connection_code_v1
   orbit_frontend_errors: none
   pinned_connector_wheel: passed
-  public_connector_wheel_version: 0.1.6
+  public_connector_wheel_version: 0.1.9
   clean_public_wheel_install: passed
-  server_sdk_mcp_package_versions: aligned_0.1.6
+  server_sdk_mcp_package_versions: aligned_0.1.9
   package_boundary_regression: passed
   recipient_resolver_api_sdk_cli_mcp_skill_ui: deployed
   recipient_handle_editor: passed_without_mutation
@@ -112,8 +112,19 @@ acceptance:
   orbit_multi_agent_controls: passed
   orbit_current_connectors_only_by_default: passed
   orbit_historical_connectors_folded: passed_3_records_on_authenticated_mars_account
-  orbit_real_agent_cards: passed_1_agent_on_authenticated_mars_account
+  orbit_real_agent_cards: passed_2_agents_on_authenticated_mars_account
   orbit_delete_agent_button_visible: passed_without_click
+  orbit_empty_json_labelled_204_response: passed_local_and_deployed_asset_verified
+  orbit_delete_soft_delete_api: passed_local
+  orbit_delete_real_agent: pending_human_confirmation
+  orbit_authenticated_agents_after_fix: passed_2_active_2_connected
+  orbit_awaiting_agent_state: superseded_by_current_healthy_workbuddy
+  orbit_connected_count_requires_first_heartbeat: passed
+  workbuddy_host_config_before_first_heartbeat: passed_locally
+  workbuddy_safe_machine_readable_setup_failure: passed_locally
+  workbuddy_020_current_connector: healthy_current
+  workbuddy_020_message_to_mars: msg_3904d107573943528aea85861ffbaa09_delivered
+  workbuddy_mars_connection: healthy_current
   orbit_multi_agent_real_user_experience: pending
   existing_agent_reconnect_same_identity: passed
   expired_pairing_retry: passed_without_new_agent
