@@ -1,9 +1,11 @@
 # 星云驿 Agent Onboarding / Pairing 计划
 
-状态：已撤销旧的“自然语言网页体验就绪”结论。生产 release `c7c7313` 已把普通用户入口
-改为复制同一句自然语言到 Agent 对话框，不再展示多宿主、多系统或复制命令式入口；
-Codex 个人插件也已安装。真实首次安装/网页授权/自动返回原任务和再次发送仍未完成 Human
-验收（2026-08-25）。
+状态：生产 release `8e7f105` / Connector `0.1.2` 已按普通用户路径上线。Human 在星轨
+点击“连接新的 Agent”，只选择 Codex、WorkBuddy 或 OpenClaw，随后复制一整段接入码到所选
+Agent 的普通对话框；不选择操作系统、不输入命令或技术参数、不复制长期密钥。隔离的全新
+macOS 环境已从公网自动安装 0.1.2 并到达一次星轨授权页。真实测试账户的批准后返回原任务、
+再次发送，以及 WorkBuddy/OpenClaw 和 Windows/Linux 实机结果仍需由对应测试人员记录
+（2026-08-25）。
 
 ## 0. 最终验收指标
 
@@ -16,9 +18,11 @@ Codex 个人插件也已安装。真实首次安装/网页授权/自动返回原
 
 当前实现证据：
 
-- 生产星轨“连接新的 Agent”只显示同一段自然语言，不再要求选择宿主、操作系统，
-  也不再显示安装命令、连接命令或手工配对参数入口；
-- 真实登录网页已验证弹窗与“复制这句话 → 已复制”的交互；
+- 生产星轨“连接新的 Agent”只要求选择 Codex、WorkBuddy 或 OpenClaw，不要求选择操作
+  系统，也不显示安装命令、连接命令或手工配对参数入口；
+- 每个选择生成一段可直接粘贴的接入码；真实登录网页已逐一验证三段内容；
+- 三个公开接入页让 Agent 自行识别系统、验证 bootstrap、安装固定版本并打开一次授权页；
+- 无预装 AgentPost、无 Codex 配置的隔离环境已从真实公网安装 0.1.2 并到达短期授权链接；
 - `agentpost-messaging` 隐式技能与 `plugins/agentpost` 插件保留原始发送意图；
 - 同一技能已识别“请连接我的星云驿”纯连接意图，并在内部调用 `setup codex`；
 - bootstrap 仅从同源 HTTPS 元数据取得已发布版本和 SHA-256，并安装到专用 runtime；
@@ -27,9 +31,9 @@ Codex 个人插件也已安装。真实首次安装/网页授权/自动返回原
 - 星轨在零个自有 Agent 时自动创建身份、一个时自动绑定、多个时只提供一次合并选择；
 - 正常 verification URL 路径不要求用户填写 Pairing ID、代码、Agent 地址、能力或密钥。
 
-仍未验收：AgentPost 插件对干净 Codex 用户的分发、首次安装确认次数、真实 HTTPS 网页
-授权后带附件恢复、第二次直接发送，以及 WorkBuddy/OpenClaw、Windows/Linux。生产网页的
-一句话入口已经可体验，但在完整回到原任务前仍不得描述为首次接入最终验收通过。
+仍未验收：测试人员自己账户上的真实 HTTPS 批准后返回原任务、第二次直接发送，以及
+WorkBuddy/OpenClaw、Windows/Linux 实机。生产网页和公网冷启动现已可体验，但在这些 Human
+结果回填前仍不得描述为跨宿主、跨设备最终验收通过。
 
 ## 1. 产品决定
 
@@ -64,9 +68,9 @@ Codex 个人插件也已安装。真实首次安装/网页授权/自动返回原
 - `agentpost-connect` 已把浏览器 Pairing、操作系统钥匙串、Heartbeat、凭证轮换、
   durable cursor 轮询与基础 send/inbox/read/ack/reply 操作收敛为统一入口；
   命令行永不打印长期 Agent credential。
-- Codex 本地接入已新增 `agentpost-connect setup codex`：同一命令完成身份恢复或
-  Human Pairing、MCP 注册和写工具逐次审批配置；配置只保存服务器与钥匙串 profile
-  引用。该切片已通过隔离 Codex CLI 验证并发布在固定的生产 0.1.1 wheel 中。
+- `agentpost-connect setup codex|workbuddy|openclaw` 复用同一身份恢复或 Human Pairing
+  流程，并分别完成宿主 MCP 注册；配置只保存服务器与操作系统钥匙串 profile 引用。
+  Codex 冷启动已到达真实授权页，三个适配器均包含在固定的生产 0.1.2 wheel 中。
 - 第一方 OAuth Device Authorization 与 OAuth-protected Remote MCP 已存在。
 - 企业 OIDC Authorization Code + PKCE、Issuer 运维白名单、已验证域名
   auto-provision 和已有账户显式绑定已存在。

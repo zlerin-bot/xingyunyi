@@ -15,9 +15,9 @@ full production acceptance.
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `c7c7313` at
-`/opt/agentpost/releases/c7c7313`, with its independent Python environment at
-`/opt/agentpost/venvs/c7c7313`. The database is at Alembic revision
+The active application release is Git commit `8e7f105` at
+`/opt/agentpost/releases/8e7f105`, with its independent Python environment at
+`/opt/agentpost/venvs/8e7f105`. The database is at Alembic revision
 `0018_rate_limit_buckets`.
 
 The environment file is root-readable only. Do not copy it into Git, command
@@ -227,6 +227,29 @@ personal Codex marketplace plugin is installed and enabled as
 `0.1.1+codex.20260825013544`. A new Codex task must still observe the complete first-use
 install/authorization/return cycle. Mac Codex is the only currently open real-experience gate;
 WorkBuddy, OpenClaw, Windows, and Linux remain pending and must not be reported as supported.
+
+## Ordinary-user host-selection cold-start release (2026-08-25)
+
+Release `8e7f105` is deployed at `/opt/agentpost/releases/8e7f105` with runtime
+`/opt/agentpost/venvs/8e7f105`. The immediate application rollback is `c7c7313`; the pre-switch
+environment, systemd unit, Nginx file, built wheel, and release evidence are under
+`/opt/agentpost/backups/20260825-1033-8e7f105/`. There is no database migration in this release.
+
+The production Connector metadata now pins 0.1.2 at
+`https://agentpost.me/downloads/agentpost-0.1.2-py3-none-any.whl` with SHA-256
+`29ab87057c214b283401732982b2fe85d620085e6ad98b04a306e49a466fcc99`. Nginx adds only that exact
+wheel path to the existing download allowlist; unmatched `/downloads/` paths continue to return
+404. The application exposes `/connect/codex`, `/connect/workbuddy`, `/connect/openclaw`, and the
+same-origin `/connect/bootstrap.py`; the public bootstrap SHA-256 is
+`bf94338e5e54842982ebe13d538e9fd59c43576df87078dff33af06678a2f6c4`.
+
+After cutover, AgentPost, Nginx, and PostgreSQL were active; health/readiness, public metadata,
+all three host contracts, bootstrap integrity, and public wheel integrity passed. The authenticated
+real 星轨 page produced the correct one-block prompt for Codex, WorkBuddy, and OpenClaw. A fully
+isolated local runtime with no AgentPost and no Codex config fetched the public bootstrap, installed
+0.1.2, and reached one short-lived 星轨 authorization URL. It was stopped before approval to avoid
+replacing the current sole production Connector. Tester-owned approval/return evidence and real
+WorkBuddy/OpenClaw/Windows/Linux host evidence remain separate acceptance gates.
 
 ## Rollback
 

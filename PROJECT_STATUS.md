@@ -2,7 +2,40 @@
 
 Last updated: 2026-08-25
 
-Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.1`
+Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.2`
+
+## Ordinary-user host selection and cold-start release (2026-08-25)
+
+Commit `8e7f105` is deployed at `https://agentpost.me` as release `0.1.2`. This release supersedes
+the rejected host-neutral sentence below. The authenticated 星轨 “连接新的 Agent” dialog now asks
+the Human to choose only Codex, WorkBuddy, or OpenClaw and then presents one complete block to paste
+into that Agent's ordinary chat. It does not ask for an operating system, command, URL, package
+version, profile, Agent address, Pairing ID, API key, or other technical parameter.
+
+Each pasted block contains a host-specific short code and public Agent-facing contract:
+`AP-CODEX-V1 https://agentpost.me/connect/codex`, `AP-WORKBUDDY-V1
+https://agentpost.me/connect/workbuddy`, or `AP-OPENCLAW-V1
+https://agentpost.me/connect/openclaw`. The Agent identifies the operating system, downloads the
+same-origin bootstrap, verifies its published SHA-256, installs the pinned Connector into an
+isolated runtime, opens one short-lived 星轨 authorization page, stores the credential only in the
+operating-system vault, registers its own MCP host, and returns to the original chat.
+
+Production evidence: AgentPost, Nginx, and PostgreSQL remained active after the cutover; local and
+public health/readiness passed; all three public connection contracts passed; the public bootstrap
+digest is `bf94338e5e54842982ebe13d538e9fd59c43576df87078dff33af06678a2f6c4`; and the pinned
+0.1.2 wheel digest is `29ab87057c214b283401732982b2fe85d620085e6ad98b04a306e49a466fcc99`.
+The authenticated real page was exercised through all three selections and returned the expected
+single paste block for each host. A no-AgentPost/no-Codex-config isolated macOS environment fetched
+the public bootstrap, installed 0.1.2, and reached exactly one short-lived 星轨 authorization URL.
+That test pairing was intentionally stopped before approval so it would not replace the Human's
+current sole Agent Connector.
+
+The local regression is 327 passed and six explicit skips, Ruff passes, JavaScript syntax passes,
+the clean wheel contains the cold-start bootstrap and all three host adapters, and the personal
+Codex plugin is installed and enabled as `0.1.2+codex.20260825022025`. The production webpage is now
+ready for controlled new-computer/new-Human testing. Complete approval-and-return on a tester's own
+account, plus real WorkBuddy/OpenClaw host execution and Windows/Linux devices, remain acceptance
+evidence to collect; they must not be inferred from the macOS cold-start or adapter tests.
 
 ## Post-handoff ordinary-user onboarding correction (2026-08-25)
 

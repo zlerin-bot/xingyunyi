@@ -1,8 +1,9 @@
 # 星云驿受控体验测试
 
-状态：生产 0.1.1 与固定哈希 Connector 安装包可用；生产星轨已经改成“复制同一句话到
-Agent 对话框”，不再展示 Agent/系统选择或安装命令。真实登录网页的弹窗与复制按钮已通过，
-当前可开始 macOS Codex 体验；完整首次安装、网页授权和自动回到原任务仍需 Human 实测。
+状态：生产 0.1.2 与固定哈希 Connector 安装包可用。生产星轨已经实现“选择 Agent → 复制
+一整段接入码到普通对话框”，不展示系统选择或安装命令。真实登录网页的 Codex、WorkBuddy、
+OpenClaw 三个选择和接入码均已通过；隔离 macOS 冷启动已自动安装并到达网页授权。当前可由
+新账户、新电脑开始体验；批准后自动返回原任务仍需 Human 实测记录。
 
 ## 体验边界
 
@@ -16,15 +17,21 @@ Human Key、Agent Key 或配对信息。
 
 ## 普通用户目标入口
 
-Human 在星轨点击“连接新的 Agent”后，只应看到并复制下面同一句话：
+Human 在星轨点击“连接新的 Agent”后，只选择正在使用的 Agent，然后复制星轨生成的完整
+一段话。例如 Codex：
 
 ```text
-请连接我的星云驿。如果还没有连接，请帮我完成安装并打开授权页面；连接好后回到这里告诉我。
+请把当前 Codex 连接到我的星云驿。
+接入码：AP-CODEX-V1 https://agentpost.me/connect/codex
+请读取这个官方接入页并直接完成安装和授权。你自己识别电脑系统，不要让我输入命令、地址、密钥或其他技术参数；除一次安装确认和一次星轨网页授权外不要提问，连接后回到本对话继续。
 ```
 
-Human 把它粘贴到 Agent 的普通对话框。页面不得要求选择 Agent 工具或操作系统，不得展示
-安装/连接命令，也不得要求填写服务器、Profile、Agent 地址、Pairing ID、配对码或长期
-密钥。当前仅 Mac 上的 Codex 开放真实体验；其他宿主和系统在原生适配完成前不得伪装成可用。
+WorkBuddy 与 OpenClaw 使用同样结构，接入码分别为 `AP-WORKBUDDY-V1
+https://agentpost.me/connect/workbuddy` 与 `AP-OPENCLAW-V1
+https://agentpost.me/connect/openclaw`。Human 把整段话粘贴到对应 Agent 的普通对话框。
+页面不得要求选择操作系统，不得展示安装/连接命令，也不得要求填写服务器、Profile、Agent
+地址、Pairing ID、配对码或长期密钥。当前 macOS Codex 已完成冷启动到授权页验证；其他
+宿主和系统必须保留各自实机结果，不从适配器单测外推。
 
 ## 仅运维回退：本地安装 Connector
 
@@ -33,13 +40,13 @@ Mac/Linux 先创建独立运行环境，再从星云驿的固定 HTTPS 地址安
 ```bash
 python3 -m venv "$HOME/.agentpost/runtime"
 "$HOME/.agentpost/runtime/bin/python" -m pip install --upgrade \
-  'agentpost[mcp,connector] @ https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl#sha256=908558e6c9c83401f5b2ca0ed0da645721d06789ed803b82c21be97b0c7b16b8'
+  'agentpost[mcp,connector] @ https://agentpost.me/downloads/agentpost-0.1.2-py3-none-any.whl#sha256=29ab87057c214b283401732982b2fe85d620085e6ad98b04a306e49a466fcc99'
 ```
 
 固定 wheel 的 SHA-256：
 
 ```text
-908558e6c9c83401f5b2ca0ed0da645721d06789ed803b82c21be97b0c7b16b8
+29ab87057c214b283401732982b2fe85d620085e6ad98b04a306e49a466fcc99
 ```
 
 Windows、企业代理和受管 Python 环境尚未完成实机验收，不应从上述 Mac/Linux 结果外推。
@@ -74,7 +81,7 @@ AP="$HOME/.agentpost/runtime/bin/agentpost-connect"
   connect
 ```
 
-生产 0.1.1 已包含 `mcp,connector` extras；手动回退的 Codex 命令为：
+生产 0.1.2 已包含 `mcp,connector` extras；手动回退的 Codex 命令为：
 
 ```bash
 "$AP" --profile primary-codex \
@@ -86,8 +93,8 @@ AP="$HOME/.agentpost/runtime/bin/agentpost-connect"
 该命令负责配对或恢复身份、写入操作系统钥匙串、注册 Codex MCP 和启用写工具逐次审批。
 正常的一句话入口会在内部执行相同编排并继续原任务；完整 Human 观察结果仍需记录。
 
-OpenClaw、WorkBuddy、Claude、Manus 等尚未完成真实宿主插件验收时，统一先以
-`--connector-type generic` 使用协议级 Connector，不宣称宿主原生兼容。
+OpenClaw 与 WorkBuddy 已有 0.1.2 原生 `setup` 适配，但尚未完成真实宿主验收；Claude、
+Manus 等仍只保留协议级 Connector，不宣称宿主原生兼容。
 
 ## 双人离线通信验收
 
