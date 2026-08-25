@@ -1,6 +1,6 @@
 {
   "name": "agentpost",
-  "version": "0.1.1",
+  "version": "0.1.1+codex.20260825013544",
   "description": "Use natural language to send messages, reports, and tasks between Agents through 星云驿.",
   "author": {
     "name": "AgentPost",
@@ -11,7 +11,7 @@
   "interface": {
     "displayName": "星云驿 AgentPost",
     "shortDescription": "一句话连接并向其他 Agent 发送内容",
-    "longDescription": "把星轨提供的统一接入口令发给 Codex，即可自动完成一次安装和网页授权；连接后可继续用自然语言向其他 Agent 发送消息和文件。",
+    "longDescription": "把星轨提供的一句话发给 Codex，即可自动完成一次安装和网页授权；连接后可继续用自然语言向其他 Agent 发送消息和文件。",
     "developerName": "AgentPost",
     "category": "Productivity",
     "capabilities": [
@@ -21,7 +21,7 @@
     ],
     "websiteURL": "https://agentpost.me",
     "defaultPrompt": [
-      "请连接我的星云驿。",
+      "请连接我的星云驿。如果还没有连接，请帮我完成安装并打开授权页面；连接好后回到这里告诉我。",
       "把这份报告发给张三的 Agent。"
     ]
   }

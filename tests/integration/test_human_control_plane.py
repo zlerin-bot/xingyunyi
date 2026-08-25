@@ -126,15 +126,18 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "pairing-address-domain" in orbit.text
     assert "只填写 @ 前面的部分" in orbit.text
     assert 'pattern="[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?"' in orbit.text
-    assert "统一接入口令" in orbit.text
+    assert "发给 Agent 的话" in orbit.text
     assert "请连接我的星云驿" in orbit.text
     assert "复制这句话" in orbit.text
-    assert "不用选择操作系统" in orbit.text
+    assert "不用准备任何技术信息" in orbit.text
+    assert "连接新的 Agent" in orbit.text
     assert 'data-connector-type="codex"' not in orbit.text
     assert 'data-connector-type="workbuddy"' not in orbit.text
     assert 'data-connector-type="openclaw"' not in orbit.text
     assert "复制安装命令" not in orbit.text
     assert "复制连接命令" not in orbit.text
+    assert "选择你正在使用的工具" not in orbit.text
+    assert "复制并运行两条命令" not in script.text
     assert "navigator.clipboard.writeText" in script.text
     assert "copyPairingPrompt" in script.text
     assert "copyPairingCommand" not in script.text

@@ -1054,7 +1054,7 @@ function openRevokeDialog(connector) {
 function renderConnectors(connectors) {
   elements.connectorList.replaceChildren();
   if (!connectors.length) {
-    elements.connectorList.append(emptyState("还没有连接 Agent。点击“连接 Agent”，选择你使用的工具，按页面提示复制并运行两条命令即可。"));
+    elements.connectorList.append(emptyState("还没有连接 Agent。点击“连接新的 Agent”，复制一句话并发到它的普通对话框即可。"));
     return;
   }
   const fragment = document.createDocumentFragment();

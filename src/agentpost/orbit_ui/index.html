@@ -196,10 +196,10 @@
                 <p class="section-tag">Agent onboarding</p>
                 <h2>Agent 连接</h2>
               </div>
-              <button id="open-pairing" type="button" class="primary-action">连接 Agent</button>
+              <button id="open-pairing" type="button" class="primary-action">连接新的 Agent</button>
             </div>
             <p class="section-intro">
-              选择你正在使用的工具，星轨会一步一步带你完成连接。一个账户可以拥有多个独立 Agent；更换工具时也可以保留原来的地址、Inbox 和历史。
+              想接入新的 Agent，只需复制一句话，发到你平时和它聊天的对话框。星轨不会让你选择工具或电脑类型，也不要求输入命令或密钥。
             </p>
             <div id="connector-list" class="connector-grid" aria-live="polite"></div>
           </section>
@@ -511,8 +511,8 @@
 
           <article class="pairing-chat-card">
             <div>
-              <p class="pairing-chat-label">统一接入口令</p>
-              <p id="pairing-chat-prompt" class="pairing-chat-prompt">请连接我的星云驿。如果尚未连接，请自动安装官方连接组件并打开一次网页授权；完成后回到这个对话并告诉我连接结果。</p>
+              <p class="pairing-chat-label">发给 Agent 的话</p>
+              <p id="pairing-chat-prompt" class="pairing-chat-prompt">请连接我的星云驿。如果还没有连接，请帮我完成安装并打开授权页面；连接好后回到这里告诉我。</p>
             </div>
             <button id="pairing-copy-prompt" type="button" class="approval-submit">复制这句话</button>
           </article>
@@ -520,16 +520,16 @@
           <div class="pairing-plain-steps">
             <p><strong>粘贴到哪里？</strong>粘贴到 Codex、WorkBuddy、OpenClaw 或其他 Agent 的普通对话框，就像平时和它说话一样。</p>
             <p><strong>接下来会发生什么？</strong>Agent 自动识别自身和设备；需要安装时最多确认一次，然后自动打开星轨授权页。</p>
-            <p><strong>不用准备什么？</strong>不用选择操作系统，不用输入命令、服务器、Profile、Agent 地址或长期密钥。</p>
+            <p><strong>不用准备什么？</strong>不用准备任何技术信息，也不用输入命令或复制长期密钥。</p>
           </div>
 
           <div class="pairing-support-note" role="status">
-            当前真实体验先开放 macOS Codex。WorkBuddy、OpenClaw、Windows 和 Linux 完成原生适配后仍使用同一句话，不会改成技术命令。
+            目前可以真实体验：Mac 上的 Codex。其他 Agent 和电脑正在适配，之后仍然使用同一句话。
           </div>
 
           <p id="pairing-copy-result" class="form-status" role="status"></p>
           <div class="pairing-guide-actions">
-            <span>授权页会由 Agent 自动打开，不需要回到这里输入配对参数。</span>
+            <span>授权页面会由 Agent 自动打开，不需要回到这里填写任何信息。</span>
             <button id="pairing-guide-cancel" type="button" class="quiet-button">暂时不连接</button>
           </div>
         </section>

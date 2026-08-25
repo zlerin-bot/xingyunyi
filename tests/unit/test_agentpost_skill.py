@@ -57,7 +57,10 @@ def test_plugin_packages_the_same_implicit_skill_without_machine_specific_mcp_co
     )
 
     assert manifest["name"] == "agentpost"
-    assert manifest["version"] == "0.1.1"
+    plugin_version, separator, cachebuster = manifest["version"].partition("+")
+    assert plugin_version == "0.1.1"
+    assert separator == "+"
+    assert cachebuster.startswith("codex.")
     assert manifest["skills"] == "./skills/"
     assert "mcpServers" not in manifest
     assert not (PLUGIN_ROOT / ".mcp.json").exists()
