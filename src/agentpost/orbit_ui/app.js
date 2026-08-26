@@ -39,9 +39,9 @@ const state = {
   agentQuery: "",
   agentRelatedThreads: [],
   activeModule: "orbit",
-  activeSection: "overview",
+  activeSection: "communications",
   lastSectionByModule: {
-    orbit: "overview",
+    orbit: "communications",
     relay: "agents",
     settings: "profile",
   },
@@ -130,12 +130,6 @@ const elements = {
   agentRename: document.querySelector("#agent-rename"),
   agentDisconnect: document.querySelector("#agent-disconnect"),
   agentDelete: document.querySelector("#agent-delete"),
-  overviewCopy: document.querySelector("#overview-copy"),
-  metricAgents: document.querySelector("#metric-agents"),
-  metricUnread: document.querySelector("#metric-unread"),
-  metricPending: document.querySelector("#metric-pending"),
-  metricOnline: document.querySelector("#metric-online"),
-  metricApprovals: document.querySelector("#metric-approvals"),
   organizationCount: document.querySelector("#organization-count"),
   organizationList: document.querySelector("#organization-list"),
   openOrganizationCreate: document.querySelector("#open-organization-create"),
@@ -310,8 +304,8 @@ const MODULE_DEFINITIONS = Object.freeze({
     label: "星轨",
     title: "协作动态",
     description: "查看 Agent 之间的对话、任务和需要你处理的事项。",
-    defaultSection: "overview",
-    sections: Object.freeze(["overview", "communications", "tasks", "approvals"]),
+    defaultSection: "communications",
+    sections: Object.freeze(["communications", "tasks", "approvals"]),
   }),
   relay: Object.freeze({
     label: "云驿",
@@ -457,6 +451,16 @@ function updateAgentWorkspaceMode() {
   elements.agentBrowser.hidden = !active;
 }
 
+function isMobileWorkspace() {
+  return window.matchMedia("(max-width: 860px)").matches;
+}
+
+function resetMobileLayerScroll() {
+  if (isMobileWorkspace()) {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
+}
+
 function activateRoute(module, section, { updateHistory = true, focusContent = false } = {}) {
   const route = normalizedRoute(module, section);
   const definition = MODULE_DEFINITIONS[route.module];
@@ -495,6 +499,9 @@ function activateRoute(module, section, { updateHistory = true, focusContent = f
   document.title = `星云驿 · ${definition.label}`;
   updateThreadWorkspaceMode();
   updateAgentWorkspaceMode();
+  if (routeChanged) {
+    resetMobileLayerScroll();
+  }
   if (updateHistory && routeChanged) {
     history.pushState({ module: route.module, section: route.section }, "", routeUrl(route.module, route.section));
   }
@@ -769,17 +776,6 @@ function chip(value, type = "status") {
   item.className = `data-chip ${type} ${safeText(value, "unknown")}`;
   item.textContent = statusLabel(value, type);
   return item;
-}
-
-function renderMetrics(metrics, agents, organizations) {
-  elements.metricAgents.textContent = safeText(metrics.agent_count, "0");
-  elements.metricUnread.textContent = safeText(metrics.unread_delivery_count, "0");
-  elements.metricPending.textContent = safeText(metrics.pending_task_count, "0");
-  elements.metricOnline.textContent = safeText(metrics.connected_agent_count, "0");
-  elements.metricApprovals.textContent = safeText(metrics.pending_approval_count, "0");
-  const connected = agents.filter((agent) => agent.connection_state === "connected").length;
-  const awaiting = agents.filter((agent) => agent.connection_state === "awaiting_agent").length;
-  elements.overviewCopy.textContent = `你当前可查看 ${agents.length} 个 Agent：${connected} 个正常连接，${awaiting} 个等待 Agent 完成本机连接；另有 ${organizations.length} 个组织范围。通信、工作和审批状态会分别显示。`;
 }
 
 function renderOrganizations(organizations) {
@@ -1748,7 +1744,7 @@ function selectAgent(agentId, { updateHistory = true } = {}) {
   if (agent) {
     renderAgentDetail(agent);
     void loadAgentRelatedThreads(agent);
-    if (window.matchMedia("(max-width: 860px)").matches) {
+    if (isMobileWorkspace()) {
       elements.agentMobileBack.scrollIntoView({ block: "start" });
       elements.agentMobileBack.focus({ preventScroll: true });
     } else {
@@ -1768,6 +1764,7 @@ function clearAgentSelection({ updateHistory = true } = {}) {
   if (updateHistory) {
     history.pushState({ module: "relay", section: "agents" }, "", agentRouteUrl());
   }
+  resetMobileLayerScroll();
 }
 
 function openHandleDialog(agent) {
@@ -2867,6 +2864,10 @@ function renderThreadMessageContent(message, body) {
     ? "JSON · 安全原始视图"
     : "纯文本";
   const content = document.createElement("pre");
+  const contentFormat = ["markdown", "json"].includes(message.content_format)
+    ? message.content_format
+    : "text";
+  content.className = `thread-message-content thread-message-content-${contentFormat}`;
   content.textContent = message.content_redacted
     ? "正文因当前审计角色而隐藏。"
     : safeText(message.content_body, "无正文");
@@ -3100,7 +3101,7 @@ async function selectThread(threadId, { updateHistory = true } = {}) {
     history.pushState({ module: "orbit", section: "communications", thread: threadId }, "", threadRouteUrl());
   }
   await loadThreadDetail(threadId);
-  if (window.matchMedia("(max-width: 860px)").matches) {
+  if (isMobileWorkspace()) {
     elements.threadMobileBack.scrollIntoView({ block: "start" });
     elements.threadMobileBack.focus({ preventScroll: true });
   } else {
@@ -3117,6 +3118,7 @@ function clearThreadSelection({ updateHistory = true } = {}) {
   if (updateHistory) {
     history.pushState({ module: "orbit", section: "communications" }, "", threadRouteUrl());
   }
+  resetMobileLayerScroll();
 }
 
 function threadListEndpoint() {
@@ -3244,7 +3246,6 @@ function renderDashboard(dashboard) {
     Intl.DateTimeFormat().resolvedOptions().timeZone,
     "此设备未提供",
   );
-  renderMetrics(dashboard.metrics || {}, agents, organizations);
   renderOrganizations(organizations);
   renderAgents(agents);
   renderTasks(tasks);
@@ -3802,7 +3803,7 @@ elements.refresh.addEventListener("click", async () => {
   try {
     await loadDashboard();
   } catch (error) {
-    elements.overviewCopy.textContent = error.message;
+    setConnection(error.message, "error");
   }
 });
 elements.signOut.addEventListener("click", signOut);

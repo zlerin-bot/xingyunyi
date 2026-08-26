@@ -4,7 +4,7 @@
 - 核验日期：2026-08-26
 - 代码分支：`main`
 - 阶段性质：OpenClaw headless Linux 会话密钥库已部署为 0.1.11；真实配对与收发待 Human 重试
-- 本地开发状态：0.1.11 源码上的 Human 三入口、Thread 体验切片二和 Agent 管理切片三已形成可审阅演示，未部署、未发布
+- 本地开发状态：0.1.11 源码上的 Human 三入口、Thread 体验、Agent 管理和普通用户视觉优化已形成可审阅演示，未部署、未发布
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
@@ -14,6 +14,13 @@ Human 账户和平台关系。桌面使用三栏，移动端使用底部三个�
 明确标记为待确认，没有伪造开关；Human 新动态也没有复用 Agent `read` 或 ACK。`make
 orbit-demo` 只在 loopback 启动隔离的临时 SQLite 演示数据，未触碰阿里云或生产数据。当前证据
 标签为 `local_ui_review_ready`，不是发布或 `production_accepted`。
+
+最新本地视觉切片使用独立设计的多彩轨道/中继 SVG 标识、明亮 Material 风格色彩、系统无衬线
+字体和始终带中文名称的 SVG 导航图标。星轨默认直接进入按 Thread 聚合的对话，删除了与云驿
+Agent 总览重复的“协作总览”；真实 Agent 统计只保留在云驿。桌面继续使用三栏，390 px 手机端
+继续使用底部三入口和列表/详情分层，并修复跨模块或返回列表时残留旧滚动位置的问题。普通
+文本使用明亮阅读卡片，JSON 保持独立原始视图；内容仍通过 `textContent` 渲染，不改变
+`external_agent_content` 不可信边界。
 
 切片二新增只读的 Human Thread 列表和详情投影：严格按持久化 `thread_id` 聚合，支持授权范围
 内的主题、Agent、正文和附件名搜索；Auditor 的正文与附件名不会进入结果，未知或失权 Thread
@@ -28,9 +35,9 @@ Connector 不会被误显示成多个 Agent。`agent` / `agentTab` 深链接、�
 分层已在本地浏览器验证。组织派生访问不会变成 Agent 所有权，管理按钮仍以既有服务端权限为准，
 删除仍为保留身份、对话和审计的软删除。
 
-切片三本地证据：379 passed、1 个明确 loopback sandbox skip、5 个 PostgreSQL deselected；另有
-MCP 10、Orbit JavaScript 14、TypeScript Connector 4、OpenClaw plugin 4 passed。Ruff/format、
-JavaScript 语法、桌面/移动端浏览器交互和 diff 检查通过。未部署、未发布，协议、权限和安全边界
+当前本地证据：379 passed、1 个明确 loopback sandbox skip、5 个 PostgreSQL deselected；另有
+MCP 10、Orbit JavaScript 16、TypeScript Connector 4、OpenClaw plugin 4 passed。Ruff/format、
+JavaScript 语法、桌面/390 px 移动端浏览器交互、无横向溢出、空控制台和 diff 检查通过。未部署、未发布，协议、权限和安全边界
 未改变；后续仍是切片四设置/组织角色体验和切片五安全内容与附件预览。
 
 以下 0.1.11 生产记录保持不变。

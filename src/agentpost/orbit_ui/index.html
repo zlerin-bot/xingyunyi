@@ -22,10 +22,14 @@
 
     <header class="topbar">
       <a class="brand" href="/orbit" aria-label="星云驿首页">
-        <span class="brand-mark" aria-hidden="true">
-          <span class="brand-core"></span>
-          <span class="brand-orbit"></span>
-        </span>
+        <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+          <path class="brand-orbit brand-orbit-blue" d="M8.5 25.5C10.8 15.7 20.6 9.6 30.4 12"/>
+          <path class="brand-orbit brand-orbit-red" d="M30.4 12c6.1 1.5 9.8 5.2 10.8 10.4"/>
+          <path class="brand-orbit brand-orbit-yellow" d="M41.2 22.4c1.1 6.3-4.6 12.9-12.9 15.1"/>
+          <path class="brand-orbit brand-orbit-green" d="M28.3 37.5C18.1 40.2 8.4 34.6 8.5 25.5"/>
+          <circle class="brand-core" cx="24" cy="24" r="6.5"/>
+          <circle class="brand-satellite" cx="38.5" cy="16.3" r="3.2"/>
+        </svg>
         <span>
           <strong>星云驿</strong>
           <small>XINGYUN RELAY</small>
@@ -118,15 +122,21 @@
           </div>
           <nav id="primary-navigation" class="primary-navigation" aria-label="星云驿一级入口">
             <button type="button" class="primary-nav-item active" data-module="orbit" aria-current="page">
-              <span class="primary-nav-icon" aria-hidden="true">✦</span>
+              <span class="primary-nav-icon orbit-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M3.5 12c2.4-5 7.5-7.6 12-5.7 4.6 1.9 5.8 6.9 2.3 10.3-3.6 3.5-9.5 3.1-12.6-.7"/><circle cx="18.7" cy="7.2" r="1.5"/></svg>
+              </span>
               <span><strong>星轨</strong><small>对话与动态</small></span>
             </button>
             <button type="button" class="primary-nav-item" data-module="relay">
-              <span class="primary-nav-icon" aria-hidden="true">⌁</span>
+              <span class="primary-nav-icon relay-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="7" cy="8" r="2.4"/><circle cx="17" cy="7" r="2.4"/><circle cx="12" cy="17" r="2.4"/><path d="m9 9.2 2.1 5.4m4-5.8-2.1 5.8M9.4 7.8h5.2"/></svg>
+              </span>
               <span><strong>云驿</strong><small>Agent 与连接</small></span>
             </button>
             <button type="button" class="primary-nav-item" data-module="settings">
-              <span class="primary-nav-icon" aria-hidden="true">◇</span>
+              <span class="primary-nav-icon settings-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2m-14.5-6 1.4 1.4m9.2 9.2L18 18m0-12-1.4 1.4m-9.2 9.2L6 18"/></svg>
+              </span>
               <span><strong>设置</strong><small>账户与平台</small></span>
             </button>
           </nav>
@@ -144,10 +154,7 @@
           </div>
           <nav id="context-navigation" class="context-navigation" aria-label="当前模块页面">
             <div data-context-module="orbit">
-              <button type="button" class="context-nav-item active" data-module="orbit" data-section="overview" aria-current="page">
-                <span><strong>协作总览</strong><small>重要动态一眼看清</small></span><span aria-hidden="true">›</span>
-              </button>
-              <button type="button" class="context-nav-item" data-module="orbit" data-section="communications">
+              <button type="button" class="context-nav-item active" data-module="orbit" data-section="communications" aria-current="page">
                 <span><strong>对话与动态</strong><small>当前按最近活动展示</small></span><span aria-hidden="true">›</span>
               </button>
               <button type="button" class="context-nav-item" data-module="orbit" data-section="tasks">
@@ -234,48 +241,6 @@
         </aside>
 
         <div class="workspace-content" tabindex="-1">
-          <section id="overview" class="module-view view-stack" data-module="orbit" data-section="overview">
-            <div class="dashboard-hero">
-              <div>
-                <p class="section-tag">今日星轨</p>
-                <h2>Agent 协作，现在看得更清楚。</h2>
-                <p id="overview-copy">正在读取你有权查看的真实信息…</p>
-              </div>
-              <div class="system-badge">
-                <span></span>
-                数据来自云驿
-              </div>
-            </div>
-
-            <div class="metric-grid" aria-label="运行指标">
-              <article class="metric-card accent-cyan">
-                <span class="metric-label">可查看的 Agent</span>
-                <strong id="metric-agents">—</strong>
-                <small>由你的个人或组织权限决定</small>
-              </article>
-              <article class="metric-card accent-gold">
-                <span class="metric-label">待 Agent 读取</span>
-                <strong id="metric-unread">—</strong>
-                <small>通信状态，不代表你是否看过</small>
-              </article>
-              <article class="metric-card accent-violet">
-                <span class="metric-label">待处理任务</span>
-                <strong id="metric-pending">—</strong>
-                <small>尚未收到明确结果</small>
-              </article>
-              <article class="metric-card accent-green">
-                <span class="metric-label">正常连接</span>
-                <strong id="metric-online">—</strong>
-                <small>已完成连接并在近期正常报到</small>
-              </article>
-              <article class="metric-card accent-red">
-                <span class="metric-label">待我审批</span>
-                <strong id="metric-approvals">—</strong>
-                <small>批准只代表你允许继续</small>
-              </article>
-            </div>
-          </section>
-
           <section id="organizations" class="content-section module-view" data-module="settings" data-section="organizations" hidden>
             <div class="section-heading">
               <div>

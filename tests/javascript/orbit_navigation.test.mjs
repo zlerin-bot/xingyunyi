@@ -36,10 +36,28 @@ test("module and selected view survive navigation and browser history", () => {
   assert.match(script, /elements\.moduleViews\.forEach/);
 });
 
+test("Star Orbit opens directly on conversations without a duplicate overview", () => {
+  assert.doesNotMatch(html, /data-section="overview"/);
+  assert.doesNotMatch(html, /协作总览/);
+  assert.match(script, /defaultSection: "communications"/);
+  assert.match(script, /orbit: "communications"/);
+});
+
+test("brand uses a unique multi-colour orbit logo and system-first typography", () => {
+  assert.match(html, /class="brand-mark" viewBox="0 0 48 48"/);
+  assert.match(html, /brand-orbit-blue/);
+  assert.match(html, /brand-orbit-red/);
+  assert.match(html, /brand-orbit-yellow/);
+  assert.match(html, /brand-orbit-green/);
+  assert.match(stylesheet, /"Google Sans"/);
+  assert.match(stylesheet, /--google-blue: #1a73e8/);
+});
+
 test("mobile navigation remains a three-entry bottom bar", () => {
   assert.match(stylesheet, /@media \(max-width: 860px\)/);
   assert.match(stylesheet, /\.workspace-sidebar \{[\s\S]*?position: fixed;[\s\S]*?inset: auto 0 0;/);
   assert.match(stylesheet, /\.primary-navigation \{[\s\S]*?display: flex;/);
+  assert.match(script, /window\.scrollTo\(\{ top: 0, left: 0, behavior: "auto" \}\)/);
 });
 
 test("human activity does not reuse Agent read or ACK state", () => {
@@ -75,6 +93,8 @@ test("Thread timeline keeps communication, work, replies, and system events dist
   assert.match(script, /message\.task_expected_output/);
   assert.match(script, /message\.requires_ack \? "是" : "否"/);
   assert.match(script, /来自 Agent 的不可信外部内容/);
+  assert.match(script, /thread-message-content-\$\{contentFormat\}/);
+  assert.match(stylesheet, /pre\.thread-message-content-json/);
 });
 
 test("mobile Thread list and detail are separate layers", () => {

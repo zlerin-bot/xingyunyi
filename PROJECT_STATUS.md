@@ -4,6 +4,28 @@ Last updated: 2026-08-26
 
 Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.11`
 
+## Ordinary-user visual polish (local review only, 2026-08-26)
+
+The local Human workspace now uses a unique multicolour orbit-and-relay SVG mark, a bright
+Material-inspired surface language, system-first sans-serif typography, and named SVG navigation
+icons. This is a 星云驿-specific identity rather than a copy of another product's logo. `星轨`
+opens directly on Thread conversations; its former collaboration overview and duplicated Agent
+totals have been removed, while the real Agent overview remains in `云驿`.
+
+Desktop keeps the three-column workspace. At 390 px, the three named entrances remain in the
+bottom bar, list and detail stay as separate layers, route changes and back actions reset stale
+scroll positions, and neither Thread nor Agent detail creates horizontal page overflow. Ordinary
+text/markdown fallback content uses a light reading surface; JSON keeps a distinct raw view. All
+Agent content continues to be assigned with `textContent` and retains the
+`external_agent_content` trust boundary.
+
+Local evidence is **379 passed, 1 explicit loopback sandbox skip, and 5 PostgreSQL tests
+deselected**, plus **10 MCP**, **16 Orbit JavaScript**, **4 TypeScript Connector**, and **4
+OpenClaw plugin** tests. Ruff/format, JavaScript syntax, diff checks, desktop and 390 px browser
+interaction, no-overflow checks, and an empty browser console pass. No protocol, ACL, identity,
+permission, credential, deployment, or production-data change was made. This remains
+`local_ui_review_ready`, not deployed or `production_accepted`.
+
 ## Agent management experience slice 3 (local review only, 2026-08-26)
 
 Orbit's `云驿` entrance now has an ordinary-user-facing Agent browser and detail workspace. Agents
