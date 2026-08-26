@@ -1,14 +1,34 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`openclaw-headless-session-vault-0.1.11-deployed`
+- 交接阶段：`six-host-picker-hermes-0.1.12-deployed`
 - 核验日期：2026-08-26
 - 代码分支：`main`
-- 阶段性质：OpenClaw headless Linux 会话密钥库已部署为 0.1.11；真实配对与收发待 Human 重试
-- 本地开发状态：0.1.11 源码上的 Human 三入口、Thread 体验、Agent 管理和普通用户视觉优化已形成可审阅演示，未部署、未发布
+- 阶段性质：六类 Agent 选择器和 Hermes macOS/Linux 接入门已部署为 0.1.12；真实 Hermes 配对与收发待 Human 测试
+- 本地开发状态：0.1.12 源码、发布 wheel 与生产部署一致；Manus/豆包工作 Remote MCP 仍安全关闭
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-新增宿主接入切片已在本地完成：星轨“连接新的 Agent”现在按固定顺序列出 WorkBuddy、豆包工作、
+生产已于 2026-08-26 切换到提交 `f10e75c` / package `0.1.12`，不可变源码与 runtime 分别为
+`/opt/agentpost/releases/f10e75c`、`/opt/agentpost/venvs/f10e75c`。公开 wheel SHA-256 是
+`abec6302203964eae51312adebaa509ccce228cf0342d9c4f86b0e9db7f5d821`，bootstrap 响应头与正文
+SHA-256 均为 `35f5c01363d0111214cda780d52e9fe885a5c63f227c7c9d01baba06820085c2`。
+AgentPost/Nginx/PostgreSQL 均 active，health/ready 均为 0.1.12，schema 保持
+`0020_pairing_agent_intent`，切换后 fatal/HTTP 5xx 为 0。
+
+有效回滚点是 `/opt/agentpost/backups/20260826-0908-f10e75c-pre-012/`，包含可读数据库与附件
+备份、受保护配置、校验和和 `rollback-immediate-0.1.12.sh`。第一次切换因为 Nginx reload 后
+立即校验命中了旧 worker 而安全中止并恢复 0.1.11；改为轮询到第 2 次返回 200 且 wheel SHA
+正确后，第二次应用切换成功。备份时为 23 Agents / 50 Messages / 50 Deliveries；postflight 为
+23 / 51 / 51 和 9 个 current bindings，期间新增了一条正常业务消息和投递，没有回退或丢失。
+
+真实生产星轨已按 WorkBuddy、豆包工作、OpenClaw、Hermes、Codex、Manus 顺序展示六个选择。
+Hermes 选择后生成可直接粘贴到普通对话框的 `AP-HERMES-V1` 接入码；公开合同允许 macOS/Linux。
+现在可以开展真实 Hermes 安装、网页授权、配对和收发测试。Remote MCP OAuth 仍为 false，故
+Manus 和豆包工作仅展示合同入口并返回明确 409，当前不能作为“连接成功”测试，也不能改用
+长期 API Key 绕过。证据标签为
+`hermes_release_gate_and_six_host_picker_deployed_https_verified`，不是 `production_accepted`。
+
+以下保留 0.1.12 发布前的本地切片记录：星轨“连接新的 Agent”按固定顺序列出 WorkBuddy、豆包工作、
 OpenClaw、Hermes、Codex、Manus。Hermes 走本机 bootstrap，并通过官方 `hermes config set` / `hermes mcp test`
 注册与验证 MCP；配置
 只含 server/profile，headless Linux 与 OpenClaw 一样选用 OS vault 的 `session` collection。
@@ -20,16 +40,16 @@ OpenClaw、Hermes、Codex、Manus。Hermes 走本机 bootstrap，并通过官方
 稳定 409 停止，不能改用 Header 或长期密钥。Manus 的 Remote MCP OAuth 未开启时以
 `manus_remote_mcp_not_released` 安全停止，现有 Agent 重连尚未发布并以
 `manus_reconnect_not_released` 停止。当前生产 Remote MCP 仍关闭，也没有真实 Manus/Hermes
-或豆包工作账户宿主验收，因此本切片未部署、未发布，不能写成可真实体验或
-`production_accepted`。
+或豆包工作账户宿主验收。六卡界面与 Hermes 发布门现已随 0.1.12 部署；Manus/豆包工作仍未
+发布为可连接能力，三类 Agent 都不能写成 `production_accepted`。
 
-新增后的本地证据：391 passed、1 个明确 loopback sandbox skip、5 个 PostgreSQL deselected，
+发布前的本地证据：391 passed、1 个明确 loopback sandbox skip、5 个 PostgreSQL deselected，
 另有 MCP 10、Orbit JavaScript 20、TypeScript Connector 4、OpenClaw plugin 4 passed；Ruff、Skill
 校验、插件三文件副本一致性与 diff 检查通过。隔离演示页实测六卡顺序严格为 WorkBuddy、豆包
 工作、OpenClaw、Hermes、Codex、Manus；桌面为 3 × 2，首个键盘焦点为 WorkBuddy，390 px 为
 单列且无横向溢出、弹窗可滚动，豆包工作接入码分流正确且控制台无告警/错误。此前临时 wheel
-已核对包含 Hermes adapter、四宿主 bootstrap 和更新后的 Orbit 资源，检查后已删除；本次没有
-改动本机 bootstrap 或发布 wheel。
+已核对包含 Hermes adapter、四宿主 bootstrap 和更新后的 Orbit 资源，检查后已删除；随后由
+上方记录的 0.1.12 精确 wheel 完成正式部署。
 
 本地新增的 Human 工作台把现有能力统一到三个一级入口：星轨看协作、云驿管 Agent、设置管
 Human 账户和平台关系。桌面使用三栏，移动端使用底部三个具名入口；`module` / `view` 查询参数

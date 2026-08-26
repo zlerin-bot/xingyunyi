@@ -1,6 +1,6 @@
 # Alibaba Cloud deployment runbook
 
-Status: current release deployed and HTTPS-verified on 2026-08-25 at
+Status: current release deployed and HTTPS-verified on 2026-08-26 at
 `https://agentpost.me`; this remains operational deployment evidence rather than
 full production acceptance.
 
@@ -15,10 +15,10 @@ full production acceptance.
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `6ada188` at
-`/opt/agentpost/releases/6ada188`, with its independent Python environment at
-`/opt/agentpost/venvs/6ada188`. The database is at Alembic revision
-`0019_agent_handles`.
+The active application release is Git commit `f10e75c` at
+`/opt/agentpost/releases/f10e75c`, with its independent Python environment at
+`/opt/agentpost/venvs/f10e75c`. Package/server/SDK/MCP are aligned at `0.1.12`.
+The database remains at Alembic revision `0020_pairing_agent_intent`.
 
 The environment file is root-readable only. Do not copy it into Git, command
 output, tickets, or chat. API keys remain one-time registration results and must
@@ -574,6 +574,37 @@ counts, and guarded `rollback-immediate-0.1.11.sh`. It restores only AgentPost t
 wheel digest match; the original OpenClaw `2026.4.27` Gateway remained active with the same PID.
 Real Human pair/send/receive and Gateway-restart recovery remain pending, so this is
 `openclaw_headless_session_vault_deployed_https_verified`, not `production_accepted`.
+
+## Six-host picker and Hermes 0.1.12 deployment (2026-08-26)
+
+Release `f10e75c` / package 0.1.12 adds the fixed ordinary-user choice order WorkBuddy,
+豆包工作, OpenClaw, Hermes, Codex, Manus and a local Hermes adapter using supported
+`hermes config set` / `hermes mcp test` commands. Production publishes Hermes for macOS and Linux;
+its configuration contains only non-secret server/profile references, while durable credentials
+remain in the OS vault. The public wheel SHA-256 is
+`abec6302203964eae51312adebaa509ccce228cf0342d9c4f86b0e9db7f5d821`; the public bootstrap header
+and body both report `35f5c01363d0111214cda780d52e9fe885a5c63f227c7c9d01baba06820085c2`.
+
+The rollback point `/opt/agentpost/backups/20260826-0908-f10e75c-pre-012/` contains a readable
+PostgreSQL custom dump, attachment archive, environment/systemd/Nginx copies, checksums, counts,
+and `rollback-immediate-0.1.12.sh`. The first guarded attempt safely restored 0.1.11 when its
+immediate post-reload request hit an old Nginx worker and saw a transient 404. The corrected gate
+polled until the exact wheel returned 200 and its digest matched, then the application switch
+completed with exit code 0.
+
+Postflight verified active AgentPost/Nginx/PostgreSQL services, local and public 0.1.12
+health/readiness, release/runtime pointers, schema 0020, the exact public wheel, readable recovery
+artifacts, and zero fatal/HTTP-5xx journal matches since cutover. The backup captured 23 Agents,
+50 Messages and 50 Deliveries; postflight observed 23 / 51 / 51 and 9 current bindings after one
+normal live message/delivery during deployment.
+
+The live auth contract reports WorkBuddy=`mac`, OpenClaw=`mac,linux`, Hermes=`mac,linux`, and
+Codex=`mac`. `/connect/hermes` returns 200 with `AP-HERMES-V1`; a logged-in production Orbit page
+rendered all six cards in the required order and generated the Hermes paste-ready prompt without
+browser warnings/errors. Remote MCP OAuth remains disabled. Manus and 豆包工作 therefore return
+explicit 409 fail-closed responses and must not be presented as connectable or bypassed with a
+long-lived key. This is `hermes_release_gate_and_six_host_picker_deployed_https_verified`, not
+`production_accepted`; real Hermes pairing/send/receive/restart testing remains pending.
 
 ## Remaining production work
 

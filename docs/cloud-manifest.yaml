@@ -1,7 +1,7 @@
 schema_version: "1"
 project: xingyunyi-agentpost
-evidence_status: openclaw_headless_session_vault_deployed_https_verified
-verified_at: "2026-08-26T00:18:24+08:00"
+evidence_status: hermes_release_gate_and_six_host_picker_deployed_https_verified
+verified_at: "2026-08-26T10:00:09+08:00"
 
 provider:
   name: aliyun
@@ -11,13 +11,13 @@ provider:
   operating_system: ubuntu-24.04
 
 release:
-  git_commit: a6d99c3
+  git_commit: f10e75c
   current_path: /opt/agentpost/current
-  immutable_path: /opt/agentpost/releases/a6d99c3
-  virtualenv_path: /opt/agentpost/venvs/a6d99c3
+  immutable_path: /opt/agentpost/releases/f10e75c
+  virtualenv_path: /opt/agentpost/venvs/f10e75c
   alembic_revision: 0020_pairing_agent_intent
-  package_version: 0.1.11
-  connector_wheel_sha256: 1d7e9acfb4e2b57ba877e118a304df2880ee4327abc48a2fccfe08a37f30e935
+  package_version: 0.1.12
+  connector_wheel_sha256: abec6302203964eae51312adebaa509ccce228cf0342d9c4f86b0e9db7f5d821
   schema_change: false
 
 topology:
@@ -72,8 +72,10 @@ feature_gates:
     openclaw:
       - mac
       - linux
-    hermes: []
-  reason: doubao_work_hermes_and_manus_real_host_acceptance_windows_codex_workbuddy_linux_and_enterprise_idp_remain_pending
+    hermes:
+      - mac
+      - linux
+  reason: hermes_real_host_acceptance_doubao_work_and_manus_remote_oauth_windows_codex_workbuddy_linux_and_enterprise_idp_remain_pending
 
 rollback:
   provider_snapshot:
@@ -82,13 +84,13 @@ rollback:
     fresh_0_1_3_attempt: failed_snapshot_limit_exceeded
     existing_snapshots_preserved: true
   application_backup: /opt/agentpost/backups/20260824-https
-  current_update_backup: /opt/agentpost/backups/20260826-0006-a6d99c3-pre-011
+  current_update_backup: /opt/agentpost/backups/20260826-0908-f10e75c-pre-012
   incomplete_backups_preserved:
     - /opt/agentpost/backups/20260825-1746-e378a7e-pre-016
     - /opt/agentpost/backups/20260825-1747-e378a7e-pre-016
-  prior_release: /opt/agentpost/releases/3b46e45
-  prior_unit: /opt/agentpost/backups/20260826-0006-a6d99c3-pre-011/agentpost.service
-  immediate_script: /opt/agentpost/backups/20260826-0006-a6d99c3-pre-011/rollback-immediate-0.1.11.sh
+  prior_release: /opt/agentpost/releases/a6d99c3
+  prior_unit: /opt/agentpost/backups/20260826-0908-f10e75c-pre-012/agentpost.service
+  immediate_script: /opt/agentpost/backups/20260826-0908-f10e75c-pre-012/rollback-immediate-0.1.12.sh
   database_dump_verified: true
   attachment_archive_verified: true
 
@@ -100,17 +102,17 @@ acceptance:
   public_health: passed
   public_ready: passed
   orbit_render: passed
-  orbit_pairing_guide: ordinary_user_agent_choice_and_connection_code_development
-  orbit_tool_switching: codex_workbuddy_openclaw_only
+  orbit_pairing_guide: ordinary_user_six_host_choice_and_connection_code_deployed
+  orbit_tool_switching: workbuddy_doubao_work_openclaw_hermes_codex_manus_fixed_order
   orbit_manual_pairing_fallback: operator_only
   orbit_pairing_address_validation: passed
   orbit_authenticated_existing_agent_view: passed
   orbit_codex_0_1_1_guide: superseded_by_connection_code_v1
   orbit_frontend_errors: none
   pinned_connector_wheel: passed
-  public_connector_wheel_version: 0.1.11
+  public_connector_wheel_version: 0.1.12
   clean_public_wheel_install: passed
-  server_sdk_mcp_package_versions: aligned_0.1.11
+  server_sdk_mcp_package_versions: aligned_0.1.12
   package_boundary_regression: passed
   recipient_resolver_api_sdk_cli_mcp_skill_ui: deployed
   recipient_handle_editor: passed_without_mutation
@@ -139,6 +141,12 @@ acceptance:
   openclaw_gateway_process_preserved_during_deploy: passed_same_pid
   openclaw_host_reboot_reauthorization: required_by_design
   openclaw_linux_real_pairing_send_receive_restart: pending_human_retry
+  hermes_release_gate_mac_linux: passed_live_contract
+  hermes_connection_code_real_orbit: passed_without_copy_or_pairing
+  hermes_real_pairing_send_receive_restart: pending_human_test
+  manus_remote_mcp_gate: unavailable_409_fail_closed
+  doubao_work_remote_mcp_gate: unavailable_409_fail_closed
+  production_counts_after_0_1_12: 23_agents_51_messages_51_deliveries_9_current_bindings
   workbuddy_020_current_connector: healthy_current
   workbuddy_020_message_to_mars: msg_3904d107573943528aea85861ffbaa09_delivered
   workbuddy_mars_connection: healthy_current

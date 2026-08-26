@@ -2,9 +2,49 @@
 
 Last updated: 2026-08-26
 
-Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.11`
+Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.12`
 
-## 豆包工作, Manus and Hermes host onboarding (local contract slice, 2026-08-26)
+## Six-host picker and Hermes release gate (0.1.12 deployed, 2026-08-26)
+
+Commit `f10e75c` / package `0.1.12` is deployed as immutable source
+`/opt/agentpost/releases/f10e75c` with runtime `/opt/agentpost/venvs/f10e75c`. The exact public
+wheel is `https://agentpost.me/downloads/agentpost-0.1.12-py3-none-any.whl`, SHA-256
+`abec6302203964eae51312adebaa509ccce228cf0342d9c4f86b0e9db7f5d821`. The public bootstrap body
+and its response header both report SHA-256
+`35f5c01363d0111214cda780d52e9fe885a5c63f227c7c9d01baba06820085c2`.
+
+The guarded production deployment preserved the verified rollback point
+`/opt/agentpost/backups/20260826-0908-f10e75c-pre-012/`, including a readable PostgreSQL dump,
+attachment archive, protected environment/systemd/Nginx copies, checksums, row counts, and
+`rollback-immediate-0.1.12.sh`. The first cutover attempt stopped before the application switch
+because an immediate request after asynchronous Nginx reload still reached the old worker and
+returned 404 for the new wheel. Its failure trap restored 0.1.11. The corrected Nginx gate polled
+until the second request returned 200 and verified the wheel digest before the application was
+switched. The final cutover exited 0 and reached health/readiness on its fifth one-second poll.
+
+Postflight shows AgentPost, Nginx, and PostgreSQL active; the production pointer and systemd unit
+both select `f10e75c`; local and public health/readiness report `0.1.12`; schema remains
+`0020_pairing_agent_intent`; and fatal/HTTP-5xx journal counts since cutover are zero. The backup
+captured 23 Agents / 50 Messages / 50 Deliveries, while postflight reported 23 / 51 / 51 and 9
+current bindings, reflecting one live message/delivery during deployment rather than data loss.
+
+The live unauthenticated contract publishes Codex=`mac`, WorkBuddy=`mac`,
+OpenClaw=`mac,linux`, and Hermes=`mac,linux`. `/connect/hermes` returns 200 with
+`AP-HERMES-V1`, the pinned bootstrap digest, and the opaque new-Agent intent. Remote MCP OAuth
+remains disabled: Manus and 豆包工作 return explicit 409
+`manus_remote_mcp_not_released` / `doubao_work_remote_mcp_not_released` and do not request an API
+key or claim success. A logged-in production 星轨 session rendered the fixed order WorkBuddy →
+豆包工作 → OpenClaw → Hermes → Codex → Manus; selecting Hermes generated the ordinary-user
+copyable prompt and produced no browser warnings or errors.
+
+Local evidence for the release candidate is **391 passed, 1 explicit loopback sandbox skip, and
+5 PostgreSQL tests deselected**, plus **10 MCP**, **21 Orbit JavaScript**, **4 TypeScript
+Connector**, and **4 OpenClaw plugin** tests. This deployment is
+`hermes_release_gate_and_six_host_picker_deployed_https_verified`, not `production_accepted`.
+Real Hermes installation, pairing, send/receive and restart/reboot recovery remain Human test
+gates. Manus and 豆包工作 are visible contract choices but are not yet valid connection tests.
+
+## 豆包工作, Manus and Hermes host onboarding (pre-release local record, 2026-08-26)
 
 The ordinary-user `连接新的 Agent` picker now contains six choices in the fixed product order
 WorkBuddy → 豆包工作 → OpenClaw → Hermes → Codex → Manus. Each card generates one host-specific
@@ -39,15 +79,16 @@ MCP URL and browser-authorization contract. It explicitly fails with
 falling back to an API key or claiming success. Production still has Remote MCP OAuth disabled,
 and Manus Custom MCP OAuth compatibility has not been exercised with a real Manus account.
 
-Local evidence is **391 passed, 1 explicit loopback sandbox skip, and 5 PostgreSQL tests
-deselected**, plus **10 MCP**, **20 Orbit JavaScript**, **4 TypeScript Connector**, and **4
-OpenClaw plugin** tests. Ruff check/format, Skill validation, three-file plugin-copy equality, and
-diff checks pass. A live isolated Orbit demo confirmed the exact six-card order, WorkBuddy as the
-initial keyboard focus, a balanced 3 × 2 desktop grid, a single-column 390 px layout with no
-horizontal overflow, a scrollable mobile dialog, the dedicated 豆包工作 prompt, and an empty
-browser warning/error log. No release version was changed and nothing was deployed. Evidence
-labels are `doubao_work_remote_contract_gated`, `hermes_local_adapter_tested`, and
-`manus_remote_contract_gated`; none is real-host acceptance or `production_accepted`.
+The pre-release local evidence was **391 passed, 1 explicit loopback sandbox skip, and 5
+PostgreSQL tests deselected**, plus **10 MCP**, **20 Orbit JavaScript**, **4 TypeScript
+Connector**, and **4 OpenClaw plugin** tests. Ruff check/format, Skill validation, three-file
+plugin-copy equality, and diff checks passed. A live isolated Orbit demo confirmed the exact
+six-card order, WorkBuddy as the initial keyboard focus, a balanced 3 × 2 desktop grid, a
+single-column 390 px layout with no horizontal overflow, a scrollable mobile dialog, the
+dedicated 豆包工作 prompt, and an empty browser warning/error log. At that checkpoint no release
+version had changed and nothing was deployed. The 0.1.12 deployment section above now supersedes
+the local-only label for Hermes and the six-card UI; 豆包工作 and Manus remain gated, and none of
+the three has real-host `production_accepted` evidence.
 
 ## Ordinary-user visual polish (local review only, 2026-08-26)
 
