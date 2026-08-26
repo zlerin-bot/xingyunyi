@@ -138,6 +138,26 @@ def test_doubao_work_connection_mode_requires_its_gate_and_remote_mcp_oauth() ->
         Settings(doubao_work_remote_mcp_enabled=True)
 
 
+def test_remote_mcp_resource_allows_one_opaque_connect_path() -> None:
+    resource = "https://agentpost.example/mcp/connect/probe-opaque-intent-1234567890"
+    assert Settings(remote_mcp_resource_url=resource).remote_mcp_resource_url == resource
+    with pytest.raises(ValidationError, match="opaque"):
+        Settings(remote_mcp_resource_url="https://agentpost.example/mcp/connect/too-short")
+    with pytest.raises(ValidationError, match="opaque"):
+        Settings(
+            remote_mcp_resource_url=(
+                "https://agentpost.example/mcp/connect/probe-opaque-intent-1234567890/extra"
+            )
+        )
+    with pytest.raises(ValidationError, match="opaque"):
+        Settings(
+            remote_mcp_resource_url=(
+                "https://agentpost.example/mcp/connect/"
+                "probe-opaque-intent-1234567890?secret=not-allowed"
+            )
+        )
+
+
 def test_production_rejects_development_secrets() -> None:
     with pytest.raises(ValidationError):
         Settings(environment="production")

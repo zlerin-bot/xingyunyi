@@ -27,11 +27,13 @@ EXPECTED_TOOLS = {
 }
 
 
-def settings() -> RemoteSettings:
+def settings(
+    resource_url: str = "https://mcp.example.test/mcp",
+) -> RemoteSettings:
     return RemoteSettings(
         server="https://api.example.test",
         issuer_url="https://issuer.example.test",
-        resource_url="https://mcp.example.test/mcp",
+        resource_url=resource_url,
         host="127.0.0.1",
         port=8001,
         timeout_seconds=30,
@@ -147,11 +149,61 @@ def test_remote_server_has_seven_tools_and_requires_bearer_auth() -> None:
     assert metadata.json()["authorization_servers"] == ["https://issuer.example.test"]
 
 
+def test_remote_server_supports_one_opaque_canary_resource_path() -> None:
+    class RejectAll:
+        async def verify_token(self, token: str) -> AccessToken | None:
+            del token
+            return None
+
+    resource_path = "/mcp/connect/probe-opaque-intent-1234567890"
+    runtime = settings(f"https://mcp.example.test{resource_path}")
+    server = create_remote_server(runtime, token_verifier=RejectAll())
+    app = server.streamable_http_app(
+        streamable_http_path=runtime.resource_path,
+        json_response=True,
+        stateless_http=True,
+        transport_security=TransportSecuritySettings(
+            allowed_hosts=["testserver"],
+            allowed_origins=["https://mcp.example.test"],
+        ),
+    )
+    with TestClient(app) as client:
+        unauthorized = client.post(
+            resource_path,
+            headers={"MCP-Protocol-Version": "2026-07-28"},
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}},
+        )
+        metadata = client.get(f"/.well-known/oauth-protected-resource{resource_path}")
+    assert unauthorized.status_code == 401
+    assert "resource_metadata=" in unauthorized.headers["WWW-Authenticate"]
+    assert metadata.status_code == 200
+    assert metadata.json()["resource"] == runtime.resource_url
+
+
 def test_remote_settings_reject_credentials_and_unbounded_transport(monkeypatch) -> None:
     monkeypatch.setenv("AGENTPOST_SERVER", "https://user:secret@example.test")
     with pytest.raises(ConfigurationError):
         RemoteSettings.from_env()
     monkeypatch.setenv("AGENTPOST_SERVER", "https://api.example.test")
     monkeypatch.setenv("AGENTPOST_MCP_RESOURCE_URL", "https://mcp.example.test/not-mcp")
+    with pytest.raises(ConfigurationError):
+        RemoteSettings.from_env()
+    monkeypatch.setenv(
+        "AGENTPOST_MCP_RESOURCE_URL",
+        "https://mcp.example.test/mcp/connect/probe-opaque-intent-1234567890",
+    )
+    assert RemoteSettings.from_env().resource_path == (
+        "/mcp/connect/probe-opaque-intent-1234567890"
+    )
+    monkeypatch.setenv(
+        "AGENTPOST_MCP_RESOURCE_URL",
+        "https://mcp.example.test/mcp/connect/too-short",
+    )
+    with pytest.raises(ConfigurationError):
+        RemoteSettings.from_env()
+    monkeypatch.setenv(
+        "AGENTPOST_MCP_RESOURCE_URL",
+        "https://mcp.example.test/mcp/connect/probe-opaque-intent-1234567890/extra",
+    )
     with pytest.raises(ConfigurationError):
         RemoteSettings.from_env()

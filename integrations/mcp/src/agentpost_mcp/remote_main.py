@@ -22,7 +22,7 @@ def main() -> None:
             "streamable-http",
             host=settings.host,
             port=settings.port,
-            streamable_http_path="/mcp",
+            streamable_http_path=settings.resource_path,
             json_response=True,
             stateless_http=True,
             transport_security=TransportSecuritySettings(

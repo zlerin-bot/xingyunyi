@@ -205,16 +205,23 @@ class Settings(BaseSettings):
             return None
         cleaned = value.strip().rstrip("/")
         parsed = urlsplit(cleaned)
+        resource_path = re.fullmatch(
+            r"/mcp(?:/connect/[A-Za-z0-9_-]{20,128})?",
+            parsed.path,
+        )
         if (
             parsed.scheme not in {"http", "https"}
             or not parsed.hostname
             or parsed.username is not None
             or parsed.password is not None
-            or parsed.path != "/mcp"
+            or resource_path is None
             or parsed.query
             or parsed.fragment
         ):
-            raise ValueError("AGENTPOST_REMOTE_MCP_RESOURCE_URL must end with /mcp")
+            raise ValueError(
+                "AGENTPOST_REMOTE_MCP_RESOURCE_URL must use /mcp or one opaque "
+                "/mcp/connect/<intent> path"
+            )
         return cleaned
 
     @field_validator("oidc_allowed_issuers")

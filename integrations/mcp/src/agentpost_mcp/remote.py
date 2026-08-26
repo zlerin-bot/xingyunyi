@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 from dataclasses import dataclass
 from typing import Literal, cast
 from urllib.parse import urlsplit
@@ -43,6 +44,10 @@ def _origin(value: str, name: str) -> str:
 def _resource_url(value: str) -> str:
     cleaned = value.strip().rstrip("/")
     parsed = urlsplit(cleaned)
+    resource_path = re.fullmatch(
+        r"/mcp(?:/connect/[A-Za-z0-9_-]{20,128})?",
+        parsed.path,
+    )
     if (
         parsed.scheme not in {"http", "https"}
         or not parsed.hostname
@@ -50,9 +55,11 @@ def _resource_url(value: str) -> str:
         or parsed.password is not None
         or parsed.query
         or parsed.fragment
-        or parsed.path != "/mcp"
+        or resource_path is None
     ):
-        raise ConfigurationError("AGENTPOST_MCP_RESOURCE_URL must end with /mcp")
+        raise ConfigurationError(
+            "AGENTPOST_MCP_RESOURCE_URL must use /mcp or one opaque /mcp/connect/<intent> path"
+        )
     return cleaned
 
 
@@ -71,6 +78,10 @@ class RemoteSettings:
     log_level: LogLevel
     allowed_hosts: tuple[str, ...]
     allowed_origins: tuple[str, ...]
+
+    @property
+    def resource_path(self) -> str:
+        return urlsplit(self.resource_url).path
 
     @classmethod
     def from_env(cls) -> RemoteSettings:
