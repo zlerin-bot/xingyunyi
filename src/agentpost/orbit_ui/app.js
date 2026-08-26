@@ -2160,7 +2160,7 @@ function showPairingGuide(targetAgent = state.pairingTargetAgent, preferredHost 
 
 const PAIRING_HOSTS = Object.freeze({
   workbuddy: { name: "WorkBuddy", code: "AP-WORKBUDDY-V1" },
-  doubao_work: { name: "豆包工作", code: "AP-DOUBAO-WORK-V1", connectionMode: "remote_mcp_oauth" },
+  doubao_work: { name: "豆包工作", code: "AP-DOUBAO-WORK-V1", connectionMode: "local_bootstrap" },
   openclaw: { name: "OpenClaw", code: "AP-OPENCLAW-V1" },
   hermes: { name: "Hermes", code: "AP-HERMES-V1" },
   codex: { name: "Codex", code: "AP-CODEX-V1" },
@@ -2177,9 +2177,12 @@ function pairingPrompt(host) {
   const targetQuery = target?.id
     ? `?agent=${encodeURIComponent(target.id)}`
     : `?new=${encodeURIComponent(state.pairingNewAgentIntent)}`;
-  const instructions = selected.connectionMode === "remote_mcp_oauth"
+  const connectionMode = state.authConfig?.host_connection_modes?.[host] || selected.connectionMode;
+  const instructions = connectionMode === "remote_mcp_oauth"
     ? `请读取这个官方接入页，使用 ${selected.name} 内置的 Custom MCP 连接和星轨网页授权直接完成接入。不要安装 AgentPost 本机程序，也不要让我输入服务器地址、命令、密钥或其他技术参数；如果当前 ${selected.name} 不支持安全网页授权，必须明确停止，不能改用长期密钥或假装已连接。连接后回到本对话继续。`
-    : "请读取这个官方接入页并直接完成安装和授权。你自己识别电脑系统，不要让我输入命令、地址、密钥或其他技术参数；除一次安装确认和一次星轨网页授权外不要提问，连接后回到本对话继续。";
+    : host === "doubao_work"
+      ? "请读取这个官方接入页并完成本机安全配对。接入程序会准备好豆包工作 STDIO 连接器所需的唯一启动项；不要让我自行填写服务器、参数、环境变量或密钥。若豆包工作不允许自动写入连接器，我只需粘贴这一项并保存一次。确认星云驿工具已出现后，再回到本对话继续。"
+      : "请读取这个官方接入页并直接完成安装和授权。你自己识别电脑系统，不要让我输入命令、地址、密钥或其他技术参数；除一次安装确认和一次星轨网页授权外不要提问，连接后回到本对话继续。";
   return [
     target
       ? `请把当前 ${selected.name} 重新连接到我已有的 Agent“${targetLabel}”，保留原身份和历史。`

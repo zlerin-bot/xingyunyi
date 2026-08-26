@@ -4,6 +4,26 @@ Last updated: 2026-08-26
 
 Current handoff stage: `v0.1.16-deployed-https-verified`; pinned production release: `0.1.16`
 
+## 豆包工作本机 STDIO 接入（local verified，未部署，2026-08-26）
+
+020 的 Codex 在豆包工作 2.25.18 / macOS arm64 上确认原生自定义连接器支持绝对 command、
+args/env、保存后自动启动、稳定 `initialize → notifications/initialized → tools/list` 和停用后
+重启；未发现官方连接器导入或专用 deep link。基于该证据，本地已停止把尚未发布的 Remote MCP
+OAuth 当作豆包主路径，改为复用 AgentPost 本机配对、OS vault 与 `agentpost-mcp` 的独立
+`doubao_work` setup adapter。
+
+adapter 生成权限 0700 的 command-only launcher，不写 API Key 或长期 token；启动时先恢复保险库
+profile、写入真实 heartbeat，再启动 STDIO MCP。原生连接器保存前 CLI 明确返回
+`native_registration_required`，Orbit/接入页/Skill 均要求看到 tools/list 后才能声明连接成功。
+豆包未提供受支持的自动导入合同，因此 Agent 无法控制原生 UI 时仍需 Human 选择 STDIO、粘贴一项
+已准备内容并保存一次；这不是完全零操作验收。
+
+当前证据为聚焦 Python 81 passed；完整 non-PostgreSQL 回归 405 passed、1 个预期 loopback
+sandbox skip、5 个 PostgreSQL deselected；Orbit JavaScript 24 passed；JavaScript syntax、Ruff
+check/format，以及隔离演示中的桌面与 390×844 无横向溢出、无 console warning/error。最终
+diff/staged 复核与 `git diff --check` 通过；生产仍固定于 `e50652e / 0.1.16`，本切片未部署，也不是
+`production_accepted`。
+
 ## Task rounds, short-name entry and contact visibility (0.1.16 deployed, 2026-08-26)
 
 Commit `e50652e` / package `0.1.16` is deployed as immutable source

@@ -38,6 +38,7 @@ def _control_client(settings: Settings, database: Database) -> TestClient:
         doubao_work_remote_mcp_enabled=settings.doubao_work_remote_mcp_enabled,
         codex_setup_platforms=settings.codex_setup_platforms,
         workbuddy_setup_platforms=settings.workbuddy_setup_platforms,
+        doubao_work_setup_platforms=settings.doubao_work_setup_platforms,
         openclaw_setup_platforms=settings.openclaw_setup_platforms,
         hermes_setup_platforms=settings.hermes_setup_platforms,
         connector_release_version=settings.connector_release_version,
@@ -136,6 +137,7 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert auth_config.json()["host_setup_platforms"] == {
         "codex": [],
         "workbuddy": [],
+        "doubao_work": [],
         "openclaw": [],
         "hermes": [],
     }
@@ -433,6 +435,35 @@ def test_doubao_work_connection_contract_uses_desktop_custom_mcp_and_fails_close
     assert "doubao_work_reconnect_not_released" in reconnect.text
 
 
+def test_doubao_work_connection_contract_prefers_verified_local_stdio(
+    settings: Settings,
+    database: Database,
+) -> None:
+    staged = Settings(
+        environment="test",
+        database_url=settings.database_url,
+        storage_path=settings.storage_path,
+        doubao_work_setup_platforms="mac",
+        connector_release_version="0.1.16",
+        connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.16-py3-none-any.whl"),
+        connector_wheel_sha256="a" * 64,
+        public_base_url="https://agentpost.me",
+        log_level="WARNING",
+    )
+    with _control_client(staged, database) as local_client:
+        instructions = local_client.get(
+            "/connect/doubao_work?new=40000000-0000-0000-0000-000000000001"
+        )
+
+    assert instructions.status_code == 200
+    assert "target_host=doubao_work" in instructions.text
+    assert "setup doubao_work --new-agent-intent" in instructions.text
+    assert "新建自定义连接器" in instructions.text
+    assert "status=native_registration_required" in instructions.text
+    assert "leave args and env empty" in instructions.text
+    assert "Remote MCP gate" in instructions.text
+
+
 def test_auth_config_exposes_release_platforms_per_host(
     settings: Settings,
     database: Database,
@@ -444,6 +475,7 @@ def test_auth_config_exposes_release_platforms_per_host(
         api_key_pepper="test-agent-pepper",
         codex_setup_platforms="mac,linux",
         workbuddy_setup_platforms="mac",
+        doubao_work_setup_platforms="mac",
         openclaw_setup_platforms="mac,linux",
         hermes_setup_platforms="linux,windows",
         connector_release_version="0.1.1",
@@ -459,12 +491,13 @@ def test_auth_config_exposes_release_platforms_per_host(
     assert response.json()["host_setup_platforms"] == {
         "codex": ["mac", "linux"],
         "workbuddy": ["mac"],
+        "doubao_work": ["mac"],
         "openclaw": ["mac", "linux"],
         "hermes": ["linux", "windows"],
     }
     assert response.json()["host_connection_modes"] == {
         "workbuddy": "local_bootstrap",
-        "doubao_work": "unavailable",
+        "doubao_work": "local_bootstrap",
         "openclaw": "local_bootstrap",
         "hermes": "local_bootstrap",
         "codex": "local_bootstrap",

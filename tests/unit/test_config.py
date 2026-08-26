@@ -54,6 +54,7 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
         public_base_url="https://agentpost.me/",
         codex_setup_platforms="mac,LINUX,mac",
         workbuddy_setup_platforms="MAC",
+        doubao_work_setup_platforms="MAC",
         openclaw_setup_platforms="linux,MAC,linux",
         hermes_setup_platforms="linux,WINDOWS,linux",
         connector_release_version="0.1.1",
@@ -68,12 +69,13 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
     assert settings.enabled_host_setup_platforms == {
         "codex": ("mac", "linux"),
         "workbuddy": ("mac",),
+        "doubao_work": ("mac",),
         "openclaw": ("linux", "mac"),
         "hermes": ("linux", "windows"),
     }
     assert settings.enabled_host_connection_modes == {
         "workbuddy": "local_bootstrap",
-        "doubao_work": "unavailable",
+        "doubao_work": "local_bootstrap",
         "openclaw": "local_bootstrap",
         "hermes": "local_bootstrap",
         "codex": "local_bootstrap",
@@ -107,6 +109,7 @@ def test_host_setup_platforms_fall_back_to_codex_policy_for_compatibility() -> N
     assert settings.enabled_host_setup_platforms == {
         "codex": ("mac",),
         "workbuddy": ("mac",),
+        "doubao_work": (),
         "openclaw": ("mac",),
         "hermes": (),
     }
@@ -136,6 +139,15 @@ def test_doubao_work_connection_mode_requires_its_gate_and_remote_mcp_oauth() ->
     assert settings.enabled_host_connection_modes["doubao_work"] == "remote_mcp_oauth"
     with pytest.raises(ValidationError, match="Remote MCP"):
         Settings(doubao_work_remote_mcp_enabled=True)
+
+    local = Settings(
+        remote_mcp_oauth_enabled=True,
+        doubao_work_remote_mcp_enabled=True,
+        doubao_work_setup_platforms="mac",
+        connector_release_version="0.1.1",
+        connector_wheel_url="https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl",
+    )
+    assert local.enabled_host_connection_modes["doubao_work"] == "local_bootstrap"
 
 
 def test_remote_mcp_resource_allows_one_opaque_connect_path() -> None:

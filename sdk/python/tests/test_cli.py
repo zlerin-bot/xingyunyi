@@ -9,6 +9,7 @@ from uuid import UUID
 
 from agentpost_sdk import ConnectorCredentialRotation, ConnectorHeartbeat, cli
 from agentpost_sdk.codex_setup import CodexSetupResult
+from agentpost_sdk.doubao_work_setup import DoubaoWorkSetupResult
 from agentpost_sdk.hermes_setup import HermesSetupResult
 from agentpost_sdk.onboarding import PairingInstructions
 from agentpost_sdk.openclaw_setup import OpenClawSetupResult
@@ -545,6 +546,53 @@ def test_setup_failure_is_machine_readable_and_does_not_report_heartbeat(
         "status": "failed",
     }
     assert "agentpost_error code=ConfigurationError" in streams.err
+    assert heartbeat_called is False
+
+
+def test_setup_doubao_returns_one_native_save_action_without_false_heartbeat(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    connector = DummyConnector()
+    connector.profile = "doubao_work:test-device"
+    heartbeat_called = False
+
+    def heartbeat():
+        nonlocal heartbeat_called
+        heartbeat_called = True
+        return DummyConnector().heartbeat()
+
+    launcher = tmp_path / "xingyunyi-doubao"
+    monkeypatch.setattr(cli, "_connect", lambda _args: connector)
+    monkeypatch.setattr(
+        cli,
+        "_configure_host",
+        lambda *_args: DoubaoWorkSetupResult(
+            server_name="星云驿",
+            approval_mode="host",
+            config_path=launcher,
+            command=launcher,
+        ),
+    )
+    monkeypatch.setattr(connector, "heartbeat", heartbeat)
+
+    assert cli.main(["setup", "doubao_work"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result == {
+        "approval_mode": "host",
+        "args": [],
+        "command": str(launcher),
+        "credential_storage": "operating_system_vault",
+        "env": {},
+        "host": "doubao_work",
+        "mcp_server": "星云驿",
+        "next_action": "save_doubao_custom_stdio_connector",
+        "profile": "doubao_work:test-device",
+        "restart_required": False,
+        "status": "native_registration_required",
+        "transport": "STDIO",
+    }
     assert heartbeat_called is False
 
 

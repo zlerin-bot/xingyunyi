@@ -82,7 +82,10 @@ def connection_instructions(
             detail="Choose either an existing Agent target or a new Agent intent",
         )
     origin = settings.public_base_url.rstrip("/")
-    if host in {"doubao_work", "manus"}:
+    if host == "manus" or (
+        host == "doubao_work"
+        and settings.enabled_host_connection_modes["doubao_work"] != "local_bootstrap"
+    ):
         return _remote_mcp_connection_instructions(
             host=host,
             settings=settings,
@@ -122,6 +125,11 @@ def connection_instructions(
             "stdio server and keeps only non-secret server/profile references in Hermes config.\n"
         )
     host_preflight = ""
+    registration_step = f"registers the AgentPost MCP tools in {name}"
+    completion_step = (
+        f"Success is one JSON object with status=configured and host={host}. Then tell the Human "
+        "the connection is ready and continue their original request."
+    )
     if host == "openclaw":
         host_preflight = """
    Also verify `openclaw mcp set --help` and `openclaw mcp probe --help` as the exact
@@ -143,6 +151,25 @@ def connection_instructions(
    use Secret Service's unlocked in-memory `session` collection under the same operating-system
    user. It may expire at a full host reboot, after which the next action must repeat Human
    authorization and resume. Never create a plaintext or empty-password fallback."""
+    elif host == "doubao_work":
+        host_preflight = """
+   Verify this is 豆包工作 desktop 2.25.18 or newer and that `技能 · 连接器 · 伙伴` contains
+   `新建自定义连接器` with the `STDIO` transport. Do not use the browser/mobile client and do not
+   enable the server's experimental Remote MCP gate."""
+        registration_step = (
+            "creates one secure command-only STDIO launcher; no token, parameter, or environment "
+            "variable is copied into 豆包工作"
+        )
+        completion_step = """Success from setup is one JSON object with
+   status=native_registration_required and host=doubao_work. Use its `command` value to create one
+   豆包工作 custom connector named 星云驿 with transport STDIO; leave args and env empty, then save.
+   Complete that native UI step yourself when the host permits it. 豆包工作 2.25.18 exposes no
+   supported connector import contract; if its native UI cannot be controlled, give the Human one
+   copyable prepared command and the exact connector path, then ask them to select STDIO, paste it,
+   and save once. Do not ask them to invent or type a server, profile, token, parameter, or
+   environment variable. Do not claim connection success until the AgentPost tools are listed.
+   After that verification, tell the Human the connection is ready and continue the original
+   request."""
     body = f"""AGENTPOST_CONNECT_V1
 connection_code={code}
 target_host={host}
@@ -173,9 +200,8 @@ Agent execution steps
    {setup_arguments}
 5. The process creates an isolated runtime, installs a hash-pinned AgentPost release, opens the
    short-lived 星轨 authorization page, stores the resulting credential in the operating-system
-   vault, and registers the AgentPost MCP tools in {name}.
-6. Wait for the command to finish. Success is one JSON object with status=configured and
-   host={host}. Then tell the Human the connection is ready and continue their original request.
+   vault, and {registration_step}.
+6. Wait for the command to finish. {completion_step}
 
 Do not use curl-pipe-shell, do not disable TLS checks, do not skip the SHA-256 check, and do not
 save tokens in a prompt, config file, source file, or shell history.

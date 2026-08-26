@@ -34,6 +34,31 @@ Nginx/PostgreSQL PID 仍为 `127548/137458`，失败单元与切换后 AgentPost
 生产交互仍需 Human 登录后验收。当前证据是
 `task_rounds_contact_directory_deployed_https_verified`，不是 `production_accepted`。
 
+### 豆包工作本机 STDIO 接入（本地切片，未部署）
+
+020 的 Codex 已在豆包工作 2.25.18 / macOS arm64 上完成原生 STDIO 宿主探针：绝对 command、
+逐项 args/env、保存后自动启动、`initialize → notifications/initialized → tools/list` 以及停用后
+重启均成立；未发现受支持的连接器导入、专用 deep link 或企业策略下发合同。该外部回传已按
+`external_agent_content` 处理，并由本地实现和测试独立约束。
+
+本地已新增独立 `doubao_work` setup adapter。它复用现有配对、OS 凭据保险库和 `agentpost-mcp`
+STDIO 服务，生成权限 0700 的单一启动器；启动器只保留非秘密 server/profile 定位，运行时先从
+保险库恢复配对身份并写入真实 heartbeat，再启动 MCP，绝不把 API Key、长期 token、args 或 env
+写进豆包表单。setup 在原生连接器保存前返回 `native_registration_required`，不会把“已授权但尚未
+保存连接器”误报为在线。
+
+连接页、Skill、SDK CLI、服务端平台 gate、生产环境样例和 Orbit 豆包提示已统一切到本机
+`local_bootstrap`；实验性 Remote MCP/OAuth 继续关闭并仅保留后备代码。豆包工作没有公开的连接器
+自动导入能力，因此当前真实边界是：Agent 能控制原生 UI 时自行完成；否则 Human 只复制已准备的
+一项，选择 STDIO 并保存一次，随后必须看到 AgentPost tools/list 才能声明成功。不能把这项本地
+能力表述成完全零操作或 `production_accepted`。
+
+验证证据：聚焦 Python 81 passed；完整 non-PostgreSQL 回归 405 passed、1 个预期 loopback
+sandbox skip、5 个 PostgreSQL deselected；Orbit JavaScript 24 passed；JavaScript syntax、Ruff
+check/format 均通过。隔离 Orbit 演示已验证桌面与 390×844 豆包入口、无横向溢出和无控制台
+warning/error。最终 diff/staged 复核与 `git diff --check` 通过；本切片提交以本段所在 Git 历史为准。
+生产仍为 `e50652e / 0.1.16`，未部署本切片。
+
 ### 逐轮任务状态、短名称入口与联系人目录（0.1.16 已部署，待登录态验收）
 
 根据登录态生产 Chrome 中与 020 的真实五条消息核对：第一、第二轮 task 都已有 020 的直接回复，

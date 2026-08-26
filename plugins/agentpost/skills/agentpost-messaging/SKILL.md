@@ -22,12 +22,15 @@ internal prerequisite, not the final outcome.
 1. For “连接星云驿” or equivalent connection-only requests, first use an available AgentPost read
    tool as a secret-free connection check. If the tool is unavailable or authentication is missing,
    run `scripts/bootstrap.py setup <current-host>` once, where `<current-host>` is `codex`,
-   `workbuddy`, `openclaw`, or `hermes`. Do not ask the user to enter the command; the selected connection
+   `workbuddy`, `doubao_work`, `openclaw`, or `hermes`. Do not ask the user to enter the command; the selected connection
    code and current host supply that internal adapter choice.
-   豆包工作 uses the official `/connect/doubao_work` contract and the desktop client's built-in
-   HTTP Custom MCP plus browser OAuth. Do not run the local bootstrap, add an authentication
-   Header, or copy a token. If the current 豆包 client is a browser/mobile build or cannot complete
-   Custom MCP OAuth, stop without claiming success.
+   豆包工作 2.25.18 or newer uses the same local pairing and OS-vault flow, followed by its built-in
+   Custom Connector with `STDIO`. The setup result provides one secure launcher as the only command;
+   args and env stay empty, and no token is copied. Complete the native connector form yourself when
+   the host permits it. 豆包工作 2.25.18 has no supported connector import contract; if its native
+   UI cannot be controlled, give the Human the one prepared command and exact connector path, then
+   ask them only to select STDIO, paste it, and save once. Do not claim success before tools/list.
+   Browser/mobile 豆包 does not qualify as a completed connection.
    Manus is cloud-hosted: use the official `/connect/manus` contract and its HTTPS Custom MCP
    browser-authorization route instead of running the local bootstrap. Never replace an unavailable
    Manus OAuth path with a copied API key or Bearer token.

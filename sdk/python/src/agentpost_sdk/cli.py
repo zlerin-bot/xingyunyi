@@ -24,6 +24,10 @@ from agentpost_sdk.connector import (
     KeyringCredentialStore,
     ManagedConnector,
 )
+from agentpost_sdk.doubao_work_setup import (
+    DoubaoWorkSetupResult,
+    configure_doubao_work_mcp,
+)
 from agentpost_sdk.errors import AgentPostError, ConfigurationError, ResponseError
 from agentpost_sdk.hermes_setup import (
     HermesSetupResult,
@@ -88,7 +92,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--connector-type",
         default=os.getenv("AGENTPOST_CONNECTOR_TYPE", "generic"),
-        help="host type, for example codex, workbuddy, openclaw, hermes, or generic",
+        help="host type, for example codex, workbuddy, doubao_work, openclaw, hermes, or generic",
     )
     parser.add_argument(
         "--display-name",
@@ -119,7 +123,10 @@ def _parser() -> argparse.ArgumentParser:
         "setup",
         help="pair and register the local AgentPost tools in a supported host",
     )
-    setup.add_argument("host", choices=("codex", "workbuddy", "openclaw", "hermes"))
+    setup.add_argument(
+        "host",
+        choices=("codex", "workbuddy", "doubao_work", "openclaw", "hermes"),
+    )
     setup.add_argument("--existing-agent-id", help=argparse.SUPPRESS)
     setup.add_argument("--new-agent-intent", help=argparse.SUPPRESS)
 
@@ -305,7 +312,13 @@ def _upload_attachments(client: AgentPost, paths: list[Path]) -> list[str]:
 def _configure_host(
     connector: ManagedConnector,
     host: str,
-) -> CodexSetupResult | WorkBuddySetupResult | OpenClawSetupResult | HermesSetupResult:
+) -> (
+    CodexSetupResult
+    | WorkBuddySetupResult
+    | DoubaoWorkSetupResult
+    | OpenClawSetupResult
+    | HermesSetupResult
+):
     options = {
         "server": connector.client.server,
         "profile": connector.profile,
@@ -315,6 +328,8 @@ def _configure_host(
         return configure_codex_mcp(**options)
     if host == "workbuddy":
         return configure_workbuddy_mcp(**options)
+    if host == "doubao_work":
+        return configure_doubao_work_mcp(**options)
     if host == "openclaw":
         collection = getattr(
             getattr(connector, "credential_store", None),
@@ -444,6 +459,24 @@ def _run(args: argparse.Namespace) -> int:
             _json(connector.heartbeat())
         elif args.command == "setup":
             configured = _configure_host(connector, args.host)
+            if isinstance(configured, DoubaoWorkSetupResult):
+                _json(
+                    {
+                        "status": "native_registration_required",
+                        "host": args.host,
+                        "profile": connector.profile,
+                        "mcp_server": configured.server_name,
+                        "transport": configured.transport,
+                        "command": str(configured.command),
+                        "args": [],
+                        "env": {},
+                        "approval_mode": configured.approval_mode,
+                        "credential_storage": credential_storage,
+                        "restart_required": configured.restart_required,
+                        "next_action": "save_doubao_custom_stdio_connector",
+                    }
+                )
+                return 0
             heartbeat = connector.heartbeat()
             result = {
                 "status": "configured",

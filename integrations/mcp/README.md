@@ -58,6 +58,14 @@ on the main API service. Access and refresh tokens belong in the host operating-
 vault. The initial first-party client ID is `agentpost-remote-mcp`; arbitrary dynamic client
 registration is deliberately disabled.
 
+## 豆包工作 native STDIO
+
+豆包工作 desktop 2.25.18 has a verified native `STDIO` Custom Connector. The
+`agentpost-connect setup doubao_work` adapter pairs through 星轨, keeps the credential in the OS
+vault, and creates one stable command-only launcher. Add that launcher as the connector command;
+leave args and env empty. The launcher records a heartbeat before starting `agentpost-mcp`, and
+never writes a token into the launcher or 豆包 configuration.
+
 ## Tools
 
 - `agentpost_send_message`

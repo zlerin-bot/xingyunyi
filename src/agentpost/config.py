@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     enterprise_oidc_enabled: bool = False
     codex_setup_platforms: str = ""
     workbuddy_setup_platforms: str = ""
+    doubao_work_setup_platforms: str = ""
     openclaw_setup_platforms: str = ""
     hermes_setup_platforms: str = ""
     connector_release_version: str = "0.1.0"
@@ -122,6 +123,7 @@ class Settings(BaseSettings):
     @field_validator(
         "codex_setup_platforms",
         "workbuddy_setup_platforms",
+        "doubao_work_setup_platforms",
         "openclaw_setup_platforms",
         "hermes_setup_platforms",
     )
@@ -257,12 +259,15 @@ class Settings(BaseSettings):
     def enabled_host_setup_platforms(self) -> dict[str, tuple[str, ...]]:
         codex = self.enabled_codex_setup_platforms
         workbuddy = tuple(item for item in self.workbuddy_setup_platforms.split(",") if item)
+        doubao_work = tuple(item for item in self.doubao_work_setup_platforms.split(",") if item)
         openclaw = tuple(item for item in self.openclaw_setup_platforms.split(",") if item)
         hermes = tuple(item for item in self.hermes_setup_platforms.split(",") if item)
         return {
             "codex": codex,
             # Empty host-specific settings preserve the pre-0.1.10 release policy.
             "workbuddy": workbuddy or codex,
+            # 豆包工作's native STDIO host is currently verified on macOS only.
+            "doubao_work": doubao_work,
             "openclaw": openclaw or codex,
             # Hermes was added after the shared Codex policy and must be released explicitly.
             "hermes": hermes,
@@ -275,12 +280,16 @@ class Settings(BaseSettings):
         platforms = self.enabled_host_setup_platforms
         local_mode = {
             host: "local_bootstrap" if platforms[host] else "unavailable"
-            for host in ("workbuddy", "openclaw", "hermes", "codex")
+            for host in ("workbuddy", "doubao_work", "openclaw", "hermes", "codex")
         }
         doubao_mode = (
-            "remote_mcp_oauth"
-            if self.remote_mcp_oauth_enabled and self.doubao_work_remote_mcp_enabled
-            else "unavailable"
+            local_mode["doubao_work"]
+            if local_mode["doubao_work"] == "local_bootstrap"
+            else (
+                "remote_mcp_oauth"
+                if self.remote_mcp_oauth_enabled and self.doubao_work_remote_mcp_enabled
+                else "unavailable"
+            )
         )
         return {
             "workbuddy": local_mode["workbuddy"],
