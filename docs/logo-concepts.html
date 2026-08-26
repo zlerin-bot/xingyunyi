@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>星云驿 · Logo 方向提案</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --blue: #1a73e8;
+        --blue-deep: #174ea6;
+        --red: #d93025;
+        --yellow: #f9ab00;
+        --green: #188038;
+        --ink: #202124;
+        --muted: #5f6368;
+        --line: #dde3ea;
+        --surface: #ffffff;
+        --soft: #f8fafd;
+        --shadow: 0 12px 32px rgba(60, 64, 67, 0.12), 0 2px 8px rgba(60, 64, 67, 0.08);
+        font-family: "Google Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+
+      html { scroll-behavior: smooth; }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 8% -5%, rgba(66, 133, 244, 0.15), transparent 31rem),
+          radial-gradient(circle at 96% 20%, rgba(251, 188, 4, 0.12), transparent 26rem),
+          #f8fafd;
+      }
+
+      button { font: inherit; }
+
+      button:focus-visible,
+      a:focus-visible {
+        outline: 3px solid rgba(26, 115, 232, 0.34);
+        outline-offset: 3px;
+      }
+
+      .hidden-symbols {
+        position: absolute;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+      }
+
+      .shell {
+        width: min(1180px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        min-height: 84px;
+        border-bottom: 1px solid rgba(221, 227, 234, 0.86);
+      }
+
+      .brand-line {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .current-mark {
+        width: 38px;
+        height: 38px;
+      }
+
+      .brand-copy {
+        display: grid;
+        gap: 2px;
+      }
+
+      .brand-copy strong { font-size: 1.06rem; letter-spacing: 0.06em; }
+      .brand-copy span { color: var(--muted); font-size: 0.62rem; letter-spacing: 0.16em; }
+
+      .local-badge {
+        border: 1px solid #c4eed0;
+        border-radius: 999px;
+        background: #e6f4ea;
+        color: #137333;
+        padding: 7px 11px;
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+
+      main { padding: 56px 0 72px; }
+
+      .intro {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(340px, 0.68fr);
+        align-items: center;
+        gap: 42px;
+        margin-bottom: 40px;
+      }
+
+      .eyebrow {
+        margin: 0 0 12px;
+        color: var(--blue);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 720px;
+        margin: 0;
+        font-size: clamp(2.2rem, 5vw, 4.5rem);
+        line-height: 1.05;
+        letter-spacing: -0.05em;
+      }
+
+      h1 em { color: var(--blue); font-style: normal; }
+
+      .lead {
+        max-width: 720px;
+        margin: 20px 0 0;
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.85;
+      }
+
+      .principles {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 22px;
+      }
+
+      .principles span,
+      .tag {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: #3c4043;
+        padding: 7px 10px;
+        font-size: 0.7rem;
+      }
+
+      .selection-panel {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: var(--shadow);
+        padding: 26px;
+      }
+
+      .selection-panel::after {
+        position: absolute;
+        right: -45px;
+        bottom: -65px;
+        width: 190px;
+        height: 190px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(66, 133, 244, 0.18), transparent 68%);
+        content: "";
+        pointer-events: none;
+      }
+
+      .selection-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 0.68rem;
+      }
+
+      .selection-code {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #e8f0fe;
+        color: var(--blue);
+        place-items: center;
+        font-weight: 800;
+      }
+
+      .selection-brand {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-top: 20px;
+      }
+
+      .selection-logo {
+        width: 92px;
+        height: 92px;
+        flex: 0 0 auto;
+      }
+
+      .selection-brand h2 { margin: 0; font-size: 1.45rem; }
+      .selection-brand strong { display: block; margin-top: 5px; font-size: 1.06rem; }
+      .selection-brand small { display: block; margin-top: 4px; color: var(--muted); letter-spacing: 0.12em; }
+      .selection-copy { position: relative; z-index: 1; margin: 18px 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.7; }
+
+      .section-heading {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 20px;
+        margin: 0 0 18px;
+      }
+
+      .section-heading h2 { margin: 0; font-size: 1.55rem; }
+      .section-heading p { max-width: 520px; margin: 0; color: var(--muted); font-size: 0.78rem; line-height: 1.7; text-align: right; }
+
+      .concept-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .concept-card {
+        position: relative;
+        display: grid;
+        min-width: 0;
+        min-height: 420px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--surface);
+        color: inherit;
+        padding: 0;
+        text-align: left;
+        cursor: pointer;
+        transition: transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease;
+      }
+
+      .concept-card:hover {
+        transform: translateY(-3px);
+        border-color: #aecbfa;
+        box-shadow: var(--shadow);
+      }
+
+      .concept-card.active {
+        border: 2px solid var(--blue);
+        box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.11), var(--shadow);
+      }
+
+      .concept-visual {
+        position: relative;
+        display: grid;
+        min-height: 212px;
+        background:
+          radial-gradient(circle at 25% 15%, rgba(66, 133, 244, 0.12), transparent 45%),
+          linear-gradient(145deg, #f8fafd, #fff);
+        place-items: center;
+      }
+
+      .concept-card:nth-child(3n + 2) .concept-visual {
+        background:
+          radial-gradient(circle at 75% 18%, rgba(52, 168, 83, 0.13), transparent 42%),
+          linear-gradient(145deg, #fff, #f8fafd);
+      }
+
+      .concept-card:nth-child(3n) .concept-visual {
+        background:
+          radial-gradient(circle at 22% 78%, rgba(234, 67, 53, 0.11), transparent 42%),
+          linear-gradient(145deg, #f8fafd, #fff);
+      }
+
+      .concept-logo { width: 124px; height: 124px; }
+
+      .recommended {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        border-radius: 999px;
+        background: #e8f0fe;
+        color: var(--blue-deep);
+        padding: 7px 10px;
+        font-size: 0.65rem;
+        font-weight: 800;
+      }
+
+      .size-strip {
+        position: absolute;
+        right: 14px;
+        bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid rgba(221, 227, 234, 0.9);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.86);
+        padding: 8px;
+        backdrop-filter: blur(8px);
+      }
+
+      .size-strip span {
+        display: grid;
+        border-radius: 8px;
+        background: #202124;
+        place-items: center;
+      }
+
+      .size-strip span:first-child { width: 28px; height: 28px; }
+      .size-strip span:last-child { width: 38px; height: 38px; }
+      .size-strip svg { width: 75%; height: 75%; }
+
+      .concept-copy { display: grid; align-content: start; gap: 12px; padding: 20px; }
+
+      .concept-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .concept-title span:first-child { color: var(--blue); font-size: 0.7rem; font-weight: 850; letter-spacing: 0.08em; }
+      .concept-title span:last-child { color: #9aa0a6; font-size: 1.05rem; }
+      .concept-name { font-size: 1.18rem; font-weight: 750; }
+      .concept-description { color: var(--muted); font-size: 0.76rem; line-height: 1.72; }
+
+      .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+      .tag { padding: 5px 8px; font-size: 0.62rem; }
+
+      .decision-note {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 18px;
+        margin-top: 28px;
+        border: 1px solid #d2e3fc;
+        border-radius: 18px;
+        background: #e8f0fe;
+        padding: 18px 20px;
+      }
+
+      .decision-note strong { color: var(--blue-deep); }
+      .decision-note p { margin: 4px 0 0; color: #3c4043; font-size: 0.78rem; line-height: 1.7; }
+
+      footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        border-top: 1px solid var(--line);
+        padding: 24px 0 34px;
+        color: var(--muted);
+        font-size: 0.68rem;
+      }
+
+      @media (max-width: 920px) {
+        .intro { grid-template-columns: 1fr; }
+        .selection-panel { max-width: 620px; }
+        .concept-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+
+      @media (max-width: 620px) {
+        .shell { width: min(100% - 24px, 1180px); }
+        header { min-height: 72px; }
+        .brand-copy span { display: none; }
+        .local-badge { padding: 6px 9px; font-size: 0.64rem; }
+        main { padding: 38px 0 52px; }
+        .intro { gap: 26px; margin-bottom: 34px; }
+        h1 { font-size: 2.5rem; }
+        .lead { font-size: 0.88rem; }
+        .selection-panel { border-radius: 22px; padding: 20px; }
+        .selection-logo { width: 74px; height: 74px; }
+        .selection-brand { gap: 14px; }
+        .selection-brand h2 { font-size: 1.2rem; }
+        .selection-brand strong { font-size: 0.92rem; }
+        .section-heading { align-items: flex-start; flex-direction: column; }
+        .section-heading p { text-align: left; }
+        .concept-grid { grid-template-columns: 1fr; }
+        .concept-card { min-height: 390px; }
+        .concept-visual { min-height: 205px; }
+        footer { align-items: flex-start; flex-direction: column; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        * { transition: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <svg class="hidden-symbols" aria-hidden="true" focusable="false">
+      <symbol id="logo-a" viewBox="0 0 64 64">
+        <path d="M12 35C8.5 22 19.5 10.5 33 11.5" fill="none" stroke="#4285f4" stroke-width="5" stroke-linecap="round"/>
+        <path d="M33 11.5c8 .6 14 5.7 16.5 12" fill="none" stroke="#ea4335" stroke-width="5" stroke-linecap="round"/>
+        <path d="M49.5 23.5c3.8 11.1-4.2 23.5-16.2 27" fill="none" stroke="#fbbc04" stroke-width="5" stroke-linecap="round"/>
+        <path d="M33.3 50.5C22 54 12.4 47.3 12 35" fill="none" stroke="#34a853" stroke-width="5" stroke-linecap="round"/>
+        <path d="M21 37c5-9 16-13 25-8" fill="none" stroke="#1a73e8" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="21" cy="37" r="3.7" fill="#34a853" stroke="#fff" stroke-width="2"/>
+        <circle cx="46" cy="29" r="3.7" fill="#ea4335" stroke="#fff" stroke-width="2"/>
+        <rect x="26" y="24" width="13" height="13" rx="4.2" fill="#1a73e8"/>
+        <path d="m30 31 2.2-2.2L35 31.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+
+      <symbol id="logo-b" viewBox="0 0 64 64">
+        <path d="M12 17h27a8 8 0 0 1 8 8v8a8 8 0 0 1-8 8H27l-9 7v-7h-6a8 8 0 0 1-8-8v-8a8 8 0 0 1 8-8Z" fill="#e8f0fe" stroke="#1a73e8" stroke-width="3.5" stroke-linejoin="round"/>
+        <path d="M25 24h25a8 8 0 0 1 8 8v7a8 8 0 0 1-8 8h-4v7l-9-7H25a8 8 0 0 1-8-8v-7a8 8 0 0 1 8-8Z" fill="#e6f4ea" stroke="#188038" stroke-width="3.5" stroke-linejoin="round"/>
+        <path d="M25 35h24" stroke="#1a73e8" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="25" cy="35" r="4" fill="#fbbc04" stroke="#fff" stroke-width="2"/>
+        <circle cx="37" cy="35" r="4" fill="#1a73e8" stroke="#fff" stroke-width="2"/>
+        <circle cx="49" cy="35" r="4" fill="#ea4335" stroke="#fff" stroke-width="2"/>
+      </symbol>
+
+      <symbol id="logo-c" viewBox="0 0 64 64">
+        <path d="M32 8c0 9-7 10-12 6-6-5-13 1-9 7 3.8 5.8 12.5 2.2 13.5-3.5" fill="none" stroke="#4285f4" stroke-width="4.5" stroke-linecap="round"/>
+        <path d="M56 32c-9 0-10-7-6-12 5-6-1-13-7-9-5.8 3.8-2.2 12.5 3.5 13.5" fill="none" stroke="#ea4335" stroke-width="4.5" stroke-linecap="round"/>
+        <path d="M32 56c0-9 7-10 12-6 6 5 13-1 9-7-3.8-5.8-12.5-2.2-13.5 3.5" fill="none" stroke="#fbbc04" stroke-width="4.5" stroke-linecap="round"/>
+        <path d="M8 32c9 0 10 7 6 12-5 6 1 13 7 9 5.8-3.8 2.2-12.5-3.5-13.5" fill="none" stroke="#34a853" stroke-width="4.5" stroke-linecap="round"/>
+        <rect x="21" y="21" width="22" height="22" rx="7" fill="#1a73e8"/>
+        <path d="M27 32h10M32 27v10" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="32" cy="32" r="3.2" fill="#fff"/>
+      </symbol>
+
+      <symbol id="logo-d" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="25" fill="#fff" stroke="#1a73e8" stroke-width="4"/>
+        <path d="M19 19h26v26H19z" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2.6"/>
+        <path d="m32 19 13 13-13 13-13-13Z" fill="#fff" stroke="#188038" stroke-width="2.6"/>
+        <circle cx="32" cy="32" r="5.5" fill="#1a73e8"/>
+        <path d="m29.2 32 2-2 3.5 3.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="32" cy="7" r="4" fill="#ea4335" stroke="#fff" stroke-width="2"/>
+        <circle cx="57" cy="32" r="4" fill="#fbbc04" stroke="#fff" stroke-width="2"/>
+        <circle cx="32" cy="57" r="4" fill="#34a853" stroke="#fff" stroke-width="2"/>
+      </symbol>
+
+      <symbol id="logo-e" viewBox="0 0 64 64">
+        <path d="M9 26h46L45 15H19Z" fill="#e8f0fe" stroke="#1a73e8" stroke-width="3.5" stroke-linejoin="round"/>
+        <path d="M15 26h34v25H15z" fill="#fff" stroke="#1a73e8" stroke-width="3.5" stroke-linejoin="round"/>
+        <path d="M22 51V34h20v17" fill="#e6f4ea" stroke="#188038" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M24 12h16" stroke="#ea4335" stroke-width="4" stroke-linecap="round"/>
+        <path d="M26 42c4-6 9-6 13 0" fill="none" stroke="#1a73e8" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="26" cy="42" r="3.5" fill="#fbbc04" stroke="#fff" stroke-width="2"/>
+        <circle cx="39" cy="42" r="3.5" fill="#ea4335" stroke="#fff" stroke-width="2"/>
+        <circle cx="32.5" cy="36" r="3.5" fill="#1a73e8" stroke="#fff" stroke-width="2"/>
+      </symbol>
+
+      <symbol id="logo-f" viewBox="0 0 64 64">
+        <rect x="8" y="8" width="48" height="48" rx="13" fill="#c5221f"/>
+        <path d="M19 18v10h9V18h17v10h-9v9h9v10H27V37h-8v10" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="19" cy="18" r="4" fill="#fbbc04" stroke="#c5221f" stroke-width="2"/>
+        <circle cx="45" cy="18" r="4" fill="#fff" stroke="#c5221f" stroke-width="2"/>
+        <circle cx="45" cy="47" r="4" fill="#34a853" stroke="#c5221f" stroke-width="2"/>
+      </symbol>
+    </svg>
+
+    <div class="shell">
+      <header>
+        <div class="brand-line">
+          <svg class="current-mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#logo-a"></use></svg>
+          <span class="brand-copy"><strong>星云驿</strong><span>XINGYUN RELAY</span></span>
+        </div>
+        <span class="local-badge">本地设计评审 · 未替换正式 Logo</span>
+      </header>
+
+      <main>
+        <section class="intro" aria-labelledby="page-title">
+          <div>
+            <p class="eyebrow">Brand exploration · 6 directions</p>
+            <h1 id="page-title">让“连通、交互”<br><em>成为看得见的驿站。</em></h1>
+            <p class="lead">六个方向都保留互联网与 AI 的轻快感，其中后三个融入云纹、窗棂、驿亭和印章意象。请选择最接近星云驿长期气质的方向，而不是只看哪个图案最复杂。</p>
+            <div class="principles" aria-label="设计原则">
+              <span>小尺寸仍清楚</span><span>连通而非聊天软件</span><span>Human 与 Agent 双向协作</span><span>中国元素克制现代</span>
+            </div>
+          </div>
+
+          <aside class="selection-panel" aria-live="polite" aria-label="当前选择预览">
+            <div class="selection-label"><span>当前预览</span><span id="selection-code" class="selection-code">A</span></div>
+            <div class="selection-brand">
+              <svg class="selection-logo" viewBox="0 0 64 64" aria-hidden="true"><use id="selection-use" href="#logo-a"></use></svg>
+              <div><h2>星云驿</h2><strong id="selection-name">星桥中枢</strong><small>XINGYUN RELAY</small></div>
+            </div>
+            <p id="selection-copy" class="selection-copy">以轨道、双向链路和中央驿站为核心，互联网与 AI 感最均衡，延续现有品牌记忆但更明确。</p>
+          </aside>
+        </section>
+
+        <section aria-labelledby="concept-title">
+          <div class="section-heading">
+            <h2 id="concept-title">选择一个方向</h2>
+            <p>点击卡片即可更新上方预览。A、B 偏互联网产品；C、D 偏 AI 与东方秩序；E、F 的传统识别最强。</p>
+          </div>
+
+          <div class="concept-grid">
+            <button class="concept-card active" type="button" data-logo="a" data-code="A" data-name="星桥中枢" data-copy="以轨道、双向链路和中央驿站为核心，互联网与 AI 感最均衡，延续现有品牌记忆但更明确。" aria-pressed="true">
+              <span class="concept-visual">
+                <span class="recommended">首选推荐</span>
+                <svg class="concept-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#logo-a"></use></svg>
+                <span class="size-strip" aria-label="小尺寸预览"><span><svg viewBox="0 0 64 64"><use href="#logo-a"></use></svg></span><span><svg viewBox="0 0 64 64"><use href="#logo-a"></use></svg></span></span>
+              </span>
+              <span class="concept-copy">
+                <span class="concept-title"><span>方案 A</span><span>→</span></span>
+                <span class="concept-name">星桥中枢</span>
+                <span class="concept-description">四段轨道代表开放网络，双向曲线代表交互，中央方形节点就是“驿站”。识别快、技术感强、适合长期产品化。</span>
+                <span class="tags"><span class="tag">互联网</span><span class="tag">AI 中枢</span><span class="tag">延续性最好</span></span>
+              </span>
+            </button>
+
+            <button class="concept-card" type="button" data-logo="b" data-code="B" data-name="双向云驿" data-copy="两层交互气泡构成中继网络，强调 Agent 之间异步往来；最亲和，也最容易让普通用户理解。" aria-pressed="false">
+              <span class="concept-visual">
+                <svg class="concept-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#logo-b"></use></svg>
+                <span class="size-strip" aria-label="小尺寸预览"><span><svg viewBox="0 0 64 64"><use href="#logo-b"></use></svg></span><span><svg viewBox="0 0 64 64"><use href="#logo-b"></use></svg></span></span>
+              </span>
+              <span class="concept-copy">
+                <span class="concept-title"><span>方案 B</span><span>→</span></span>
+                <span class="concept-name">双向云驿</span>
+                <span class="concept-description">两个相互穿插的消息空间形成中继站，三颗节点代表发送、驿站和接收。用户理解成本最低，但聊天软件联想稍强。</span>
+                <span class="tags"><span class="tag">交互直观</span><span class="tag">亲和</span><span class="tag">通信感最强</span></span>
+              </span>
+            </button>
+
+            <button class="concept-card" type="button" data-logo="c" data-code="C" data-name="云纹智结" data-copy="将中国如意云纹抽象成四向数据回路，中心是 AI 推理节点；东方气质与前沿技术结合最自然。" aria-pressed="false">
+              <span class="concept-visual">
+                <span class="recommended">东方融合推荐</span>
+                <svg class="concept-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#logo-c"></use></svg>
+                <span class="size-strip" aria-label="小尺寸预览"><span><svg viewBox="0 0 64 64"><use href="#logo-c"></use></svg></span><span><svg viewBox="0 0 64 64"><use href="#logo-c"></use></svg></span></span>
+              </span>
+              <span class="concept-copy">
+                <span class="concept-title"><span>方案 C</span><span>→</span></span>
+                <span class="concept-name">云纹智结</span>
+                <span class="concept-description">四段如意云纹既像中国结，也像循环神经网络；中央节点保持现代。文化意味含蓄，不会变成传统文化产品的刻板符号。</span>
+                <span class="tags"><span class="tag">如意云纹</span><span class="tag">神经网络</span><span class="tag">中西平衡</span></span>
+              </span>
+            </button>
+
+            <button class="concept-card" type="button" data-logo="d" data-code="D" data-name="窗棂星门" data-copy="圆形网络包裹现代窗棂结构，节点从四方汇入中央星门；秩序、安全和平台治理感最强。" aria-pressed="false">
+              <span class="concept-visual">
+                <svg class="concept-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#logo-d"></use></svg>
+                <span class="size-strip" aria-label="小尺寸预览"><span><svg viewBox="0 0 64 64"><use href="#logo-d"></use></svg></span><span><svg viewBox="0 0 64 64"><use href="#logo-d"></use></svg></span></span>
+              </span>
+              <span class="concept-copy">
+                <span class="concept-title"><span>方案 D</span><span>→</span></span>
+                <span class="concept-name">窗棂星门</span>
+                <span class="concept-description">外圆代表开放网络，方形与菱形来自窗棂秩序，四方节点汇入中央。更稳健、可信，适合强调治理与安全边界。</span>
+                <span class="tags"><span class="tag">窗棂</span><span class="tag">秩序</span><span class="tag">治理感</span></span>
+              </span>
+            </button>
+
+            <button class="concept-card" type="button" data-logo="e" data-code="E" data-name="数字驿亭" data-copy="把传统驿亭与 AI 节点网络合并，最直接表达“驿站”；叙事性强，适合品牌故事和启动页。" aria-pressed="false">
+              <span class="concept-visual">
+                <svg class="concept-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#logo-e"></use></svg>
+                <span class="size-strip" aria-label="小尺寸预览"><span><svg viewBox="0 0 64 64"><use href="#logo-e"></use></svg></span><span><svg viewBox="0 0 64 64"><use href="#logo-e"></use></svg></span></span>
+              </span>
+              <span class="concept-copy">
+                <span class="concept-title"><span>方案 E</span><span>→</span></span>
+                <span class="concept-name">数字驿亭</span>
+                <span class="concept-description">门楼轮廓明确表达“驿”，内部三节点构成 Agent 连接。品牌故事最完整，但在 20px 以下的细节会比 A、C 更多。</span>
+                <span class="tags"><span class="tag">驿站直观</span><span class="tag">建筑意象</span><span class="tag">故事感</span></span>
+              </span>
+            </button>
+
+            <button class="concept-card" type="button" data-logo="f" data-code="F" data-name="星联印记" data-copy="以现代红色印章承载连通路径，形成强烈中国品牌资产；适合企业级、正式和可信的定位。" aria-pressed="false">
+              <span class="concept-visual">
+                <svg class="concept-logo" viewBox="0 0 64 64" aria-hidden="true"><use href="#logo-f"></use></svg>
+                <span class="size-strip" aria-label="小尺寸预览"><span><svg viewBox="0 0 64 64"><use href="#logo-f"></use></svg></span><span><svg viewBox="0 0 64 64"><use href="#logo-f"></use></svg></span></span>
+              </span>
+              <span class="concept-copy">
+                <span class="concept-title"><span>方案 F</span><span>→</span></span>
+                <span class="concept-name">星联印记</span>
+                <span class="concept-description">红色方印建立中国识别，留白路径像“驿”字结构，也像网络拓扑。品牌记忆最强，但与当前 Google 式轻盈风格差异最大。</span>
+                <span class="tags"><span class="tag">数字印章</span><span class="tag">中国识别</span><span class="tag">企业感</span></span>
+              </span>
+            </button>
+          </div>
+
+          <div class="decision-note">
+            <strong>怎么选？</strong>
+            <div><strong>综合推荐 A；强调东方与 AI 推荐 C；强调“驿站”故事推荐 E。</strong><p>请直接告诉我“选 A / B / C / D / E / F”，也可以说“以 A 为主体，融入 C 的云纹”。选定后我会做正式图标、横版字标、单色版、favicon 和手机端适配。</p></div>
+          </div>
+        </section>
+      </main>
+
+      <footer><span>星云驿品牌方向提案 · 本地评审</span><span>不改变协议、权限、Agent 身份或部署</span></footer>
+    </div>
+
+    <script>
+      const cards = Array.from(document.querySelectorAll(".concept-card"));
+      const selectionUse = document.querySelector("#selection-use");
+      const selectionCode = document.querySelector("#selection-code");
+      const selectionName = document.querySelector("#selection-name");
+      const selectionCopy = document.querySelector("#selection-copy");
+
+      function selectCard(card, { updateHash = true } = {}) {
+        cards.forEach((item) => {
+          const active = item === card;
+          item.classList.toggle("active", active);
+          item.setAttribute("aria-pressed", String(active));
+        });
+        selectionUse.setAttribute("href", `#logo-${card.dataset.logo}`);
+        selectionCode.textContent = card.dataset.code;
+        selectionName.textContent = card.dataset.name;
+        selectionCopy.textContent = card.dataset.copy;
+        if (updateHash) history.replaceState(null, "", `#${card.dataset.logo}`);
+      }
+
+      cards.forEach((card) => card.addEventListener("click", () => selectCard(card)));
+      const initial = cards.find((card) => `#${card.dataset.logo}` === window.location.hash) || cards[0];
+      selectCard(initial, { updateHash: false });
+    </script>
+  </body>
+</html>
