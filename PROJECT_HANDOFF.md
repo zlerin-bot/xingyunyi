@@ -1,12 +1,32 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.15-task-rounds-contact-directory-local`
+- 交接阶段：`v0.1.16-release-ready-upload-blocked`
 - 核验日期：2026-08-26
 - 代码分支：`main`
-- 阶段性质：0.1.15 生产基线保持不变；逐轮任务状态、短名称入口和联系人目录边界已在本地完成，尚未部署
-- 本地开发状态：本轮功能与权限切片正在完成本地验证；生产仍为 `0b2dc9c / 0.1.15`
+- 阶段性质：0.1.16 发布物和生产预检已完成；等待 Human 在 Workbench 文件选择器中上传三份完整发布物
+- 本地开发状态：发布提交为 `e50652e`；生产仍为 `0b2dc9c / 0.1.15`，尚未切换
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 0.1.16 发布准备与当前阻塞
+
+功能提交 `a7a61c0` 已由发布提交 `e50652e` 对齐为 package/server/SDK/MCP `0.1.16`，Codex 插件
+版本为 `0.1.16+codex.20260826194306`。正式发布物从 `git archive e50652e` 构建，源码归档 SHA-256
+为 `c37b4464c86bbdf74ab6c3352a77cc10c7d807335eca4ff957df3cb38b416e38`，wheel SHA-256 为
+`7868e17eca4225ccfea2f92872dc0e6aa37c64c5359cb84e08d78b5b9dfee867`。三份文件已复制到本机
+`/Users/mars113/Downloads/agentpost-0.1.16-release/`。
+
+当前生产只读预检确认仍为 `/opt/agentpost/releases/0b2dc9c` / 0.1.15，AgentPost、Nginx、
+PostgreSQL active，schema `0021_human_thread_views`，29 Agents / 65 Messages / 65 Deliveries /
+4 Attachments / 9 Humans，附件目录 67606 bytes，磁盘使用 21%，环境权限 `600 root:root`，失败
+systemd 单元为 0。AgentPost/Nginx/PostgreSQL PID 基线分别为 `229465/127548/137458`；公网
+health/ready 为 0.1.15，HTTP 继续 301 到 HTTPS。
+
+SSH 公钥仍被生产拒绝，故按既有应急流程使用登录态 Workbench。网页自动化无法取得 Workbench
+的本地文件选择事件，且项目规则禁止改用 Base64 分片。当前唯一阻塞是 Human 在已打开的
+`/home/admin` 文件管理页点击“上传文件”，选择 Downloads 文件夹内三份文件；上传后即可继续服务端
+SHA 校验、完整备份、canary、原子切换、后检和自动回退保护。当前状态是
+`release_artifacts_and_production_preflight_verified_upload_blocked`，不是已部署。
 
 ### 逐轮任务状态、短名称入口与联系人目录（本地，未部署）
 
