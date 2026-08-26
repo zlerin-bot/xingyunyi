@@ -48,8 +48,25 @@ _GENERIC_AGENT_TERMS = frozenset({"agent", "智能体", "助手"})
 _TYPE_LABELS = {
     "codex": "Codex",
     "workbuddy": "WorkBuddy",
+    "doubao_work": "豆包工作",
     "openclaw": "OpenClaw",
+    "hermes": "Hermes",
+    "manus": "Manus",
 }
+_KNOWN_AGENT_TYPE_TERMS = frozenset(
+    {
+        *(_type.casefold() for _type in _TYPE_LABELS),
+        *(label.casefold() for label in _TYPE_LABELS.values()),
+    }
+)
+_TOKEN_AGENT_KIND_TERMS = frozenset(
+    term
+    for term in (_GENERIC_AGENT_TERMS | _KNOWN_AGENT_TYPE_TERMS)
+    if HANDLE_PATTERN.fullmatch(term)
+)
+_INLINE_AGENT_KIND_TERMS = (
+    _GENERIC_AGENT_TERMS | _KNOWN_AGENT_TYPE_TERMS
+) - _TOKEN_AGENT_KIND_TERMS
 
 
 @dataclass(frozen=True)
@@ -290,6 +307,48 @@ def _type_label(agent_type: str | None) -> str | None:
     return _TYPE_LABELS.get(agent_type.casefold(), agent_type)
 
 
+def _query_mentions_agent_type(query: str, agent_type: str | None) -> bool:
+    if agent_type is None:
+        return False
+    normalized_type = agent_type.casefold()
+    label = _TYPE_LABELS.get(normalized_type)
+    terms = {normalized_type}
+    if label is not None:
+        terms.add(label.casefold())
+    tokens = set(_handle_tokens(query))
+    return any(
+        term in tokens if HANDLE_PATTERN.fullmatch(term) else term in query for term in terms
+    )
+
+
+def _looks_like_human_agent_query(query: str) -> bool:
+    """Detect an explicit owner constraint so resolution can fail closed.
+
+    A phrase such as ``020 的 Codex`` must not fall back to a globally unique
+    ``codex`` handle when 020 is outside the caller's relationship scope.
+    """
+
+    normalized = query.casefold()
+    suffixes: list[str] = []
+    if "的" in normalized:
+        suffixes.append(normalized.rsplit("的", maxsplit=1)[1])
+    for possessive in ("'s", "’s"):
+        if possessive in normalized:
+            suffixes.append(normalized.rsplit(possessive, maxsplit=1)[1])
+    for suffix in suffixes:
+        stripped = suffix.lstrip(" \t:：([{（【<《\"'")
+        if any(stripped.startswith(term) for term in _INLINE_AGENT_KIND_TERMS):
+            return True
+        first_token = _HANDLE_TOKEN.search(stripped)
+        if (
+            first_token is not None
+            and first_token.start() == 0
+            and first_token.group(1).casefold() in _TOKEN_AGENT_KIND_TERMS
+        ):
+            return True
+    return False
+
+
 def _friendly_candidates(
     contexts: list[_CandidateContext],
     *,
@@ -398,19 +457,14 @@ def resolve_recipient(session: Session, *, caller: Agent, query: str) -> Recipie
         contexts = [_context_for_exact_agent(exact, scoped_by_id)] if exact is not None else []
         return _resolution(cleaned_query, contexts, "address")
 
-    handles = _handle_tokens(cleaned_query)
-    if handles:
-        handle_agents = list(
-            session.scalars(
-                select(Agent)
-                .where(Agent.handle.in_(handles), Agent.status == "active")
-                .order_by(Agent.handle)
-            )
+    if HANDLE_PATTERN.fullmatch(normalized_query):
+        exact_handle = session.scalar(
+            select(Agent).where(Agent.handle == normalized_query, Agent.status == "active")
         )
-        if handle_agents:
+        if exact_handle is not None:
             return _resolution(
                 cleaned_query,
-                [_context_for_exact_agent(agent, scoped_by_id) for agent in handle_agents],
+                [_context_for_exact_agent(exact_handle, scoped_by_id)],
                 "handle",
             )
 
@@ -429,22 +483,54 @@ def resolve_recipient(session: Session, *, caller: Agent, query: str) -> Recipie
         and context.owner_display_name.strip().casefold() in normalized_query
     ]
     if owner_matches:
-        typed = [
+        handles = [
+            token
+            for token in _handle_tokens(cleaned_query)
+            if token not in _GENERIC_AGENT_TERMS and token not in _KNOWN_AGENT_TYPE_TERMS
+        ]
+        handled = [
             context
             for context in owner_matches
-            if context.agent_type and context.agent_type.casefold() in normalized_query
+            if context.agent.handle and context.agent.handle in handles
         ]
-        if typed:
-            owner_matches = typed
+        if handled:
+            owner_matches = handled
         else:
-            named = [
+            typed = [
                 context
                 for context in owner_matches
-                if context.agent.display_name.strip().casefold() in normalized_query
+                if _query_mentions_agent_type(normalized_query, context.agent_type)
             ]
-            if named:
-                owner_matches = named
+            if typed:
+                owner_matches = typed
+            else:
+                named = [
+                    context
+                    for context in owner_matches
+                    if context.agent.display_name.strip().casefold() in normalized_query
+                ]
+                if named:
+                    owner_matches = named
         return _resolution(cleaned_query, owner_matches, "human_agent")
+
+    if _looks_like_human_agent_query(cleaned_query):
+        return _resolution(cleaned_query, [], "human_agent")
+
+    handles = _handle_tokens(cleaned_query)
+    if handles:
+        handle_agents = list(
+            session.scalars(
+                select(Agent)
+                .where(Agent.handle.in_(handles), Agent.status == "active")
+                .order_by(Agent.handle)
+            )
+        )
+        if handle_agents:
+            return _resolution(
+                cleaned_query,
+                [_context_for_exact_agent(agent, scoped_by_id) for agent in handle_agents],
+                "handle",
+            )
 
     fuzzy_matches: list[tuple[float, _CandidateContext]] = []
     for context in scoped:

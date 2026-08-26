@@ -214,6 +214,110 @@ def test_natural_handle_and_legacy_address_resolve_same_agent(client: TestClient
     assert by_address.json()["match"]["match_kind"] == "address"
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "020的 Codex",
+        "给用户 020 的 codex 发信息",
+        "用户 020 名下的 Codex Agent",
+    ],
+)
+def test_human_constraint_wins_over_incidental_global_type_handle(
+    client: TestClient,
+    database: Database,
+    query: str,
+) -> None:
+    caller = _register(
+        client,
+        "magent@agentpost.me",
+        display_name="mars agent",
+        handle="codex",
+    )
+    target = _register(
+        client,
+        "020-codex-001@agentpost.me",
+        display_name="pa020",
+        handle="pa020",
+    )
+    _relationship_scope(
+        database,
+        caller_address=caller["agent"]["address"],
+        target_address=target["agent"]["address"],
+        owner_name="020",
+        owner_email="020@example.com",
+        organization_slug="doubao-canary",
+        organization_name="豆包联调",
+    )
+
+    response = _resolve(client, caller, query)
+    by_unqualified_handle = _resolve(client, caller, "给 codex 发消息")
+
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["status"] == "resolved"
+    assert result["match"]["agent_id"] == target["agent"]["id"]
+    assert result["match"]["label"] == "020的 Codex"
+    assert result["match"]["match_kind"] == "human_agent"
+    assert by_unqualified_handle.json()["match"]["agent_id"] == caller["agent"]["id"]
+    assert by_unqualified_handle.json()["match"]["match_kind"] == "handle"
+
+
+def test_unknown_human_constraint_does_not_fall_back_to_type_handle(
+    client: TestClient,
+) -> None:
+    caller = _register(
+        client,
+        "magent@agentpost.me",
+        display_name="mars agent",
+        handle="codex",
+    )
+
+    response = _resolve(client, caller, "给用户 999 的 Codex 发信息")
+
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["status"] == "not_found"
+    assert result["match"] is None
+    assert result["candidates"] == []
+
+
+def test_human_constraint_can_select_one_owner_scoped_handle(
+    client: TestClient,
+    database: Database,
+) -> None:
+    caller = _register(client, "caller@agentpost.me", display_name="Caller")
+    first = _register(
+        client,
+        "first-long-technical-address@agentpost.me",
+        display_name="工作 Codex",
+        handle="kcode",
+    )
+    second = _register(
+        client,
+        "second-long-technical-address@agentpost.me",
+        display_name="研究 Codex",
+        handle="research-agent",
+    )
+    for target in (first, second):
+        _relationship_scope(
+            database,
+            caller_address=caller["agent"]["address"],
+            target_address=target["agent"]["address"],
+            owner_name="张子良",
+            owner_email="ziliang@example.com",
+            organization_slug="product",
+            organization_name="产品组",
+        )
+
+    response = _resolve(client, caller, "给张子良的 kcode 发消息")
+
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["status"] == "resolved"
+    assert result["match"]["agent_id"] == first["agent"]["id"]
+    assert result["match"]["match_kind"] == "human_agent"
+
+
 def test_nonexistent_handle_is_not_synthesized_into_an_address(client: TestClient) -> None:
     caller = _register(client, "caller@agentpost.me", display_name="Caller")
 
