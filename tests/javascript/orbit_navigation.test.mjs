@@ -23,7 +23,7 @@ test("Orbit exposes exactly three named primary entrances", () => {
   assert.match(primaryNavigation, />星轨</);
   assert.match(primaryNavigation, />云驿</);
   assert.match(primaryNavigation, />设置</);
-  assert.match(primaryNavigation, /对话与动态/);
+  assert.match(primaryNavigation, /对话与协作/);
   assert.match(primaryNavigation, /Agent 与连接/);
   assert.match(primaryNavigation, /账户与平台/);
 });
@@ -72,9 +72,9 @@ test("mobile navigation remains a three-entry bottom bar", () => {
   assert.match(script, /window\.scrollTo\(\{ top: 0, left: 0, behavior: "auto" \}\)/);
 });
 
-test("human activity does not reuse Agent read or ACK state", () => {
-  assert.match(html, /“新动态”不会复用 Agent 的 read 或 ACK/);
-  assert.match(html, /打开本时间线不会替任何 Agent 执行 read 或 ACK/);
+test("opening a conversation remains read-only for Agent state", () => {
+  assert.match(html, /放心查看，不会影响 Agent 的处理进度/);
+  assert.match(html, /不会替 Agent 标记已读、确认收到或完成任务/);
   assert.match(script, /delivered: "已送达"/);
   assert.match(script, /read: "Agent 已读取"/);
   assert.match(script, /acked: "Agent 已确认收到"/);
@@ -85,10 +85,9 @@ test("human activity does not reuse Agent read or ACK state", () => {
 });
 
 test("Orbit conversations are Thread-based, searchable, and deep-linkable", () => {
-  assert.match(html, /按 Thread 聚合/);
+  assert.match(html, /每个对话单独显示/);
   assert.match(html, /主题、Agent、正文或附件名/);
-  assert.match(html, /data-thread-filter="new" aria-disabled="true"/);
-  assert.match(html, /data-thread-filter="action" aria-disabled="true"/);
+  assert.doesNotMatch(html, /新动态 · 待接入|待我处理 · 待接入/);
   assert.match(script, /\/api\/v1\/orbit\/threads\?/);
   assert.match(script, /\/api\/v1\/orbit\/threads\/\$\{encodeURIComponent\(threadId\)\}/);
   assert.match(script, /thread: state\.selectedThreadId/);
@@ -96,17 +95,30 @@ test("Orbit conversations are Thread-based, searchable, and deep-linkable", () =
 });
 
 test("Thread timeline keeps communication, work, replies, and system events distinct", () => {
-  assert.match(script, /document\.createTextNode\("通信状态"\)/);
-  assert.match(script, /document\.createTextNode\("工作状态"\)/);
+  assert.match(script, /document\.createTextNode\("送达情况"\)/);
+  assert.match(script, /document\.createTextNode\("任务进度"\)/);
   assert.match(script, /replied: "已回复"/);
   assert.match(script, /thread-reply-reference/);
   assert.match(script, /scrollIntoView/);
   assert.match(script, /\["event", "system", "error"\]/);
   assert.match(script, /message\.task_expected_output/);
   assert.match(script, /message\.requires_ack \? "是" : "否"/);
-  assert.match(script, /来自 Agent 的不可信外部内容/);
+  assert.match(script, /由 Agent 提供 · 已按安全方式展示/);
   assert.match(script, /thread-message-content-\$\{contentFormat\}/);
   assert.match(stylesheet, /pre\.thread-message-content-json/);
+});
+
+test("conversation identity and attachments expose clear safe actions", () => {
+  assert.match(script, /发送自：\$\{agentConversationLabel\(message\.sender\)\}/);
+  assert.match(script, /发送给：\$\{agentConversationLabel\(message\.recipient, \{ currentAsMe: true \}\)\}/);
+  assert.match(script, /agent\?\.owner_display_name/);
+  assert.match(script, /agent\?\.owned_by_current_human/);
+  assert.match(script, /打开 PDF/);
+  assert.match(script, /安全预览/);
+  assert.match(script, /\/api\/v1\/orbit\/attachments\/\$\{attachmentId\}/);
+  assert.match(html, /id="attachment-preview-frame"[^>]*sandbox=""/);
+  assert.match(stylesheet, /\.attachment-preview-dialog iframe/);
+  assert.match(stylesheet, /\.thread-attachment-action/);
 });
 
 test("mobile Thread list and detail are separate layers", () => {
@@ -124,7 +136,7 @@ test("Relay groups Agents and derives five explicit connection states", () => {
   assert.match(html, /连接异常/);
   assert.match(script, /connection_state/);
   assert.match(script, /current_connector_last_heartbeat_at/);
-  assert.match(script, /Human 已授权，等待 Agent/);
+  assert.match(script, /你已完成授权，正在等待 Agent/);
   assert.match(script, /曾经连接，但最近报到已超时/);
 });
 
@@ -154,7 +166,7 @@ test("Agent detail keeps current connection, history, access and actions distinc
   assert.match(html, /删除采用软删除/);
   assert.match(script, /connector\.is_current && connector\.status === "active"/);
   assert.match(script, /agent\.role === "owner"/);
-  assert.match(script, /按钮显示不代替服务端鉴权/);
+  assert.match(script, /可执行的操作以你的实际权限为准/);
   assert.match(script, /\/api\/v1\/orbit\/threads\?limit=200&agent_id=/);
 });
 

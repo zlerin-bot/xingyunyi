@@ -201,6 +201,8 @@ class OrbitMessageAgent(ControlModel):
     handle: str | None
     display_name: str
     agent_type: str | None = None
+    owner_display_name: str | None = None
+    owned_by_current_human: bool = False
 
 
 class OrbitMessageAttachment(ControlModel):

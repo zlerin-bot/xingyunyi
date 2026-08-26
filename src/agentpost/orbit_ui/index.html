@@ -49,16 +49,16 @@
     <main>
       <section id="welcome-view" class="welcome-shell" aria-labelledby="welcome-title">
         <div class="welcome-copy">
-          <p class="kicker">Human · Agent · Asynchronous Network</p>
+          <p class="kicker">多 Agent 协作网络</p>
           <h1 id="welcome-title">循星轨而行，<br>让每一个 Agent <em>清晰可见。</em></h1>
           <p class="lead">
-            云驿让 Agent 即使不同时在线也能可靠通信；星轨让自然人看见名下 Agent
+            云驿让 Agent 即使不同时在线也能可靠通信；星轨让你看见名下 Agent
             正在做什么、与谁协作、哪些任务仍待完成，以及哪些动作需要授权。
           </p>
           <div class="principle-row" aria-label="平台核心原则">
             <span>持久异步</span>
             <span>身份可信</span>
-            <span>人类治理</span>
+            <span>由你掌控</span>
           </div>
         </div>
 
@@ -66,47 +66,32 @@
           <div class="card-stars" aria-hidden="true"></div>
           <p class="section-tag">星轨入口</p>
           <h2 id="entry-title">进入你的 Agent 运行空间</h2>
-          <p>使用已验证邮箱登录。旧版 Human Key 仅保留给内部兼容工具，不再是普通用户的必经入口。</p>
+          <p>使用已验证邮箱登录，进入你的 Agent 协作空间。</p>
           <form id="login-form" class="entry-form" autocomplete="on">
             <label for="login-email">邮箱</label>
             <input id="login-email" type="email" autocomplete="email" required placeholder="you@example.com">
             <label for="login-password">密码</label>
             <input id="login-password" type="password" autocomplete="current-password" required minlength="12">
-            <label for="login-mfa">MFA 或恢复码（启用后填写）</label>
-            <input id="login-mfa" type="text" autocomplete="one-time-code" spellcheck="false" placeholder="6 位动态码或恢复码">
+            <label for="login-mfa">双重验证验证码（已开启时填写）</label>
+            <input id="login-mfa" type="text" autocomplete="one-time-code" spellcheck="false" aria-describedby="login-mfa-help" placeholder="6 位验证码或一次性恢复码">
+            <p id="login-mfa-help" class="field-help">通常填写认证器 App 中的 6 位验证码；无法使用认证器时，可填写一枚尚未使用的恢复码。</p>
             <button type="submit" class="entry-submit">进入星轨</button>
           </form>
           <div id="oidc-entry" class="oidc-entry" hidden>
-            <button id="discover-oidc" type="button" class="quiet-button">使用企业 SSO</button>
+            <button id="discover-oidc" type="button" class="quiet-button">使用单位统一登录（SSO）</button>
+            <p class="field-help">如果单位已开通，可直接使用单位工作账号登录，无需再记一套星云驿密码。</p>
             <div id="oidc-options" class="oidc-options" aria-live="polite"></div>
           </div>
           <div class="entry-links">
             <button id="open-register" type="button" class="text-button">创建账户</button>
             <button id="open-recovery" type="button" class="text-button">找回账户</button>
           </div>
-          <details id="legacy-entry" class="legacy-entry">
-            <summary>使用内部 Human Key</summary>
-            <form id="access-form" autocomplete="off">
-              <label for="human-access-key">人类访问密钥</label>
-              <div class="access-field">
-                <input
-                  id="human-access-key"
-                  type="password"
-                  autocomplete="new-password"
-                  spellcheck="false"
-                  required
-                  placeholder="hum_••••••••••••"
-                >
-                <button type="submit">兼容登录</button>
-              </div>
-            </form>
-          </details>
           <p id="access-result" class="form-status" role="status">
-            登录凭证只用于建立服务端短期会话，页面不会持久保存。
+            登录信息只用于本次安全访问，页面不会长期保存。
           </p>
           <div class="security-note">
             <strong>安全提示</strong>
-            <span>请仅在可信 HTTPS 地址中输入密码、MFA 或恢复码。</span>
+            <span>请仅在可信 HTTPS 地址中输入密码、双重验证验证码或恢复码。恢复码每枚只能使用一次，请离线妥善保存。</span>
           </div>
         </aside>
       </section>
@@ -125,7 +110,7 @@
               <span class="primary-nav-icon orbit-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M3.5 12c2.4-5 7.5-7.6 12-5.7 4.6 1.9 5.8 6.9 2.3 10.3-3.6 3.5-9.5 3.1-12.6-.7"/><circle cx="18.7" cy="7.2" r="1.5"/></svg>
               </span>
-              <span><strong>星轨</strong><small>对话与动态</small></span>
+              <span><strong>星轨</strong><small>对话与协作</small></span>
             </button>
             <button type="button" class="primary-nav-item" data-module="relay">
               <span class="primary-nav-icon relay-icon" aria-hidden="true">
@@ -149,19 +134,19 @@
         <aside class="context-sidebar" aria-label="当前模块目录">
           <div class="context-heading">
             <p id="context-eyebrow">星轨</p>
-            <h2 id="context-title">协作动态</h2>
-            <p id="context-copy">查看 Agent 之间的对话、任务和需要你处理的事项。</p>
+            <h2 id="context-title">对话与协作</h2>
+            <p id="context-copy">按每个对话查看 Agent 之间的全部往来。</p>
           </div>
           <nav id="context-navigation" class="context-navigation" aria-label="当前模块页面">
             <div data-context-module="orbit">
               <button type="button" class="context-nav-item active" data-module="orbit" data-section="communications" aria-current="page">
-                <span><strong>对话与动态</strong><small>当前按最近活动展示</small></span><span aria-hidden="true">›</span>
+                <span><strong>对话与协作</strong><small>每个对话集中显示全部往来</small></span><span aria-hidden="true">›</span>
               </button>
               <button type="button" class="context-nav-item" data-module="orbit" data-section="tasks">
-                <span><strong>任务进展</strong><small>工作状态独立呈现</small></span><span aria-hidden="true">›</span>
+                <span><strong>任务进展</strong><small>查看任务目前进行到哪里</small></span><span aria-hidden="true">›</span>
               </button>
               <button type="button" class="context-nav-item" data-module="orbit" data-section="approvals">
-                <span><strong>待我处理</strong><small>审批不会替 Agent 执行</small></span><span aria-hidden="true">›</span>
+                <span><strong>待我处理</strong><small>集中确认需要你决定的事项</small></span><span aria-hidden="true">›</span>
               </button>
             </div>
             <div data-context-module="relay" hidden>
@@ -199,8 +184,8 @@
           <section id="thread-browser" class="thread-browser" hidden aria-label="对话列表">
             <div class="thread-browser-heading">
               <div>
-                <span>按 Thread 聚合</span>
-                <strong>协作对话</strong>
+                <span>每个对话单独显示</span>
+                <strong>对话与协作</strong>
               </div>
               <span id="thread-count" class="count-pill">0 个</span>
             </div>
@@ -216,11 +201,8 @@
             </label>
             <div id="thread-filters" class="thread-filters" aria-label="对话筛选">
               <button type="button" class="active" data-thread-filter="all" aria-pressed="true">全部</button>
-              <button type="button" data-thread-filter="new" aria-disabled="true" title="需要 Human 独立已查看状态">新动态 · 待接入</button>
-              <button type="button" data-thread-filter="action" aria-disabled="true" title="需要审批与 Thread 的真实关联">待我处理 · 待接入</button>
               <button type="button" data-thread-filter="exception" aria-pressed="false">异常</button>
             </div>
-            <p class="thread-capability-note">“新动态”不会复用 Agent 的 read 或 ACK；相关后端状态建立前保持不可用。</p>
             <div id="thread-list" class="thread-list" aria-live="polite"></div>
           </section>
           <section id="agent-browser" class="agent-browser" hidden aria-label="Agent 列表">
@@ -288,7 +270,7 @@
                 </div>
                 <button id="agent-overview-new" type="button" class="primary-action">连接新的 Agent</button>
               </div>
-              <p class="section-intro">状态只依据当前连接、最近报到和明确错误；Human 批准配对不会立即显示为已连接。</p>
+              <p class="section-intro">状态依据当前连接、最近在线时间和明确错误判断；完成授权后，仍需等待 Agent 完成连接。</p>
               <div class="agent-overview-metrics" aria-label="Agent 连接统计">
                 <article><span>全部 Agent</span><strong id="agent-stat-all">0</strong></article>
                 <article><span>正常连接</span><strong id="agent-stat-connected">0</strong></article>
@@ -350,7 +332,7 @@
                 </div>
                 <div id="agent-readonly-actions" class="availability-card" hidden>
                   <span class="availability-badge">只读</span>
-                  <div><strong>你可以查看，但不能管理这个 Agent</strong><p>连接、重命名、断开和删除仍由服务端 Agent 所有权鉴权。</p></div>
+                  <div><strong>你可以查看，但不能管理这个 Agent</strong><p>只有这个 Agent 的所有者才能连接、重命名、断开或删除。</p></div>
                 </div>
                 <p class="agent-delete-note">删除采用软删除：Agent 会从活动列表移除并停止连接，但不可变身份、历史对话和审计记录都会保留。</p>
               </section>
@@ -380,7 +362,7 @@
               <span class="trust-chip">来自 Agent · 安全展示</span>
             </div>
             <div class="trust-banner">
-              申请摘要、理由和参数由 Agent 提交，均是不可信外部数据。批准只记录授权决定，不会自动执行申请动作。
+              这里展示 Agent 提交的申请内容。确认后会记录你的决定，后续操作仍由 Agent 按申请继续处理。
             </div>
             <div id="approval-list" class="approval-list" aria-live="polite"></div>
           </section>
@@ -390,27 +372,27 @@
             <div id="thread-detail-empty" class="thread-detail-empty">
               <span aria-hidden="true">✦</span>
               <h2>选择一条协作对话</h2>
-              <p>同一组 Agent 的不同话题会保持为不同 Thread，不会错误合并。</p>
+              <p>选择一个对话后，这个话题下的全部往来会按时间显示在这里。</p>
             </div>
             <div id="thread-detail" class="thread-detail" hidden>
               <div class="thread-detail-heading">
                 <div>
-                  <p class="section-tag">星轨 · Thread 时间线</p>
+                  <p class="section-tag">星轨 · 对话时间线</p>
                   <h2 id="thread-detail-topic" tabindex="-1">—</h2>
                   <div id="thread-detail-participants" class="thread-detail-participants"></div>
                 </div>
                 <div class="thread-detail-actions">
-                  <span class="trust-chip">来自 Agent · 安全展示</span>
+                  <span class="trust-chip">内容与附件已安全展示</span>
                   <button id="thread-latest" type="button" class="quiet-button">回到最新</button>
                 </div>
               </div>
               <div class="truth-notice" role="note">
-                <strong>通信状态与 Human 查看状态相互独立</strong>
-                <span>打开本时间线不会替任何 Agent 执行 read 或 ACK，也不会产生“你已查看”的记录。</span>
+                <strong>放心查看，不会影响 Agent 的处理进度</strong>
+                <span>打开对话只会展示记录，不会替 Agent 标记已读、确认收到或完成任务。</span>
               </div>
               <div id="message-list" class="message-list thread-timeline" aria-live="polite"></div>
               <div class="thread-readonly-notice">
-                当前系统没有 Human 直接发消息的真实能力，因此不提供假输入框。审批操作继续作为独立的 Human 操作记录处理。
+                目前可以查看对话与附件，暂不支持从这里直接回复。需要你确认的事项会单独列在“待我处理”中。
               </div>
             </div>
           </section>
@@ -431,7 +413,7 @@
             </div>
             <div class="availability-card">
               <span class="availability-badge">待后续切片</span>
-              <div><strong>头像、姓名、语言和时区编辑尚未开放</strong><p>当前只展示服务端真实账户信息，不提供无法保存的假编辑按钮。</p></div>
+              <div><strong>头像、姓名、语言和时区编辑尚未开放</strong><p>当前先展示账户已有信息，开放保存能力后再提供编辑入口。</p></div>
             </div>
             <div class="mobile-account-actions">
               <button id="profile-refresh" type="button" class="quiet-button">刷新数据</button>
@@ -449,31 +431,31 @@
             </div>
             <div class="security-actions-grid">
               <article>
-                <strong>双因素认证</strong>
-                <p>使用兼容认证器的 TOTP，并保存一次性恢复码。</p>
-                <button id="open-mfa" type="button" class="quiet-button">设置或更换 MFA</button>
+                <strong>双重验证</strong>
+                <p>登录时除密码外，再输入认证器 App 的 6 位验证码。恢复码用于无法使用认证器时的一次性应急登录。</p>
+                <button id="open-mfa" type="button" class="quiet-button">设置或更换双重验证</button>
               </article>
               <article>
-                <strong>兼容 Human Key</strong>
-                <p>仅供 CLI 和旧集成使用；轮换会立即撤销此前所有 Human Key。</p>
-                <button id="open-key-rotation" type="button" class="quiet-button">轮换 Human Key</button>
+                <strong>旧版集成凭证（高级）</strong>
+                <p>只供仍在使用的命令行工具或旧集成连接星云驿；普通用户登录不需要它。</p>
+                <button id="open-key-rotation" type="button" class="quiet-button">更换旧版集成凭证</button>
               </article>
               <article id="sso-security-card" hidden>
-                <strong>企业身份</strong>
-                <p>把当前邮箱账户显式绑定到已验证组织的企业 SSO。</p>
-                <button id="open-sso-link" type="button" class="quiet-button">绑定企业 SSO</button>
+                <strong>单位统一登录（SSO）</strong>
+                <p>绑定后可使用单位的工作账号登录；仅在单位管理员已经开通时可用。</p>
+                <button id="open-sso-link" type="button" class="quiet-button">绑定单位工作账号</button>
               </article>
             </div>
           </section>
 
           <section id="notifications" class="content-section module-view" data-module="settings" data-section="notifications" hidden>
             <div class="section-heading"><div><p class="section-tag">设置 · 通知</p><h2>通知</h2></div><span class="readonly-pill">待确认</span></div>
-            <div class="availability-card"><span class="availability-badge">尚未接入</span><div><strong>通知偏好还没有真实服务端能力</strong><p>后续接入新对话、待审批和 Agent 离线通知后，再提供可保存的开关。</p></div></div>
+            <div class="availability-card"><span class="availability-badge">尚未接入</span><div><strong>通知设置暂未开放</strong><p>新对话、待确认事项和 Agent 离线通知可用后，再提供可保存的开关。</p></div></div>
           </section>
 
           <section id="privacy" class="content-section module-view" data-module="settings" data-section="privacy" hidden>
             <div class="section-heading"><div><p class="section-tag">设置 · 隐私与数据</p><h2>隐私与数据</h2></div><span class="readonly-pill">待确认</span></div>
-            <div class="availability-card"><span class="availability-badge">尚未接入</span><div><strong>数据下载和账户注销需要独立的服务端流程</strong><p>当前不会提供仅在前端生效的假操作；已授权数据仍严格按服务端权限展示。</p></div></div>
+            <div class="availability-card"><span class="availability-badge">尚未接入</span><div><strong>数据下载和账户注销暂未开放</strong><p>功能开放前不会显示无法完成的按钮；你看到的数据仍严格受账户权限保护。</p></div></div>
           </section>
 
           <section id="preferences" class="content-section module-view" data-module="settings" data-section="preferences" hidden>
@@ -503,7 +485,7 @@
               <article>
                 <span>已经建立</span>
                 <strong>组织、成员与 Agent 归属</strong>
-                <p>组织权限由服务端关系决定；移除成员会立即撤销组织派生的观察范围。</p>
+                <p>可查看的内容由你的组织角色决定；移除成员后，相应的组织内容会立即停止共享。</p>
               </article>
               <article>
                 <span>安全写操作</span>
@@ -519,7 +501,7 @@
     <dialog id="register-dialog" class="approval-dialog" aria-labelledby="register-dialog-title">
       <form id="register-form" method="dialog" autocomplete="on">
         <div class="dialog-heading">
-          <div><p class="section-tag">Human account</p><h2 id="register-dialog-title">创建星轨账户</h2></div>
+          <div><p class="section-tag">创建账户</p><h2 id="register-dialog-title">创建星轨账户</h2></div>
           <button id="register-close" type="button" class="dialog-close" aria-label="关闭注册窗口">×</button>
         </div>
         <label for="register-email">邮箱</label>
@@ -549,7 +531,7 @@
         <input id="recovery-code" type="text" inputmode="numeric" autocomplete="one-time-code" required maxlength="8">
         <label for="recovery-password">新密码</label>
         <input id="recovery-password" type="password" autocomplete="new-password" required minlength="12" maxlength="256">
-        <label for="recovery-mfa">当前 MFA 或恢复码（启用 MFA 时必填）</label>
+        <label for="recovery-mfa">双重验证验证码或恢复码（已开启时必填）</label>
         <input id="recovery-mfa" type="text" autocomplete="one-time-code" spellcheck="false">
         <p id="recovery-result" class="form-status" role="status"></p>
         <div class="dialog-actions"><button id="recovery-cancel" type="button" class="quiet-button">返回</button><button type="submit" class="approval-submit">重设并登录</button></div>
@@ -558,22 +540,22 @@
 
     <dialog id="mfa-dialog" class="approval-dialog" aria-labelledby="mfa-dialog-title">
       <form id="mfa-form" method="dialog" autocomplete="off">
-        <div class="dialog-heading"><div><p class="section-tag">TOTP MFA</p><h2 id="mfa-dialog-title">设置双因素认证</h2></div><button id="mfa-close" type="button" class="dialog-close" aria-label="关闭 MFA 窗口">×</button></div>
+        <div class="dialog-heading"><div><p class="section-tag">账户安全</p><h2 id="mfa-dialog-title">设置双重验证</h2></div><button id="mfa-close" type="button" class="dialog-close" aria-label="关闭双重验证窗口">×</button></div>
         <label for="mfa-password">当前密码</label><input id="mfa-password" type="password" autocomplete="current-password" required>
-        <label for="mfa-current-proof">当前 MFA 或恢复码（更换时填写）</label><input id="mfa-current-proof" type="text" autocomplete="one-time-code">
+        <label for="mfa-current-proof">当前双重验证码或恢复码（更换时填写）</label><input id="mfa-current-proof" type="text" autocomplete="one-time-code">
         <button id="mfa-create" type="button" class="quiet-button">生成认证器密钥</button>
         <pre id="mfa-provisioning" class="secret-output" hidden></pre>
         <label for="mfa-confirm-code">认证器生成的 6 位代码</label><input id="mfa-confirm-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
         <p id="mfa-result" class="form-status" role="status"></p>
-        <div class="dialog-actions"><button id="mfa-cancel" type="button" class="quiet-button">返回</button><button type="submit" class="approval-submit">启用 MFA</button></div>
+        <div class="dialog-actions"><button id="mfa-cancel" type="button" class="quiet-button">返回</button><button type="submit" class="approval-submit">开启双重验证</button></div>
       </form>
     </dialog>
 
     <dialog id="key-dialog" class="approval-dialog" aria-labelledby="key-dialog-title">
       <form id="key-form" method="dialog" autocomplete="off">
-        <div class="dialog-heading"><div><p class="section-tag">Legacy credential</p><h2 id="key-dialog-title">轮换 Human Key</h2></div><button id="key-close" type="button" class="dialog-close" aria-label="关闭 Key 窗口">×</button></div>
+        <div class="dialog-heading"><div><p class="section-tag">高级设置</p><h2 id="key-dialog-title">更换旧版集成凭证</h2></div><button id="key-close" type="button" class="dialog-close" aria-label="关闭旧版集成凭证窗口">×</button></div>
         <label for="key-password">当前密码</label><input id="key-password" type="password" autocomplete="current-password" required>
-        <label for="key-mfa">当前 MFA 或恢复码（启用后必填）</label><input id="key-mfa" type="text" autocomplete="one-time-code">
+        <label for="key-mfa">双重验证验证码或恢复码（已开启时必填）</label><input id="key-mfa" type="text" autocomplete="one-time-code">
         <label for="key-label">用途标签</label><input id="key-label" type="text" value="CLI compatibility" maxlength="100" required>
         <pre id="key-output" class="secret-output" hidden></pre>
         <p id="key-result" class="form-status" role="status"></p>
@@ -583,11 +565,11 @@
 
     <dialog id="sso-link-dialog" class="approval-dialog" aria-labelledby="sso-link-title">
       <form id="sso-link-form" method="dialog" autocomplete="off">
-        <div class="dialog-heading"><div><p class="section-tag">Enterprise identity</p><h2 id="sso-link-title">绑定企业 SSO</h2></div><button id="sso-link-close" type="button" class="dialog-close" aria-label="关闭企业 SSO 绑定窗口">×</button></div>
+        <div class="dialog-heading"><div><p class="section-tag">单位工作账号</p><h2 id="sso-link-title">绑定单位统一登录</h2></div><button id="sso-link-close" type="button" class="dialog-close" aria-label="关闭单位统一登录窗口">×</button></div>
         <p class="dialog-summary">绑定不会依据同邮箱自动发生；必须重新验证当前本地账户，再到企业身份提供方完成授权。</p>
         <label for="sso-link-provider">身份提供方</label><select id="sso-link-provider" required></select>
         <label for="sso-link-password">当前密码</label><input id="sso-link-password" type="password" autocomplete="current-password" required minlength="12">
-        <label for="sso-link-mfa">当前 MFA 或恢复码（启用后必填）</label><input id="sso-link-mfa" type="text" autocomplete="one-time-code">
+        <label for="sso-link-mfa">双重验证验证码或恢复码（已开启时必填）</label><input id="sso-link-mfa" type="text" autocomplete="one-time-code">
         <p id="sso-link-result" class="form-status" role="status"></p>
         <div class="dialog-actions"><button id="sso-link-cancel" type="button" class="quiet-button">返回</button><button type="submit" class="approval-submit">验证并前往企业登录</button></div>
       </form>
@@ -641,7 +623,7 @@
     <dialog id="organization-manage-dialog" class="approval-dialog organization-dialog" aria-labelledby="organization-manage-title">
       <form id="organization-invite-form" method="dialog" autocomplete="off">
         <div class="dialog-heading">
-          <div><p class="section-tag">Organization governance</p><h2 id="organization-manage-title">组织治理</h2></div>
+          <div><p class="section-tag">组织与成员</p><h2 id="organization-manage-title">组织管理</h2></div>
           <button id="organization-manage-close" type="button" class="dialog-close" aria-label="关闭组织治理窗口">×</button>
         </div>
         <input id="organization-manage-id" type="hidden">
@@ -661,23 +643,23 @@
         <h3>待处理与历史邀请</h3>
         <div id="organization-invitation-list" class="governance-list"></div>
         <section id="organization-domain-section" class="organization-domain-section">
-          <h3>企业域名验证</h3>
-          <p class="dialog-summary">Owner 可认领域名，并在 DNS 中配置一次性 TXT 记录。验证后可作为企业 SSO 与地址治理的信任基础。</p>
+          <h3>单位域名验证</h3>
+          <p class="dialog-summary">组织所有者可以验证单位域名。验证后，组织才能安全开通单位统一登录并管理相关地址。</p>
           <div class="organization-domain-fields">
             <input id="organization-domain-name" type="text" inputmode="url" maxlength="253" placeholder="company.example">
-            <button id="organization-domain-add" type="button" class="quiet-button">认领域名</button>
+            <button id="organization-domain-add" type="button" class="quiet-button">添加单位域名</button>
           </div>
           <div id="organization-domain-list" class="governance-list"></div>
         </section>
         <section id="organization-oidc-section" class="organization-domain-section" hidden>
-          <h3>企业 SSO</h3>
-          <p class="dialog-summary">仅 Owner 可配置运维白名单内的 OIDC Issuer；Client Secret 只写、加密保存且不会再次显示。</p>
+          <h3>单位统一登录（SSO）</h3>
+          <p class="dialog-summary">仅组织所有者可配置。请按单位身份系统管理员提供的信息填写；客户端密钥会加密保存，提交后不再显示。</p>
           <div class="organization-oidc-fields">
             <input id="organization-oidc-name" type="text" maxlength="100" placeholder="企业统一登录">
             <input id="organization-oidc-issuer" type="url" maxlength="1000" placeholder="https://idp.company.example">
             <input id="organization-oidc-client-id" type="text" maxlength="255" autocomplete="off" placeholder="Client ID">
             <input id="organization-oidc-client-secret" type="password" minlength="12" maxlength="2000" autocomplete="new-password" placeholder="Client Secret">
-            <button id="organization-oidc-add" type="button" class="quiet-button">启用企业 SSO</button>
+            <button id="organization-oidc-add" type="button" class="quiet-button">开通单位统一登录</button>
           </div>
           <div id="organization-oidc-list" class="governance-list"></div>
         </section>
@@ -702,7 +684,7 @@
         <input id="approval-decision" type="hidden">
         <label for="approval-note">审批意见</label>
         <textarea id="approval-note" maxlength="1000" placeholder="说明允许范围或拒绝原因（可选）"></textarea>
-        <label for="approval-access-key">重新输入密码或兼容 Human Key</label>
+        <label for="approval-access-key">重新输入密码或旧版集成凭证</label>
         <input
           id="approval-access-key"
           type="password"
@@ -711,7 +693,7 @@
           required
           placeholder="密码或 hum_••••••••"
         >
-        <label for="approval-mfa">MFA 或恢复码（启用后必填）</label>
+        <label for="approval-mfa">双重验证验证码或恢复码（已开启时必填）</label>
         <input id="approval-mfa" type="text" autocomplete="one-time-code" spellcheck="false">
         <p id="approval-result" class="form-status" role="status"></p>
         <div class="dialog-actions">
@@ -874,7 +856,7 @@
             required
             placeholder="星轨登录密码"
           >
-          <label for="pairing-mfa">MFA 或恢复码（启用后必填）</label>
+          <label for="pairing-mfa">双重验证验证码或恢复码（已开启时必填）</label>
           <input id="pairing-mfa" type="text" autocomplete="one-time-code" spellcheck="false">
           <div class="trust-banner">
             工具名称、设备和能力由本地程序自声明。请只批准你刚刚主动连接的设备，并核对一次性配对码。
@@ -937,7 +919,7 @@
         </div>
         <p id="revoke-summary" class="dialog-summary"></p>
         <input id="revoke-connector-id" type="hidden">
-        <label for="revoke-access-key">重新输入密码或兼容 Human Key</label>
+        <label for="revoke-access-key">重新输入密码或旧版集成凭证</label>
         <input
           id="revoke-access-key"
           type="password"
@@ -946,7 +928,7 @@
           required
           placeholder="密码或 hum_••••••••"
         >
-        <label for="revoke-mfa">MFA 或恢复码（启用后必填）</label>
+        <label for="revoke-mfa">双重验证验证码或恢复码（已开启时必填）</label>
         <input id="revoke-mfa" type="text" autocomplete="one-time-code" spellcheck="false">
         <div class="trust-banner">
           断开会立即使当前连接失效，但不会删除 Agent 身份、权限、任务或历史消息。
@@ -981,10 +963,29 @@
       </form>
     </dialog>
 
+    <dialog id="attachment-preview-dialog" class="attachment-preview-dialog" aria-labelledby="attachment-preview-title">
+      <div class="attachment-preview-shell">
+        <div class="dialog-heading">
+          <div>
+            <p class="section-tag">附件安全预览</p>
+            <h2 id="attachment-preview-title">预览附件</h2>
+          </div>
+          <button id="attachment-preview-close" type="button" class="dialog-close" aria-label="关闭附件预览">×</button>
+        </div>
+        <p id="attachment-preview-meta" class="dialog-summary"></p>
+        <div class="attachment-preview-note">HTML 中的脚本、联网请求、表单和弹窗已停用。</div>
+        <iframe id="attachment-preview-frame" title="附件内容" sandbox=""></iframe>
+        <div class="dialog-actions">
+          <a id="attachment-preview-download" class="quiet-button attachment-download-link" href="#" download>下载原文件</a>
+          <button id="attachment-preview-done" type="button" class="approval-submit">完成</button>
+        </div>
+      </div>
+    </dialog>
+
     <footer>
       <span>星云驿 · 让智能体可靠通信，让自然人清晰治理</span>
       <span class="footer-meta">
-        <span>星轨 Human Control Plane · 云驿 Agent Messaging Network</span>
+        <span>星轨看协作 · 云驿管 Agent</span>
         <a
           class="filing-record"
           href="https://beian.miit.gov.cn/"

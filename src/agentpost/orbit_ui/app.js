@@ -50,8 +50,6 @@ const state = {
 const elements = {
   welcomeView: document.querySelector("#welcome-view"),
   workspaceView: document.querySelector("#workspace-view"),
-  accessForm: document.querySelector("#access-form"),
-  accessKey: document.querySelector("#human-access-key"),
   loginForm: document.querySelector("#login-form"),
   loginEmail: document.querySelector("#login-email"),
   loginPassword: document.querySelector("#login-password"),
@@ -61,7 +59,6 @@ const elements = {
   oidcOptions: document.querySelector("#oidc-options"),
   openRegister: document.querySelector("#open-register"),
   openRecovery: document.querySelector("#open-recovery"),
-  legacyEntry: document.querySelector("#legacy-entry"),
   accessResult: document.querySelector("#access-result"),
   connectionState: document.querySelector("#connection-state"),
   refresh: document.querySelector("#refresh-dashboard"),
@@ -136,6 +133,13 @@ const elements = {
   taskList: document.querySelector("#task-list"),
   approvalList: document.querySelector("#approval-list"),
   messageList: document.querySelector("#message-list"),
+  attachmentPreviewDialog: document.querySelector("#attachment-preview-dialog"),
+  attachmentPreviewTitle: document.querySelector("#attachment-preview-title"),
+  attachmentPreviewMeta: document.querySelector("#attachment-preview-meta"),
+  attachmentPreviewFrame: document.querySelector("#attachment-preview-frame"),
+  attachmentPreviewDownload: document.querySelector("#attachment-preview-download"),
+  attachmentPreviewClose: document.querySelector("#attachment-preview-close"),
+  attachmentPreviewDone: document.querySelector("#attachment-preview-done"),
   connectorList: document.querySelector("#connector-list"),
   securityStatus: document.querySelector("#security-status"),
   openMfa: document.querySelector("#open-mfa"),
@@ -317,8 +321,8 @@ const elements = {
 const MODULE_DEFINITIONS = Object.freeze({
   orbit: Object.freeze({
     label: "星轨",
-    title: "协作动态",
-    description: "查看 Agent 之间的对话、任务和需要你处理的事项。",
+    title: "对话与协作",
+    description: "按每个对话查看 Agent 之间的全部往来。",
     defaultSection: "communications",
     sections: Object.freeze(["communications", "tasks", "approvals"]),
   }),
@@ -685,7 +689,6 @@ function validReauthenticationCandidate(candidate) {
 
 function clearSensitiveInputs() {
   [
-    elements.accessKey,
     elements.loginPassword,
     elements.loginMfa,
     elements.registerCode,
@@ -819,7 +822,7 @@ const ORGANIZATION_ROLE_EXPERIENCE = Object.freeze({
 function organizationRoleExperience(role) {
   return ORGANIZATION_ROLE_EXPERIENCE[role] || Object.freeze({
     capability: "组织角色尚未确认",
-    visibility: "仅显示服务端实际授权返回的范围。",
+    visibility: "只显示你当前获准查看的内容。",
     actions: "界面不会根据未知角色开放治理或 Agent 管理操作。",
   });
 }
@@ -1232,7 +1235,7 @@ async function disableOrganizationOidc(providerId) {
       `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/oidc-providers/${encodeURIComponent(providerId)}`,
       { method: "DELETE", headers: { "X-CSRF-Token": state.csrfToken } },
     );
-    elements.organizationManageResult.textContent = "企业 SSO 已停用；既有 Human 与审计记录保留。";
+    elements.organizationManageResult.textContent = "单位统一登录已停用；已有成员账户和操作记录会继续保留。";
     elements.organizationManageResult.className = "form-status success";
     await loadOrganizationManagement();
   } catch (error) {
@@ -1244,7 +1247,7 @@ async function disableOrganizationOidc(providerId) {
 function renderOrganizationOidcProviders(providers) {
   elements.organizationOidcList.replaceChildren();
   if (!providers.length) {
-    elements.organizationOidcList.append(emptyState("尚未配置企业 SSO。"));
+    elements.organizationOidcList.append(emptyState("尚未开通单位统一登录。"));
     return;
   }
   providers.forEach((provider) => {
@@ -1280,7 +1283,7 @@ async function addOrganizationOidcProvider() {
     !payload.client_id ||
     payload.client_secret.length < 12
   ) {
-    elements.organizationManageResult.textContent = "请完整填写企业 SSO 配置；Client Secret 至少 12 个字符。";
+    elements.organizationManageResult.textContent = "请完整填写单位登录配置；客户端密钥至少 12 个字符。";
     elements.organizationManageResult.className = "form-status error";
     return;
   }
@@ -1298,7 +1301,7 @@ async function addOrganizationOidcProvider() {
     elements.organizationOidcIssuer.value = "";
     elements.organizationOidcClientId.value = "";
     elements.organizationOidcClientSecret.value = "";
-    elements.organizationManageResult.textContent = "企业 SSO 已启用；Client Secret 不会再次显示。";
+    elements.organizationManageResult.textContent = "单位统一登录已开通；客户端密钥不会再次显示。";
     elements.organizationManageResult.className = "form-status success";
     await loadOrganizationManagement();
   } catch (error) {
@@ -1517,7 +1520,7 @@ function renderAgents(agents) {
 function agentConnectionCopy(agent) {
   const copies = {
     connected: `${safeText(agent.current_connector_name, agent.current_connector_type || "当前连接")} 正常连接，最近报到 ${dateText(agent.current_connector_last_heartbeat_at)}`,
-    awaiting_agent: "Human 已授权，等待 Agent 在本机完成安全设置和首次报到",
+    awaiting_agent: "你已完成授权，正在等待 Agent 完成设置并首次上线",
     disconnected: "没有当前有效连接；Agent 身份和历史仍保留",
     offline: `曾经连接，但最近报到已超时（${dateText(agent.current_connector_last_heartbeat_at)}）`,
     connection_error: `检测到明确连接异常${agent.current_connector_error_code ? `：${safeText(agent.current_connector_error_code)}` : ""}`,
@@ -1701,7 +1704,7 @@ function renderCurrentAgentConnection(agent) {
   const technical = document.createElement("details");
   technical.className = "agent-technical-details";
   const summary = document.createElement("summary");
-  summary.textContent = "查看连接技术信息";
+  summary.textContent = "查看连接详情";
   const version = document.createElement("p");
   version.textContent = `连接版本：${safeText(agent.current_connector_version, "未提供")}`;
   technical.append(summary, version);
@@ -1728,7 +1731,7 @@ function renderAgentConnectionHistory(agent) {
 function renderAgentAccess(agent) {
   elements.agentDetailAccess.replaceChildren();
   elements.agentDetailAccess.append(
-    detailFact("当前权限", statusLabel(agent.role), "按钮显示不代替服务端鉴权。"),
+    detailFact("当前权限", statusLabel(agent.role), "可执行的操作以你的实际权限为准。"),
     detailFact("权限来源", agent.access_source === "organization" ? "组织派生" : "直接关系"),
     detailFact("所属组织", agent.organization?.name || "个人范围"),
     detailFact(
@@ -1784,7 +1787,7 @@ function renderAgentDetail(agent) {
     detailFact("常用名称", agentDisplayName(agent)),
     detailFact("显示名称", agent.display_name),
     detailFact("最近活动", dateText(agent.last_seen_at)),
-    detailFact("待 Agent 读取", agent.unread_count, "这是 Agent Delivery 状态，不是 Human 新动态。"),
+    detailFact("待 Agent 读取", agent.unread_count, "表示消息还未被 Agent 读取。"),
     detailFact("进行中任务", agent.pending_task_count),
   );
   const identity = document.createElement("details");
@@ -1973,7 +1976,7 @@ function openRevokeDialog(connector) {
   elements.revokeConnectorId.value = safeText(connector.connector_id, "");
   const agentLabel = connector.agent?.handle || connector.agent?.display_name || connector.agent?.address;
   elements.revokeSummary.textContent = `将断开 ${safeText(agentLabel, "这个 Agent")} 当前使用的 ${safeText(connector.display_name)} 连接。`;
-  elements.revokeResult.textContent = "请重新输入当前密码（或兼容 Human Key）；凭证验证后立即清除。";
+  elements.revokeResult.textContent = "请重新输入当前密码（或旧版集成凭证）；验证后输入内容会立即清除。";
   elements.revokeResult.className = "form-status";
   elements.revokeDialog.showModal();
   elements.revokeAccessKey.focus();
@@ -2014,7 +2017,7 @@ function connectorCard(connector, historical = false) {
   const technicalDetails = document.createElement("details");
   technicalDetails.className = "connector-technical-details";
   const technicalSummary = document.createElement("summary");
-  technicalSummary.textContent = "查看连接技术信息";
+  technicalSummary.textContent = "查看连接详情";
   const technicalFacts = document.createElement("dl");
   [
     ["规范地址", connector.agent?.address],
@@ -2440,7 +2443,7 @@ async function decidePairing(event, forcedDecision = null) {
   const payload = pairingPayload(decision);
   const payloadProblem = pairingPayloadProblem(decision, payload);
   if (!state.csrfToken || !pairingId.startsWith("pair_") || !userCode || !validReauthenticationCandidate(humanKey)) {
-    elements.pairingResult.textContent = "请填写有效的配对 ID、一次性配对码和当前密码（或兼容 Human Key）。";
+    elements.pairingResult.textContent = "请填写有效的配对信息、一次性配对码和当前密码（或旧版集成凭证）。";
     elements.pairingResult.className = "form-status error";
     return;
   }
@@ -2462,7 +2465,7 @@ async function decidePairing(event, forcedDecision = null) {
   }
   elements.pairingSubmit.disabled = true;
   elements.pairingDeny.disabled = true;
-  elements.pairingResult.textContent = "正在验证配对码和 Human 身份…";
+  elements.pairingResult.textContent = "正在验证配对码和你的身份…";
   elements.pairingResult.className = "form-status";
   try {
     let confirmation;
@@ -2538,7 +2541,7 @@ async function revokeConnector(event) {
   const humanKey = elements.revokeAccessKey.value.trim();
   const mfa = elements.revokeMfa.value.trim();
   if (!state.csrfToken || !connectorId.startsWith("con_") || !validReauthenticationCandidate(humanKey)) {
-    elements.revokeResult.textContent = "请重新输入当前密码（或兼容 Human Key）。";
+    elements.revokeResult.textContent = "请重新输入当前密码（或旧版集成凭证）。";
     elements.revokeResult.className = "form-status error";
     return;
   }
@@ -2698,7 +2701,7 @@ function openApprovalDialog(approval, decision) {
     "申请内容因审计角色而隐藏。",
   );
   elements.approvalSubmit.textContent = decision === "approved" ? "确认批准" : "确认拒绝";
-  elements.approvalResult.textContent = "请重新输入当前密码（或兼容 Human Key）；凭证验证后立即清除。";
+  elements.approvalResult.textContent = "请重新输入当前密码（或旧版集成凭证）；验证后输入内容会立即清除。";
   elements.approvalDialog.showModal();
   elements.approvalAccessKey.focus();
 }
@@ -2776,6 +2779,17 @@ function renderApprovals(approvals) {
 
 function agentDisplayName(agent) {
   return safeText(agent?.handle, agent?.display_name || agent?.address || "Agent");
+}
+
+function agentOwnerLabel(agent, { currentAsMe = false } = {}) {
+  if (currentAsMe && agent?.owned_by_current_human) {
+    return "我";
+  }
+  return safeText(agent?.owner_display_name, "归属人待确认");
+}
+
+function agentConversationLabel(agent, options = {}) {
+  return `${agentOwnerLabel(agent, options)} · ${agentDisplayName(agent)}`;
 }
 
 function agentTypeLabel(agent) {
@@ -2893,7 +2907,7 @@ function renderThreadList() {
       elements.threadList.append(emptyState("Agent 已连接或已授权，但目前还没有产生协作对话。"));
     } else {
       elements.threadList.append(emptyStateWithAction(
-        "连接 Agent 后，它们之间的真实 Thread 会出现在这里。",
+        "连接 Agent 后，它们之间的协作对话会出现在这里。",
         "去云驿连接 Agent",
         () => activateRoute("relay", "connections", { focusContent: true }),
       ));
@@ -2928,7 +2942,7 @@ function renderThreadList() {
     (thread.participants || []).slice(0, 3).forEach((agent) => avatars.append(agentAvatar(agent)));
     const names = document.createElement("span");
     names.className = "thread-participant-names";
-    names.textContent = (thread.participants || []).map(agentDisplayName).join("、") || "参与 Agent 待确认";
+    names.textContent = (thread.participants || []).map(agentConversationLabel).join("、") || "参与者待确认";
     participants.append(avatars, names);
 
     const preview = document.createElement("span");
@@ -3005,7 +3019,7 @@ function participantChip(agent) {
     item.title = "你可以在本对话中识别该 Agent，但没有它的管理入口";
   }
   const label = document.createElement("span");
-  label.textContent = `${agentDisplayName(agent)} · ${agentTypeLabel(agent)}`;
+  label.textContent = `${agentOwnerLabel(agent)} · ${agentDisplayName(agent)} · ${agentTypeLabel(agent)}`;
   item.append(agentAvatar(agent), label);
   return item;
 }
@@ -3077,12 +3091,61 @@ function appendThreadAttachments(message, body) {
     name.textContent = safeText(attachment.filename, "未命名附件");
     const info = document.createElement("span");
     info.textContent = `${safeText(attachment.content_type, "未知类型")} · ${formatFileSize(attachment.size)}`;
-    const pending = document.createElement("span");
-    pending.textContent = "安全预览与授权下载将在附件切片接入";
-    card.append(name, info, pending);
+    const actions = document.createElement("div");
+    actions.className = "thread-attachment-actions";
+    const normalizedType = safeText(attachment.content_type, "").split(";", 1)[0].trim().toLowerCase();
+    const attachmentId = encodeURIComponent(String(attachment.id));
+    const downloadUrl = `/api/v1/orbit/attachments/${attachmentId}`;
+    const previewUrl = `${downloadUrl}/preview`;
+
+    if (normalizedType === "application/pdf") {
+      const open = document.createElement("a");
+      open.className = "thread-attachment-action";
+      open.href = previewUrl;
+      open.target = "_blank";
+      open.rel = "noopener noreferrer";
+      open.textContent = "打开 PDF";
+      actions.append(open);
+    } else if (normalizedType === "text/html") {
+      const preview = document.createElement("button");
+      preview.type = "button";
+      preview.className = "thread-attachment-action";
+      preview.textContent = "安全预览";
+      preview.addEventListener("click", () => openAttachmentPreview(attachment));
+      actions.append(preview);
+    }
+
+    const download = document.createElement("a");
+    download.className = "thread-attachment-action";
+    download.href = downloadUrl;
+    download.download = safeText(attachment.filename, "attachment");
+    download.textContent = "下载";
+    actions.append(download);
+    card.append(name, info, actions);
     list.append(card);
   });
   body.append(list);
+}
+
+function closeAttachmentPreview() {
+  elements.attachmentPreviewFrame.removeAttribute("src");
+  elements.attachmentPreviewDownload.removeAttribute("href");
+  elements.attachmentPreviewMeta.textContent = "";
+  if (elements.attachmentPreviewDialog.open) {
+    elements.attachmentPreviewDialog.close();
+  }
+}
+
+function openAttachmentPreview(attachment) {
+  const attachmentId = encodeURIComponent(String(attachment.id));
+  const downloadUrl = `/api/v1/orbit/attachments/${attachmentId}`;
+  elements.attachmentPreviewTitle.textContent = safeText(attachment.filename, "预览附件");
+  elements.attachmentPreviewMeta.textContent = `${safeText(attachment.content_type, "未知类型")} · ${formatFileSize(attachment.size)}`;
+  elements.attachmentPreviewDownload.href = downloadUrl;
+  elements.attachmentPreviewDownload.download = safeText(attachment.filename, "attachment");
+  elements.attachmentPreviewFrame.src = `${downloadUrl}/preview`;
+  elements.attachmentPreviewDialog.showModal();
+  elements.attachmentPreviewDone.focus();
 }
 
 function renderTimelineEvent(message) {
@@ -3093,7 +3156,7 @@ function renderTimelineEvent(message) {
   const heading = document.createElement("strong");
   heading.textContent = `${messageTypeLabel(message.message_type)} · ${safeText(message.subject, "无主题事件")}`;
   const route = document.createElement("span");
-  route.textContent = `${agentDisplayName(message.sender)} → ${agentDisplayName(message.recipient)} · ${dateText(message.created_at)}`;
+  route.textContent = `发送自：${agentConversationLabel(message.sender)}；发送给：${agentConversationLabel(message.recipient, { currentAsMe: true })} · ${dateText(message.created_at)}`;
   const content = document.createElement("span");
   content.textContent = message.content_redacted
     ? "事件内容因当前审计角色而隐藏。"
@@ -3116,7 +3179,7 @@ function renderTimelineMessage(message, messagesById, repliedMessageIds) {
   const identity = document.createElement("div");
   identity.className = "thread-message-identity";
   const sender = document.createElement("strong");
-  sender.textContent = agentDisplayName(message.sender);
+  sender.textContent = `发送自：${agentConversationLabel(message.sender)}`;
   const type = document.createElement("span");
   type.className = "thread-agent-type";
   type.textContent = `${agentTypeLabel(message.sender)} · ${messageTypeLabel(message.message_type)}`;
@@ -3126,7 +3189,7 @@ function renderTimelineMessage(message, messagesById, repliedMessageIds) {
   identity.append(sender, type, time);
   const route = document.createElement("div");
   route.className = "thread-message-route";
-  route.textContent = `发送给 ${agentDisplayName(message.recipient)} · ${agentTypeLabel(message.recipient)}`;
+  route.textContent = `发送给：${agentConversationLabel(message.recipient, { currentAsMe: true })} · ${agentTypeLabel(message.recipient)}`;
   const subject = document.createElement("strong");
   subject.className = "thread-message-subject";
   subject.textContent = safeText(message.subject, "无主题消息");
@@ -3136,18 +3199,18 @@ function renderTimelineMessage(message, messagesById, repliedMessageIds) {
   states.className = "thread-message-states";
   const communication = document.createElement("span");
   communication.className = "thread-state-group";
-  communication.append(document.createTextNode("通信状态"), chip(message.communication_state));
+  communication.append(document.createTextNode("送达情况"), chip(message.communication_state));
   states.append(communication);
   if (repliedMessageIds.has(message.message_id)) {
     const replied = document.createElement("span");
     replied.className = "thread-state-group";
-    replied.append(document.createTextNode("后续状态"), chip("replied"));
+    replied.append(document.createTextNode("回复情况"), chip("replied"));
     states.append(replied);
   }
   if (message.work_state) {
     const work = document.createElement("span");
     work.className = "thread-state-group";
-    work.append(document.createTextNode("工作状态"), chip(message.work_state));
+    work.append(document.createTextNode("任务进度"), chip(message.work_state));
     states.append(work);
   }
   body.append(states);
@@ -3180,7 +3243,7 @@ function renderTimelineMessage(message, messagesById, repliedMessageIds) {
   footer.className = "message-footer";
   const trust = document.createElement("span");
   trust.textContent = message.security_label === "external_agent_content"
-    ? "来自 Agent 的不可信外部内容"
+    ? "由 Agent 提供 · 已按安全方式展示"
     : safeText(message.security_label);
   const identifier = document.createElement("span");
   identifier.textContent = safeText(message.message_id);
@@ -3228,7 +3291,7 @@ function renderThreadDetail(thread) {
 }
 
 async function loadThreadDetail(threadId) {
-  setThreadDetailEmpty("正在读取对话", "只会读取当前 Human 有权查看的 Thread，不会改变 Agent read 或 ACK 状态。");
+  setThreadDetailEmpty("正在读取对话", "只会显示你有权查看的内容，不会改变 Agent 的已读或处理状态。");
   try {
     const thread = await requestJson(`/api/v1/orbit/threads/${encodeURIComponent(threadId)}`);
     if (state.selectedThreadId !== String(threadId)) {
@@ -3271,7 +3334,7 @@ function clearThreadSelection({ updateHistory = true } = {}) {
   state.selectedThread = null;
   updateThreadWorkspaceMode();
   renderThreadList();
-  setThreadDetailEmpty("选择一条协作对话", "同一组 Agent 的不同话题会保持为不同 Thread，不会错误合并。");
+  setThreadDetailEmpty("选择一条协作对话", "选择一个对话后，这个话题下的全部往来会按时间显示在这里。");
   if (updateHistory) {
     history.pushState({ module: "orbit", section: "communications" }, "", threadRouteUrl());
   }
@@ -3294,14 +3357,14 @@ async function loadThreads({ loadSelection = true } = {}) {
   if (loadSelection && state.selectedThreadId) {
     await loadThreadDetail(state.selectedThreadId);
   } else if (!state.selectedThreadId) {
-    setThreadDetailEmpty("选择一条协作对话", "同一组 Agent 的不同话题会保持为不同 Thread，不会错误合并。");
+    setThreadDetailEmpty("选择一条协作对话", "选择一个对话后，这个话题下的全部往来会按时间显示在这里。");
   }
 }
 
 function renderSecurity(security) {
   const password = security.password_configured ? "密码已设置" : "需先找回账户设置密码";
-  const mfa = security.mfa_enabled ? "MFA 已启用" : "MFA 未启用";
-  const keys = `${safeText(security.active_human_keys, "0")} 个兼容 Key`;
+  const mfa = security.mfa_enabled ? "双重验证已开启" : "双重验证未开启";
+  const keys = `${safeText(security.active_human_keys, "0")} 个旧版集成凭证`;
   elements.securityStatus.textContent = `${password} · ${mfa} · ${keys}`;
   elements.openMfa.disabled = !security.password_configured;
   elements.openKeyRotation.disabled = !security.password_configured;
@@ -3429,7 +3492,7 @@ async function loadDashboard() {
     if (state.selectedThreadId) {
       await loadThreadDetail(state.selectedThreadId);
     } else {
-      setThreadDetailEmpty("选择一条协作对话", "同一组 Agent 的不同话题会保持为不同 Thread，不会错误合并。");
+      setThreadDetailEmpty("选择一条协作对话", "选择一个对话后，这个话题下的全部往来会按时间显示在这里。");
     }
     elements.welcomeView.hidden = true;
     elements.workspaceView.hidden = false;
@@ -3462,14 +3525,16 @@ async function loadAuthConfig() {
   elements.openRecovery.hidden = !selfService;
   elements.openRegister.hidden = !Boolean(state.authConfig.open_registration_enabled);
   elements.oidcEntry.hidden = !Boolean(state.authConfig.enterprise_oidc_enabled);
-  elements.legacyEntry.open = !selfService;
+  if (!selfService) {
+    setFormStatus("当前环境尚未开通邮箱登录，请联系管理员。", "error");
+  }
 }
 
 async function discoverEnterpriseOidc() {
   const email = elements.loginEmail.value.trim();
   elements.oidcOptions.replaceChildren();
   if (!email || !email.includes("@")) {
-    setFormStatus("请先填写企业邮箱，再选择企业 SSO。", "error");
+    setFormStatus("请先填写单位邮箱，再选择单位统一登录。", "error");
     elements.loginEmail.focus();
     return;
   }
@@ -3483,14 +3548,14 @@ async function discoverEnterpriseOidc() {
     });
     const providers = Array.isArray(discovered.items) ? discovered.items : [];
     if (providers.length === 0) {
-      setFormStatus("该邮箱域名尚未配置企业 SSO。", "error");
+      setFormStatus("这个邮箱所在单位尚未开通统一登录。", "error");
       return;
     }
     providers.forEach((provider) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "quiet-button";
-      button.textContent = `通过 ${safeText(provider.display_name, "企业 SSO")} 登录`;
+      button.textContent = `使用 ${safeText(provider.display_name, "单位工作账号")} 登录`;
       button.addEventListener("click", async () => {
         button.disabled = true;
         try {
@@ -3510,7 +3575,7 @@ async function discoverEnterpriseOidc() {
       });
       elements.oidcOptions.append(button);
     });
-    setFormStatus("请选择企业身份提供方继续。", "success");
+    setFormStatus("请选择你的单位登录入口继续。", "success");
   } catch (error) {
     setFormStatus(error.message, "error");
   } finally {
@@ -3525,7 +3590,7 @@ async function loginHuman(event) {
   const password = elements.loginPassword.value;
   const proof = mfaProof(elements.loginMfa.value);
   submit.disabled = true;
-  setFormStatus("正在验证邮箱、密码和 MFA…");
+  setFormStatus("正在验证邮箱、密码和双重验证码…");
   try {
     const browserSession = await requestJson("/api/v1/auth/login", {
       method: "POST",
@@ -3626,7 +3691,7 @@ async function registerHuman(event) {
     state.csrfToken = browserSession.csrf_token;
     closeRegisterDialog();
     await loadDashboard();
-    setFormStatus("账户已创建。建议现在启用 MFA。", "success");
+    setFormStatus("账户已创建。建议现在开启双重验证。", "success");
   } catch (error) {
     elements.registerResult.textContent = error.message;
     elements.registerResult.className = "form-status error";
@@ -3660,7 +3725,7 @@ async function recoverHuman(event) {
     state.csrfToken = browserSession.csrf_token;
     closeRecoveryDialog();
     await loadDashboard();
-    setFormStatus("密码已重设，旧会话与兼容 Human Key 已撤销。", "success");
+    setFormStatus("密码已重设，其他浏览器会话和旧版集成凭证已失效。", "success");
   } catch (error) {
     elements.recoveryResult.textContent = error.message;
     elements.recoveryResult.className = "form-status error";
@@ -3733,7 +3798,7 @@ async function confirmMfaSetup(event) {
       body: JSON.stringify({ code: elements.mfaConfirmCode.value.trim() }),
     });
     elements.mfaProvisioning.textContent = `恢复码（仅显示一次，请离线保存）：\n${enabled.recovery_codes.join("\n")}`;
-    elements.mfaResult.textContent = "MFA 已启用。保存恢复码后再关闭窗口。";
+    elements.mfaResult.textContent = "双重验证已开启。恢复码每枚只能使用一次，请保存后再关闭窗口。";
     elements.mfaResult.className = "form-status success";
     state.mfaSetupStarted = false;
     elements.mfaConfirmCode.value = "";
@@ -3774,7 +3839,7 @@ async function rotateHumanKey(event) {
     });
     elements.keyOutput.hidden = false;
     elements.keyOutput.textContent = rotated.access_key;
-    elements.keyResult.textContent = "新 Key 仅显示一次；旧 Human Key 已全部撤销。";
+    elements.keyResult.textContent = "新凭证仅显示一次；以前的旧版集成凭证已全部失效。";
     elements.keyResult.className = "form-status success";
     elements.keyPassword.value = "";
     elements.keyMfa.value = "";
@@ -3785,34 +3850,6 @@ async function rotateHumanKey(event) {
   } finally {
     elements.keyPassword.value = "";
     elements.keyMfa.value = "";
-    submit.disabled = false;
-  }
-}
-
-async function enterOrbit(event) {
-  event.preventDefault();
-  const submit = elements.accessForm.querySelector("button[type='submit']");
-  submit.disabled = true;
-  const candidate = elements.accessKey.value.trim();
-  if (!candidate.startsWith("hum_") || candidate.length < 20) {
-    setFormStatus("请输入有效的 hum_ 人类访问密钥。", "error");
-    submit.disabled = false;
-    return;
-  }
-  setFormStatus("正在验证身份并建立短期安全会话…");
-  try {
-    const browserSession = await requestJson("/api/v1/orbit/session", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${candidate}` },
-    });
-    state.csrfToken = browserSession.csrf_token;
-    elements.accessKey.value = "";
-    await loadDashboard();
-    setFormStatus("身份验证成功，访问密钥已从页面清除。", "success");
-  } catch (error) {
-    elements.accessKey.value = "";
-    setFormStatus(error.message, "error");
-  } finally {
     submit.disabled = false;
   }
 }
@@ -3833,6 +3870,7 @@ async function signOut() {
     closeRevokeDialog();
     closeMfaDialog();
     closeKeyDialog();
+    closeAttachmentPreview();
     closeOrganizationCreateDialog();
     closeOrganizationManagement();
     state.dashboard = null;
@@ -3847,7 +3885,9 @@ async function signOut() {
       setFormStatus("当前视图已关闭，但服务器会话撤销未确认。恢复网络后请再次退出。", "error");
       setConnection("会话撤销未确认", "error");
     }
-    (state.authConfig?.self_service_enabled ? elements.loginEmail : elements.accessKey).focus();
+    if (state.authConfig?.self_service_enabled) {
+      elements.loginEmail.focus();
+    }
   }
 }
 
@@ -3863,7 +3903,7 @@ async function decideApproval(event) {
     return;
   }
   if (!validReauthenticationCandidate(candidate)) {
-    elements.approvalResult.textContent = "请输入当前密码（或有效的兼容 Human Key）。";
+    elements.approvalResult.textContent = "请输入当前密码（或有效的旧版集成凭证）。";
     elements.approvalResult.className = "form-status error";
     return;
   }
@@ -3933,8 +3973,14 @@ async function restoreSession() {
   }
 }
 
-elements.accessForm.addEventListener("submit", enterOrbit);
 elements.loginForm.addEventListener("submit", loginHuman);
+elements.attachmentPreviewClose.addEventListener("click", closeAttachmentPreview);
+elements.attachmentPreviewDone.addEventListener("click", closeAttachmentPreview);
+elements.attachmentPreviewDialog.addEventListener("close", () => {
+  elements.attachmentPreviewFrame.removeAttribute("src");
+  elements.attachmentPreviewDownload.removeAttribute("href");
+  elements.attachmentPreviewMeta.textContent = "";
+});
 elements.discoverOidc.addEventListener("click", discoverEnterpriseOidc);
 elements.openRegister.addEventListener("click", () => {
   elements.registerResult.textContent = "邮箱验证码有效期有限，请在收到后及时完成注册。";
@@ -3947,7 +3993,7 @@ elements.registerClose.addEventListener("click", closeRegisterDialog);
 elements.registerCancel.addEventListener("click", closeRegisterDialog);
 elements.registerDialog.addEventListener("close", closeRegisterDialog);
 elements.openRecovery.addEventListener("click", () => {
-  elements.recoveryResult.textContent = "重设密码将撤销旧浏览器会话与所有兼容 Human Key。";
+  elements.recoveryResult.textContent = "重设密码将退出其他浏览器，并使所有旧版集成凭证失效。";
   elements.recoveryDialog.showModal();
   elements.recoveryEmail.focus();
 });
@@ -3977,7 +4023,7 @@ elements.threadSearchInput.addEventListener("input", () => {
   state.selectedThreadId = "";
   state.selectedThread = null;
   updateThreadWorkspaceMode();
-  setThreadDetailEmpty("选择一条协作对话", "搜索结果只包含当前 Human 有权查看的内容。");
+  setThreadDetailEmpty("选择一条协作对话", "搜索结果只包含你有权查看的内容。");
   history.replaceState(
     { module: "orbit", section: "communications" },
     "",
@@ -4186,7 +4232,7 @@ elements.mfaClose.addEventListener("click", closeMfaDialog);
 elements.mfaCancel.addEventListener("click", closeMfaDialog);
 elements.mfaDialog.addEventListener("close", closeMfaDialog);
 elements.openKeyRotation.addEventListener("click", () => {
-  elements.keyResult.textContent = "轮换后旧 Human Key 将立即失效。";
+  elements.keyResult.textContent = "更换后，以前的旧版集成凭证将立即失效。";
   elements.keyDialog.showModal();
   elements.keyPassword.focus();
 });
@@ -4215,7 +4261,7 @@ window.addEventListener("popstate", () => {
     } else if (state.selectedThreadId) {
       void loadThreadDetail(state.selectedThreadId);
     } else {
-      setThreadDetailEmpty("选择一条协作对话", "同一组 Agent 的不同话题会保持为不同 Thread，不会错误合并。");
+      setThreadDetailEmpty("选择一条协作对话", "选择一个对话后，这个话题下的全部往来会按时间显示在这里。");
     }
   } else if (state.activeModule === "relay" && state.activeSection === "agents") {
     renderAgents(state.dashboard?.agents || []);

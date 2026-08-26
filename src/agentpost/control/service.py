@@ -9,6 +9,7 @@ from sqlalchemy import delete, desc, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
+from agentpost.attachments.models import Attachment
 from agentpost.config import Settings
 from agentpost.control.api_keys import (
     digest_human_key,
@@ -68,6 +69,10 @@ class AgentOwnerActionDeniedError(Exception):
 
 
 class OrbitThreadNotFoundError(Exception):
+    pass
+
+
+class OrbitAttachmentNotFoundError(Exception):
     pass
 
 
@@ -528,13 +533,37 @@ def _connector_types_for_agents(session: Session, agent_ids: set[UUID]) -> dict[
     )
 
 
-def _orbit_message_agent(agent: Agent, connector_types: dict[UUID, str]) -> OrbitMessageAgent:
+def _owner_humans_for_agents(
+    session: Session,
+    agent_ids: set[UUID],
+) -> dict[UUID, HumanUser]:
+    if not agent_ids:
+        return {}
+    return {
+        agent_id: owner
+        for agent_id, owner in session.execute(
+            select(AgentOwnership.agent_id, HumanUser)
+            .join(HumanUser, HumanUser.id == AgentOwnership.human_user_id)
+            .where(AgentOwnership.agent_id.in_(agent_ids))
+        ).all()
+    }
+
+
+def _orbit_message_agent(
+    agent: Agent,
+    connector_types: dict[UUID, str],
+    owner_humans: dict[UUID, HumanUser],
+    current_human_id: UUID,
+) -> OrbitMessageAgent:
+    owner = owner_humans.get(agent.id)
     return OrbitMessageAgent(
         id=agent.id,
         address=agent.address,
         handle=agent.handle,
         display_name=agent.display_name,
         agent_type=connector_types.get(agent.id),
+        owner_display_name=owner.display_name if owner is not None else None,
+        owned_by_current_human=owner is not None and owner.id == current_human_id,
     )
 
 
@@ -563,6 +592,8 @@ def _orbit_message(
     role_map: dict[UUID, str],
     task_results: dict[str, Message],
     connector_types: dict[UUID, str],
+    owner_humans: dict[UUID, HumanUser],
+    current_human_id: UUID,
 ) -> OrbitMessage:
     message, delivery, sender, recipient = row
     content_allowed = _content_allowed(
@@ -574,8 +605,18 @@ def _orbit_message(
     result_payload = message.result_payload or {}
     return OrbitMessage(
         message_id=message.id,
-        sender=_orbit_message_agent(sender, connector_types),
-        recipient=_orbit_message_agent(recipient, connector_types),
+        sender=_orbit_message_agent(
+            sender,
+            connector_types,
+            owner_humans,
+            current_human_id,
+        ),
+        recipient=_orbit_message_agent(
+            recipient,
+            connector_types,
+            owner_humans,
+            current_human_id,
+        ),
         sender_address=sender.address,
         recipient_address=recipient.address,
         subject=message.subject,
@@ -634,12 +675,18 @@ def list_orbit_messages(
     task_ids = [row[0].id for row in rows if row[0].message_type == "task"]
     task_results = _results_for_tasks(session, task_ids)
     connector_types = _connector_types_for_agents(session, set(role_map))
+    owner_humans = _owner_humans_for_agents(
+        session,
+        {agent.id for row in rows for agent in row[2:]},
+    )
     return [
         _orbit_message(
             row,
             role_map=role_map,
             task_results=task_results,
             connector_types=connector_types,
+            owner_humans=owner_humans,
+            current_human_id=user.id,
         )
         for row in rows
     ]
@@ -701,6 +748,7 @@ def _orbit_thread_data(
     list[AccessEntry],
     dict[UUID, str],
     dict[UUID, str],
+    dict[UUID, HumanUser],
     dict[UUID, list[tuple[Message, Delivery, Agent, Agent]]],
     dict[str, Message],
 ]:
@@ -721,6 +769,10 @@ def _orbit_thread_data(
         entries,
         role_map,
         _connector_types_for_agents(session, agent_ids),
+        _owner_humans_for_agents(
+            session,
+            {agent.id for row in rows for agent in row[2:]},
+        ),
         grouped,
         task_results,
     )
@@ -734,7 +786,7 @@ def list_orbit_threads(
     query: str | None,
     agent_id: UUID | None = None,
 ) -> list[OrbitThreadSummary]:
-    entries, role_map, connector_types, grouped, task_results = _orbit_thread_data(
+    entries, role_map, connector_types, owner_humans, grouped, task_results = _orbit_thread_data(
         session,
         user,
     )
@@ -780,7 +832,12 @@ def list_orbit_threads(
                 thread_id=thread_id,
                 topic=first_message.subject or latest_message.subject or "无主题对话",
                 participants=[
-                    _orbit_message_agent(agent, connector_types)
+                    _orbit_message_agent(
+                        agent,
+                        connector_types,
+                        owner_humans,
+                        user.id,
+                    )
                     for agent in sorted(
                         participant_agents.values(),
                         key=lambda item: (item.display_name.casefold(), item.address),
@@ -815,7 +872,7 @@ def get_orbit_thread(
     *,
     thread_id: UUID,
 ) -> OrbitThreadDetail:
-    entries, role_map, connector_types, grouped, task_results = _orbit_thread_data(
+    entries, role_map, connector_types, owner_humans, grouped, task_results = _orbit_thread_data(
         session,
         user,
         thread_id=thread_id,
@@ -832,7 +889,12 @@ def get_orbit_thread(
         thread_id=thread_id,
         topic=rows[0][0].subject or rows[-1][0].subject or "无主题对话",
         participants=[
-            _orbit_message_agent(agent, connector_types)
+            _orbit_message_agent(
+                agent,
+                connector_types,
+                owner_humans,
+                user.id,
+            )
             for agent in sorted(
                 participant_agents.values(),
                 key=lambda item: (item.display_name.casefold(), item.address),
@@ -845,10 +907,46 @@ def get_orbit_thread(
                 role_map=role_map,
                 task_results=task_results,
                 connector_types=connector_types,
+                owner_humans=owner_humans,
+                current_human_id=user.id,
             )
             for row in rows
         ],
     )
+
+
+def get_orbit_attachment(
+    session: Session,
+    user: HumanUser,
+    *,
+    attachment_id: UUID,
+) -> Attachment:
+    attachment = session.get(Attachment, attachment_id)
+    if attachment is None or attachment.state != "attached" or attachment.message_id is None:
+        raise OrbitAttachmentNotFoundError(str(attachment_id))
+
+    entries = list_agent_access(session, user)
+    role_map = {entry.agent.id: entry.role for entry in entries}
+    if not role_map:
+        raise OrbitAttachmentNotFoundError(str(attachment_id))
+
+    deliveries = session.execute(
+        select(Message.sender_agent_id, Delivery.recipient_agent_id)
+        .join(Delivery, Delivery.message_id == Message.id)
+        .where(
+            Message.id == attachment.message_id,
+            or_(
+                Message.sender_agent_id.in_(role_map),
+                Delivery.recipient_agent_id.in_(role_map),
+            ),
+        )
+    ).all()
+    if not any(
+        _content_allowed(role_map, sender_id, recipient_id)
+        for sender_id, recipient_id in deliveries
+    ):
+        raise OrbitAttachmentNotFoundError(str(attachment_id))
+    return attachment
 
 
 def list_orbit_tasks(
@@ -947,12 +1045,18 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
     recent_task_ids = [row[0].id for row in recent_rows if row[0].message_type == "task"]
     recent_task_results = _results_for_tasks(session, recent_task_ids)
     connector_types = _connector_types_for_agents(session, agent_ids)
+    owner_humans = _owner_humans_for_agents(
+        session,
+        {agent.id for row in recent_rows for agent in row[2:]},
+    )
     recent_messages = [
         _orbit_message(
             row,
             role_map=role_map,
             task_results=recent_task_results,
             connector_types=connector_types,
+            owner_humans=owner_humans,
+            current_human_id=user.id,
         )
         for row in recent_rows
     ]

@@ -105,11 +105,12 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert 'data-module="orbit"' in orbit.text
     assert 'data-module="relay"' in orbit.text
     assert 'data-module="settings"' in orbit.text
-    assert "对话与动态" in orbit.text
+    assert "对话与协作" in orbit.text
     assert "Agent 总览" in orbit.text
     assert "个人资料" in orbit.text
     assert orbit.headers["Cache-Control"] == "no-store"
     assert "default-src 'none'" in orbit.headers["Content-Security-Policy"]
+    assert "frame-src 'self'" in orbit.headers["Content-Security-Policy"]
     assert orbit.headers["X-Content-Type-Options"] == "nosniff"
     assert script.status_code == stylesheet.status_code == 200
     assert auth_config.status_code == 200
@@ -154,6 +155,12 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert '"/api/v1/orbit/security/human-keys/rotate"' in script.text
     assert "clearSensitiveInputs();" in script.text
     assert "login-password" in orbit.text
+    assert "双重验证验证码（已开启时填写）" in orbit.text
+    assert "恢复码每枚只能使用一次" in orbit.text
+    assert "使用单位统一登录（SSO）" in orbit.text
+    assert 'id="legacy-entry"' not in orbit.text
+    assert 'id="human-access-key"' not in orbit.text
+    assert "旧版集成凭证（高级）" in orbit.text
     assert "recovery-dialog" in orbit.text
     assert "mfa-dialog" in orbit.text
     assert "pairing-address-domain" in orbit.text
@@ -203,7 +210,7 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "organization-domain-name" in orbit.text
     assert "/domains/" in script.text
     assert "organizationDomainProofs.clear()" in script.text
-    assert "TXT 记录" in orbit.text
+    assert "单位域名验证" in orbit.text
     assert "Agent 连接" in orbit.text
     assert "短名称（可选）" in orbit.text
     assert "handle-dialog" in orbit.text
@@ -242,23 +249,28 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert 'delivered: "已送达"' in script.text
     assert 'read: "Agent 已读取"' in script.text
     assert 'acked: "Agent 已确认收到"' in script.text
-    assert "“新动态”不会复用 Agent 的 read 或 ACK" in orbit.text
+    assert "新动态 · 待接入" not in orbit.text
     assert "Human 已查看" not in orbit.text
     assert "chat-composer" not in orbit.text
-    assert "按 Thread 聚合" in orbit.text
+    assert "每个对话单独显示" in orbit.text
     assert "搜索有权查看的对话" in orbit.text
-    assert 'data-thread-filter="new" aria-disabled="true"' in orbit.text
-    assert 'data-thread-filter="action" aria-disabled="true"' in orbit.text
     assert "/api/v1/orbit/threads" in script.text
-    assert "打开本时间线不会替任何 Agent 执行 read 或 ACK" in orbit.text
-    assert "当前系统没有 Human 直接发消息的真实能力" in orbit.text
+    assert "放心查看，不会影响 Agent 的处理进度" in orbit.text
+    assert "暂不支持从这里直接回复" in orbit.text
+    assert "发送自：" in script.text
+    assert "发送给：" in script.text
+    assert "owner_display_name" in script.text
+    assert "/api/v1/orbit/attachments/" in script.text
+    assert "打开 PDF" in script.text
+    assert "安全预览" in script.text
+    assert 'sandbox=""' in orbit.text
     assert "Agent 与连接状态" in orbit.text
     assert "等待 Agent" in orbit.text
     assert "连接异常" in orbit.text
     assert "重新连接这个 Agent" in orbit.text
     assert "权限与关系" in orbit.text
     assert "删除采用软删除" in orbit.text
-    assert "按钮显示不代替服务端鉴权" in script.text
+    assert "可执行的操作以你的实际权限为准" in script.text
     assert "current_connector_last_heartbeat_at" in script.text
     assert "agent-workspace-mode:not(.agent-detail-open)" in stylesheet.text
     assert "activateRoute" in script.text
@@ -807,11 +819,18 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
         alice = _create_agent(client, "alice@agents.local", "Alice")
         bob = _create_agent(client, "bob@agents.local", "Bob")
         human = _create_human(client, "threads@example.com", "对话观察者")
+        recipient_owner = _create_human(client, "recipient@example.com", "收件人用户")
         outsider = _create_human(client, "thread-outsider@example.com", "无权用户")
         _grant(
             client,
             human_id=human["user"]["id"],
             agent_id=alice["agent"]["id"],
+            role="owner",
+        )
+        _grant(
+            client,
+            human_id=recipient_owner["user"]["id"],
+            agent_id=bob["agent"]["id"],
             role="owner",
         )
         first = client.post(
@@ -914,6 +933,13 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
         "Alice",
         "Bob",
     }
+    participants = {
+        participant["display_name"]: participant for participant in first_summary["participants"]
+    }
+    assert participants["Alice"]["owner_display_name"] == "对话观察者"
+    assert participants["Alice"]["owned_by_current_human"] is True
+    assert participants["Bob"]["owner_display_name"] == "收件人用户"
+    assert participants["Bob"]["owned_by_current_human"] is False
     assert [message["reply_to"] for message in detail.json()["messages"]] == [
         None,
         first.json()["message_id"],
@@ -924,6 +950,122 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
     assert len(related.json()) == 2
     assert hidden_related.json() == []
     assert hidden.status_code == 404
+    assert state_after == state_before
+
+
+def test_human_attachment_open_and_html_preview_are_authorized_and_read_only(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with _control_client(settings, database) as client:
+        alice = _create_agent(client, "alice-files@agents.local", "Alice Files")
+        bob = _create_agent(client, "bob-files@agents.local", "Bob Files")
+        owner = _create_human(client, "file-owner@example.com", "文件所有者")
+        auditor = _create_human(client, "file-auditor@example.com", "文件审计员")
+        outsider = _create_human(client, "file-outsider@example.com", "无权用户")
+        _grant(
+            client,
+            human_id=owner["user"]["id"],
+            agent_id=alice["agent"]["id"],
+            role="owner",
+        )
+        _grant(
+            client,
+            human_id=auditor["user"]["id"],
+            agent_id=alice["agent"]["id"],
+            role="auditor",
+        )
+
+        pdf_bytes = b"%PDF-1.4\n% AgentPost preview test\n"
+        html_bytes = (
+            b"<!doctype html><meta charset=utf-8><h1>Safe preview</h1>"
+            b"<script>parent.document.body.dataset.unsafe='true'</script>"
+        )
+        pdf_upload = client.post(
+            "/api/v1/attachments",
+            headers={"Authorization": f"Bearer {alice['api_key']}"},
+            files={"file": ("report.pdf", pdf_bytes, "application/pdf")},
+        )
+        html_upload = client.post(
+            "/api/v1/attachments",
+            headers={"Authorization": f"Bearer {alice['api_key']}"},
+            files={"file": ("preview.html", html_bytes, "text/html")},
+        )
+        assert pdf_upload.status_code == html_upload.status_code == 201
+        sent = client.post(
+            "/api/v1/messages",
+            headers={
+                "Authorization": f"Bearer {alice['api_key']}",
+                "Idempotency-Key": "orbit-human-safe-attachment-preview",
+            },
+            json={
+                "to": [{"address": bob["agent"]["address"]}],
+                "type": "message",
+                "subject": "附件查看",
+                "content": {"format": "text", "body": "请查看附件"},
+                "attachments": [pdf_upload.json()["id"], html_upload.json()["id"]],
+            },
+        )
+        assert sent.status_code == 201
+        with database.session_factory() as session:
+            delivery_before = session.scalar(
+                select(Delivery).where(Delivery.message_id == sent.json()["message_id"])
+            )
+            assert delivery_before is not None
+            state_before = (
+                delivery_before.delivery_status,
+                delivery_before.read_at,
+                delivery_before.acked_at,
+            )
+
+        owner_headers = {"Authorization": f"Bearer {owner['access_key']}"}
+        pdf_download = client.get(
+            f"/api/v1/orbit/attachments/{pdf_upload.json()['id']}",
+            headers=owner_headers,
+        )
+        pdf_preview = client.get(
+            f"/api/v1/orbit/attachments/{pdf_upload.json()['id']}/preview",
+            headers=owner_headers,
+        )
+        html_preview = client.get(
+            f"/api/v1/orbit/attachments/{html_upload.json()['id']}/preview",
+            headers=owner_headers,
+        )
+        auditor_preview = client.get(
+            f"/api/v1/orbit/attachments/{html_upload.json()['id']}/preview",
+            headers={"Authorization": f"Bearer {auditor['access_key']}"},
+        )
+        outsider_preview = client.get(
+            f"/api/v1/orbit/attachments/{html_upload.json()['id']}/preview",
+            headers={"Authorization": f"Bearer {outsider['access_key']}"},
+        )
+        with database.session_factory() as session:
+            delivery_after = session.scalar(
+                select(Delivery).where(Delivery.message_id == sent.json()["message_id"])
+            )
+            assert delivery_after is not None
+            state_after = (
+                delivery_after.delivery_status,
+                delivery_after.read_at,
+                delivery_after.acked_at,
+            )
+
+    assert pdf_download.status_code == 200
+    assert pdf_download.content == pdf_bytes
+    assert pdf_download.headers["content-type"] == "application/octet-stream"
+    assert pdf_download.headers["content-disposition"].startswith("attachment;")
+    assert pdf_download.headers["cache-control"] == "no-store"
+    assert pdf_preview.status_code == 200
+    assert pdf_preview.content == pdf_bytes
+    assert pdf_preview.headers["content-type"] == "application/pdf"
+    assert pdf_preview.headers["content-disposition"].startswith("inline;")
+    assert "sandbox" in pdf_preview.headers["content-security-policy"]
+    assert html_preview.status_code == 200
+    assert html_preview.content == html_bytes
+    assert html_preview.headers["content-type"].startswith("text/html")
+    assert "default-src 'none'" in html_preview.headers["content-security-policy"]
+    assert "form-action 'none'" in html_preview.headers["content-security-policy"]
+    assert auditor_preview.status_code == outsider_preview.status_code == 404
     assert state_after == state_before
 
 

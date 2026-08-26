@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from typing import Annotated
+from collections.abc import Iterator
+from typing import Annotated, BinaryIO
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from agentpost.api.dependencies import SessionDep, SettingsDep
+from agentpost.attachments.models import Attachment
 from agentpost.control.auth import CurrentHumanDep, HumanAccessKeyDep
 from agentpost.control.human_security import (
     HUMAN_CSRF_HEADER,
@@ -31,9 +34,11 @@ from agentpost.control.schemas import (
 )
 from agentpost.control.service import (
     AgentOwnerActionDeniedError,
+    OrbitAttachmentNotFoundError,
     OrbitThreadNotFoundError,
     build_orbit_dashboard,
     disable_owned_agent,
+    get_orbit_attachment,
     get_orbit_thread,
     human_profile,
     list_orbit_messages,
@@ -55,10 +60,45 @@ from agentpost.identity.service import (
     agent_profile,
     flush_agent_handle,
 )
+from agentpost.storage import LocalAttachmentStorage, StorageObjectNotFoundError
 
 router = APIRouter(tags=["human-control-plane"])
 Limit = Annotated[int, Query(ge=1, le=200)]
 Search = Annotated[str | None, Query(max_length=200)]
+
+
+def _stream_and_close(source: BinaryIO) -> Iterator[bytes]:
+    try:
+        while chunk := source.read(LocalAttachmentStorage.chunk_size):
+            yield chunk
+    finally:
+        source.close()
+
+
+def _attachment_disposition(filename: str, *, inline: bool) -> str:
+    mode = "inline" if inline else "attachment"
+    return f"{mode}; filename=attachment.bin; filename*=UTF-8''{quote(filename)}"
+
+
+def _visible_orbit_attachment_source(
+    session: SessionDep,
+    settings: SettingsDep,
+    current_human: CurrentHumanDep,
+    attachment_id: UUID,
+) -> tuple[Attachment, BinaryIO]:
+    try:
+        attachment = get_orbit_attachment(
+            session,
+            current_human,
+            attachment_id=attachment_id,
+        )
+        source = LocalAttachmentStorage(settings.storage_path).open(attachment.storage_key)
+    except (OrbitAttachmentNotFoundError, StorageObjectNotFoundError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "attachment_not_found", "message": "Attachment was not found"},
+        ) from exc
+    return attachment, source
 
 
 def _orbit_asset(filename: str, media_type: str) -> FileResponse:
@@ -82,7 +122,8 @@ def orbit_console() -> FileResponse:
             "Cache-Control": "no-store",
             "Content-Security-Policy": (
                 "default-src 'none'; style-src 'self'; script-src 'self'; "
-                "connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+                "connect-src 'self'; frame-src 'self'; base-uri 'none'; "
+                "form-action 'self'; frame-ancestors 'none'"
             ),
             "Referrer-Policy": "no-referrer",
             "X-Content-Type-Options": "nosniff",
@@ -385,6 +426,74 @@ def orbit_thread(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "thread_not_found", "message": "Thread was not found"},
         ) from exc
+
+
+@router.get("/api/v1/orbit/attachments/{attachment_id}")
+def orbit_attachment_download(
+    attachment_id: UUID,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> StreamingResponse:
+    attachment, source = _visible_orbit_attachment_source(
+        session,
+        settings,
+        current_human,
+        attachment_id,
+    )
+    return StreamingResponse(
+        _stream_and_close(source),
+        media_type="application/octet-stream",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": _attachment_disposition(attachment.filename, inline=False),
+            "Content-Length": str(attachment.size),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@router.get("/api/v1/orbit/attachments/{attachment_id}/preview")
+def orbit_attachment_preview(
+    attachment_id: UUID,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> StreamingResponse:
+    attachment, source = _visible_orbit_attachment_source(
+        session,
+        settings,
+        current_human,
+        attachment_id,
+    )
+    content_type = attachment.content_type.partition(";")[0].strip().lower()
+    if content_type not in {"application/pdf", "text/html"}:
+        source.close()
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail={
+                "code": "attachment_preview_unsupported",
+                "message": "This attachment type does not support an inline preview",
+            },
+        )
+    content_security_policy = (
+        "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; "
+        "font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
+        if content_type == "text/html"
+        else "sandbox; default-src 'none'; frame-ancestors 'self'"
+    )
+    return StreamingResponse(
+        _stream_and_close(source),
+        media_type=content_type,
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": _attachment_disposition(attachment.filename, inline=True),
+            "Content-Length": str(attachment.size),
+            "Content-Security-Policy": content_security_policy,
+            "Referrer-Policy": "no-referrer",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.get("/api/v1/orbit/tasks", response_model=list[OrbitTask])

@@ -22,6 +22,34 @@ REGISTRATION_TOKEN = "local-demo-registration-token"
 ADMIN_TOKEN = "local-demo-admin-token-000000000000"
 
 
+def _demo_pdf() -> bytes:
+    objects = [
+        b"<</Type/Catalog/Pages 2 0 R>>",
+        b"<</Type/Pages/Kids[3 0 R]/Count 1>>",
+        (
+            b"<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/"
+            b"Resources<</Font<</F1 5 0 R>>>>>>"
+        ),
+        b"<</Length 49>>\nstream\nBT /F1 18 Tf 72 720 Td (Xingyun Relay PDF) Tj ET\nendstream",
+        b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>",
+    ]
+    document = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets: list[int] = []
+    for index, body in enumerate(objects, start=1):
+        offsets.append(len(document))
+        document.extend(f"{index} 0 obj\n".encode())
+        document.extend(body)
+        document.extend(b"\nendobj\n")
+    xref_offset = len(document)
+    document.extend(f"xref\n0 {len(objects) + 1}\n".encode())
+    document.extend(b"0000000000 65535 f \n")
+    for offset in offsets:
+        document.extend(f"{offset:010d} 00000 n \n".encode())
+    trailer = f"trailer\n<</Size {len(objects) + 1}/Root 1 0 R>>\nstartxref\n{xref_offset}\n%%EOF\n"
+    document.extend(trailer.encode())
+    return bytes(document)
+
+
 def _require(response, expected: int) -> dict[str, Any]:
     if response.status_code != expected:
         raise RuntimeError(
@@ -194,6 +222,35 @@ def _seed(settings: Settings) -> None:
             ),
             201,
         )
+        pdf_attachment = _require(
+            client.post(
+                "/api/v1/attachments",
+                headers=_agent_headers(research),
+                files={"file": ("研究摘要.pdf", _demo_pdf(), "application/pdf")},
+            ),
+            201,
+        )
+        html_attachment = _require(
+            client.post(
+                "/api/v1/attachments",
+                headers=_agent_headers(research),
+                files={
+                    "file": (
+                        "来源概览.html",
+                        (
+                            "<!doctype html><meta charset='utf-8'>"
+                            "<style>body{font:16px system-ui;padding:28px;color:#17324d}"
+                            "h1{color:#0b807c}li{margin:10px 0}</style>"
+                            "<h1>来源概览</h1><ul><li>资料 A：公开报告</li>"
+                            "<li>资料 B：机构公告</li></ul>"
+                            "<script>document.body.dataset.scriptRan='true'</script>"
+                        ).encode(),
+                        "text/html",
+                    )
+                },
+            ),
+            201,
+        )
         update = _require(
             client.post(
                 "/api/v1/messages",
@@ -203,6 +260,7 @@ def _seed(settings: Settings) -> None:
                     "type": "message",
                     "subject": "研究资料已准备",
                     "content": {"format": "text", "body": "两份公开资料已经完成交叉核对。"},
+                    "attachments": [pdf_attachment["id"], html_attachment["id"]],
                     "priority": "normal",
                     "requires_ack": True,
                 },

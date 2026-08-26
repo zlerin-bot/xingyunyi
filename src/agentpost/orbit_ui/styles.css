@@ -412,22 +412,6 @@ footer {
   cursor: pointer;
 }
 
-.legacy-entry {
-  margin-top: 16px;
-  border-top: 1px solid var(--line);
-  padding-top: 14px;
-}
-
-.legacy-entry summary {
-  color: var(--muted);
-  font-size: 0.72rem;
-  cursor: pointer;
-}
-
-.legacy-entry form {
-  margin-top: 12px;
-}
-
 .access-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -3174,6 +3158,36 @@ button.thread-participant-chip {
   font-size: 0.68rem;
 }
 
+.thread-attachment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 5px;
+}
+
+.thread-attachment-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: rgba(103, 216, 212, 0.06);
+  color: var(--cyan);
+  padding: 0 10px;
+  text-decoration: none;
+  font: inherit;
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+
+.thread-attachment-action:hover,
+.thread-attachment-action:focus-visible {
+  border-color: var(--cyan);
+  outline: none;
+  background: rgba(103, 216, 212, 0.12);
+}
+
 .timeline-event {
   display: grid;
   gap: 7px;
@@ -3195,6 +3209,50 @@ button.thread-participant-chip {
   padding: 16px 2px 0;
   font-size: 0.66rem;
   line-height: 1.6;
+}
+
+.attachment-preview-dialog {
+  width: min(980px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 22px;
+  background: #101c31;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  padding: 0;
+}
+
+.attachment-preview-dialog::backdrop {
+  background: rgba(2, 7, 15, 0.82);
+  backdrop-filter: blur(6px);
+}
+
+.attachment-preview-shell {
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+}
+
+.attachment-preview-note {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.attachment-preview-dialog iframe {
+  width: 100%;
+  height: min(68dvh, 720px);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.attachment-download-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 14px;
+  text-decoration: none;
 }
 
 .thread-message:target,
@@ -3935,6 +3993,39 @@ footer {
   .thread-attachment-card strong,
   .thread-readonly-notice {
     font-size: 0.74rem;
+  }
+
+  .thread-attachment-card {
+    width: 100%;
+  }
+
+  .thread-attachment-action {
+    flex: 1 1 112px;
+    min-height: 40px;
+    font-size: 0.72rem;
+  }
+
+  .attachment-preview-dialog {
+    width: calc(100% - 16px);
+    max-height: calc(100dvh - 16px);
+    border-radius: 16px;
+  }
+
+  .attachment-preview-shell {
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .attachment-preview-dialog iframe {
+    height: 58dvh;
+  }
+
+  .attachment-preview-dialog .dialog-actions {
+    align-items: stretch;
+  }
+
+  .attachment-preview-dialog .dialog-actions > * {
+    flex: 1 1 120px;
   }
 
   .agent-timeline-avatar {
