@@ -21,6 +21,7 @@ from agentpost.control.models import (
     HumanAccessKey,
     HumanActionAudit,
     HumanAgentGrant,
+    HumanThreadView,
     HumanUser,
     Organization,
 )
@@ -43,6 +44,7 @@ from agentpost.control.schemas import (
     OrbitTask,
     OrbitThreadDetail,
     OrbitThreadSummary,
+    OrbitThreadViewState,
 )
 from agentpost.identity.models import Agent, utc_now
 from agentpost.messaging.models import AuditLog, Delivery, Message
@@ -793,6 +795,12 @@ def list_orbit_threads(
     entries_by_agent = {entry.agent.id: entry for entry in entries}
     if agent_id is not None and agent_id not in entries_by_agent:
         return []
+    thread_views = {
+        view.thread_id: view
+        for view in session.scalars(
+            select(HumanThreadView).where(HumanThreadView.human_user_id == user.id)
+        ).all()
+    }
     summaries: list[OrbitThreadSummary] = []
     for thread_id, rows in grouped.items():
         participant_agents: dict[UUID, Agent] = {}
@@ -827,6 +835,32 @@ def list_orbit_threads(
             or _work_state_for(message, task_results) == "failed"
             for message, delivery, _, _ in rows
         )
+        latest_sender_projection = _orbit_message_agent(
+            rows[-1][2], connector_types, owner_humans, user.id
+        )
+        latest_recipient_projection = _orbit_message_agent(
+            rows[-1][3], connector_types, owner_humans, user.id
+        )
+        latest_work_state = _work_state_for(latest_message, task_results)
+        if exceptions:
+            conversation_state = "needs_attention"
+        elif latest_work_state == "completed":
+            conversation_state = "completed"
+        elif pending_tasks:
+            conversation_state = "in_progress"
+        elif latest_recipient_projection.owned_by_current_human:
+            conversation_state = "waiting_for_me"
+        elif latest_sender_projection.owned_by_current_human:
+            conversation_state = "waiting_for_other"
+        else:
+            conversation_state = "updated"
+        thread_view = thread_views.get(thread_id)
+        human_view_state = (
+            "viewed"
+            if thread_view is not None
+            and thread_view.viewed_through_message_id == latest_message.id
+            else "unread"
+        )
         summaries.append(
             OrbitThreadSummary(
                 thread_id=thread_id,
@@ -857,6 +891,11 @@ def list_orbit_threads(
                     delivery.delivery_status == "delivered" and delivery.read_at is None
                     for _, delivery, _, _ in rows
                 ),
+                latest_sender=latest_sender_projection,
+                latest_recipient=latest_recipient_projection,
+                conversation_state=conversation_state,
+                human_view_state=human_view_state,
+                human_viewed_at=thread_view.viewed_at if thread_view is not None else None,
             )
         )
     summaries.sort(
@@ -885,6 +924,8 @@ def get_orbit_thread(
         participant_agents[sender.id] = sender
         participant_agents[recipient.id] = recipient
     entries_by_agent = {entry.agent.id: entry for entry in entries}
+    thread_view = session.get(HumanThreadView, (user.id, thread_id))
+    latest_message = rows[-1][0]
     return OrbitThreadDetail(
         thread_id=thread_id,
         topic=rows[0][0].subject or rows[-1][0].subject or "无主题对话",
@@ -912,6 +953,45 @@ def get_orbit_thread(
             )
             for row in rows
         ],
+        human_view_state=(
+            "viewed"
+            if thread_view is not None
+            and thread_view.viewed_through_message_id == latest_message.id
+            else "unread"
+        ),
+        human_viewed_at=thread_view.viewed_at if thread_view is not None else None,
+    )
+
+
+def mark_orbit_thread_viewed(
+    session: Session,
+    user: HumanUser,
+    *,
+    thread_id: UUID,
+) -> OrbitThreadViewState:
+    _, _, _, _, grouped, _ = _orbit_thread_data(session, user, thread_id=thread_id)
+    rows = grouped.get(thread_id)
+    if not rows:
+        raise OrbitThreadNotFoundError(str(thread_id))
+    latest_message = rows[-1][0]
+    viewed_at = utc_now()
+    thread_view = session.get(HumanThreadView, (user.id, thread_id))
+    if thread_view is None:
+        thread_view = HumanThreadView(
+            human_user_id=user.id,
+            thread_id=thread_id,
+            viewed_through_message_id=latest_message.id,
+            viewed_at=viewed_at,
+        )
+        session.add(thread_view)
+    else:
+        thread_view.viewed_through_message_id = latest_message.id
+        thread_view.viewed_at = viewed_at
+    session.commit()
+    return OrbitThreadViewState(
+        thread_id=thread_id,
+        viewed_through_message_id=latest_message.id,
+        viewed_at=viewed_at,
     )
 
 

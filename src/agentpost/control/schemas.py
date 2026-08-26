@@ -253,7 +253,18 @@ class OrbitThreadSummary(ControlModel):
     pending_task_count: int
     exception_count: int
     agent_pending_read_count: int
-    human_activity_state: Literal["unavailable"] = "unavailable"
+    latest_sender: OrbitMessageAgent
+    latest_recipient: OrbitMessageAgent
+    conversation_state: Literal[
+        "needs_attention",
+        "in_progress",
+        "completed",
+        "waiting_for_me",
+        "waiting_for_other",
+        "updated",
+    ]
+    human_view_state: Literal["unread", "viewed"]
+    human_viewed_at: datetime | None = None
 
 
 class OrbitThreadDetail(ControlModel):
@@ -262,7 +273,15 @@ class OrbitThreadDetail(ControlModel):
     participants: list[OrbitMessageAgent]
     organizations: list[OrbitOrganizationReference] = Field(default_factory=list)
     messages: list[OrbitMessage]
-    human_activity_state: Literal["unavailable"] = "unavailable"
+    human_view_state: Literal["unread", "viewed"]
+    human_viewed_at: datetime | None = None
+
+
+class OrbitThreadViewState(ControlModel):
+    thread_id: UUID
+    viewed_through_message_id: str
+    human_view_state: Literal["viewed"] = "viewed"
+    viewed_at: datetime
 
 
 class OrbitTask(ControlModel):

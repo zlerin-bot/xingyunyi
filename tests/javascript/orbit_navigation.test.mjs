@@ -43,16 +43,12 @@ test("Star Orbit opens directly on conversations without a duplicate overview", 
   assert.match(script, /orbit: "communications"/);
 });
 
-test("brand uses the XY-squared orbit lockup from the approved visual direction", () => {
-  assert.match(html, /class="brand-lockup" viewBox="0 0 300 90"/);
-  assert.match(html, /class="brand-monogram"[^>]*>XY</);
-  assert.match(html, /class="brand-superscript"[^>]*>2</);
-  assert.match(html, /brand-orbit-path/);
-  assert.match(html, /brand-relay-node/);
-  assert.match(html, /brand-ai-spark/);
-  assert.match(html, />星云驿<\/text>/);
-  assert.match(html, />XINGYUN RELAY<\/text>/);
-  assert.match(stylesheet, /\.brand-lockup-background \{[\s\S]*?fill: #06122e;/);
+test("brand uses the selected high-resolution Xingyun Relay artwork", () => {
+  assert.match(html, /class="brand-lockup"/);
+  assert.match(html, /src="\/orbit\/xingyun-relay-logo\.png"/);
+  assert.match(html, /alt="星云驿 XINGYUN RELAY"/);
+  assert.match(html, /width="2172"/);
+  assert.match(html, /height="724"/);
   assert.match(stylesheet, /\.brand-lockup \{[\s\S]*?width: 220px;/);
   assert.match(stylesheet, /\.brand-lockup \{[\s\S]*?width: 190px;/);
   assert.match(stylesheet, /"Google Sans"/);
@@ -78,6 +74,8 @@ test("opening a conversation remains read-only for Agent state", () => {
   assert.match(script, /delivered: "已送达"/);
   assert.match(script, /read: "Agent 已读取"/);
   assert.match(script, /acked: "Agent 已确认收到"/);
+  assert.match(script, /\/api\/v1\/orbit\/threads\/\$\{encodeURIComponent\(threadId\)\}\/viewed/);
+  assert.match(script, /human_view_state = "viewed"/);
   const communicationStart = html.indexOf('id="communications"');
   const communicationEnd = html.indexOf("</section>", communicationStart);
   const communicationPanel = html.slice(communicationStart, communicationEnd);
@@ -85,13 +83,39 @@ test("opening a conversation remains read-only for Agent state", () => {
 });
 
 test("Orbit conversations are Thread-based, searchable, and deep-linkable", () => {
-  assert.match(html, /每个对话单独显示/);
+  assert.match(html, /按每个对话查看 Agent 之间的全部往来/);
   assert.match(html, /主题、Agent、正文或附件名/);
   assert.doesNotMatch(html, /新动态 · 待接入|待我处理 · 待接入/);
   assert.match(script, /\/api\/v1\/orbit\/threads\?/);
   assert.match(script, /\/api\/v1\/orbit\/threads\/\$\{encodeURIComponent\(threadId\)\}/);
   assert.match(script, /thread: state\.selectedThreadId/);
   assert.match(script, /state\.threadOrganization/);
+});
+
+test("conversation parent expands complete loops and shows Human unread dots", () => {
+  assert.match(html, /id="thread-parent-toggle"/);
+  assert.match(html, /aria-controls="thread-browser"/);
+  assert.match(html, /aria-expanded="true"/);
+  assert.match(html, /id="thread-unread-count"/);
+  assert.match(script, /threadBrowserExpanded/);
+  assert.match(script, /thread\.human_view_state === "unread"/);
+  assert.match(script, /thread-unread-dot/);
+  assert.match(script, /\$\{thread\.message_count\} 条往来/);
+  assert.match(stylesheet, /\.thread-parent-toggle/);
+  assert.match(stylesheet, /\.thread-unread-dot/);
+});
+
+test("confirmed header and timeline match the approved three-column mockup", () => {
+  assert.match(html, /id="top-human-avatar"/);
+  assert.match(html, /id="top-human-name"/);
+  assert.match(html, /id="thread-detail-count"/);
+  assert.match(html, /id="thread-detail-route"/);
+  assert.match(html, /id="thread-detail-state"/);
+  assert.match(script, /完整对话 · \$\{messages\.length\} 条往来/);
+  assert.match(script, /发送自：\$\{agentConversationLabel\(firstMessage\.sender\)\}/);
+  assert.match(script, /card\.classList\.toggle\("from-current-human"/);
+  assert.match(stylesheet, /\.top-human-avatar/);
+  assert.match(stylesheet, /\.thread-message\.from-current-human/);
 });
 
 test("Thread timeline keeps communication, work, replies, and system events distinct", () => {

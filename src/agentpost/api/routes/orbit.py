@@ -31,6 +31,7 @@ from agentpost.control.schemas import (
     OrbitTask,
     OrbitThreadDetail,
     OrbitThreadSummary,
+    OrbitThreadViewState,
 )
 from agentpost.control.service import (
     AgentOwnerActionDeniedError,
@@ -44,6 +45,7 @@ from agentpost.control.service import (
     list_orbit_messages,
     list_orbit_tasks,
     list_orbit_threads,
+    mark_orbit_thread_viewed,
 )
 from agentpost.control.sessions import (
     HUMAN_SESSION_COOKIE,
@@ -122,7 +124,7 @@ def orbit_console() -> FileResponse:
             "Cache-Control": "no-store",
             "Content-Security-Policy": (
                 "default-src 'none'; style-src 'self'; script-src 'self'; "
-                "connect-src 'self'; frame-src 'self'; base-uri 'none'; "
+                "img-src 'self'; connect-src 'self'; frame-src 'self'; base-uri 'none'; "
                 "form-action 'self'; frame-ancestors 'none'"
             ),
             "Referrer-Policy": "no-referrer",
@@ -144,6 +146,11 @@ def orbit_styles() -> FileResponse:
 @router.get("/orbit/app.js", include_in_schema=False)
 def orbit_script() -> FileResponse:
     return _orbit_asset("app.js", "text/javascript")
+
+
+@router.get("/orbit/xingyun-relay-logo.png", include_in_schema=False)
+def orbit_logo() -> FileResponse:
+    return _orbit_asset("xingyun-relay-logo.png", "image/png")
 
 
 @router.get("/api/v1/orbit/me", response_model=HumanProfile)
@@ -421,6 +428,26 @@ def orbit_thread(
 ) -> OrbitThreadDetail:
     try:
         return get_orbit_thread(session, current_human, thread_id=thread_id)
+    except OrbitThreadNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "thread_not_found", "message": "Thread was not found"},
+        ) from exc
+
+
+@router.post(
+    "/api/v1/orbit/threads/{thread_id}/viewed",
+    response_model=OrbitThreadViewState,
+)
+def orbit_thread_viewed(
+    thread_id: UUID,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    csrf: HumanCsrfDep,
+) -> OrbitThreadViewState:
+    _ = csrf
+    try:
+        return mark_orbit_thread_viewed(session, current_human, thread_id=thread_id)
     except OrbitThreadNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

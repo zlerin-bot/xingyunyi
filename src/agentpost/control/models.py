@@ -112,6 +112,25 @@ class HumanSession(Base):
     user: Mapped[HumanUser] = relationship(back_populates="sessions")
 
 
+class HumanThreadView(Base):
+    __tablename__ = "human_thread_views"
+
+    human_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("human_users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    thread_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    viewed_through_message_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("messages.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    viewed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+
+
 class HumanActionConfirmation(Base):
     __tablename__ = "human_action_confirmations"
 

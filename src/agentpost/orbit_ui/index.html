@@ -22,27 +22,32 @@
 
     <header class="topbar">
       <a class="brand" href="/orbit" aria-label="星云驿首页">
-        <svg class="brand-lockup" viewBox="0 0 300 90" role="img" aria-labelledby="brand-logo-title" focusable="false">
-          <title id="brand-logo-title">星云驿 XINGYUN RELAY</title>
-          <rect class="brand-lockup-background" width="300" height="90" rx="12"/>
-          <text class="brand-monogram" x="29" y="55">XY</text>
-          <text class="brand-superscript" x="101" y="28">2</text>
-          <path class="brand-orbit-path" d="M23 59C48 76 96 69 132 42"/>
-          <circle class="brand-relay-node brand-relay-node-one" cx="83" cy="65" r="4.2"/>
-          <circle class="brand-relay-node brand-relay-node-two" cx="123" cy="48" r="5"/>
-          <path class="brand-ai-spark" d="m131 14 2.8 6.2L140 23l-6.2 2.8L131 32l-2.8-6.2L122 23l6.2-2.8Z"/>
-          <text class="brand-chinese" x="151" y="49">星云驿</text>
-          <text class="brand-english" x="153" y="69">XINGYUN RELAY</text>
-        </svg>
+        <img
+          class="brand-lockup"
+          src="/orbit/xingyun-relay-logo.png"
+          alt="星云驿 XINGYUN RELAY"
+          width="2172"
+          height="724"
+          decoding="async"
+        />
       </a>
       <div class="plane-switch" aria-label="平台入口说明">
         <span class="plane active">星轨看协作</span>
         <span class="plane">云驿管 Agent</span>
         <span class="plane">设置管账户</span>
       </div>
-      <div id="connection-state" class="connection" role="status">
-        <span class="connection-dot" aria-hidden="true"></span>
-        等待进入星轨
+      <div class="topbar-account">
+        <div id="connection-state" class="connection" role="status">
+          <span class="connection-dot" aria-hidden="true"></span>
+          等待进入星轨
+        </div>
+        <div class="top-human" aria-label="当前 Human">
+          <span id="top-human-avatar" class="top-human-avatar" aria-hidden="true">星</span>
+          <span class="top-human-copy">
+            <strong id="top-human-name">—</strong>
+            <small>Human</small>
+          </span>
+        </div>
       </div>
     </header>
 
@@ -125,6 +130,17 @@
               <span><strong>设置</strong><small>账户与平台</small></span>
             </button>
           </nav>
+          <div class="sidebar-quick" aria-label="星轨快捷入口">
+            <span class="sidebar-quick-label">快捷入口</span>
+            <button type="button" class="context-nav-item sidebar-quick-item" data-module="orbit" data-section="approvals">
+              <span><strong>待我处理</strong><small>需要你决定的事项</small></span>
+              <span id="approval-quick-count" class="sidebar-quick-count alert">0</span>
+            </button>
+            <button type="button" class="context-nav-item sidebar-quick-item" data-module="orbit" data-section="tasks">
+              <span><strong>任务进展</strong><small>Agent 工作进度</small></span>
+              <span id="task-quick-count" class="sidebar-quick-count">0</span>
+            </button>
+          </div>
           <div class="sidebar-actions">
             <button id="refresh-dashboard" type="button" class="quiet-button">刷新数据</button>
             <button id="sign-out" type="button" class="quiet-button danger">安全退出</button>
@@ -139,13 +155,18 @@
           </div>
           <nav id="context-navigation" class="context-navigation" aria-label="当前模块页面">
             <div data-context-module="orbit">
-              <button type="button" class="context-nav-item active" data-module="orbit" data-section="communications" aria-current="page">
-                <span><strong>对话与协作</strong><small>每个对话集中显示全部往来</small></span><span aria-hidden="true">›</span>
+              <button id="thread-parent-toggle" type="button" class="context-nav-item thread-parent-toggle active" data-module="orbit" data-section="communications" aria-current="page" aria-expanded="true" aria-controls="thread-browser">
+                <span class="thread-parent-icon" aria-hidden="true"><i></i><i></i></span>
+                <span><strong>对话与协作</strong><small id="thread-parent-summary">已展开 · 0 个完整对话</small></span>
+                <span class="thread-parent-meta">
+                  <span id="thread-unread-count" class="thread-unread-count" hidden>0</span>
+                  <span class="thread-parent-chevron" aria-hidden="true">⌄</span>
+                </span>
               </button>
-              <button type="button" class="context-nav-item" data-module="orbit" data-section="tasks">
+              <button type="button" class="context-nav-item orbit-secondary-nav" data-module="orbit" data-section="tasks">
                 <span><strong>任务进展</strong><small>查看任务目前进行到哪里</small></span><span aria-hidden="true">›</span>
               </button>
-              <button type="button" class="context-nav-item" data-module="orbit" data-section="approvals">
+              <button type="button" class="context-nav-item orbit-secondary-nav" data-module="orbit" data-section="approvals">
                 <span><strong>待我处理</strong><small>集中确认需要你决定的事项</small></span><span aria-hidden="true">›</span>
               </button>
             </div>
@@ -182,27 +203,26 @@
             </div>
           </nav>
           <section id="thread-browser" class="thread-browser" hidden aria-label="对话列表">
-            <div class="thread-browser-heading">
-              <div>
-                <span>每个对话单独显示</span>
-                <strong>对话与协作</strong>
+            <span id="thread-count" class="visually-hidden">0 个</span>
+            <details class="thread-tools">
+              <summary>搜索与筛选</summary>
+              <div class="thread-tools-body">
+                <label class="thread-search" for="thread-search-input">
+                  <span>搜索有权查看的对话</span>
+                  <input id="thread-search-input" type="search" autocomplete="off" maxlength="200" placeholder="主题、Agent、正文或附件名">
+                </label>
+                <label class="thread-organization-filter" for="thread-organization-filter">
+                  <span>组织范围</span>
+                  <select id="thread-organization-filter">
+                    <option value="">全部范围</option>
+                  </select>
+                </label>
+                <div id="thread-filters" class="thread-filters" aria-label="对话筛选">
+                  <button type="button" class="active" data-thread-filter="all" aria-pressed="true">全部</button>
+                  <button type="button" data-thread-filter="exception" aria-pressed="false">异常</button>
+                </div>
               </div>
-              <span id="thread-count" class="count-pill">0 个</span>
-            </div>
-            <label class="thread-search" for="thread-search-input">
-              <span>搜索有权查看的对话</span>
-              <input id="thread-search-input" type="search" autocomplete="off" maxlength="200" placeholder="主题、Agent、正文或附件名">
-            </label>
-            <label class="thread-organization-filter" for="thread-organization-filter">
-              <span>组织范围</span>
-              <select id="thread-organization-filter">
-                <option value="">全部范围</option>
-              </select>
-            </label>
-            <div id="thread-filters" class="thread-filters" aria-label="对话筛选">
-              <button type="button" class="active" data-thread-filter="all" aria-pressed="true">全部</button>
-              <button type="button" data-thread-filter="exception" aria-pressed="false">异常</button>
-            </div>
+            </details>
             <div id="thread-list" class="thread-list" aria-live="polite"></div>
           </section>
           <section id="agent-browser" class="agent-browser" hidden aria-label="Agent 列表">
@@ -377,12 +397,13 @@
             <div id="thread-detail" class="thread-detail" hidden>
               <div class="thread-detail-heading">
                 <div>
-                  <p class="section-tag">星轨 · 对话时间线</p>
+                  <p id="thread-detail-count" class="section-tag">完整对话</p>
                   <h2 id="thread-detail-topic" tabindex="-1">—</h2>
-                  <div id="thread-detail-participants" class="thread-detail-participants"></div>
+                  <p id="thread-detail-route" class="thread-detail-route">发送自：—　给：—</p>
+                  <div id="thread-detail-participants" class="thread-detail-participants" aria-label="对话参与者"></div>
                 </div>
                 <div class="thread-detail-actions">
-                  <span class="trust-chip">内容与附件已安全展示</span>
+                  <span id="thread-detail-state" class="conversation-state-pill">对话进行中</span>
                   <button id="thread-latest" type="button" class="quiet-button">回到最新</button>
                 </div>
               </div>

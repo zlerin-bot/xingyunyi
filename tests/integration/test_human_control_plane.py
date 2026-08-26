@@ -8,7 +8,13 @@ from sqlalchemy import select
 
 from agentpost.access.models import AccessRule
 from agentpost.config import Settings
-from agentpost.control.models import HumanAccessKey, HumanActionAudit, HumanSession, HumanUser
+from agentpost.control.models import (
+    HumanAccessKey,
+    HumanActionAudit,
+    HumanSession,
+    HumanThreadView,
+    HumanUser,
+)
 from agentpost.db import Database
 from agentpost.identity.models import Agent
 from agentpost.main import create_app
@@ -95,6 +101,7 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     orbit = client.get("/orbit")
     script = client.get("/orbit/app.js")
     stylesheet = client.get("/orbit/styles.css")
+    logo = client.get("/orbit/xingyun-relay-logo.png")
     auth_config = client.get("/api/v1/auth/config")
 
     assert home.status_code == orbit.status_code == 200
@@ -110,9 +117,15 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "个人资料" in orbit.text
     assert orbit.headers["Cache-Control"] == "no-store"
     assert "default-src 'none'" in orbit.headers["Content-Security-Policy"]
+    assert "img-src 'self'" in orbit.headers["Content-Security-Policy"]
     assert "frame-src 'self'" in orbit.headers["Content-Security-Policy"]
     assert orbit.headers["X-Content-Type-Options"] == "nosniff"
     assert script.status_code == stylesheet.status_code == 200
+    assert logo.status_code == 200
+    assert logo.headers["Content-Type"] == "image/png"
+    assert logo.headers["Cache-Control"] == "no-store"
+    assert logo.headers["X-Content-Type-Options"] == "nosniff"
+    assert logo.content.startswith(b"\x89PNG\r\n\x1a\n")
     assert auth_config.status_code == 200
     assert auth_config.json()["managed_agent_domain"] == "agents.local"
     assert auth_config.json()["codex_setup_platforms"] == []
@@ -252,7 +265,7 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "新动态 · 待接入" not in orbit.text
     assert "Human 已查看" not in orbit.text
     assert "chat-composer" not in orbit.text
-    assert "每个对话单独显示" in orbit.text
+    assert "按每个对话查看 Agent 之间的全部往来" in orbit.text
     assert "搜索有权查看的对话" in orbit.text
     assert "/api/v1/orbit/threads" in script.text
     assert "放心查看，不会影响 Agent 的处理进度" in orbit.text
@@ -928,7 +941,11 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
         item for item in threads.json() if item["thread_id"] == first.json()["thread_id"]
     )
     assert first_summary["message_count"] == 2
-    assert first_summary["human_activity_state"] == "unavailable"
+    assert first_summary["human_view_state"] == "unread"
+    assert first_summary["human_viewed_at"] is None
+    assert first_summary["latest_sender"]["display_name"] == "Bob"
+    assert first_summary["latest_recipient"]["display_name"] == "Alice"
+    assert first_summary["conversation_state"] == "waiting_for_me"
     assert {participant["display_name"] for participant in first_summary["participants"]} == {
         "Alice",
         "Bob",
@@ -951,6 +968,53 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
     assert hidden_related.json() == []
     assert hidden.status_code == 404
     assert state_after == state_before
+
+    with _control_client(settings, database) as client:
+        headers = {"Authorization": f"Bearer {human['access_key']}"}
+        viewed = client.post(
+            f"/api/v1/orbit/threads/{first.json()['thread_id']}/viewed",
+            headers=headers,
+        )
+        after_view = client.get("/api/v1/orbit/threads", headers=headers)
+        denied_view = client.post(
+            f"/api/v1/orbit/threads/{first.json()['thread_id']}/viewed",
+            headers={"Authorization": f"Bearer {outsider['access_key']}"},
+        )
+        assert viewed.status_code == 200
+        assert viewed.json()["human_view_state"] == "viewed"
+        viewed_summary = next(
+            item for item in after_view.json() if item["thread_id"] == first.json()["thread_id"]
+        )
+        assert viewed_summary["human_view_state"] == "viewed"
+        assert viewed_summary["human_viewed_at"] is not None
+        assert denied_view.status_code == 404
+
+        new_reply = client.post(
+            f"/api/v1/messages/{reply.json()['message_id']}/reply",
+            headers={
+                "Authorization": f"Bearer {alice['api_key']}",
+                "Idempotency-Key": "orbit-human-thread-new-after-view",
+            },
+            json={
+                "type": "response",
+                "subject": "供应链风险再次回复",
+                "content": {"format": "text", "body": "new-after-human-view"},
+            },
+        )
+        assert new_reply.status_code == 201
+        unread_again = client.get("/api/v1/orbit/threads", headers=headers)
+        refreshed_summary = next(
+            item for item in unread_again.json() if item["thread_id"] == first.json()["thread_id"]
+        )
+        assert refreshed_summary["human_view_state"] == "unread"
+
+    with database.session_factory() as session:
+        stored_view = session.get(
+            HumanThreadView,
+            (UUID(human["user"]["id"]), UUID(first.json()["thread_id"])),
+        )
+        assert stored_view is not None
+        assert stored_view.viewed_through_message_id == reply.json()["message_id"]
 
 
 def test_human_attachment_open_and_html_preview_are_authorized_and_read_only(

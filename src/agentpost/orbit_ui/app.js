@@ -33,6 +33,7 @@ const state = {
   threadQuery: "",
   threadOrganization: "",
   threadSearchTimer: null,
+  threadBrowserExpanded: true,
   selectedAgentId: "",
   selectedAgent: null,
   agentTab: "summary",
@@ -61,6 +62,8 @@ const elements = {
   openRecovery: document.querySelector("#open-recovery"),
   accessResult: document.querySelector("#access-result"),
   connectionState: document.querySelector("#connection-state"),
+  topHumanName: document.querySelector("#top-human-name"),
+  topHumanAvatar: document.querySelector("#top-human-avatar"),
   refresh: document.querySelector("#refresh-dashboard"),
   signOut: document.querySelector("#sign-out"),
   profileRefresh: document.querySelector("#profile-refresh"),
@@ -68,6 +71,8 @@ const elements = {
   humanName: document.querySelector("#human-name"),
   humanEmail: document.querySelector("#human-email"),
   humanAvatar: document.querySelector("#human-avatar"),
+  approvalQuickCount: document.querySelector("#approval-quick-count"),
+  taskQuickCount: document.querySelector("#task-quick-count"),
   profileName: document.querySelector("#profile-name"),
   profileEmail: document.querySelector("#profile-email"),
   profileTimezone: document.querySelector("#profile-timezone"),
@@ -81,6 +86,9 @@ const elements = {
   contextTitle: document.querySelector("#context-title"),
   contextCopy: document.querySelector("#context-copy"),
   threadBrowser: document.querySelector("#thread-browser"),
+  threadParentToggle: document.querySelector("#thread-parent-toggle"),
+  threadParentSummary: document.querySelector("#thread-parent-summary"),
+  threadUnreadCount: document.querySelector("#thread-unread-count"),
   threadCount: document.querySelector("#thread-count"),
   threadSearchInput: document.querySelector("#thread-search-input"),
   threadOrganizationFilter: document.querySelector("#thread-organization-filter"),
@@ -90,6 +98,9 @@ const elements = {
   threadDetailEmpty: document.querySelector("#thread-detail-empty"),
   threadDetail: document.querySelector("#thread-detail"),
   threadDetailTopic: document.querySelector("#thread-detail-topic"),
+  threadDetailCount: document.querySelector("#thread-detail-count"),
+  threadDetailRoute: document.querySelector("#thread-detail-route"),
+  threadDetailState: document.querySelector("#thread-detail-state"),
   threadDetailParticipants: document.querySelector("#thread-detail-participants"),
   threadLatest: document.querySelector("#thread-latest"),
   agentBrowser: document.querySelector("#agent-browser"),
@@ -457,7 +468,9 @@ function updateThreadWorkspaceMode() {
     "thread-detail-open",
     active && Boolean(state.selectedThreadId),
   );
-  elements.threadBrowser.hidden = !active;
+  elements.threadBrowser.hidden = !active || !state.threadBrowserExpanded;
+  elements.threadParentToggle?.setAttribute("aria-expanded", String(state.threadBrowserExpanded));
+  elements.threadParentToggle?.classList.toggle("expanded", state.threadBrowserExpanded);
 }
 
 function updateAgentWorkspaceMode() {
@@ -545,9 +558,15 @@ function initializeWorkspaceNavigation() {
     });
   });
   elements.contextNavigationItems.forEach((item) => {
-    item.addEventListener("click", () => activateRoute(item.dataset.module, item.dataset.section, {
-      focusContent: true,
-    }));
+    item.addEventListener("click", () => {
+      if (item === elements.threadParentToggle) {
+        const alreadyActive = state.activeModule === "orbit" && state.activeSection === "communications";
+        state.threadBrowserExpanded = alreadyActive ? !state.threadBrowserExpanded : true;
+      }
+      activateRoute(item.dataset.module, item.dataset.section, { focusContent: true });
+      updateThreadWorkspaceMode();
+      renderThreadParentSummary();
+    });
   });
   [elements.primaryNavigation, elements.contextNavigation].forEach((navigation) => {
     navigation.addEventListener("keydown", (event) => {
@@ -2893,10 +2912,34 @@ function visibleThreadSummaries() {
   });
 }
 
+function conversationStateLabel(value) {
+  const labels = {
+    needs_attention: "需要关注",
+    in_progress: "正在协作",
+    completed: "已完成",
+    waiting_for_me: "等待我回复",
+    waiting_for_other: "等待对方回复",
+    updated: "有新进展",
+  };
+  return labels[value] || "对话进行中";
+}
+
+function renderThreadParentSummary() {
+  const total = visibleThreadSummaries().length;
+  const unread = visibleThreadSummaries().filter(
+    (thread) => thread.human_view_state === "unread",
+  ).length;
+  const stateLabel = state.threadBrowserExpanded ? "已展开" : "已折叠";
+  elements.threadParentSummary.textContent = `${stateLabel} · ${total} 个完整对话`;
+  elements.threadUnreadCount.textContent = String(unread);
+  elements.threadUnreadCount.hidden = unread === 0;
+}
+
 function renderThreadList() {
   elements.threadList.replaceChildren();
   const threads = visibleThreadSummaries();
   elements.threadCount.textContent = `${threads.length} 个`;
+  renderThreadParentSummary();
   if (!threads.length) {
     const hasAgents = Array.isArray(state.dashboard?.agents) && state.dashboard.agents.length > 0;
     if (state.threadQuery) {
@@ -2930,19 +2973,33 @@ function renderThreadList() {
     const topic = document.createElement("strong");
     topic.className = "thread-list-topic";
     topic.textContent = safeText(thread.topic, "无主题对话");
+    const recency = document.createElement("span");
+    recency.className = "thread-list-recency";
     const time = document.createElement("span");
     time.className = "thread-list-time";
     time.textContent = dateText(thread.latest_activity_at);
-    top.append(topic, time);
+    recency.append(time);
+    if (thread.human_view_state === "unread") {
+      const unread = document.createElement("span");
+      unread.className = "thread-unread-dot";
+      unread.title = "你还没有查看这条对话的最新内容";
+      unread.setAttribute("aria-label", "尚未查看");
+      recency.append(unread);
+    }
+    top.append(topic, recency);
 
     const participants = document.createElement("span");
     participants.className = "thread-list-participants";
     const avatars = document.createElement("span");
     avatars.className = "thread-avatar-stack";
-    (thread.participants || []).slice(0, 3).forEach((agent) => avatars.append(agentAvatar(agent)));
+    [thread.latest_sender, thread.latest_recipient].filter(Boolean).forEach(
+      (agent) => avatars.append(agentAvatar(agent)),
+    );
     const names = document.createElement("span");
     names.className = "thread-participant-names";
-    names.textContent = (thread.participants || []).map(agentConversationLabel).join("、") || "参与者待确认";
+    names.textContent = thread.latest_sender && thread.latest_recipient
+      ? `${agentConversationLabel(thread.latest_sender)} → ${agentConversationLabel(thread.latest_recipient, { currentAsMe: true })}`
+      : "参与者待确认";
     participants.append(avatars, names);
 
     const preview = document.createElement("span");
@@ -2953,17 +3010,16 @@ function renderThreadList() {
 
     const markers = document.createElement("span");
     markers.className = "thread-list-markers";
-    const markerValues = [];
+    const markerValues = [[`${thread.message_count} 条往来`, "conversation-count"]];
+    markerValues.push([
+      conversationStateLabel(thread.conversation_state),
+      `conversation-state ${safeText(thread.conversation_state, "updated")}`,
+    ]);
     if (thread.attachment_count) markerValues.push([`附件 ${thread.attachment_count}`, ""]);
-    if (thread.pending_task_count) markerValues.push([`待处理任务 ${thread.pending_task_count}`, ""]);
     if (thread.exception_count) markerValues.push([`异常 ${thread.exception_count}`, "exception"]);
-    if (thread.agent_pending_read_count) {
-      markerValues.push([`待 Agent 读取 ${thread.agent_pending_read_count}`, ""]);
-    }
     (thread.organizations || []).forEach((organization) => {
       markerValues.push([safeText(organization.name), "organization"]);
     });
-    if (!markerValues.length) markerValues.push([`${thread.message_count} 条消息`, ""]);
     markerValues.forEach(([label, className]) => {
       const marker = document.createElement("span");
       marker.className = `thread-marker ${className}`.trim();
@@ -3174,6 +3230,8 @@ function renderTimelineMessage(message, messagesById, repliedMessageIds) {
   card.id = `message-${message.message_id}`;
   card.tabIndex = -1;
   card.style.setProperty("--agent-hue", String(agentHue(message.sender)));
+  const fromCurrentHuman = Boolean(message.sender?.owned_by_current_human);
+  card.classList.toggle("from-current-human", fromCurrentHuman);
   const body = document.createElement("div");
   body.className = "thread-message-body";
   const identity = document.createElement("div");
@@ -3249,7 +3307,11 @@ function renderTimelineMessage(message, messagesById, repliedMessageIds) {
   identifier.textContent = safeText(message.message_id);
   footer.append(trust, identifier);
   body.append(footer);
-  card.append(agentAvatar(message.sender, "agent-timeline-avatar"), body);
+  if (fromCurrentHuman) {
+    card.append(body, agentAvatar(message.sender, "agent-timeline-avatar"));
+  } else {
+    card.append(agentAvatar(message.sender, "agent-timeline-avatar"), body);
+  }
   return card;
 }
 
@@ -3259,17 +3321,25 @@ function renderThreadDetail(thread) {
   elements.threadDetail.hidden = false;
   elements.threadDetailTopic.textContent = safeText(thread.topic, "无主题对话");
   elements.threadDetailParticipants.replaceChildren();
-  (thread.participants || []).forEach((agent) => {
-    elements.threadDetailParticipants.append(participantChip(agent));
-  });
-  (thread.organizations || []).forEach((organization) => {
-    const label = document.createElement("span");
-    label.className = "thread-marker organization";
-    label.textContent = safeText(organization.name);
-    elements.threadDetailParticipants.append(label);
-  });
   elements.messageList.replaceChildren();
   const messages = Array.isArray(thread.messages) ? thread.messages : [];
+  elements.threadDetailCount.textContent = `完整对话 · ${messages.length} 条往来`;
+  const firstMessage = messages[0];
+  elements.threadDetailRoute.textContent = firstMessage
+    ? `发送自：${agentConversationLabel(firstMessage.sender)}　　给：${agentConversationLabel(firstMessage.recipient, { currentAsMe: true })}`
+    : "发送自：—　　给：—";
+  const failed = messages.some((message) => message.work_state === "failed" || message.message_type === "error");
+  const completed = messages.some((message) => message.work_state === "completed");
+  const pending = messages.some((message) => message.work_state === "pending");
+  const detailState = failed ? "needs_attention" : completed ? "completed" : pending ? "in_progress" : "updated";
+  elements.threadDetailState.className = `conversation-state-pill ${detailState}`;
+  elements.threadDetailState.textContent = failed
+    ? "需要关注"
+    : completed
+    ? "协作已完成"
+    : pending
+    ? "正在协作"
+    : "对话进行中";
   const messagesById = new Map(messages.map((message) => [message.message_id, message]));
   const repliedMessageIds = new Set(messages.map((message) => message.reply_to).filter(Boolean));
   let lastDate = "";
@@ -3290,6 +3360,26 @@ function renderThreadDetail(thread) {
   document.title = `星云驿 · ${safeText(thread.topic, "对话")}`;
 }
 
+async function markThreadViewed(threadId) {
+  if (!state.csrfToken) {
+    return;
+  }
+  const viewed = await requestJson(
+    `/api/v1/orbit/threads/${encodeURIComponent(threadId)}/viewed`,
+    { method: "POST", headers: { "X-CSRF-Token": state.csrfToken } },
+  );
+  const summary = state.threads.find((thread) => String(thread.thread_id) === String(threadId));
+  if (summary) {
+    summary.human_view_state = "viewed";
+    summary.human_viewed_at = viewed?.viewed_at || new Date().toISOString();
+  }
+  if (state.selectedThread) {
+    state.selectedThread.human_view_state = "viewed";
+    state.selectedThread.human_viewed_at = viewed?.viewed_at || new Date().toISOString();
+  }
+  renderThreadList();
+}
+
 async function loadThreadDetail(threadId) {
   setThreadDetailEmpty("正在读取对话", "只会显示你有权查看的内容，不会改变 Agent 的已读或处理状态。");
   try {
@@ -3298,6 +3388,11 @@ async function loadThreadDetail(threadId) {
       return;
     }
     renderThreadDetail(thread);
+    try {
+      await markThreadViewed(threadId);
+    } catch (_error) {
+      // Keep the unread indicator when the separate Human-view update did not persist.
+    }
   } catch (error) {
     if (state.selectedThreadId !== String(threadId)) {
       return;
@@ -3460,11 +3555,19 @@ function renderDashboard(dashboard) {
   elements.humanName.textContent = safeText(user.display_name, "星轨用户");
   elements.humanEmail.textContent = safeText(user.email);
   elements.humanAvatar.textContent = safeText(user.display_name, "星").slice(0, 1);
+  elements.topHumanName.textContent = safeText(user.display_name, "星轨用户");
+  elements.topHumanAvatar.textContent = safeText(user.display_name, "星").slice(0, 1);
   elements.profileName.textContent = safeText(user.display_name, "未设置");
   elements.profileEmail.textContent = safeText(user.email);
   elements.profileTimezone.textContent = safeText(
     Intl.DateTimeFormat().resolvedOptions().timeZone,
     "此设备未提供",
+  );
+  const pendingApprovals = Number(dashboard.metrics?.pending_approval_count || 0);
+  elements.approvalQuickCount.textContent = String(pendingApprovals);
+  elements.approvalQuickCount.hidden = pendingApprovals === 0;
+  elements.taskQuickCount.textContent = String(
+    Number(dashboard.metrics?.pending_task_count || 0),
   );
   renderOrganizations(organizations);
   renderAgents(agents);
@@ -3496,7 +3599,7 @@ async function loadDashboard() {
     }
     elements.welcomeView.hidden = true;
     elements.workspaceView.hidden = false;
-    setConnection("数据已同步", "success");
+    setConnection(`${Number(dashboard.metrics?.connected_agent_count || 0)} 个 Agent 已连接`, "success");
     await maybeOpenRequestedPairing();
     await maybePreviewOrganizationInvitation();
   } catch (error) {
