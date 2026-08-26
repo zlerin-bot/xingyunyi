@@ -2,7 +2,29 @@
 
 Last updated: 2026-08-26
 
-Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.12`
+Frozen handoff stage: `v0.1.12-local.1`; current source and pinned production release: `0.1.12`
+
+## Local handoff stage `v0.1.12-local.1` (2026-08-26)
+
+The local recovery point freezes the committed SVG brand baseline at `43796a1` plus this handoff
+record. It retains package/API/SDK/MCP version `0.1.12` and does not change the deployed production
+release `f10e75c`. The later working-tree experiment that replaces the inline SVG with a PNG,
+adds a PNG route/CSP rule, and changes its tests is deliberately preserved but excluded from the
+stage tag; no one should stage, discard, or treat those files as part of this recovery point
+without a separate decision.
+
+Validation ran from a clean `git archive` of `43796a1`, so the dirty PNG experiment could neither
+hide nor influence the result. Evidence is **391 passed, 1 expected loopback sandbox skip, and 5
+PostgreSQL tests deselected**, plus **10 MCP**, **21 Orbit JavaScript**, **4 TypeScript Connector**,
+and **4 OpenClaw plugin** tests. Ruff check/format and JavaScript syntax passed. A clean wheel built
+as `agentpost-0.1.12-py3-none-any.whl`, SHA-256
+`903dde56f9bf06fdeb75dcecc1430aafdbd1d85b42ca31b24dcceaf846ad52d6`; its packaged Orbit HTML
+matches the SVG source and contains no PNG artwork.
+
+The code review found no blocking defect in the tagged committed tree. The stage is
+`v0.1.12-local.1_verified`, not a new deployment and not `production_accepted`. Remaining product
+gates are real Hermes installation/pairing/send/receive/restart testing and secure Remote MCP OAuth
+compatibility plus intent binding for Manus and 豆包工作.
 
 ## Six-host picker and Hermes release gate (0.1.12 deployed, 2026-08-26)
 

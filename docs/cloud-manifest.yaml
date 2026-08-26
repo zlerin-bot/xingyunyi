@@ -3,6 +3,15 @@ project: xingyunyi-agentpost
 evidence_status: hermes_release_gate_and_six_host_picker_deployed_https_verified
 verified_at: "2026-08-26T10:00:09+08:00"
 
+local_stage:
+  tag: v0.1.12-local.1
+  committed_svg_baseline: 43796a1
+  package_version: 0.1.12
+  production_change: false
+  validation_snapshot: clean_git_archive
+  evidence_status: v0.1.12-local.1_verified
+  excludes_preserved_uncommitted_png_experiment: true
+
 provider:
   name: aliyun
   product: simple-application-server

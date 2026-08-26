@@ -1,12 +1,39 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`six-host-picker-hermes-0.1.12-deployed`
+- 交接阶段：`v0.1.12-local.1`
 - 核验日期：2026-08-26
 - 代码分支：`main`
-- 阶段性质：六类 Agent 选择器和 Hermes macOS/Linux 接入门已部署为 0.1.12；真实 Hermes 配对与收发待 Human 测试
-- 本地开发状态：0.1.12 源码、发布 wheel 与生产部署一致；Manus/豆包工作 Remote MCP 仍安全关闭
+- 阶段性质：0.1.12 生产基线之上的 SVG 品牌稿本地冻结；不触发新部署
+- 本地开发状态：已提交 SVG 基线通过隔离全量验证；未提交 PNG 替换实验保留在工作区且不纳入阶段 tag
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 本地阶段版本 `v0.1.12-local.1`
+
+本阶段以已提交的 `43796a1` SVG 品牌锁定稿为代码基线，并由本交接提交建立 annotated Git tag
+`v0.1.12-local.1`。它继承 0.1.12 的六类 Agent 选择器、Hermes macOS/Linux 发布门、Human
+工作台、Thread/Agent 管理、自然语言收件人解析、OS-vault 凭据边界和生产部署回执；不改变公开
+包版本、协议、数据库迁移或阿里云服务。
+
+检查在 `/private/tmp` 下通过 `git archive 43796a1` 生成的干净快照中完成，避免当前工作区的
+未提交实验影响结论。结果为：391 Python passed、1 个预期 loopback sandbox skip、5 个
+PostgreSQL deselected；MCP 10、Orbit JavaScript 21、TypeScript Connector 4、OpenClaw plugin
+4 passed；Ruff check/format 和 JavaScript syntax 通过。干净快照构建出的 0.1.12 wheel SHA-256
+为 `903dde56f9bf06fdeb75dcecc1430aafdbd1d85b42ca31b24dcceaf846ad52d6`，其中 Orbit HTML 与
+SVG 源一致且不包含 PNG 品牌图。代码审查未发现需要阻止阶段冻结的问题。
+
+当前工作区另有一组未提交的 PNG 品牌替换实验：修改
+`src/agentpost/api/routes/orbit.py`、`src/agentpost/orbit_ui/index.html`、
+`src/agentpost/orbit_ui/styles.css`、两项 Orbit 测试，并新增
+`src/agentpost/orbit_ui/xingyun-relay-logo.png`。Human 已明确“SVG 先不改”，因此这些文件保持
+原样，既没有删除也没有暂存，不属于 `v0.1.12-local.1`。后续继续开发前必须先识别这组差异，
+不能误称为阶段基线或直接覆盖。
+
+恢复时优先使用非破坏性检查：`git show v0.1.12-local.1`、
+`git archive v0.1.12-local.1`。若工作区存在未提交修改，不得直接 checkout/reset；先保留用户
+修改并在独立目录验证。当前阶段标签是 `v0.1.12-local.1_verified`，不是新部署，也不是
+`production_accepted`。真实 Hermes 配对/收发/重启，以及 Manus、豆包工作安全 Remote MCP
+OAuth，仍是下一阶段待办。
 
 生产已于 2026-08-26 切换到提交 `f10e75c` / package `0.1.12`，不可变源码与 runtime 分别为
 `/opt/agentpost/releases/f10e75c`、`/opt/agentpost/venvs/f10e75c`。公开 wheel SHA-256 是
