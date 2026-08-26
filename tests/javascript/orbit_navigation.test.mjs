@@ -43,14 +43,19 @@ test("Star Orbit opens directly on conversations without a duplicate overview", 
   assert.match(script, /orbit: "communications"/);
 });
 
-test("brand uses a unique multi-colour orbit logo and system-first typography", () => {
-  assert.match(html, /class="brand-mark" viewBox="0 0 48 48"/);
-  assert.match(html, /brand-orbit-blue/);
-  assert.match(html, /brand-orbit-red/);
-  assert.match(html, /brand-orbit-yellow/);
-  assert.match(html, /brand-orbit-green/);
+test("brand uses the XY-squared orbit lockup from the approved visual direction", () => {
+  assert.match(html, /class="brand-lockup" viewBox="0 0 300 90"/);
+  assert.match(html, /class="brand-monogram"[^>]*>XY</);
+  assert.match(html, /class="brand-superscript"[^>]*>2</);
+  assert.match(html, /brand-orbit-path/);
+  assert.match(html, /brand-relay-node/);
+  assert.match(html, /brand-ai-spark/);
+  assert.match(html, />星云驿<\/text>/);
+  assert.match(html, />XINGYUN RELAY<\/text>/);
+  assert.match(stylesheet, /\.brand-lockup-background \{[\s\S]*?fill: #06122e;/);
+  assert.match(stylesheet, /\.brand-lockup \{[\s\S]*?width: 220px;/);
+  assert.match(stylesheet, /\.brand-lockup \{[\s\S]*?width: 190px;/);
   assert.match(stylesheet, /"Google Sans"/);
-  assert.match(stylesheet, /--google-blue: #1a73e8/);
 });
 
 test("footer exposes the official ICP filing record on every view", () => {
