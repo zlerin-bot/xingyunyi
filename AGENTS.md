@@ -33,6 +33,14 @@
 - 交互切片使用隔离的本地 Orbit 演示环境做真实浏览器验收：桌面与 390px 移动端都检查主流程、横向溢出、弹窗/预览关闭、键盘可达性和控制台 warning/error。
 - 提交前运行 `git diff --check`，复核 `git status` 和 staged diff，确认没有凭证、临时文件、用户实验或生产数据。
 
+## 发布与生产变更
+
+- 脏工作区发布时，只能从明确提交生成独立 `git archive` 或等价干净快照；不得直接打包工作树。发布前必须核对 server、SDK、MCP、插件、锁文件和公开安装包版本一致，并记录安装包 SHA-256。
+- 生产变更前先只读核对当前 release、服务、端口、schema、关键数据量、磁盘和受保护配置权限；随后备份 PostgreSQL、附件、环境文件、systemd、Nginx 和当前 release 指针，并实际验证 dump 目录、附件归档、校验和与即时回退脚本。
+- 每个版本使用独立的不可变源码目录和 Python 环境，通过原子 `current` 指针切换。正常发布只重启 AgentPost、reload Nginx；没有单独理由不得重启 PostgreSQL、整机或同机其他服务。
+- 切换脚本必须包含失败自动回退、清晰步骤标记和结尾换行。`set -o pipefail` 下不要用 `curl | grep -q` 判断健康响应；先完整保存响应，再做精确比较，避免命中后上游 SIGPIPE 被误判为发布失败。
+- 发布后同时核对本机与公网 health/ready、公开 wheel 精确路径和 SHA、未知下载 404、schema、关键数据量、服务/进程连续性及登录态主流程。完成这些只能标记为 `deployed_https_verified`；真实用户跨设备验收和明确待办未完成前，仍不是 `production_accepted`。
+
 ## 已知本地边界
 
 - 本地默认不假定 Docker/PostgreSQL 可用；PostgreSQL 专属测试未运行时要单列说明。

@@ -1,12 +1,54 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`post-v0.1.12-local.1-conversation-attachment-slice-5`
+- 交接阶段：`v0.1.13-conversation-attachment-deployed`
 - 核验日期：2026-08-26
 - 代码分支：`main`
-- 阶段性质：0.1.12 生产基线之上的对话与安全附件体验本地切片；不触发新部署
-- 本地开发状态：项目规则已提交为 `f93e0d6`，切片五已提交为 `3b4adf5`；未提交 PNG 替换实验继续保留且不纳入本切片
+- 阶段性质：对话身份、按 Thread 聚合和安全附件体验已随 0.1.13 部署并完成 HTTPS 核验；仍不是完整生产验收
+- 本地开发状态：项目规则 `f93e0d6`、功能切片 `3b4adf5`、交接 `ff927cb`、发布候选 `f15df99` 均已提交；未提交 PNG 替换实验继续保留且未进入发布物
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 对话身份与安全附件生产发布 `f15df99` / 0.1.13
+
+生产已于 2026-08-26 13:34（Asia/Shanghai）受保护切换到提交 `f15df99` / package
+`0.1.13`。不可变源码与独立 runtime 分别为 `/opt/agentpost/releases/f15df99`、
+`/opt/agentpost/venvs/f15df99`；server、Python SDK、MCP 均为 0.1.13。公开 wheel 是
+`https://agentpost.me/downloads/agentpost-0.1.13-py3-none-any.whl`，SHA-256 为
+`425e4596afedd32905c900ca90bf9a0e9c270e469ac428f7fa8733b43a78c510`。发布物来自
+`git archive f15df99`，不含工作区中未提交的 PNG 实验。
+
+发布前在线确认生产仍为 `f10e75c` / 0.1.12，AgentPost、Nginx、PostgreSQL active，schema 为
+`0020_pairing_agent_intent`，数据为 24 Agents / 54 Messages / 54 Deliveries / 4 Attachments /
+9 current bindings。可恢复备份位于
+`/opt/agentpost/backups/20260826-131431-f15df99-pre-013/`，包含 PostgreSQL custom dump 及
+可读目录、附件归档与清单、root-only 环境、systemd、Nginx、旧 0.1.12 wheel、校验和和
+`rollback-immediate-0.1.13.sh`。较早的
+`/opt/agentpost/backups/20260826-1313-f15df99-pre-013/` 因 PostgreSQL 写入权限不匹配而未完成，
+已明确保留为不可用于恢复的 incomplete 记录。
+
+第一次应用切换在新版本启动并返回 HTTP 200 后，因为 `set -o pipefail` 下的 `curl | grep -q`
+健康匹配被误判为失败，失败保护随即恢复 `f10e75c` / 0.1.12；回退后的指针、服务、内外网健康、
+环境、unit 和 Nginx 白名单均复核通过。随后在 127.0.0.1:8001 临时启动单进程 0.1.13，精确取得
+0.1.13 health/ready 后停止；第二次切换改用完整响应精确比较并成功。该经验已补充到根目录
+`AGENTS.md` 的发布规则。
+
+最终 postflight：本机及公网 health/ready 均为 0.1.13；schema 和五项数据量与发布前完全一致；
+Nginx 主进程 `127548`、PostgreSQL 主进程 `137458` 均未变化；生产环境仍为 `600 root:root`；
+未知 `/downloads/` 路径继续 404；0.1.12 wheel 仍按原 SHA 可读作为回退资源；Nginx 配置检查通过，
+磁盘使用 20%。企业统一登录实际返回 disabled，Remote MCP/豆包工作远程连接继续保持默认关闭。
+
+登录态生产 Chrome 已验证桌面三栏：星轨中栏显示 21 个按持久化 Thread 聚合的“对话与协作”，
+右栏显示多轮时间线，消息明确显示“发送自：Human 名称 · Agent 短名称”和“发送给：我/对方 ·
+Agent 短名称”。真实 `text/html` 附件已通过“安全预览”打开，iframe 内可见正文，界面明确说明
+脚本、联网请求、表单和弹窗已停用，关闭后回到原 Thread。PDF 授权打开由本地/自动化测试覆盖；
+真实 390px 生产浏览器复验仍为待确认，不能用桌面结果替代。
+
+本地发布前证据为：392 Python passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL
+deselected；MCP 10、Orbit JavaScript 24、TypeScript Connector 4、OpenClaw plugin 4 passed；
+Ruff check/format 通过。当前证据标签为
+`conversation_identity_and_safe_attachment_deployed_https_verified`，不是 `production_accepted`。
+下一步优先做真实 390px 移动端布局/预览复验，以及在真实 PDF 附件存在时完成生产点击打开；既有
+Hermes 实机配对收发/重启和 Manus/豆包工作 Remote MCP OAuth 门禁继续保留。
 
 ### 对话与安全附件体验切片五 `3b4adf5`
 
@@ -40,9 +82,8 @@ CSS 结构与 JavaScript 自动化测试通过。当前浏览器控制接口本�
 
 从提交 `3b4adf5` 生成的独立干净快照（不含 PNG 实验）通过：392 Python passed、1 个预期
 loopback sandbox skip、5 个 PostgreSQL deselected；MCP 10、Orbit JavaScript 24、TypeScript
-Connector 4、OpenClaw plugin 4 passed；Ruff check/format 和 diff 检查通过。证据标签为
-`conversation_identity_and_safe_attachment_local_verified`；未部署、未发布，也不是
-`production_accepted`。生产仍为 0.1.12 / `f10e75c`。
+Connector 4、OpenClaw plugin 4 passed；Ruff check/format 和 diff 检查通过。该段保留为
+发布前本地证据；当前生产事实以上方 0.1.13 发布记录为准。
 
 ### 设置/组织角色体验切片四 `3fa7e8a`
 

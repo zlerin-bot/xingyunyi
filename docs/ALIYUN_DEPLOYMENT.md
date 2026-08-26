@@ -15,9 +15,9 @@ full production acceptance.
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `f10e75c` at
-`/opt/agentpost/releases/f10e75c`, with its independent Python environment at
-`/opt/agentpost/venvs/f10e75c`. Package/server/SDK/MCP are aligned at `0.1.12`.
+The active application release is Git commit `f15df99` at
+`/opt/agentpost/releases/f15df99`, with its independent Python environment at
+`/opt/agentpost/venvs/f15df99`. Package/server/SDK/MCP are aligned at `0.1.13`.
 The database remains at Alembic revision `0020_pairing_agent_intent`.
 
 The environment file is root-readable only. Do not copy it into Git, command
@@ -45,6 +45,44 @@ journalctl -u agentpost --no-pager -n 100
 
 Expected service states are three `active` lines. Health and readiness must each
 return status `ok`/`ready` with the deployed protocol version.
+
+## Conversation identity and safe-attachment release 0.1.13 (2026-08-26)
+
+Release `f15df99` was built from a clean Git archive, excluding the preserved unstaged PNG
+experiment. Its exact public wheel is:
+
+`https://agentpost.me/downloads/agentpost-0.1.13-py3-none-any.whl`
+
+The wheel SHA-256 is
+`425e4596afedd32905c900ca90bf9a0e9c270e469ac428f7fa8733b43a78c510`. The immutable source and
+runtime are `/opt/agentpost/releases/f15df99` and `/opt/agentpost/venvs/f15df99`.
+
+Before mutation, the active 0.1.12 release, service topology, loopback bindings, schema, protected
+environment permissions, free disk/memory and production counts were checked. The verified backup
+is `/opt/agentpost/backups/20260826-131431-f15df99-pre-013/`; it includes the prior pointer,
+environment, systemd unit, Nginx site, 0.1.12 wheel, PostgreSQL custom dump/catalog, attachment
+archive/list, checksums and `rollback-immediate-0.1.13.sh`. The earlier
+`/opt/agentpost/backups/20260826-1313-f15df99-pre-013/` is incomplete and must not be used for
+recovery.
+
+The first guarded switch correctly restored 0.1.12 after a pipeline-based health matcher produced
+a false negative under `set -o pipefail`. A loopback-only 0.1.13 canary then returned exact health
+and readiness JSON and was stopped. The corrected switch stores each full response before exact
+comparison. It completed with only an AgentPost restart and Nginx reload; Nginx and PostgreSQL main
+PIDs remained `127548` and `137458`.
+
+Postflight verified local/public 0.1.13 health/readiness, unchanged revision
+`0020_pairing_agent_intent`, unchanged 24/54/54/4/9 Agent/Message/Delivery/Attachment/current-binding
+counts, root-only environment permissions, the exact public wheel, the retained 0.1.12 rollback
+wheel, and 404 for unmatched download paths. An authenticated production Chrome session rendered
+the 21-Thread conversation list, right-side multi-message timeline, Human/Agent sender and recipient
+labels, and a real sandboxed HTML attachment preview with scripts, network, forms, popups and
+same-origin authority disabled.
+
+This release is `conversation_identity_and_safe_attachment_deployed_https_verified`. Real 390 px
+production browsing, a production PDF click when such an attachment is available, cross-Human
+acceptance, and the pre-existing Hermes/Remote-MCP gates remain pending; this is not
+`production_accepted`.
 
 ## Current accepted behavior
 

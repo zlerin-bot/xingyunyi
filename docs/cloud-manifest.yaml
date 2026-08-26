@@ -1,15 +1,17 @@
 schema_version: "1"
 project: xingyunyi-agentpost
-evidence_status: hermes_release_gate_and_six_host_picker_deployed_https_verified
-verified_at: "2026-08-26T10:00:09+08:00"
+evidence_status: conversation_identity_and_safe_attachment_deployed_https_verified
+verified_at: "2026-08-26T13:39:05+08:00"
 
 local_stage:
-  tag: v0.1.12-local.1
+  prior_tag: v0.1.12-local.1
   committed_svg_baseline: 43796a1
-  package_version: 0.1.12
-  production_change: false
+  feature_commit: 3b4adf5
+  release_commit: f15df99
+  package_version: 0.1.13
+  production_change: true
   validation_snapshot: clean_git_archive
-  evidence_status: v0.1.12-local.1_verified
+  evidence_status: conversation_identity_and_safe_attachment_local_verified
   excludes_preserved_uncommitted_png_experiment: true
 
 provider:
@@ -20,13 +22,13 @@ provider:
   operating_system: ubuntu-24.04
 
 release:
-  git_commit: f10e75c
+  git_commit: f15df99
   current_path: /opt/agentpost/current
-  immutable_path: /opt/agentpost/releases/f10e75c
-  virtualenv_path: /opt/agentpost/venvs/f10e75c
+  immutable_path: /opt/agentpost/releases/f15df99
+  virtualenv_path: /opt/agentpost/venvs/f15df99
   alembic_revision: 0020_pairing_agent_intent
-  package_version: 0.1.12
-  connector_wheel_sha256: abec6302203964eae51312adebaa509ccce228cf0342d9c4f86b0e9db7f5d821
+  package_version: 0.1.13
+  connector_wheel_sha256: 425e4596afedd32905c900ca90bf9a0e9c270e469ac428f7fa8733b43a78c510
   schema_change: false
 
 topology:
@@ -93,13 +95,14 @@ rollback:
     fresh_0_1_3_attempt: failed_snapshot_limit_exceeded
     existing_snapshots_preserved: true
   application_backup: /opt/agentpost/backups/20260824-https
-  current_update_backup: /opt/agentpost/backups/20260826-0908-f10e75c-pre-012
+  current_update_backup: /opt/agentpost/backups/20260826-131431-f15df99-pre-013
   incomplete_backups_preserved:
     - /opt/agentpost/backups/20260825-1746-e378a7e-pre-016
     - /opt/agentpost/backups/20260825-1747-e378a7e-pre-016
-  prior_release: /opt/agentpost/releases/a6d99c3
-  prior_unit: /opt/agentpost/backups/20260826-0908-f10e75c-pre-012/agentpost.service
-  immediate_script: /opt/agentpost/backups/20260826-0908-f10e75c-pre-012/rollback-immediate-0.1.12.sh
+    - /opt/agentpost/backups/20260826-1313-f15df99-pre-013
+  prior_release: /opt/agentpost/releases/f10e75c
+  prior_unit: /opt/agentpost/backups/20260826-131431-f15df99-pre-013/agentpost.service
+  immediate_script: /opt/agentpost/backups/20260826-131431-f15df99-pre-013/rollback-immediate-0.1.13.sh
   database_dump_verified: true
   attachment_archive_verified: true
 
@@ -119,9 +122,9 @@ acceptance:
   orbit_codex_0_1_1_guide: superseded_by_connection_code_v1
   orbit_frontend_errors: none
   pinned_connector_wheel: passed
-  public_connector_wheel_version: 0.1.12
+  public_connector_wheel_version: 0.1.13
   clean_public_wheel_install: passed
-  server_sdk_mcp_package_versions: aligned_0.1.12
+  server_sdk_mcp_package_versions: aligned_0.1.13
   package_boundary_regression: passed
   recipient_resolver_api_sdk_cli_mcp_skill_ui: deployed
   recipient_handle_editor: passed_without_mutation
@@ -155,6 +158,12 @@ acceptance:
   hermes_real_pairing_send_receive_restart: pending_human_test
   manus_remote_mcp_gate: unavailable_409_fail_closed
   doubao_work_remote_mcp_gate: unavailable_409_fail_closed
+  production_counts_after_0_1_13: 24_agents_54_messages_54_deliveries_4_attachments_9_current_bindings
+  orbit_conversations_grouped_by_thread: passed_21_threads_authenticated_production
+  orbit_human_agent_sender_recipient_labels: passed_authenticated_production
+  orbit_html_attachment_sandbox_preview: passed_real_authenticated_attachment
+  orbit_pdf_attachment_open: passed_local_contract_production_click_pending
+  orbit_mobile_390_production: pending
   production_counts_after_0_1_12: 23_agents_51_messages_51_deliveries_9_current_bindings
   workbuddy_020_current_connector: healthy_current
   workbuddy_020_message_to_mars: msg_3904d107573943528aea85861ffbaa09_delivered

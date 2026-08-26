@@ -2,7 +2,35 @@
 
 Last updated: 2026-08-26
 
-Frozen handoff stage: `v0.1.12-local.1`; current source and pinned production release: `0.1.12`
+Current handoff stage: `v0.1.13-conversation-attachment-deployed`; pinned production release: `0.1.13`
+
+## Conversation identity and safe attachments (0.1.13 deployed, 2026-08-26)
+
+Commit `f15df99` / package `0.1.13` is deployed as immutable source
+`/opt/agentpost/releases/f15df99` with runtime `/opt/agentpost/venvs/f15df99`. The public wheel is
+`https://agentpost.me/downloads/agentpost-0.1.13-py3-none-any.whl`, SHA-256
+`425e4596afedd32905c900ca90bf9a0e9c270e469ac428f7fa8733b43a78c510`. It was built from a clean
+Git archive and excludes the preserved unstaged PNG experiment.
+
+The verified rollback point is `/opt/agentpost/backups/20260826-131431-f15df99-pre-013/`. It holds
+the prior pointer/configuration, old 0.1.12 wheel, readable PostgreSQL custom dump catalog,
+attachment archive/list, checksums and `rollback-immediate-0.1.13.sh`. A first cutover attempt was
+automatically restored to 0.1.12 after a pipefail-sensitive health matcher produced a false
+negative. A temporary loopback-only 0.1.13 canary then returned exact health/readiness responses;
+the corrected full-response comparison cut over successfully.
+
+Postflight reports local/public health and readiness at 0.1.13, unchanged schema
+`0020_pairing_agent_intent`, and unchanged counts of 24 Agents / 54 Messages / 54 Deliveries /
+4 Attachments / 9 current Connector bindings. Nginx and PostgreSQL retained their pre-cutover main
+PIDs, the environment remains `600 root:root`, unknown download paths return 404, and both pinned
+0.1.12 and 0.1.13 wheels verify against their recorded hashes.
+
+An authenticated production Chrome session verified the desktop conversation list/detail flow,
+Human plus Agent sender/recipient labels, multi-message Thread timeline, attachment download entry,
+and a real sandboxed HTML preview. The preview rendered content while disabling scripts, network,
+forms, popups and same-origin authority. Real 390 px production browsing and a production PDF click
+remain pending; local responsive and PDF contract tests have passed. Evidence is
+`conversation_identity_and_safe_attachment_deployed_https_verified`, not `production_accepted`.
 
 ## Settings and organization-role experience slice 4 (local review only, 2026-08-26)
 
