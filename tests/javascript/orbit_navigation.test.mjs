@@ -225,6 +225,19 @@ test("Agent detail keeps current connection, history, access and actions distinc
   assert.match(script, /\/api\/v1\/orbit\/threads\?limit=200&agent_id=/);
 });
 
+test("Agent owners can find the short-name action in the detail heading", () => {
+  const headingStart = html.indexOf('class="agent-detail-heading-actions"');
+  const headingEnd = html.indexOf("</div>", headingStart);
+  const headingActions = html.slice(headingStart, headingEnd);
+  const dangerStart = html.indexOf('id="agent-owner-actions"');
+  const dangerEnd = html.indexOf("</div>", dangerStart);
+  const dangerActions = html.slice(dangerStart, dangerEnd);
+
+  assert.match(headingActions, /id="agent-rename"/);
+  assert.doesNotMatch(dangerActions, /id="agent-rename"/);
+  assert.match(script, /elements\.agentRename\.hidden = !owner/);
+});
+
 test("Agent selection and tab survive deep links and browser history", () => {
   assert.match(script, /parameters\.get\("agent"\)/);
   assert.match(script, /parameters\.get\("agentTab"\)/);

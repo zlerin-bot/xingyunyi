@@ -1844,6 +1844,7 @@ function renderAgentDetail(agent) {
   const owner = agent.role === "owner";
   elements.agentOwnerActions.hidden = !owner;
   elements.agentReadonlyActions.hidden = owner;
+  elements.agentRename.hidden = !owner;
   const currentOwnedConnector = state.connectors.find(
     (connector) => String(connector.agent?.id) === String(agent.id)
       && connector.is_current && connector.status === "active",

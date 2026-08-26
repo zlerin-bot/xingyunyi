@@ -42,9 +42,6 @@ def search_agents(
     ] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> DirectorySearchResponse:
-    # Resolving the authenticated agent is the authorization boundary even though
-    # discovery results are not personalized in the MVP.
-    _ = current_agent
     try:
         filters = DirectoryFilters.normalize(q=q, capability=capability)
     except InvalidDirectoryFilterError as exc:
@@ -52,4 +49,9 @@ def search_agents(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={"code": "invalid_directory_filter", "message": str(exc)},
         ) from exc
-    return search_directory(session, filters=filters, limit=limit)
+    return search_directory(
+        session,
+        caller=current_agent,
+        filters=filters,
+        limit=limit,
+    )

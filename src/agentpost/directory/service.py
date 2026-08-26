@@ -129,13 +129,18 @@ def _has_capability(agent: Agent, capability: str) -> bool:
 def search_directory(
     session: Session,
     *,
+    caller: Agent,
     filters: DirectoryFilters,
     limit: int = 20,
 ) -> DirectorySearchResponse:
     if limit < 1 or limit > 100:
         raise ValueError("limit must be between 1 and 100")
 
-    query = select(Agent).where(Agent.status == "active")
+    related_agent_ids = _related_agent_ids(session, caller)
+    query = select(Agent).where(
+        Agent.status == "active",
+        Agent.id.in_(related_agent_ids),
+    )
     if filters.q is not None:
         # autoescape makes `%` and `_` literal substring characters rather than
         # allowing a search term to turn into an unrestricted LIKE expression.

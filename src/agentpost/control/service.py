@@ -496,18 +496,34 @@ def _task_rows(
     return list(session.execute(statement).all())
 
 
-def _results_for_tasks(session: Session, task_ids: list[str]) -> dict[str, Message]:
+def _responses_for_tasks(session: Session, task_ids: list[str]) -> dict[str, Message]:
     if not task_ids:
         return {}
-    results = session.scalars(
+    task_senders = dict(
+        session.execute(
+            select(Message.id, Message.sender_agent_id).where(Message.id.in_(task_ids))
+        ).all()
+    )
+    replies = session.scalars(
         select(Message)
         .where(
-            Message.message_type == "result",
             Message.reply_to_message_id.in_(task_ids),
         )
         .order_by(Message.created_at, Message.id)
     ).all()
-    return {result.reply_to_message_id: result for result in results if result.reply_to_message_id}
+    responses: dict[str, Message] = {}
+    for reply in replies:
+        task_id = reply.reply_to_message_id
+        if task_id is None:
+            continue
+        if reply.sender_agent_id == task_senders.get(task_id):
+            continue
+        current = responses.get(task_id)
+        # A structured result remains authoritative. Otherwise, a direct reply
+        # is sufficient evidence that this round of the task was handled.
+        if current is None or reply.message_type == "result" or current.message_type != "result":
+            responses[task_id] = reply
+    return responses
 
 
 def _content_allowed(role_map: dict[UUID, str], sender_id: UUID, recipient_id: UUID) -> bool:
@@ -577,12 +593,14 @@ def _as_utc(value: datetime | None) -> datetime | None:
     return value.astimezone(UTC)
 
 
-def _work_state_for(message: Message, results: dict[str, Message]) -> str | None:
+def _work_state_for(message: Message, responses: dict[str, Message]) -> str | None:
     if message.message_type == "task":
-        result = results.get(message.id)
-        if result is None or result.result_payload is None:
+        response = responses.get(message.id)
+        if response is None:
             return "pending"
-        return str(result.result_payload.get("status", "pending"))
+        if response.message_type == "result" and response.result_payload is not None:
+            return str(response.result_payload.get("status", "completed"))
+        return "completed"
     if message.message_type == "result" and message.result_payload is not None:
         return str(message.result_payload.get("status"))
     return None
@@ -675,7 +693,7 @@ def list_orbit_messages(
     role_map = {entry.agent.id: entry.role for entry in entries}
     rows = _message_rows(session, agent_ids=set(role_map), limit=limit)
     task_ids = [row[0].id for row in rows if row[0].message_type == "task"]
-    task_results = _results_for_tasks(session, task_ids)
+    task_results = _responses_for_tasks(session, task_ids)
     connector_types = _connector_types_for_agents(session, set(role_map))
     owner_humans = _owner_humans_for_agents(
         session,
@@ -763,7 +781,7 @@ def _orbit_thread_data(
         grouped.setdefault(row[0].thread_id, []).append(row)
     for values in grouped.values():
         values.sort(key=lambda row: (_as_utc(row[0].created_at), row[0].id))
-    task_results = _results_for_tasks(
+    task_results = _responses_for_tasks(
         session,
         [row[0].id for row in rows if row[0].message_type == "task"],
     )
@@ -1038,12 +1056,16 @@ def list_orbit_tasks(
     entries = list_agent_access(session, user)
     role_map = {entry.agent.id: entry.role for entry in entries}
     rows = _task_rows(session, agent_ids=set(role_map), limit=limit)
-    results = _results_for_tasks(session, [row[0].id for row in rows])
+    results = _responses_for_tasks(session, [row[0].id for row in rows])
     tasks: list[OrbitTask] = []
     for task, delivery, sender, recipient in rows:
-        result = results.get(task.id)
-        result_payload = result.result_payload if result is not None else None
-        state = str(result_payload.get("status")) if result_payload else "pending"
+        response = results.get(task.id)
+        result_payload = (
+            response.result_payload
+            if response is not None and response.message_type == "result"
+            else None
+        )
+        state = _work_state_for(task, results) or "pending"
         content_allowed = _content_allowed(
             role_map,
             task.sender_agent_id,
@@ -1063,10 +1085,14 @@ def list_orbit_tasks(
                 priority=task.priority,
                 communication_state=delivery.delivery_status,
                 work_state=state,
-                result_message_id=result.id if result is not None else None,
+                result_message_id=(
+                    response.id
+                    if response is not None and response.message_type == "result"
+                    else None
+                ),
                 result_summary=str(summary) if summary is not None and content_allowed else None,
                 created_at=task.created_at,
-                updated_at=result.created_at if result is not None else task.created_at,
+                updated_at=response.created_at if response is not None else task.created_at,
             )
         )
     return tasks
@@ -1123,7 +1149,7 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
     tasks = list_orbit_tasks(session, user, limit=50)
     recent_rows = _message_rows(session, agent_ids=agent_ids, limit=12)
     recent_task_ids = [row[0].id for row in recent_rows if row[0].message_type == "task"]
-    recent_task_results = _results_for_tasks(session, recent_task_ids)
+    recent_task_results = _responses_for_tasks(session, recent_task_ids)
     connector_types = _connector_types_for_agents(session, agent_ids)
     owner_humans = _owner_humans_for_agents(
         session,
@@ -1156,7 +1182,7 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
 
     pending_by_agent: dict[UUID, int] = {agent_id: 0 for agent_id in agent_ids}
     task_rows = _task_rows(session, agent_ids=agent_ids, limit=None)
-    task_results = _results_for_tasks(session, [row[0].id for row in task_rows])
+    task_results = _responses_for_tasks(session, [row[0].id for row in task_rows])
     for task, delivery, _, _ in task_rows:
         if task.id not in task_results and delivery.recipient_agent_id in pending_by_agent:
             pending_by_agent[delivery.recipient_agent_id] += 1

@@ -26,6 +26,8 @@
 - 读取星轨页面、搜索或打开 Thread 不得改变 Delivery、`read`、ACK 或 Agent 工作状态。
 - Human 是否查看某个 Thread 由 `human_thread_views` 按 `human_user_id + thread_id` 独立保存；只有明确打开完整对话并成功写入最新消息游标后才能清除红点，新消息到达后必须重新显示未读。该状态不得反写或推导 Agent 的 Delivery、`read`、ACK 与任务完成状态。
 - `delivered`、`read`、ACK、任务完成和 Human 审批是不同事实，展示和测试中不得互相替代。
+- 星轨按每一条 `task` 记录一轮任务：收到对该 `task` 的直接回复即表示这一轮已处理；结构化 `result` 的 `completed/partial/failed/cancelled` 状态优先于普通回复。对话中较早轮次已回复时必须显示完成，只有尚未收到直接回复且没有结构化结果的轮次显示待处理。
+- Agent 目录搜索只能返回服务端确认的关系范围：当前 Agent、同一 Human 所有的 Agent、明确组织/ACL 授权的 Agent，以及双方已有真实消息往来的 Agent。不得向任一 Agent 枚举平台全部活跃 Agent；使用已知完整地址或准确短名称发起首次联系可以保留，但不能借此返回无关 Agent 名单或所有者信息。
 - 失权、未知或越权资源统一按既有 not-found 边界处理，避免泄露资源是否存在；Auditor 不得通过正文、附件名、预览或搜索旁路看到被隐藏内容。
 
 ## 开发节奏与验证

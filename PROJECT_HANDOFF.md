@@ -1,12 +1,37 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.15-mobile-startrail-shortcuts-local`
+- 交接阶段：`v0.1.15-task-rounds-contact-directory-local`
 - 核验日期：2026-08-26
 - 代码分支：`main`
-- 阶段性质：0.1.15 生产基线保持不变；移动端星轨快捷筛选与顶部连接状态已在本地完成，尚未部署
-- 本地开发状态：移动端交互切片已完成本地验证；生产仍为 `0b2dc9c / 0.1.15`
+- 阶段性质：0.1.15 生产基线保持不变；逐轮任务状态、短名称入口和联系人目录边界已在本地完成，尚未部署
+- 本地开发状态：本轮功能与权限切片正在完成本地验证；生产仍为 `0b2dc9c / 0.1.15`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 逐轮任务状态、短名称入口与联系人目录（本地，未部署）
+
+根据登录态生产 Chrome 中与 020 的真实五条消息核对：第一、第二轮 task 都已有 020 的直接回复，
+第三轮尚未回复；0.1.15 页面却把前两轮仍显示为“待处理”。本地已把任务判定改为逐条 task 计算：
+直接回复即完成该轮，结构化 result 的 completed/partial/failed/cancelled 状态继续作为更高优先级
+结果；Delivery、read、ACK 仍不等于任务完成。三轮回归样本现在得到“完成、完成、待处理”，汇总
+待处理数量为 1，Thread 和任务列表口径一致。
+
+云驿 Agent 详情页的“设置/修改短名称”已从“危险操作”页签移到详情标题区，Owner 打开 Agent 后
+首屏即可找到；Viewer/Auditor 不显示该所有者操作，断开和删除仍保留在“危险操作”。桌面和移动端
+共用该入口，避免窄屏用户继续深入多层页签。
+
+目录搜索原 MVP 仅以 Agent 已认证作为边界，会返回所有匹配的活跃 Agent；这与自然语言收件人解析
+已有的关系范围不一致。本地已统一为服务端验证的联系人范围：当前 Agent、同一 Human 所有的 Agent、
+明确组织/ACL 授权，以及任一方向已有真实消息往来的 Agent。完全无联系的 Agent 不再出现在搜索
+列表；已知完整地址或准确短名称仍可用于主动首次联系，但不能用于枚举全平台目录或取得无关所有者
+信息。相关规则已同步写入 `AGENTS.md`。
+
+本地证据：Python fast 395 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL deselected；
+MCP 11 passed、Orbit JavaScript 24 passed，JavaScript syntax、Ruff check/format 和 diff check 通过。
+登录态 Chrome 的真实 020 Thread 用于确认“前两轮已回复、第三轮未回复”；隔离演示环境验证桌面
+Agent 详情首屏直接显示“修改短名称”。390×844 下按钮位于详情首屏、38px 高，弹窗可正常打开，
+`scrollWidth = innerWidth = 390`，危险操作页签仍折叠。当前证据是
+`task_rounds_contact_directory_local_verified`；本轮没有获得部署授权，生产仍为 0.1.15。
 
 ### 移动端星轨快捷筛选（本地，未部署）
 

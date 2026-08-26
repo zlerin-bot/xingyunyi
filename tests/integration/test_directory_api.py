@@ -63,6 +63,28 @@ def search(
     )
 
 
+def contact(
+    client: TestClient,
+    sender: dict[str, Any],
+    recipient: dict[str, Any],
+    suffix: str,
+) -> None:
+    response = client.post(
+        "/api/v1/messages",
+        headers={
+            **bearer(sender),
+            "Idempotency-Key": f"directory-contact-{suffix}",
+        },
+        json={
+            "to": [{"address": recipient["agent"]["address"]}],
+            "type": "message",
+            "subject": "建立联系人关系",
+            "content": {"format": "text", "body": "你好"},
+        },
+    )
+    assert response.status_code == 201, response.text
+
+
 def addresses(response: Any) -> list[str]:
     assert response.status_code == 200, response.text
     return [item["address"] for item in response.json()["items"]]
@@ -72,19 +94,19 @@ def test_q_searches_address_name_and_description_case_insensitively(
     directory_client: TestClient,
 ) -> None:
     caller = register(directory_client, "caller@agents.local")
-    register(
+    address_match = register(
         directory_client,
         "bank-address@agents.local",
         display_name="Address match",
         description=None,
     )
-    register(
+    display_match = register(
         directory_client,
         "display@agents.local",
         display_name="Institutional BANK Desk",
         description=None,
     )
-    register(
+    description_match = register(
         directory_client,
         "description@agents.local",
         display_name="Description match",
@@ -96,6 +118,9 @@ def test_q_searches_address_name_and_description_case_insensitively(
         display_name="Unrelated",
         description=None,
     )
+    contact(directory_client, caller, address_match, "q-address")
+    contact(directory_client, caller, display_match, "q-display")
+    contact(directory_client, description_match, caller, "q-description-inbound")
 
     response = search(directory_client, caller, q="BaNk")
 
@@ -110,21 +135,24 @@ def test_capability_is_normalized_and_matches_exactly(
     directory_client: TestClient,
 ) -> None:
     caller = register(directory_client, "caller@agents.local")
-    register(
+    alpha = register(
         directory_client,
         "alpha@agents.local",
         capabilities=["Financial-Research"],
     )
-    register(
+    beta = register(
         directory_client,
         "beta@agents.local",
         capabilities=["financial-research-plus"],
     )
-    register(
+    gamma = register(
         directory_client,
         "gamma@agents.local",
         capabilities=["financial-research", "web-search"],
     )
+    contact(directory_client, caller, alpha, "cap-alpha")
+    contact(directory_client, caller, beta, "cap-beta")
+    contact(directory_client, caller, gamma, "cap-gamma")
 
     response = search(
         directory_client,
@@ -137,22 +165,25 @@ def test_capability_is_normalized_and_matches_exactly(
 
 def test_q_and_capability_filters_are_combined(directory_client: TestClient) -> None:
     caller = register(directory_client, "caller@agents.local")
-    register(
+    bank_finance = register(
         directory_client,
         "bank-finance@agents.local",
         capabilities=["financial-research"],
     )
-    register(
+    bank_web = register(
         directory_client,
         "bank-web@agents.local",
         capabilities=["web-search"],
     )
-    register(
+    technology = register(
         directory_client,
         "technology@agents.local",
         display_name="Technology analyst",
         capabilities=["financial-research"],
     )
+    contact(directory_client, caller, bank_finance, "combined-finance")
+    contact(directory_client, caller, bank_web, "combined-web")
+    contact(directory_client, caller, technology, "combined-tech")
 
     response = search(
         directory_client,
@@ -169,9 +200,12 @@ def test_directory_only_returns_active_agents(
     database: Database,
 ) -> None:
     caller = register(directory_client, "caller@agents.local")
-    register(directory_client, "active-match@agents.local")
-    register(directory_client, "disabled-match@agents.local")
-    register(directory_client, "suspended-match@agents.local")
+    active = register(directory_client, "active-match@agents.local")
+    disabled_registration = register(directory_client, "disabled-match@agents.local")
+    suspended_registration = register(directory_client, "suspended-match@agents.local")
+    contact(directory_client, caller, active, "status-active")
+    contact(directory_client, caller, disabled_registration, "status-disabled")
+    contact(directory_client, caller, suspended_registration, "status-suspended")
     with database.session_factory() as session:
         disabled = session.scalar(
             select(Agent).where(Agent.address == "disabled-match@agents.local")
@@ -215,6 +249,7 @@ def test_response_has_only_safe_strict_profile_fields(
         capabilities=["financial-research"],
         public_key="public-key-material",
     )
+    contact(directory_client, caller, target, "safe-profile")
     with database.session_factory() as session:
         agent = session.scalar(select(Agent).where(Agent.address == "safe-target@agents.local"))
         assert agent is not None
@@ -236,12 +271,16 @@ def test_response_has_only_safe_strict_profile_fields(
 
 def test_results_are_address_sorted_and_honor_limit(directory_client: TestClient) -> None:
     caller = register(directory_client, "caller@agents.local")
-    for address in (
-        "zulu-common@agents.local",
-        "alpha-common@agents.local",
-        "beta-common@agents.local",
-    ):
+    targets = [
         register(directory_client, address)
+        for address in (
+            "zulu-common@agents.local",
+            "alpha-common@agents.local",
+            "beta-common@agents.local",
+        )
+    ]
+    for index, target in enumerate(targets):
+        contact(directory_client, caller, target, f"sort-{index}")
 
     response = search(directory_client, caller, q="common", limit=2)
 
@@ -262,6 +301,19 @@ def test_like_metacharacters_are_literal_not_unrestricted_searches(
 
     assert addresses(percent) == []
     assert addresses(underscore) == []
+
+
+def test_directory_does_not_list_agents_without_a_verified_relationship(
+    directory_client: TestClient,
+) -> None:
+    caller = register(directory_client, "caller@agents.local")
+    contacted = register(directory_client, "contacted-common@agents.local")
+    register(directory_client, "unknown-common@agents.local")
+    contact(directory_client, caller, contacted, "relationship-boundary")
+
+    response = search(directory_client, caller, q="common")
+
+    assert addresses(response) == ["contacted-common@agents.local"]
 
 
 @pytest.mark.parametrize(

@@ -766,6 +766,94 @@ def test_owner_dashboard_separates_delivery_from_work_and_isolates_other_agents(
     assert after["metrics"]["pending_task_count"] == 0
 
 
+def test_each_task_round_is_completed_by_a_direct_reply(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with _control_client(settings, database) as client:
+        alice = _create_agent(client, "round-owner@agents.local", "Round owner")
+        bob = _create_agent(client, "round-worker@agents.local", "Round worker")
+        owner = _create_human(client, "rounds@example.com", "多轮任务用户")
+        _grant(
+            client,
+            human_id=owner["user"]["id"],
+            agent_id=alice["agent"]["id"],
+            role="owner",
+        )
+
+        task_ids: list[str] = []
+        thread_id = None
+        reply_parent_id = None
+        for round_number in range(1, 4):
+            task_payload: dict[str, object] = {
+                "type": "task",
+                "subject": f"第 {round_number} 轮任务",
+                "content": {"format": "text", "body": f"请处理第 {round_number} 轮"},
+                "task": {"instruction": f"请处理第 {round_number} 轮"},
+            }
+            if reply_parent_id is None:
+                task_payload["to"] = [{"address": bob["agent"]["address"]}]
+                task = client.post(
+                    "/api/v1/messages",
+                    headers={
+                        "Authorization": f"Bearer {alice['api_key']}",
+                        "Idempotency-Key": f"orbit-task-round-{round_number}",
+                    },
+                    json=task_payload,
+                )
+            else:
+                task = client.post(
+                    f"/api/v1/messages/{reply_parent_id}/reply",
+                    headers={
+                        "Authorization": f"Bearer {alice['api_key']}",
+                        "Idempotency-Key": f"orbit-task-round-{round_number}",
+                    },
+                    json=task_payload,
+                )
+            assert task.status_code == 201, task.text
+            thread_id = task.json()["thread_id"]
+            task_ids.append(task.json()["message_id"])
+            if round_number < 3:
+                reply = client.post(
+                    f"/api/v1/messages/{task.json()['message_id']}/reply",
+                    headers={
+                        "Authorization": f"Bearer {bob['api_key']}",
+                        "Idempotency-Key": f"orbit-task-round-reply-{round_number}",
+                    },
+                    json={
+                        "type": "response",
+                        "subject": f"第 {round_number} 轮回复",
+                        "content": {"format": "text", "body": "这一轮已经处理并回复"},
+                    },
+                )
+                assert reply.status_code == 201, reply.text
+                reply_parent_id = reply.json()["message_id"]
+
+        headers = {"Authorization": f"Bearer {owner['access_key']}"}
+        dashboard = client.get("/api/v1/orbit/dashboard", headers=headers)
+        threads = client.get("/api/v1/orbit/threads", headers=headers)
+        detail = client.get(f"/api/v1/orbit/threads/{thread_id}", headers=headers)
+
+    assert dashboard.status_code == threads.status_code == detail.status_code == 200
+    tasks_by_id = {task["task_message_id"]: task for task in dashboard.json()["tasks"]}
+    assert tasks_by_id[task_ids[0]]["work_state"] == "completed"
+    assert tasks_by_id[task_ids[1]]["work_state"] == "completed"
+    assert tasks_by_id[task_ids[2]]["work_state"] == "pending"
+    assert dashboard.json()["metrics"]["pending_task_count"] == 1
+    thread = next(item for item in threads.json() if item["thread_id"] == thread_id)
+    assert thread["pending_task_count"] == 1
+    detail_tasks = {
+        message["message_id"]: message["work_state"]
+        for message in detail.json()["messages"]
+        if message["message_type"] == "task"
+    }
+    assert detail_tasks == {
+        task_ids[0]: "completed",
+        task_ids[1]: "completed",
+        task_ids[2]: "pending",
+    }
+
+
 def test_auditor_content_is_redacted_and_revocation_removes_all_visibility(
     settings: Settings,
     database: Database,
