@@ -1,12 +1,41 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.12-local.1`
+- 交接阶段：`post-v0.1.12-local.1-settings-org-slice-4`
 - 核验日期：2026-08-26
 - 代码分支：`main`
-- 阶段性质：0.1.12 生产基线之上的 SVG 品牌稿本地冻结；不触发新部署
-- 本地开发状态：已提交 SVG 基线通过隔离全量验证；未提交 PNG 替换实验保留在工作区且不纳入阶段 tag
+- 阶段性质：0.1.12 生产基线之上的设置/组织角色体验本地切片；不触发新部署
+- 本地开发状态：切片四已提交为 `3fa7e8a`；未提交 PNG 替换实验继续保留且不纳入本切片
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 设置/组织角色体验切片四 `3fa7e8a`
+
+切片四已把组织邀请从“登录后自动接受”改为“先预览、再由 Human 明确确认”。新增的
+`POST /api/v1/orbit/organization-invitations/preview` 是无副作用的已登录预览：令牌只在请求体中
+传递，继续校验邀请状态、有效期和目标邮箱，不匹配时统一 not found，不创建成员关系、不消耗邀请。
+确认弹窗在加入前显示组织、角色、可见范围、可执行操作和邀请有效期，并明确个人 Agent、个人
+对话、直接授权和 Agent 通信 ACL 不会自动共享。
+
+设置页同时明确展示 Owner、Admin、Member、Auditor 四种角色体验。Owner 可治理全部角色；Admin
+邀请选项只保留 Member/Auditor；Member/Auditor 不显示邀请治理入口。组织角色说明持续强调成员
+关系不等于 Agent 所有权，组织派生权限不开放连接、重命名、断开或删除。成员列表确认当前用户是
+最后一名 Owner 时，“退出组织”会禁用并提示先转交 Owner；服务端既有鉴权仍为最终权威。
+
+本地证据：聚焦组织/控制面集成测试 20 passed；全量 fast 为 391 passed、1 个预期 loopback
+sandbox skip、5 个 PostgreSQL deselected；MCP 10、Orbit JavaScript 23、TypeScript Connector
+4、OpenClaw plugin 4 passed；Ruff check/format、JavaScript syntax 和 `git diff --check` 通过。
+隔离 `make orbit-demo` 在桌面和 390 px 下完成真实浏览器交互：角色卡、Owner 治理弹窗、邀请角色、
+最后一名 Owner 禁用状态和移动端单列均正确，页面 `scrollWidth=390`，控制台无 warning/error。
+
+额外尝试运行原有 12 步 `make demo` 时，Alembic 在 SQLite 执行历史迁移
+`0019_agent_handles` 的 `create_check_constraint` 触发 SQLite 不支持 ALTER constraint 的
+`NotImplementedError`。这发生在本切片 API/UI 运行前，聚焦和全量回归没有同类失败；当前如实记录
+为既有 demo/SQLite 迁移缺口，不在本切片中顺带改写历史迁移。切片证据标签为
+`settings_organization_roles_local_ui_verified`，未部署、未发布，也不是 `production_accepted`。
+
+`v0.1.12-local.1` 仍是上一恢复标签；`3fa7e8a` 是其后的功能提交。工作区中的 PNG 品牌实验仍按
+原要求保持未暂存，SHA-256 为
+`71f10092a1e8ef43cbcfa11279500cbbfe05308eb1c099c149d4cbefb86d9c13`，没有进入切片四提交。
 
 ### 本地阶段版本 `v0.1.12-local.1`
 

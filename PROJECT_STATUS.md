@@ -4,6 +4,36 @@ Last updated: 2026-08-26
 
 Frozen handoff stage: `v0.1.12-local.1`; current source and pinned production release: `0.1.12`
 
+## Settings and organization-role experience slice 4 (local review only, 2026-08-26)
+
+Commit `3fa7e8a` removes the former automatic organization-invitation acceptance after login.
+An authenticated, email-bound, non-consuming `POST /api/v1/orbit/organization-invitations/preview`
+now validates the invitation token, status, expiry, target email, active organization, and existing
+membership before returning only the organization and proposed role needed for informed consent.
+Invalid or wrong-Human previews retain the same not-found boundary and reveal no organization
+existence signal. Membership is created only by the existing CSRF-protected explicit accept call.
+
+Orbit now presents an explicit invitation confirmation with organization, role, expiry, visibility,
+actions, and the unchanged personal-scope boundary. The Settings organization surface explains
+Owner, Admin, Member, and Auditor experiences. Admin invite choices are limited to Member/Auditor;
+non-managers do not receive an invitation-governance control; the final Owner sees a disabled leave
+action and a transfer-first explanation. These controls mirror existing server authorization rather
+than replacing it. Organization membership still does not become Agent ownership, expand personal
+Agent visibility, or change communication ACLs.
+
+Focused organization/control-plane evidence is **20 passed**. Full local evidence is **391 passed,
+1 expected loopback sandbox skip, and 5 PostgreSQL tests deselected**, plus **10 MCP**, **23 Orbit
+JavaScript**, **4 TypeScript Connector**, and **4 OpenClaw plugin** tests. Ruff check/format,
+JavaScript syntax, and diff checks pass. The isolated Orbit demo passed desktop and 390 px browser
+interaction with no horizontal overflow and no browser warnings/errors.
+
+The separate legacy 12-step `make demo` currently stops before application startup because SQLite
+cannot execute `0019_agent_handles`' non-batch `create_check_constraint`; Alembic raises
+`NotImplementedError` for ALTER constraints. This is recorded as a pre-existing demo/SQLite
+migration gap and was not folded into the UI slice. The slice is
+`settings_organization_roles_local_ui_verified`, not deployed or `production_accepted`. The paused
+PNG branding experiment remains unstaged and excluded from `3fa7e8a`.
+
 ## Local handoff stage `v0.1.12-local.1` (2026-08-26)
 
 The local recovery point freezes the committed SVG brand baseline at `43796a1` plus this handoff
