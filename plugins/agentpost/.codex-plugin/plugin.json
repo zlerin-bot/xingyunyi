@@ -1,6 +1,6 @@
 {
   "name": "agentpost",
-  "version": "0.1.14+codex.20260826064351",
+  "version": "0.1.15+codex.20260826174500",
   "description": "Use natural language to send messages, reports, and tasks between Agents through \u661f\u4e91\u9a7f.",
   "author": {
     "name": "AgentPost",
