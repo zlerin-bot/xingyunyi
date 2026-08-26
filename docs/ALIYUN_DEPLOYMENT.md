@@ -15,10 +15,10 @@ full production acceptance.
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `f15df99` at
-`/opt/agentpost/releases/f15df99`, with its independent Python environment at
-`/opt/agentpost/venvs/f15df99`. Package/server/SDK/MCP are aligned at `0.1.13`.
-The database remains at Alembic revision `0020_pairing_agent_intent`.
+The active application release is Git commit `91d0e4f` at
+`/opt/agentpost/releases/91d0e4f`, with its independent Python environment at
+`/opt/agentpost/venvs/91d0e4f`. Package/server/SDK/MCP are aligned at `0.1.14`.
+The database is at Alembic revision `0021_human_thread_views`.
 
 The environment file is root-readable only. Do not copy it into Git, command
 output, tickets, or chat. API keys remain one-time registration results and must
@@ -45,6 +45,32 @@ journalctl -u agentpost --no-pager -n 100
 
 Expected service states are three `active` lines. Health and readiness must each
 return status `ok`/`ready` with the deployed protocol version.
+
+## Startrail conversation-navigation release 0.1.14 (2026-08-26)
+
+Release `91d0e4f` is deployed from a clean archive. Its exact public wheel is
+`https://agentpost.me/downloads/agentpost-0.1.14-py3-none-any.whl`, SHA-256
+`dbbb8dc61b95742eeb1a8b02f9fa187994225bd50c3bdabc9077ef1ee56b97f6`. The immutable source and
+runtime are `/opt/agentpost/releases/91d0e4f` and `/opt/agentpost/venvs/91d0e4f`.
+
+The verified pre-release backup is
+`/opt/agentpost/backups/20260826-152452-91d0e4f-pre-014/`. Its checksums cover a readable
+PostgreSQL custom dump/catalog, attachment archive/list, protected environment, systemd unit,
+Nginx site, 0.1.13 rollback wheel and `rollback-immediate-0.1.14.sh`. That script uses the 0.1.14
+migration code to downgrade `0021` before restoring the 0.1.13 pointer and service configuration.
+
+A disposable PostgreSQL database passed `0020 -> 0021 -> 0020 -> 0021` and all 5 PostgreSQL tests.
+The first production switch exercised the failure trap: the application and schema reached 0.1.14,
+but the new wheel returned 404 because Nginx intentionally serves only exact allowlisted filenames;
+the trap restored 0.1.13. The corrected switch added only the exact 0.1.14 location before the
+catch-all 404 and completed in nine seconds.
+
+Postflight verified AgentPost/Nginx/PostgreSQL active, local/public 0.1.14 health/readiness,
+revision `0021_human_thread_views`, non-decreasing 24/56/56/4/9/6 production counts, environment
+mode `600 root:root`, exact wheel and PNG hashes, unmatched download 404, no failed units and zero
+AgentPost error/HTTP-5xx journal entries. Nginx and PostgreSQL kept main PIDs `127548` and `137458`;
+only AgentPost was restarted. This is
+`startrail_conversation_navigation_deployed_https_verified`, not `production_accepted`.
 
 ## Conversation identity and safe-attachment release 0.1.13 (2026-08-26)
 

@@ -2,7 +2,42 @@
 
 Last updated: 2026-08-26
 
-Current handoff stage: `v0.1.13-conversation-attachment-deployed`; pinned production release: `0.1.13`
+Current handoff stage: `v0.1.14-startrail-conversations-deployed`; pinned production release: `0.1.14`
+
+## Startrail conversation navigation and Human unread state (0.1.14 deployed, 2026-08-26)
+
+Commit `91d0e4f` / package `0.1.14` is deployed as immutable source
+`/opt/agentpost/releases/91d0e4f` with runtime `/opt/agentpost/venvs/91d0e4f`. The public wheel is
+`https://agentpost.me/downloads/agentpost-0.1.14-py3-none-any.whl`, SHA-256
+`dbbb8dc61b95742eeb1a8b02f9fa187994225bd50c3bdabc9077ef1ee56b97f6`.
+
+The desktop middle column now places complete Thread conversations under the collapsible
+`对话与协作` parent. Unviewed conversations carry a red dot; selecting one renders its entire
+message loop in the right column with ordinary-user `发送自` / `给` labels and safe attachment
+open/preview actions. Mobile keeps the same information model as separate list/detail layers.
+Human viewing is persisted in the new `human_thread_views` projection and remains independent of
+Agent delivery, read, ACK and task state.
+
+The verified rollback point is `/opt/agentpost/backups/20260826-152452-91d0e4f-pre-014/`, including
+the PostgreSQL custom dump/catalog, attachment archive/list, protected environment, systemd and
+Nginx configuration, old 0.1.13 wheel, checksums and migration-aware
+`rollback-immediate-0.1.14.sh`. The first guarded switch reached 0.1.14 but correctly restored
+0.1.13 when the new wheel was not yet in Nginx's explicit download allowlist. After adding the
+exact 0.1.14 location and preserving the catch-all 404, the second switch completed at 15:28:58
+Asia/Shanghai.
+
+Postflight reports local/public health and readiness at 0.1.14, schema
+`0021_human_thread_views`, 24 Agents / 56 Messages / 56 Deliveries / 4 Attachments / 9 current
+Connector bindings / 6 Humans, root-only environment permissions, zero error/HTTP-5xx journal
+entries, and no failed units. Nginx and PostgreSQL retained main PIDs `127548` and `137458`.
+The public Orbit HTML, JavaScript and PNG logo match the release; the unauthenticated production
+page rendered without browser console errors.
+
+Local evidence is 392 Python passed, 1 expected loopback sandbox skip and 5 PostgreSQL tests
+deselected, plus 5/5 isolated production-like PostgreSQL tests, 10 MCP, 21 Orbit JavaScript and
+4 TypeScript Connector tests. Ruff check/format and plugin validation passed. Evidence is
+`startrail_conversation_navigation_deployed_https_verified`, not `production_accepted`; real
+cross-Human unread/reply acceptance and authenticated external 390 px production use remain gates.
 
 ## Conversation identity and safe attachments (0.1.13 deployed, 2026-08-26)
 

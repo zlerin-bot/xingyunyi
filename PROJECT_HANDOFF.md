@@ -1,12 +1,45 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.13-conversation-attachment-deployed`
+- 交接阶段：`v0.1.14-startrail-conversations-deployed`
 - 核验日期：2026-08-26
 - 代码分支：`main`
-- 阶段性质：对话身份、按 Thread 聚合和安全附件体验已随 0.1.13 部署并完成 HTTPS 核验；仍不是完整生产验收
-- 本地开发状态：项目规则 `f93e0d6`、功能切片 `3b4adf5`、交接 `ff927cb`、发布候选 `f15df99` 均已提交；未提交 PNG 替换实验继续保留且未进入发布物
+- 阶段性质：确认稿中的星轨对话导航、未查看红点、完整右栏详情和移动端对应体验已随 0.1.14 部署并完成 HTTPS 核验；仍不是完整生产验收
+- 本地开发状态：发布候选 `91d0e4f` 已提交并部署；本节记录本次部署与回滚证据
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 星轨对话导航生产发布 `91d0e4f` / 0.1.14
+
+生产已于 2026-08-26 15:28:58（Asia/Shanghai）受保护切换到提交 `91d0e4f` / package
+`0.1.14`。不可变源码与独立 runtime 分别为 `/opt/agentpost/releases/91d0e4f`、
+`/opt/agentpost/venvs/91d0e4f`；公开 wheel 为
+`https://agentpost.me/downloads/agentpost-0.1.14-py3-none-any.whl`，SHA-256 为
+`dbbb8dc61b95742eeb1a8b02f9fa187994225bd50c3bdabc9077ef1ee56b97f6`。
+
+确认稿已经落地：PC 中栏以“对话与协作”为父节点，按持久化 `thread_id` 展示完整往来闭环，未被
+当前 Human 查看时显示红点；点击具体对话后，右栏集中展示全部消息、发送自/给、任务信息与可打开
+或安全预览的附件。移动端使用同一信息结构，并保持列表与详情分层。新增
+`human_thread_views` 只记录当前 Human 最近看到哪条消息，不改变 Agent 的 delivered/read/ACK 或
+任务状态；新消息到达后会重新出现未查看红点。
+
+发布前基线为 24 Agents / 56 Messages / 56 Deliveries / 4 Attachments / 9 current bindings /
+6 Humans，schema 为 `0020_pairing_agent_intent`。完整可恢复备份位于
+`/opt/agentpost/backups/20260826-152452-91d0e4f-pre-014/`，含 PostgreSQL custom dump/catalog、
+附件归档/list、root-only 环境、systemd、Nginx、旧 0.1.13 wheel、校验和及迁移感知的一键脚本
+`rollback-immediate-0.1.14.sh`。
+
+第一次受保护切换因 Nginx 仍只允许旧 wheel 的精确路径，在新 wheel 公网校验 404 时自动将 schema、
+指针、环境和服务完整恢复至 0.1.13。补入 0.1.14 精确白名单并保留其余 `/downloads/` 404 后，第二次
+切换成功。最终本机/公网 health、ready 均精确返回 0.1.14，schema 为
+`0021_human_thread_views`；六项业务基线未减少，Nginx/PostgreSQL 主进程仍为
+`127548`/`137458`，环境权限仍为 `600 root:root`，切换后 error 与 HTTP 5xx 日志为 0。
+
+本地证据：392 Python passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL deselected；
+独立 PostgreSQL 验证 5/5；MCP 10、Orbit JavaScript 21、TypeScript Connector 4 passed；Ruff
+check/format 和插件 manifest 校验通过。线上公开 Orbit 页面、JS、PNG 品牌资源和 wheel 均完成
+精确校验，浏览器控制台无错误。当前证据标签为
+`startrail_conversation_navigation_deployed_https_verified`，不是 `production_accepted`；真实双
+Human 的“未查看→打开→新回复后再出现红点”闭环与外部登录态 390px 使用仍需用户验收。
 
 ### 对话身份与安全附件生产发布 `f15df99` / 0.1.13
 
