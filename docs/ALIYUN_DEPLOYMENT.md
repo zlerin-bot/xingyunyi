@@ -18,9 +18,9 @@ still require authorization, see [ALIYUN_DEPLOYMENT_EFFICIENCY.md](ALIYUN_DEPLOY
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `e50652e` at
-`/opt/agentpost/releases/e50652e`, with its independent Python environment at
-`/opt/agentpost/venvs/e50652e`. Package/server/SDK/MCP are aligned at `0.1.16`.
+The active application release is Git commit `504683f` at
+`/opt/agentpost/releases/504683f`, with its independent Python environment at
+`/opt/agentpost/venvs/504683f`. Package/server/SDK/MCP are aligned at `0.1.17`.
 The database is at Alembic revision `0021_human_thread_views`.
 
 The environment file is root-readable only. Do not copy it into Git, command
@@ -48,6 +48,32 @@ journalctl -u agentpost --no-pager -n 100
 
 Expected service states are three `active` lines. Health and readiness must each
 return status `ok`/`ready` with the deployed protocol version.
+
+## Cross-platform Doubao Work local-STDIO release 0.1.17 (2026-08-26)
+
+Release `504683f` is deployed from a clean archive. Its exact public wheel is
+`https://agentpost.me/downloads/agentpost-0.1.17-py3-none-any.whl`, SHA-256
+`4edac3b5e45377cf1598bc49ea6c9e53d8a9f003262124a94983c91c44abb2b3`. The source archive SHA-256
+is `a3d6ec961253bbd365e9a276606620c8355cef03220c4344bee270d0d67d9acb`. The immutable source and
+runtime are `/opt/agentpost/releases/504683f` and `/opt/agentpost/venvs/504683f`.
+
+The verified pre-release backup is
+`/opt/agentpost/backups/20260826-223010-504683f-pre-017/`. The guarded switch validated the exact
+artifacts, PostgreSQL dump/catalog, attachment archive/list, protected environment, systemd unit,
+Nginx site, checksums and immediate rollback before changing the `current` symlink.
+
+The Doubao Work launcher now uses the installed platform console executable: POSIX on macOS and
+`.exe` on Windows. Production exposes `AGENTPOST_DOUBAO_WORK_SETUP_PLATFORMS=mac,windows`; Linux is
+not enabled until a supported Doubao Work Linux desktop host contract can be verified. The adjacent
+configuration contains no API key or long-lived token, and missing OS-vault identity fails closed.
+
+Postflight verified local/public 0.1.17 health/readiness, schema `0021_human_thread_views`,
+non-decreasing 32/83/83/15/12 production counts, environment `600:root:root`, exact public wheel
+hash, unmatched download 404 and zero AgentPost error entries. Nginx and PostgreSQL retained main
+PIDs `127548` and `137458`; only AgentPost restarted. A clean public-wheel installation verified
+server/SDK/MCP 0.1.17, the MCP/keyring extras and `agentpost-doubao` entrypoint. This is
+`doubao_cross_platform_deployed_https_verified`; real macOS and Windows Doubao Work host acceptance
+remains pending and this is not `production_accepted`.
 
 ## Task rounds, short-name entry and contact visibility release 0.1.16 (2026-08-26)
 

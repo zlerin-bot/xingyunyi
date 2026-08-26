@@ -1,12 +1,44 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.16-deployed-https-verified`
+- 交接阶段：`v0.1.17-deployed-https-verified`
 - 核验日期：2026-08-26
 - 代码分支：`main`
-- 阶段性质：0.1.16 已完成受保护生产切换和独立 HTTPS 后检；真实登录态交互验收仍待 Human 确认
-- 本地开发状态：发布提交为 `e50652e`；生产为 `e50652e / 0.1.16`
+- 阶段性质：0.1.17 已完成受保护生产切换和独立 HTTPS 后检；真实豆包宿主交互验收仍待 Human 确认
+- 本地开发状态：发布提交为 `504683f`；生产为 `504683f / 0.1.17`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 0.1.17 豆包工作跨平台接入与生产发布
+
+0.1.16 的豆包本机方案只对已有 macOS 宿主证据开放了平台 gate；这只是保守门禁，不是豆包工作的
+产品限制。功能提交 `bdd59f6` 将原先的 POSIX-only launcher 改为由安装包生成当前平台的 console
+executable，macOS 使用脚本、Windows 使用 `.exe`。发布提交 `504683f` 对齐
+package/server/SDK/MCP 为 `0.1.17`，生产 gate 为 `mac,windows`。Linux 暂不开放，因为尚无可验证的
+豆包工作 Linux 桌面宿主合同，不代表未来不支持。
+
+launcher 旁的 0600 JSON 只保存 server/profile/program 等非秘密定位信息；API Key 和长期 token
+仍只存在 OS vault。启动时先用 `agentpost-connect status` 验证保险库身份和真实 heartbeat，再桥接
+继承的 STDIO 到 `agentpost-mcp`；缺少 profile 时 fail closed。豆包原生连接器仍需 Human 或可控制
+原生 UI 的 Agent 完成一次“选择 STDIO、粘贴 command、保存”，且只有看到 tools/list 才算连接完成。
+
+发布物来自 `git archive 504683f`。源码归档 SHA-256 为
+`a3d6ec961253bbd365e9a276606620c8355cef03220c4344bee270d0d67d9acb`，wheel SHA-256 为
+`4edac3b5e45377cf1598bc49ea6c9e53d8a9f003262124a94983c91c44abb2b3`。受保护切换前核对生产仍为
+`e50652e / 0.1.16`、三个服务 active、schema `0021_human_thread_views`、环境权限 `600 root:root`
+和磁盘 21%；备份位于 `/opt/agentpost/backups/20260826-223010-504683f-pre-017/`。
+
+当前不可变源码和 runtime 分别为 `/opt/agentpost/releases/504683f`、
+`/opt/agentpost/venvs/504683f`。独立后检确认本机/公网 health、ready 均为 0.1.17，公开 wheel 哈希
+精确、未知下载返回 404、schema 不变，切换后为 32 Agents / 83 Messages / 83 Deliveries /
+15 Attachments / 12 Humans，数据量均未下降。Nginx/PostgreSQL PID 保持 `127548/137458`，仅
+AgentPost 重启，切换后错误日志为 0。公开配置返回 `doubao_platforms=mac,windows` 和
+`doubao_mode=local_bootstrap`。
+
+本地完整 non-PostgreSQL 回归 408 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL
+deselected；Orbit JavaScript 29 passed；聚焦豆包 setup/CLI 13 passed；Ruff、JavaScript syntax、
+diff check 和公开 wheel 隔离安装通过。Windows 目前是实现、打包和测试通过，真实 Windows 豆包
+宿主尚未验收；Mac 也仍需完成本次版本的真实保存、tools/list 和收发。当前状态是
+`doubao_cross_platform_deployed_https_verified`，不是 `production_accepted`。
 
 ### 0.1.16 生产发布
 
@@ -34,7 +66,7 @@ Nginx/PostgreSQL PID 仍为 `127548/137458`，失败单元与切换后 AgentPost
 生产交互仍需 Human 登录后验收。当前证据是
 `task_rounds_contact_directory_deployed_https_verified`，不是 `production_accepted`。
 
-### 豆包工作本机 STDIO 接入（本地切片，未部署）
+### 豆包工作本机 STDIO 接入（0.1.16 历史本地切片，已由 0.1.17 取代）
 
 020 的 Codex 已在豆包工作 2.25.18 / macOS arm64 上完成原生 STDIO 宿主探针：绝对 command、
 逐项 args/env、保存后自动启动、`initialize → notifications/initialized → tools/list` 以及停用后

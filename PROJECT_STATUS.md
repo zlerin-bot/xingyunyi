@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-26
 
-Current handoff stage: `v0.1.16-deployed-https-verified`; pinned production release: `0.1.16`
+Current handoff stage: `v0.1.17-deployed-https-verified`; pinned production release: `0.1.17`
 
-## 豆包工作本机 STDIO 接入（local verified，未部署，2026-08-26）
+## 豆包工作跨平台本机 STDIO 接入（0.1.17 deployed，2026-08-26）
 
 020 的 Codex 在豆包工作 2.25.18 / macOS arm64 上确认原生自定义连接器支持绝对 command、
 args/env、保存后自动启动、稳定 `initialize → notifications/initialized → tools/list` 和停用后
@@ -12,16 +12,27 @@ args/env、保存后自动启动、稳定 `initialize → notifications/initiali
 OAuth 当作豆包主路径，改为复用 AgentPost 本机配对、OS vault 与 `agentpost-mcp` 的独立
 `doubao_work` setup adapter。
 
-adapter 生成权限 0700 的 command-only launcher，不写 API Key 或长期 token；启动时先恢复保险库
-profile、写入真实 heartbeat，再启动 STDIO MCP。原生连接器保存前 CLI 明确返回
-`native_registration_required`，Orbit/接入页/Skill 均要求看到 tools/list 后才能声明连接成功。
-豆包未提供受支持的自动导入合同，因此 Agent 无法控制原生 UI 时仍需 Human 选择 STDIO、粘贴一项
-已准备内容并保存一次；这不是完全零操作验收。
+最初仅允许 `mac` 是对已有真实宿主证据的保守发布门禁，不是产品限制。0.1.17 已把 launcher 改为
+由安装包生成当前平台的 console executable：macOS 使用 POSIX 启动器，Windows 使用 `.exe`；两者
+都只保存 server/profile/program 等非秘密定位信息，启动时从 OS vault 恢复身份，先执行状态探针，
+再以继承的 STDIO 启动 MCP。缺少保险库 profile 时 fail closed，不提供明文 token 回退。
 
-当前证据为聚焦 Python 81 passed；完整 non-PostgreSQL 回归 405 passed、1 个预期 loopback
-sandbox skip、5 个 PostgreSQL deselected；Orbit JavaScript 24 passed；JavaScript syntax、Ruff
-check/format，以及隔离演示中的桌面与 390×844 无横向溢出、无 console warning/error。最终
-diff/staged 复核与 `git diff --check` 通过；生产仍固定于 `e50652e / 0.1.16`，本切片未部署，也不是
+生产 gate 已显式设为 `mac,windows`。Linux 暂不发布，因为尚无可验证的豆包工作 Linux 桌面宿主
+合同；它不是被代码永久排除。原生连接器保存前 CLI 仍明确返回 `native_registration_required`，
+Orbit/接入页/Skill 均要求看到 tools/list 后才能声明连接成功。豆包未提供受支持的自动导入合同，
+因此 Agent 无法控制原生 UI 时仍需 Human 选择 STDIO、粘贴一项已准备内容并保存一次。
+
+提交 `504683f` / package `0.1.17` 已部署到 `/opt/agentpost/releases/504683f`，运行环境为
+`/opt/agentpost/venvs/504683f`。公开 wheel SHA-256 为
+`4edac3b5e45377cf1598bc49ea6c9e53d8a9f003262124a94983c91c44abb2b3`；受保护切换前备份位于
+`/opt/agentpost/backups/20260826-223010-504683f-pre-017/`。
+
+本地证据为完整 non-PostgreSQL 回归 408 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL
+deselected；Orbit JavaScript 29 passed；聚焦豆包 setup/CLI 13 passed；JavaScript syntax、Ruff
+check/format 与公开 wheel 隔离安装通过。生产后检确认本机/公网 health、ready 均为 0.1.17，schema
+仍为 `0021_human_thread_views`，公开 gate 为 `mac,windows`，wheel 哈希精确、未知下载 404、错误日志
+为 0；Nginx/PostgreSQL PID 未变，仅 AgentPost 重启。Mac 真实保存及收发、Windows 真实宿主验收仍
+待 Human 完成，当前证据是 `doubao_cross_platform_deployed_https_verified`，不是
 `production_accepted`。
 
 ## Task rounds, short-name entry and contact visibility (0.1.16 deployed, 2026-08-26)
