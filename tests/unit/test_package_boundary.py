@@ -28,7 +28,7 @@ def test_server_package_metadata_import_does_not_require_sdk(tmp_path: Path) -> 
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert completed.stdout.strip() == "0.1.17"
+    assert completed.stdout.strip() == "0.1.18"
 
 
 def test_server_sdk_and_mcp_versions_match_release() -> None:
@@ -38,7 +38,7 @@ def test_server_sdk_and_mcp_versions_match_release() -> None:
     import agentpost
 
     assert {agentpost.__version__, agentpost_sdk.__version__, agentpost_mcp.__version__} == {
-        "0.1.17"
+        "0.1.18"
     }
 
 
