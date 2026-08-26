@@ -2,7 +2,27 @@
 
 Last updated: 2026-08-26
 
-Current handoff stage: `v0.1.15-startrail-header-deployed`; pinned production release: `0.1.15`
+Current handoff stage: `v0.1.15-mobile-startrail-shortcuts-local`; pinned production release: `0.1.15`
+
+## Mobile Star Orbit shortcuts and compact connection status (local, 2026-08-26)
+
+The mobile bottom bar remains the only app-level navigation for `星轨 / 云驿 / 设置`. Inside Star
+Orbit, the former three equal-width tabs are replaced by the `对话与协作` content heading and two
+compact `待我处理 / 任务进展` shortcuts with real counts. Selecting a shortcut opens that Star
+Orbit view; selecting the active shortcut again returns to all conversations. Desktop navigation
+and the three-column conversation structure remain unchanged.
+
+At 580 px and below the header now shows a one-line compact Agent count while desktop retains the
+full connected label. Zero connected Agents use the neutral state instead of a success indicator.
+Thread cards and their children are explicitly shrinkable so long Human/Agent names cannot widen a
+320 px page.
+
+Evidence: 15 Human-control-plane integration tests, 23 Orbit JavaScript tests, JavaScript syntax,
+Ruff check/format and diff check pass. The isolated demo has no horizontal overflow at 390 px or
+320 px; at 320 px `scrollWidth == innerWidth == 320`, shortcut counts remain visible, and the
+tasks/approvals shortcuts toggle back to conversations. At 1280 px the 178/390/640 desktop columns,
+full connection label and desktop shortcuts remain intact. This is
+`mobile_startrail_shortcuts_local_verified`, not deployed or production accepted.
 
 ## Approved compact header and Alibaba deployment workflow (0.1.15 deployed, 2026-08-26)
 

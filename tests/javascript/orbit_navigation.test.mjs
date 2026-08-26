@@ -75,6 +75,29 @@ test("mobile navigation remains a three-entry bottom bar", () => {
   assert.match(script, /window\.scrollTo\(\{ top: 0, left: 0, behavior: "auto" \}\)/);
 });
 
+test("mobile Star Orbit uses two lightweight shortcuts instead of a second tab bar", () => {
+  assert.match(html, /id="orbit-mobile-shortcuts"/);
+  assert.match(html, /class="context-nav-item orbit-mobile-shortcut"[^>]*data-section="approvals"/);
+  assert.match(html, /class="context-nav-item orbit-mobile-shortcut"[^>]*data-section="tasks"/);
+  assert.match(script, /mobileShortcutIsActive/);
+  assert.match(script, /mobileShortcutIsActive \? "communications" : item\.dataset\.section/);
+  assert.match(stylesheet, /\.orbit-mobile-shortcuts:not\(\[hidden\]\) \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(stylesheet, /\.context-navigation > div\[data-context-module="orbit"\] \{\s*display: none;/);
+  assert.match(stylesheet, /\.orbit-mobile-shortcut > span\.orbit-mobile-shortcut-count \{[\s\S]*?display: inline-grid;/);
+  assert.match(stylesheet, /\.thread-list-item \{[\s\S]*?min-width: 0;/);
+});
+
+test("mobile connection status stays on one line and uses a compact Agent count", () => {
+  assert.match(html, /connection-label-full/);
+  assert.match(html, /connection-label-compact/);
+  assert.match(script, /`\$\{connectedAgentCount\} 个 Agent`/);
+  assert.match(script, /connectedAgentCount > 0 \? "success" : ""/);
+  assert.match(stylesheet, /\.connection-label-compact \{\s*display: none;/);
+  assert.match(stylesheet, /@media \(max-width: 580px\)[\s\S]*?\.connection \{[\s\S]*?white-space: nowrap;/);
+  assert.match(stylesheet, /\.connection-label-full \{\s*display: none;/);
+  assert.match(stylesheet, /\.connection-label-compact \{\s*display: inline;/);
+});
+
 test("opening a conversation remains read-only for Agent state", () => {
   assert.match(html, /放心查看，不会影响 Agent 的处理进度/);
   assert.match(html, /不会替 Agent 标记已读、确认收到或完成任务/);

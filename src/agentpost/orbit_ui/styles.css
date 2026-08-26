@@ -173,6 +173,10 @@ footer {
   box-shadow: 0 0 0 4px rgba(95, 99, 104, 0.1);
 }
 
+.connection-label-compact {
+  display: none;
+}
+
 .connection.success .connection-dot {
   background: var(--green);
   box-shadow: 0 0 0 4px rgba(123, 212, 164, 0.12), 0 0 12px var(--green);
@@ -832,6 +836,7 @@ footer {
 .thread-list-item {
   display: grid;
   width: 100%;
+  min-width: 0;
   gap: 9px;
   border: 1px solid transparent;
   border-radius: 13px;
@@ -840,6 +845,11 @@ footer {
   padding: 12px;
   text-align: left;
   cursor: pointer;
+}
+
+.thread-list-item > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .thread-list-item:hover,
@@ -896,6 +906,7 @@ footer {
 
 .thread-participant-names,
 .thread-list-preview {
+  min-width: 0;
   overflow: hidden;
   color: var(--muted);
   font-size: 0.62rem;
@@ -4263,6 +4274,10 @@ footer {
   display: none;
 }
 
+.orbit-mobile-shortcuts {
+  display: none;
+}
+
 .thread-browser {
   border-top: 0;
   padding-top: 8px;
@@ -4461,11 +4476,72 @@ footer {
     overflow: visible;
   }
 
-  .context-navigation > div[data-context-module="orbit"] {
+  .orbit-mobile-shortcuts:not([hidden]) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 0 10px 12px;
+  }
+
+  .orbit-mobile-shortcut {
     display: grid;
     width: 100%;
-    grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr));
-    gap: 6px;
+    min-height: 66px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #e3e7ed;
+    border-radius: 14px;
+    background: #fff;
+    color: #202124;
+    padding: 10px 11px;
+    text-align: left;
+  }
+
+  .orbit-mobile-shortcut > span:first-child {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+  }
+
+  .orbit-mobile-shortcut strong {
+    font-size: 0.78rem;
+  }
+
+  .orbit-mobile-shortcut small {
+    display: block;
+    overflow: hidden;
+    color: #70757a;
+    font-size: 0.62rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .orbit-mobile-shortcut.active {
+    border-color: #9fc2fa;
+    background: #e8f0fe;
+    color: #185abc;
+  }
+
+  .orbit-mobile-shortcut > span.orbit-mobile-shortcut-count {
+    display: inline-grid;
+    min-width: 24px;
+    height: 24px;
+    place-items: center;
+    border-radius: 999px;
+    background: #e8f0fe;
+    color: #185abc;
+    padding-inline: 6px;
+    font-size: 0.62rem;
+  }
+
+  .orbit-mobile-shortcut > span.orbit-mobile-shortcut-count.alert:not(:empty) {
+    background: #fce8e6;
+    color: #b3261e;
+  }
+
+  .context-navigation > div[data-context-module="orbit"] {
+    display: none;
   }
 
   .context-navigation > div[data-context-module="orbit"] .context-nav-item {
@@ -4482,10 +4558,6 @@ footer {
     display: none;
   }
 
-  .orbit-secondary-nav {
-    display: flex;
-  }
-
   .thread-message,
   .thread-message.from-current-human {
     width: min(94%, 760px);
@@ -4498,11 +4570,23 @@ footer {
   }
 
   .connection {
-    width: 34px;
-    min-width: 34px;
+    width: auto;
+    min-width: 0;
     min-height: 34px;
-    padding: 0;
+    padding: 0 10px;
     justify-content: center;
+    gap: 6px;
+    font-size: 0.66rem;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .connection-label-full {
+    display: none;
+  }
+
+  .connection-label-compact {
+    display: inline;
   }
 
   .top-human-copy {

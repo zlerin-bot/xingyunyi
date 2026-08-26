@@ -40,7 +40,8 @@
       <div class="topbar-account">
         <div id="connection-state" class="connection" role="status">
           <span class="connection-dot" aria-hidden="true"></span>
-          等待进入星轨
+          <span class="connection-label-full">等待进入星轨</span>
+          <span class="connection-label-compact">等待进入</span>
         </div>
         <div class="top-human" aria-label="当前 Human">
           <span id="top-human-avatar" class="top-human-avatar" aria-hidden="true">我</span>
@@ -154,6 +155,16 @@
             <h2 id="context-title">对话与协作</h2>
             <p id="context-copy">按每个对话查看 Agent 之间的全部往来。</p>
           </div>
+          <nav id="orbit-mobile-shortcuts" class="orbit-mobile-shortcuts" data-context-module="orbit" aria-label="星轨快捷筛选">
+            <button type="button" class="context-nav-item orbit-mobile-shortcut" data-module="orbit" data-section="approvals" aria-pressed="false">
+              <span><strong>待我处理</strong><small>需要回复或确认</small></span>
+              <span id="approval-mobile-count" class="orbit-mobile-shortcut-count alert">0</span>
+            </button>
+            <button type="button" class="context-nav-item orbit-mobile-shortcut" data-module="orbit" data-section="tasks" aria-pressed="false">
+              <span><strong>任务进展</strong><small>查看最新进度</small></span>
+              <span id="task-mobile-count" class="orbit-mobile-shortcut-count">0</span>
+            </button>
+          </nav>
           <nav id="context-navigation" class="context-navigation" aria-label="当前模块页面">
             <div data-context-module="orbit">
               <button id="thread-parent-toggle" type="button" class="context-nav-item thread-parent-toggle active" data-module="orbit" data-section="communications" aria-current="page" aria-expanded="true" aria-controls="thread-browser">

@@ -73,12 +73,15 @@ const elements = {
   humanAvatar: document.querySelector("#human-avatar"),
   approvalQuickCount: document.querySelector("#approval-quick-count"),
   taskQuickCount: document.querySelector("#task-quick-count"),
+  approvalMobileCount: document.querySelector("#approval-mobile-count"),
+  taskMobileCount: document.querySelector("#task-mobile-count"),
   profileName: document.querySelector("#profile-name"),
   profileEmail: document.querySelector("#profile-email"),
   profileTimezone: document.querySelector("#profile-timezone"),
   primaryNavigation: document.querySelector("#primary-navigation"),
   primaryNavigationItems: Array.from(document.querySelectorAll(".primary-nav-item")),
   contextNavigation: document.querySelector("#context-navigation"),
+  orbitMobileShortcuts: document.querySelector("#orbit-mobile-shortcuts"),
   contextNavigationGroups: Array.from(document.querySelectorAll("[data-context-module]")),
   contextNavigationItems: Array.from(document.querySelectorAll(".context-nav-item")),
   moduleViews: Array.from(document.querySelectorAll(".module-view")),
@@ -516,6 +519,9 @@ function activateRoute(module, section, { updateHistory = true, focusContent = f
   elements.contextNavigationItems.forEach((item) => {
     const active = item.dataset.module === route.module && item.dataset.section === route.section;
     item.classList.toggle("active", active);
+    if (item.classList.contains("orbit-mobile-shortcut")) {
+      item.setAttribute("aria-pressed", String(active));
+    }
     if (active) {
       item.setAttribute("aria-current", "page");
     } else {
@@ -563,12 +569,20 @@ function initializeWorkspaceNavigation() {
         const alreadyActive = state.activeModule === "orbit" && state.activeSection === "communications";
         state.threadBrowserExpanded = alreadyActive ? !state.threadBrowserExpanded : true;
       }
-      activateRoute(item.dataset.module, item.dataset.section, { focusContent: true });
+      const mobileShortcutIsActive = item.classList.contains("orbit-mobile-shortcut")
+        && isMobileWorkspace()
+        && state.activeModule === "orbit"
+        && state.activeSection === item.dataset.section;
+      activateRoute(
+        item.dataset.module,
+        mobileShortcutIsActive ? "communications" : item.dataset.section,
+        { focusContent: true },
+      );
       updateThreadWorkspaceMode();
       renderThreadParentSummary();
     });
   });
-  [elements.primaryNavigation, elements.contextNavigation].forEach((navigation) => {
+  [elements.primaryNavigation, elements.contextNavigation, elements.orbitMobileShortcuts].forEach((navigation) => {
     navigation.addEventListener("keydown", (event) => {
       if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"].includes(event.key)) {
         return;
@@ -586,12 +600,18 @@ function initializeWorkspaceNavigation() {
   });
 }
 
-function setConnection(message, kind = "") {
+function setConnection(message, kind = "", compactMessage = message) {
   elements.connectionState.className = `connection ${kind}`.trim();
   const dot = document.createElement("span");
   dot.className = "connection-dot";
   dot.setAttribute("aria-hidden", "true");
-  elements.connectionState.replaceChildren(dot, document.createTextNode(message));
+  const fullLabel = document.createElement("span");
+  fullLabel.className = "connection-label-full";
+  fullLabel.textContent = message;
+  const compactLabel = document.createElement("span");
+  compactLabel.className = "connection-label-compact";
+  compactLabel.textContent = compactMessage;
+  elements.connectionState.replaceChildren(dot, fullLabel, compactLabel);
 }
 
 function setFormStatus(message, kind = "") {
@@ -3566,9 +3586,10 @@ function renderDashboard(dashboard) {
   const pendingApprovals = Number(dashboard.metrics?.pending_approval_count || 0);
   elements.approvalQuickCount.textContent = String(pendingApprovals);
   elements.approvalQuickCount.hidden = pendingApprovals === 0;
-  elements.taskQuickCount.textContent = String(
-    Number(dashboard.metrics?.pending_task_count || 0),
-  );
+  elements.approvalMobileCount.textContent = String(pendingApprovals);
+  const pendingTasks = Number(dashboard.metrics?.pending_task_count || 0);
+  elements.taskQuickCount.textContent = String(pendingTasks);
+  elements.taskMobileCount.textContent = String(pendingTasks);
   renderOrganizations(organizations);
   renderAgents(agents);
   renderTasks(tasks);
@@ -3577,7 +3598,7 @@ function renderDashboard(dashboard) {
 
 async function loadDashboard() {
   elements.refresh.disabled = true;
-  setConnection("正在同步数据", "loading");
+  setConnection("正在同步数据", "loading", "同步中");
   try {
     const [dashboard, connectors, security, threads] = await Promise.all([
       requestJson("/api/v1/orbit/dashboard"),
@@ -3599,11 +3620,16 @@ async function loadDashboard() {
     }
     elements.welcomeView.hidden = true;
     elements.workspaceView.hidden = false;
-    setConnection(`${Number(dashboard.metrics?.connected_agent_count || 0)} 个 Agent 已连接`, "success");
+    const connectedAgentCount = Number(dashboard.metrics?.connected_agent_count || 0);
+    setConnection(
+      `${connectedAgentCount} 个 Agent 已连接`,
+      connectedAgentCount > 0 ? "success" : "",
+      `${connectedAgentCount} 个 Agent`,
+    );
     await maybeOpenRequestedPairing();
     await maybePreviewOrganizationInvitation();
   } catch (error) {
-    setConnection("数据同步失败", "error");
+    setConnection("数据同步失败", "error", "同步失败");
     throw error;
   } finally {
     elements.refresh.disabled = false;
