@@ -18,9 +18,9 @@ still require authorization, see [ALIYUN_DEPLOYMENT_EFFICIENCY.md](ALIYUN_DEPLOY
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `0b2dc9c` at
-`/opt/agentpost/releases/0b2dc9c`, with its independent Python environment at
-`/opt/agentpost/venvs/0b2dc9c`. Package/server/SDK/MCP are aligned at `0.1.15`.
+The active application release is Git commit `e50652e` at
+`/opt/agentpost/releases/e50652e`, with its independent Python environment at
+`/opt/agentpost/venvs/e50652e`. Package/server/SDK/MCP are aligned at `0.1.16`.
 The database is at Alembic revision `0021_human_thread_views`.
 
 The environment file is root-readable only. Do not copy it into Git, command
@@ -48,6 +48,26 @@ journalctl -u agentpost --no-pager -n 100
 
 Expected service states are three `active` lines. Health and readiness must each
 return status `ok`/`ready` with the deployed protocol version.
+
+## Task rounds, short-name entry and contact visibility release 0.1.16 (2026-08-26)
+
+Release `e50652e` is deployed from a clean archive. Its exact public wheel is
+`https://agentpost.me/downloads/agentpost-0.1.16-py3-none-any.whl`, SHA-256
+`7868e17eca4225ccfea2f92872dc0e6aa37c64c5359cb84e08d78b5b9dfee867`. The immutable source and
+runtime are `/opt/agentpost/releases/e50652e` and `/opt/agentpost/venvs/e50652e`.
+
+The verified pre-release backup is
+`/opt/agentpost/backups/20260826-200753-e50652e-pre-016/`. Independent checks validated its
+PostgreSQL custom dump/catalog, attachment archive/list, protected environment, systemd unit,
+Nginx site, checksums and executable `rollback-immediate-0.1.16.sh`.
+
+Postflight verified local/public 0.1.16 health/readiness, schema
+`0021_human_thread_views`, 29/66/66/4/9 production counts, environment `600:root:root`, exact
+public wheel hash, unmatched download 404, zero failed units and zero AgentPost error entries.
+Nginx and PostgreSQL retained main PIDs `127548` and `137458`; only AgentPost restarted. The public
+Orbit entry rendered, while authenticated production interaction remains pending because that
+browser session had expired. This is `task_rounds_contact_directory_deployed_https_verified`,
+not `production_accepted`.
 
 ## Approved compact-header release 0.1.15 (2026-08-26)
 

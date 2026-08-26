@@ -2,9 +2,31 @@
 
 Last updated: 2026-08-26
 
-Current handoff stage: `v0.1.15-mobile-startrail-shortcuts-local`; pinned production release: `0.1.15`
+Current handoff stage: `v0.1.16-deployed-https-verified`; pinned production release: `0.1.16`
 
-## Mobile Star Orbit shortcuts and compact connection status (local, 2026-08-26)
+## Task rounds, short-name entry and contact visibility (0.1.16 deployed, 2026-08-26)
+
+Commit `e50652e` / package `0.1.16` is deployed as immutable source
+`/opt/agentpost/releases/e50652e` with runtime `/opt/agentpost/venvs/e50652e`. The release includes
+per-task-round completion semantics, the owner short-name action in the Agent detail header, the
+relationship-scoped Agent directory, and the previously verified mobile Star Orbit shortcuts.
+
+The Workbench upload transferred the clean source archive, wheel and manifest. Server-side SHA-256
+matched the manifest before change. The guarded switch completed with backup
+`/opt/agentpost/backups/20260826-200753-e50652e-pre-016/`; its PostgreSQL custom dump, attachment
+archive/list, protected configuration, systemd unit, Nginx site, checksums and executable
+`rollback-immediate-0.1.16.sh` were independently verified.
+
+Independent postflight reports local/public 0.1.16 health and readiness, schema
+`0021_human_thread_views`, 29 Agents / 66 Messages / 66 Deliveries / 4 Attachments / 9 Humans,
+environment `600:root:root`, exact public wheel SHA, unknown download 404, zero failed units and
+zero AgentPost error entries. Nginx and PostgreSQL retained main PIDs `127548` and `137458`; only
+AgentPost restarted. The public Orbit entry rendered after deployment, but that browser session
+was logged out, so authenticated task-state, directory-scope and 390 px production interaction
+remain explicit acceptance gates. Evidence is `task_rounds_contact_directory_deployed_https_verified`,
+not `production_accepted`.
+
+## Mobile Star Orbit shortcuts and compact connection status (0.1.16 deployed, 2026-08-26)
 
 The mobile bottom bar remains the only app-level navigation for `星轨 / 云驿 / 设置`. Inside Star
 Orbit, the former three equal-width tabs are replaced by the `对话与协作` content heading and two
@@ -22,7 +44,8 @@ Ruff check/format and diff check pass. The isolated demo has no horizontal overf
 320 px; at 320 px `scrollWidth == innerWidth == 320`, shortcut counts remain visible, and the
 tasks/approvals shortcuts toggle back to conversations. At 1280 px the 178/390/640 desktop columns,
 full connection label and desktop shortcuts remain intact. This is
-`mobile_startrail_shortcuts_local_verified`, not deployed or production accepted.
+`mobile_startrail_shortcuts_local_verified`; the code is deployed in 0.1.16, while authenticated
+390 px production interaction remains pending and is not production accepted.
 
 ## Approved compact header and Alibaba deployment workflow (0.1.15 deployed, 2026-08-26)
 

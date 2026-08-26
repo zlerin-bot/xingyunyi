@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.16-release-ready-upload-blocked`
+- 交接阶段：`v0.1.16-deployed-https-verified`
 - 核验日期：2026-08-26
 - 代码分支：`main`
-- 阶段性质：0.1.16 发布物和生产预检已完成；等待 Human 在 Workbench 文件选择器中上传三份完整发布物
-- 本地开发状态：发布提交为 `e50652e`；生产仍为 `0b2dc9c / 0.1.15`，尚未切换
+- 阶段性质：0.1.16 已完成受保护生产切换和独立 HTTPS 后检；真实登录态交互验收仍待 Human 确认
+- 本地开发状态：发布提交为 `e50652e`；生产为 `e50652e / 0.1.16`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 0.1.16 发布准备与当前阻塞
+### 0.1.16 生产发布
 
 功能提交 `a7a61c0` 已由发布提交 `e50652e` 对齐为 package/server/SDK/MCP `0.1.16`，Codex 插件
 版本为 `0.1.16+codex.20260826194306`。正式发布物从 `git archive e50652e` 构建，源码归档 SHA-256
@@ -16,19 +16,25 @@
 `7868e17eca4225ccfea2f92872dc0e6aa37c64c5359cb84e08d78b5b9dfee867`。三份文件已复制到本机
 `/Users/mars113/Downloads/agentpost-0.1.16-release/`。
 
-当前生产只读预检确认仍为 `/opt/agentpost/releases/0b2dc9c` / 0.1.15，AgentPost、Nginx、
-PostgreSQL active，schema `0021_human_thread_views`，29 Agents / 65 Messages / 65 Deliveries /
-4 Attachments / 9 Humans，附件目录 67606 bytes，磁盘使用 21%，环境权限 `600 root:root`，失败
-systemd 单元为 0。AgentPost/Nginx/PostgreSQL PID 基线分别为 `229465/127548/137458`；公网
-health/ready 为 0.1.15，HTTP 继续 301 到 HTTPS。
+Human 已通过 Workbench 把三份完整发布物上传至 `/home/admin`；服务端重算的源码与 wheel SHA-256
+均与 manifest 完全一致。发布前生产为 `/opt/agentpost/releases/0b2dc9c` / 0.1.15，AgentPost、
+Nginx、PostgreSQL active，schema `0021_human_thread_views`，29 Agents / 66 Messages / 66 Deliveries /
+4 Attachments / 9 Humans，环境权限 `600 root:root`，磁盘使用 21%，失败 systemd 单元为 0。
 
-SSH 公钥仍被生产拒绝，故按既有应急流程使用登录态 Workbench。网页自动化无法取得 Workbench
-的本地文件选择事件，且项目规则禁止改用 Base64 分片。当前唯一阻塞是 Human 在已打开的
-`/home/admin` 文件管理页点击“上传文件”，选择 Downloads 文件夹内三份文件；上传后即可继续服务端
-SHA 校验、完整备份、canary、原子切换、后检和自动回退保护。当前状态是
-`release_artifacts_and_production_preflight_verified_upload_blocked`，不是已部署。
+生产于 2026-08-26 20:08（Asia/Shanghai）完成受保护切换，当前不可变源码和 runtime 分别为
+`/opt/agentpost/releases/e50652e`、`/opt/agentpost/venvs/e50652e`。可恢复备份位于
+`/opt/agentpost/backups/20260826-200753-e50652e-pre-016/`，PostgreSQL custom dump、附件归档、
+附件清单、环境、systemd、Nginx、SHA256SUMS 和 `rollback-immediate-0.1.16.sh` 均已复核。
 
-### 逐轮任务状态、短名称入口与联系人目录（本地，未部署）
+独立后检确认本机/公网 health、ready 均为 0.1.16，schema 与五项数据量未变化，环境仍为
+`600:root:root`，公开 wheel SHA 为
+`7868e17eca4225ccfea2f92872dc0e6aa37c64c5359cb84e08d78b5b9dfee867`，未知下载返回 404，
+Nginx/PostgreSQL PID 仍为 `127548/137458`，失败单元与切换后 AgentPost error 均为 0。公开 Orbit
+入口可正常加载；当前浏览器登录态已过期，因此逐轮任务状态、目录范围、短名称入口和真实 390px
+生产交互仍需 Human 登录后验收。当前证据是
+`task_rounds_contact_directory_deployed_https_verified`，不是 `production_accepted`。
+
+### 逐轮任务状态、短名称入口与联系人目录（0.1.16 已部署，待登录态验收）
 
 根据登录态生产 Chrome 中与 020 的真实五条消息核对：第一、第二轮 task 都已有 020 的直接回复，
 第三轮尚未回复；0.1.15 页面却把前两轮仍显示为“待处理”。本地已把任务判定改为逐条 task 计算：
@@ -51,9 +57,9 @@ MCP 11 passed、Orbit JavaScript 24 passed，JavaScript syntax、Ruff check/form
 登录态 Chrome 的真实 020 Thread 用于确认“前两轮已回复、第三轮未回复”；隔离演示环境验证桌面
 Agent 详情首屏直接显示“修改短名称”。390×844 下按钮位于详情首屏、38px 高，弹窗可正常打开，
 `scrollWidth = innerWidth = 390`，危险操作页签仍折叠。当前证据是
-`task_rounds_contact_directory_local_verified`；本轮没有获得部署授权，生产仍为 0.1.15。
+`task_rounds_contact_directory_local_verified`；其代码已随 0.1.16 部署，生产登录态验收见上节。
 
-### 移动端星轨快捷筛选（本地，未部署）
+### 移动端星轨快捷筛选（0.1.16 已部署，待登录态验收）
 
 移动端继续由底部“星轨、云驿、设置”承担一级导航；星轨页面不再叠加“对话与协作、任务进展、
 待我处理”三个等权页签。页面直接以“对话与协作”为当前内容，把“待我处理”和“任务进展”改为
@@ -69,7 +75,8 @@ Agent 详情首屏直接显示“修改短名称”。390×844 下按钮位于�
 check/format 和 diff check 通过。隔离演示环境实测 390px 的顶部状态宽 85px、无横向溢出，两个
 快捷入口可在任务/待处理与全部对话间往返；320px 下 `scrollWidth = innerWidth = 320`、计数可见、
 对话卡不越界；1280px 桌面仍为 178/390/640 三栏，完整连接文案和桌面快捷入口保持不变。当前
-证据是 `mobile_startrail_shortcuts_local_verified`，不是部署或生产验收。
+证据是 `mobile_startrail_shortcuts_local_verified`；代码已随 0.1.16 部署，真实登录态 390px
+生产验收待确认。
 
 ### 确认稿顶部栏与阿里云发布提效（`0b2dc9c` / 0.1.15 已部署）
 
