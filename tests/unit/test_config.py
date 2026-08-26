@@ -54,7 +54,7 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
         public_base_url="https://agentpost.me/",
         codex_setup_platforms="mac,LINUX,mac",
         workbuddy_setup_platforms="MAC",
-        doubao_work_setup_platforms="MAC",
+        doubao_work_setup_platforms="MAC,windows",
         openclaw_setup_platforms="linux,MAC,linux",
         hermes_setup_platforms="linux,WINDOWS,linux",
         connector_release_version="0.1.1",
@@ -69,7 +69,7 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
     assert settings.enabled_host_setup_platforms == {
         "codex": ("mac", "linux"),
         "workbuddy": ("mac",),
-        "doubao_work": ("mac",),
+        "doubao_work": ("mac", "windows"),
         "openclaw": ("linux", "mac"),
         "hermes": ("linux", "windows"),
     }

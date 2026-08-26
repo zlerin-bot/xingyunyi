@@ -69,7 +69,7 @@ def test_plugin_packages_the_same_implicit_skill_without_machine_specific_mcp_co
 
     assert manifest["name"] == "agentpost"
     plugin_version, separator, cachebuster = manifest["version"].partition("+")
-    assert plugin_version == "0.1.16"
+    assert plugin_version == "0.1.17"
     assert separator == "+"
     assert cachebuster.startswith("codex.")
     assert manifest["skills"] == "./skills/"
@@ -109,7 +109,7 @@ def test_release_metadata_must_enable_platform_and_match_trusted_origin() -> Non
         "host_setup_platforms": {
             "codex": ["mac"],
             "workbuddy": ["mac"],
-            "doubao_work": ["mac"],
+            "doubao_work": ["mac", "windows"],
             "openclaw": ["mac", "linux"],
             "hermes": ["linux"],
         },
@@ -129,6 +129,11 @@ def test_release_metadata_must_enable_platform_and_match_trusted_origin() -> Non
         payload,
         host_name="doubao_work",
         platform_name="mac",
+    ) == _release(bootstrap)
+    assert bootstrap.parse_release(
+        payload,
+        host_name="doubao_work",
+        platform_name="windows",
     ) == _release(bootstrap)
     with pytest.raises(bootstrap.BootstrapError, match="setup_not_released"):
         bootstrap.parse_release(payload, host_name="codex", platform_name="linux")
