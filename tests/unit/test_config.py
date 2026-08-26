@@ -55,6 +55,7 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
         codex_setup_platforms="mac,LINUX,mac",
         workbuddy_setup_platforms="MAC",
         openclaw_setup_platforms="linux,MAC,linux",
+        hermes_setup_platforms="linux,WINDOWS,linux",
         connector_release_version="0.1.1",
         connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl"),
         connector_wheel_sha256="A" * 64,
@@ -68,6 +69,14 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
         "codex": ("mac", "linux"),
         "workbuddy": ("mac",),
         "openclaw": ("linux", "mac"),
+        "hermes": ("linux", "windows"),
+    }
+    assert settings.enabled_host_connection_modes == {
+        "codex": "local_bootstrap",
+        "workbuddy": "local_bootstrap",
+        "openclaw": "local_bootstrap",
+        "hermes": "local_bootstrap",
+        "manus": "unavailable",
     }
     assert settings.connector_release_version == "0.1.1"
     assert settings.connector_wheel_sha256 == "a" * 64
@@ -98,6 +107,7 @@ def test_host_setup_platforms_fall_back_to_codex_policy_for_compatibility() -> N
         "codex": ("mac",),
         "workbuddy": ("mac",),
         "openclaw": ("mac",),
+        "hermes": (),
     }
     with pytest.raises(ValidationError, match="safe HTTPS wheel URL"):
         Settings(connector_wheel_url="https://agentpost.me/downloads/pkg.whl';touch x")
@@ -108,6 +118,12 @@ def test_host_setup_platforms_fall_back_to_codex_policy_for_compatibility() -> N
             connector_release_version="0.1.1",
             connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl"),
         )
+
+
+def test_manus_connection_mode_requires_remote_mcp_oauth() -> None:
+    settings = Settings(remote_mcp_oauth_enabled=True)
+
+    assert settings.enabled_host_connection_modes["manus"] == "remote_mcp_oauth"
 
 
 def test_production_rejects_development_secrets() -> None:

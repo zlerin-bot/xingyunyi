@@ -53,6 +53,13 @@ test("brand uses a unique multi-colour orbit logo and system-first typography", 
   assert.match(stylesheet, /--google-blue: #1a73e8/);
 });
 
+test("footer exposes the official ICP filing record on every view", () => {
+  assert.match(html, /京ICP备2026049737号/);
+  assert.match(html, /href="https:\/\/beian\.miit\.gov\.cn\/"/);
+  assert.match(html, /rel="noopener noreferrer"/);
+  assert.match(stylesheet, /\.filing-record/);
+});
+
 test("mobile navigation remains a three-entry bottom bar", () => {
   assert.match(stylesheet, /@media \(max-width: 860px\)/);
   assert.match(stylesheet, /\.workspace-sidebar \{[\s\S]*?position: fixed;[\s\S]*?inset: auto 0 0;/);
@@ -114,6 +121,21 @@ test("Relay groups Agents and derives five explicit connection states", () => {
   assert.match(script, /current_connector_last_heartbeat_at/);
   assert.match(script, /Human 已授权，等待 Agent/);
   assert.match(script, /曾经连接，但最近报到已超时/);
+});
+
+test("new Agent guide offers five real host-specific connection paths", () => {
+  const pickerStart = html.indexOf('class="pairing-host-picker"');
+  const pickerEnd = html.indexOf("</fieldset>", pickerStart);
+  const picker = html.slice(pickerStart, pickerEnd);
+  const hosts = [...picker.matchAll(/data-connector-type="([^"]+)"/g)]
+    .map((match) => match[1]);
+
+  assert.deepEqual(hosts, ["codex", "workbuddy", "openclaw", "manus", "hermes"]);
+  assert.match(script, /manus: \{ name: "Manus", code: "AP-MANUS-V1", connectionMode: "remote_mcp_oauth" \}/);
+  assert.match(script, /hermes: \{ name: "Hermes", code: "AP-HERMES-V1" \}/);
+  assert.match(script, /Manus 内置的 Custom MCP 云端连接/);
+  assert.match(script, /不能改用长期密钥或假装已连接/);
+  assert.match(stylesheet, /repeat\(auto-fit, minmax\(145px, 1fr\)\)/);
 });
 
 test("Agent detail keeps current connection, history, access and actions distinct", () => {

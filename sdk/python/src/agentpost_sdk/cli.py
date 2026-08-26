@@ -25,6 +25,11 @@ from agentpost_sdk.connector import (
     ManagedConnector,
 )
 from agentpost_sdk.errors import AgentPostError, ConfigurationError, ResponseError
+from agentpost_sdk.hermes_setup import (
+    HermesSetupResult,
+    configure_hermes_mcp,
+    preflight_hermes_mcp,
+)
 from agentpost_sdk.models import Message
 from agentpost_sdk.onboarding import PairingInstructions
 from agentpost_sdk.openclaw_setup import (
@@ -83,7 +88,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--connector-type",
         default=os.getenv("AGENTPOST_CONNECTOR_TYPE", "generic"),
-        help="host type, for example codex, openclaw, workbuddy, or generic",
+        help="host type, for example codex, workbuddy, openclaw, hermes, or generic",
     )
     parser.add_argument(
         "--display-name",
@@ -114,7 +119,7 @@ def _parser() -> argparse.ArgumentParser:
         "setup",
         help="pair and register the local AgentPost tools in a supported host",
     )
-    setup.add_argument("host", choices=("codex", "workbuddy", "openclaw"))
+    setup.add_argument("host", choices=("codex", "workbuddy", "openclaw", "hermes"))
     setup.add_argument("--existing-agent-id", help=argparse.SUPPRESS)
     setup.add_argument("--new-agent-intent", help=argparse.SUPPRESS)
 
@@ -137,7 +142,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     send.add_argument(
         "--ensure-host",
-        choices=("codex", "workbuddy", "openclaw"),
+        choices=("codex", "workbuddy", "openclaw", "hermes"),
         help=argparse.SUPPRESS,
     )
 
@@ -207,7 +212,7 @@ def _display_name(args: argparse.Namespace) -> str:
 def _connect(args: argparse.Namespace) -> ManagedConnector:
     collection = None
     if (
-        args.connector_type == "openclaw"
+        args.connector_type in {"openclaw", "hermes"}
         and sys.platform.startswith("linux")
         and not os.environ.get("DISPLAY")
         and not os.environ.get("WAYLAND_DISPLAY")
@@ -300,7 +305,7 @@ def _upload_attachments(client: AgentPost, paths: list[Path]) -> list[str]:
 def _configure_host(
     connector: ManagedConnector,
     host: str,
-) -> CodexSetupResult | WorkBuddySetupResult | OpenClawSetupResult:
+) -> CodexSetupResult | WorkBuddySetupResult | OpenClawSetupResult | HermesSetupResult:
     options = {
         "server": connector.client.server,
         "profile": connector.profile,
@@ -317,6 +322,16 @@ def _configure_host(
             "default",
         )
         return configure_openclaw_mcp(
+            **options,
+            keyring_collection=collection if collection != "default" else None,
+        )
+    if host == "hermes":
+        collection = getattr(
+            getattr(connector, "credential_store", None),
+            "collection",
+            "default",
+        )
+        return configure_hermes_mcp(
             **options,
             keyring_collection=collection if collection != "default" else None,
         )
@@ -400,11 +415,14 @@ def _run(args: argparse.Namespace) -> int:
         args.connector_type = args.host
     elif args.command == "send" and args.ensure_host:
         args.connector_type = args.ensure_host
-    if args.connector_type == "openclaw" and (
+    if args.connector_type in {"openclaw", "hermes"} and (
         args.command == "setup" or (args.command == "send" and args.ensure_host)
     ):
         # Fail before pairing and browser authorization when the host itself cannot load MCP.
-        preflight_openclaw_mcp()
+        if args.connector_type == "openclaw":
+            preflight_openclaw_mcp()
+        else:
+            preflight_hermes_mcp()
     with _connect(args) as connector:
         client = connector.client
         credential_storage = getattr(

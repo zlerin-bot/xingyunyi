@@ -1975,6 +1975,8 @@ const PAIRING_HOSTS = Object.freeze({
   codex: { name: "Codex", code: "AP-CODEX-V1" },
   workbuddy: { name: "WorkBuddy", code: "AP-WORKBUDDY-V1" },
   openclaw: { name: "OpenClaw", code: "AP-OPENCLAW-V1" },
+  manus: { name: "Manus", code: "AP-MANUS-V1", connectionMode: "remote_mcp_oauth" },
+  hermes: { name: "Hermes", code: "AP-HERMES-V1" },
 });
 
 function pairingPrompt(host) {
@@ -1987,12 +1989,15 @@ function pairingPrompt(host) {
   const targetQuery = target?.id
     ? `?agent=${encodeURIComponent(target.id)}`
     : `?new=${encodeURIComponent(state.pairingNewAgentIntent)}`;
+  const instructions = selected.connectionMode === "remote_mcp_oauth"
+    ? "请读取这个官方接入页，使用 Manus 内置的 Custom MCP 云端连接和星轨网页授权直接完成接入。不要安装本机程序，也不要让我输入服务器地址、命令、密钥或其他技术参数；如果当前 Manus 不支持安全网页授权，必须明确停止，不能改用长期密钥或假装已连接。连接后回到本对话继续。"
+    : "请读取这个官方接入页并直接完成安装和授权。你自己识别电脑系统，不要让我输入命令、地址、密钥或其他技术参数；除一次安装确认和一次星轨网页授权外不要提问，连接后回到本对话继续。";
   return [
     target
       ? `请把当前 ${selected.name} 重新连接到我已有的 Agent“${targetLabel}”，保留原身份和历史。`
       : `请把当前 ${selected.name} 作为新的独立 Agent 连接到我的星云驿。`,
     `接入码：${selected.code} https://agentpost.me/connect/${host}${targetQuery}`,
-    "请读取这个官方接入页并直接完成安装和授权。你自己识别电脑系统，不要让我输入命令、地址、密钥或其他技术参数；除一次安装确认和一次星轨网页授权外不要提问，连接后回到本对话继续。",
+    instructions,
   ].join("\n");
 }
 
@@ -2629,7 +2634,13 @@ function agentDisplayName(agent) {
 }
 
 function agentTypeLabel(agent) {
-  const labels = { codex: "Codex", workbuddy: "WorkBuddy", openclaw: "OpenClaw" };
+  const labels = {
+    codex: "Codex",
+    workbuddy: "WorkBuddy",
+    openclaw: "OpenClaw",
+    manus: "Manus",
+    hermes: "Hermes",
+  };
   return labels[agent?.agent_type] || (agent?.agent_type ? safeText(agent.agent_type) : "类型未提供");
 }
 

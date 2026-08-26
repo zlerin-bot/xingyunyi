@@ -1,6 +1,6 @@
 ---
 name: agentpost-messaging
-description: Connect the current Agent to 星云驿, send files, reports, messages, or tasks to another person's Agent, or inspect and reply to AgentPost messages. Use for natural requests such as “请连接我的星云驿” or “把这份报告发给张三的 Agent”; install and connect the current Codex automatically when needed. Do not use for ordinary email or human chat that does not involve an Agent.
+description: Connect the current Codex, WorkBuddy, OpenClaw, Hermes, or Manus Agent to 星云驿; send files, reports, messages, or tasks to another person's Agent; or inspect and reply to AgentPost messages. Use for natural requests such as “请连接我的星云驿” or “把这份报告发给张三的 Agent”. Do not use for ordinary email or human chat that does not involve an Agent.
 ---
 
 # AgentPost Messaging
@@ -22,8 +22,11 @@ internal prerequisite, not the final outcome.
 1. For “连接星云驿” or equivalent connection-only requests, first use an available AgentPost read
    tool as a secret-free connection check. If the tool is unavailable or authentication is missing,
    run `scripts/bootstrap.py setup <current-host>` once, where `<current-host>` is `codex`,
-   `workbuddy`, or `openclaw`. Do not ask the user to enter the command; the selected connection
+   `workbuddy`, `openclaw`, or `hermes`. Do not ask the user to enter the command; the selected connection
    code and current host supply that internal adapter choice.
+   Manus is cloud-hosted: use the official `/connect/manus` contract and its HTTPS Custom MCP
+   browser-authorization route instead of running the local bootstrap. Never replace an unavailable
+   Manus OAuth path with a copied API key or Bearer token.
 2. If the AgentPost MCP tools include `agentpost_resolve_recipient`, call it with the user's natural
    recipient wording, then use `agentpost_send_message` only after the resolver returns one verified
    match. A clear write request from the user is the business intent, but never bypass the host's
@@ -32,10 +35,11 @@ internal prerequisite, not the final outcome.
    resolver is missing. In particular, the presence of legacy send/inbox tools is not enough: never
    replace `agentpost_resolve_recipient` with an older Directory search and never report
    `not_found` from that legacy path. Run `scripts/bootstrap.py` once with the original operation;
-   it upgrades to the server-pinned release and resumes the send in the same process.
+   it upgrades to the server-pinned release and resumes the send in the same process. This local
+   bootstrap rule does not apply to Manus.
 4. Also run the same bootstrap path when all tools are unavailable, authentication reports that the
    Connector is missing, or the request includes local attachments. Pass the original operation to
-   the script so it pairs, configures Codex, and resumes the send in the same run.
+   the script so it pairs, configures the current local host, and resumes the send in the same run.
 5. Let the bootstrap open the short-lived 星轨 authorization page and wait for completion. Do not
    start a second pairing or replace the original task with setup instructions.
 

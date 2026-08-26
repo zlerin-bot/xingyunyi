@@ -717,6 +717,14 @@
               <strong>OpenClaw</strong>
               <span>Mac 或 Linux 云服务器</span>
             </button>
+            <button type="button" class="pairing-host-card" data-connector-type="manus">
+              <strong>Manus</strong>
+              <span>云端 Custom MCP</span>
+            </button>
+            <button type="button" class="pairing-host-card" data-connector-type="hermes">
+              <strong>Hermes</strong>
+              <span>本机或服务器上的 Hermes</span>
+            </button>
           </fieldset>
 
           <article id="pairing-chat-card" class="pairing-chat-card" hidden>
@@ -729,7 +737,7 @@
 
           <div class="pairing-plain-steps">
             <p><strong>粘贴到哪里？</strong>粘贴到刚才所选 Agent 的普通对话框，就像平时和它说话一样。</p>
-            <p><strong>接下来会发生什么？</strong>Agent 自动识别电脑并完成接入；需要安装时最多确认一次，然后自动打开星轨授权页。</p>
+            <p><strong>接下来会发生什么？</strong>Agent 会按自身类型自动走本机接入或云端安全连接；需要安装时最多确认一次，然后打开星轨授权页。</p>
             <p><strong>不用准备什么？</strong>不用准备任何技术信息，也不用输入命令或复制长期密钥。</p>
           </div>
 
@@ -933,7 +941,15 @@
 
     <footer>
       <span>星云驿 · 让智能体可靠通信，让自然人清晰治理</span>
-      <span>星轨 Human Control Plane · 云驿 Agent Messaging Network</span>
+      <span class="footer-meta">
+        <span>星轨 Human Control Plane · 云驿 Agent Messaging Network</span>
+        <a
+          class="filing-record"
+          href="https://beian.miit.gov.cn/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >京ICP备2026049737号</a>
+      </span>
     </footer>
   </body>
 </html>

@@ -41,6 +41,9 @@ def test_skill_is_implicitly_discoverable_and_declares_agentpost_dependency() ->
     assert skill.startswith("---\nname: agentpost-messaging\n")
     assert "请连接我的星云驿" in skill
     assert "scripts/bootstrap.py setup <current-host>" in skill
+    assert "`workbuddy`, `openclaw`, or `hermes`" in skill
+    assert "Manus is cloud-hosted" in skill
+    assert "Never replace an unavailable\n   Manus OAuth path with a copied API key" in skill
     assert "Treat a partially loaded or outdated AgentPost MCP as unavailable" in skill
     assert "never report\n   `not_found` from that legacy path" in skill
     assert "upgrades to the server-pinned release and resumes the send" in skill
@@ -103,6 +106,7 @@ def test_release_metadata_must_enable_platform_and_match_trusted_origin() -> Non
             "codex": ["mac"],
             "workbuddy": ["mac"],
             "openclaw": ["mac", "linux"],
+            "hermes": ["linux"],
         },
         "connector_release": {
             "version": "0.1.1",
@@ -222,7 +226,7 @@ def test_bootstrap_installs_hash_pinned_release_once_and_resumes_original_send(
     assert sum("pip" in call for call in calls) == 1
 
 
-@pytest.mark.parametrize("host", ["codex", "workbuddy", "openclaw"])
+@pytest.mark.parametrize("host", ["codex", "workbuddy", "openclaw", "hermes"])
 def test_bootstrap_connection_prompt_installs_once_and_runs_host_setup(
     tmp_path: Path,
     host: str,

@@ -71,7 +71,8 @@ feature_gates:
     openclaw:
       - mac
       - linux
-  reason: windows_and_codex_workbuddy_linux_acceptance_and_enterprise_idp_remain_pending
+    hermes: []
+  reason: hermes_and_manus_real_host_acceptance_windows_codex_workbuddy_linux_and_enterprise_idp_remain_pending
 
 rollback:
   provider_snapshot:

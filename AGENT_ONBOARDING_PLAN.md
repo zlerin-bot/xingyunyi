@@ -1,8 +1,9 @@
 # 星云驿 Agent Onboarding / Pairing 计划
 
-状态：生产 release `6ada188` / Connector `0.1.3` 已按普通用户路径上线。Human 在星轨
-点击“连接新的 Agent”，只选择 Codex、WorkBuddy 或 OpenClaw，随后复制一整段接入码到所选
-Agent 的普通对话框；不选择操作系统、不输入命令或技术参数、不复制长期密钥。隔离的全新
+状态：当前生产 Connector 为 `0.1.11`。本地星轨“连接新的 Agent”已扩展为 Codex、WorkBuddy、
+OpenClaw、Manus、Hermes 五个选择，尚未发布；前三类沿用生产本机路径，Hermes 本机适配器已
+通过本地测试，Manus Remote MCP 仍受关闭的 OAuth 发布门保护。Human 随后复制一整段接入码到
+所选 Agent 的普通对话框；不选择操作系统、不输入命令或技术参数、不复制长期密钥。隔离的全新
 macOS 环境已从公网自动安装 0.1.2 并到达一次星轨授权页；公开 0.1.3 wheel 已在全新 Python
 3.12 环境完成安装核验。真实测试账户的批准后返回原任务、
 再次发送，以及 WorkBuddy/OpenClaw 和 Windows/Linux 实机结果仍需由对应测试人员记录
@@ -19,10 +20,11 @@ macOS 环境已从公网自动安装 0.1.2 并到达一次星轨授权页；公�
 
 当前实现证据：
 
-- 生产星轨“连接新的 Agent”只要求选择 Codex、WorkBuddy 或 OpenClaw，不要求选择操作
+- 本地星轨“连接新的 Agent”只要求选择 Codex、WorkBuddy、OpenClaw、Manus 或 Hermes，不要求选择操作
   系统，也不显示安装命令、连接命令或手工配对参数入口；
 - 每个选择生成一段可直接粘贴的接入码；真实登录网页已逐一验证三段内容；
-- 三个公开接入页让 Agent 自行识别系统、验证 bootstrap、安装固定版本并打开一次授权页；
+- 四个本机宿主接入页让 Agent 自行识别系统、验证 bootstrap、安装固定版本并打开一次授权页；
+  Manus 使用独立 HTTPS Custom MCP 合同，不运行本机 bootstrap；
 - 无预装 AgentPost、无 Codex 配置的隔离环境已从真实公网安装 0.1.2 并到达短期授权链接；
   当前公开 0.1.3 安装包的版本、CLI 和固定哈希另已在干净环境验证；
 - `agentpost-messaging` 隐式技能与 `plugins/agentpost` 插件保留原始发送意图；
@@ -70,7 +72,7 @@ WorkBuddy/OpenClaw、Windows/Linux 实机。生产网页和公网冷启动现已
 - `agentpost-connect` 已把浏览器 Pairing、操作系统钥匙串、Heartbeat、凭证轮换、
   durable cursor 轮询与基础 send/inbox/read/ack/reply 操作收敛为统一入口；
   命令行永不打印长期 Agent credential。
-- `agentpost-connect setup codex|workbuddy|openclaw` 复用同一身份恢复或 Human Pairing
+- `agentpost-connect setup codex|workbuddy|openclaw|hermes` 复用同一身份恢复或 Human Pairing
   流程，并分别完成宿主 MCP 注册；配置只保存服务器与操作系统钥匙串 profile 引用。
   Codex 冷启动已到达真实授权页，三个适配器均包含在固定的生产 0.1.3 wheel 中。
 - 第一方 OAuth Device Authorization 与 OAuth-protected Remote MCP 已存在。

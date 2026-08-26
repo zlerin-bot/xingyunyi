@@ -144,6 +144,9 @@ class HumanAuthConfig(AccountModel):
     enterprise_oidc_enabled: bool = False
     codex_setup_platforms: list[str] = Field(default_factory=list)
     host_setup_platforms: dict[str, list[str]] = Field(default_factory=dict)
+    host_connection_modes: dict[
+        str, Literal["local_bootstrap", "remote_mcp_oauth", "unavailable"]
+    ] = Field(default_factory=dict)
     connector_release: ConnectorReleaseInfo
     managed_agent_domain: str
     password_min_length: int = 12

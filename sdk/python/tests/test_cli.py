@@ -9,6 +9,7 @@ from uuid import UUID
 
 from agentpost_sdk import ConnectorCredentialRotation, ConnectorHeartbeat, cli
 from agentpost_sdk.codex_setup import CodexSetupResult
+from agentpost_sdk.hermes_setup import HermesSetupResult
 from agentpost_sdk.onboarding import PairingInstructions
 from agentpost_sdk.openclaw_setup import OpenClawSetupResult
 
@@ -154,6 +155,34 @@ def test_headless_linux_openclaw_selects_session_vault_before_pairing(monkeypatc
     monkeypatch.setattr(cli, "KeyringCredentialStore", credential_store)
     monkeypatch.setattr(cli.AgentPost, "connect_managed", connect_managed)
     args = cli._parser().parse_args(["--device-name", "cloud", "setup", "openclaw"])
+    args.connector_type = args.host
+
+    cli._connect(args)
+
+    assert captured == {"collection": "session", "credential_store": store}
+
+
+def test_headless_linux_hermes_selects_session_vault_before_pairing(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    store = SimpleNamespace(
+        collection="session",
+        storage_mode="operating_system_vault_session",
+    )
+
+    def credential_store(*, collection):
+        captured["collection"] = collection
+        return store
+
+    def connect_managed(*_args, **kwargs):
+        captured["credential_store"] = kwargs["credential_store"]
+        return DummyConnector()
+
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.delenv("DISPLAY", raising=False)
+    monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+    monkeypatch.setattr(cli, "KeyringCredentialStore", credential_store)
+    monkeypatch.setattr(cli.AgentPost, "connect_managed", connect_managed)
+    args = cli._parser().parse_args(["--device-name", "cloud", "setup", "hermes"])
     args.connector_type = args.host
 
     cli._connect(args)
@@ -445,6 +474,49 @@ def test_setup_codex_pairs_registers_profile_and_never_prints_credentials(
     assert "agt_" not in output
 
 
+def test_setup_hermes_pairs_registers_profile_and_never_prints_credentials(
+    monkeypatch,
+    capsys,
+    tmp_path,
+) -> None:
+    connector = DummyConnector()
+    connector.credential_store = SimpleNamespace(
+        collection="session",
+        storage_mode="operating_system_vault_session",
+    )
+    captured: dict[str, object] = {}
+
+    def connect(args):
+        connector.profile = f"{args.connector_type}:test-device"
+        return connector
+
+    def configure(**kwargs):
+        captured.update(kwargs)
+        return HermesSetupResult(
+            server_name="agentpost",
+            approval_mode="host",
+            config_path=tmp_path / "config.yaml",
+        )
+
+    monkeypatch.setattr(cli, "_connect", connect)
+    monkeypatch.setattr(cli, "_mcp_command", lambda: tmp_path / "agentpost-mcp")
+    monkeypatch.setattr(cli, "preflight_hermes_mcp", lambda: "/opt/hermes/bin/hermes")
+    monkeypatch.setattr(cli, "configure_hermes_mcp", configure)
+
+    assert cli.main(["--device-name", "test-device", "setup", "hermes"]) == 0
+    output = capsys.readouterr().out
+    result = json.loads(output)
+
+    assert captured["server"] == "https://agentpost.me"
+    assert captured["profile"] == "hermes:test-device"
+    assert captured["keyring_collection"] == "session"
+    assert result["host"] == "hermes"
+    assert result["credential_storage"] == "operating_system_vault_session"
+    assert result["credential_persistence"] == "until_host_reboot"
+    assert result["status"] == "configured"
+    assert "agt_" not in output
+
+
 def test_setup_failure_is_machine_readable_and_does_not_report_heartbeat(
     monkeypatch,
     capsys,
@@ -503,6 +575,36 @@ def test_openclaw_host_preflight_fails_before_pairing(monkeypatch, capsys) -> No
         "status": "failed",
     }
     assert "agentpost_error code=openclaw_mcp_upgrade_required" in streams.err
+    assert connected is False
+
+
+def test_hermes_host_preflight_fails_before_pairing(monkeypatch, capsys) -> None:
+    connected = False
+
+    def connect(_args):
+        nonlocal connected
+        connected = True
+        return DummyConnector()
+
+    monkeypatch.setattr(cli, "_connect", connect)
+    monkeypatch.setattr(
+        cli,
+        "preflight_hermes_mcp",
+        lambda: (_ for _ in ()).throw(
+            cli.ConfigurationError(
+                "upgrade required",
+                code="hermes_mcp_upgrade_required",
+            )
+        ),
+    )
+
+    assert cli.main(["setup", "hermes"]) == 1
+    streams = capsys.readouterr()
+    assert json.loads(streams.out) == {
+        "error_code": "hermes_mcp_upgrade_required",
+        "status": "failed",
+    }
+    assert "agentpost_error code=hermes_mcp_upgrade_required" in streams.err
     assert connected is False
 
 

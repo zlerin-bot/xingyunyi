@@ -67,6 +67,7 @@ def human_auth_config(settings: SettingsDep) -> HumanAuthConfig:
             host: list(platforms)
             for host, platforms in settings.enabled_host_setup_platforms.items()
         },
+        host_connection_modes=settings.enabled_host_connection_modes,
         connector_release=ConnectorReleaseInfo(
             version=settings.connector_release_version,
             wheel_url=settings.connector_wheel_url,

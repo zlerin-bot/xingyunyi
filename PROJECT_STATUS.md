@@ -4,6 +4,41 @@ Last updated: 2026-08-26
 
 Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.11`
 
+## Manus and Hermes host onboarding (local contract slice, 2026-08-26)
+
+The ordinary-user `连接新的 Agent` picker now contains Codex, WorkBuddy, OpenClaw, Manus, and
+Hermes. Each card generates one host-specific block for the Human to paste into the Agent's normal
+chat. Hermes uses the same local bootstrap and one-browser-authorization pattern as the existing
+local hosts. Manus is deliberately separate: its contract uses an HTTPS Custom MCP server and
+must not download the local bootstrap or ask the Human to copy a long-lived key.
+
+Hermes now has a dedicated SDK adapter built around its supported non-interactive
+`hermes config set` and `hermes mcp test` commands. The adapter validates the host before pairing,
+registers only the
+non-secret AgentPost server/profile references, verifies the MCP connection, and uses the OS-vault
+`session` collection on headless Linux. Hermes platforms require an explicit release gate and do
+not inherit the older Codex platform list, preventing the deployed 0.1.11 wheel from being
+advertised as Hermes-capable.
+
+Manus is guarded by the existing Remote MCP OAuth feature gate. When disabled, `/connect/manus`
+returns `manus_remote_mcp_not_released`; reconnecting an existing durable Agent returns
+`manus_reconnect_not_released`. When enabled in a test configuration, it publishes only the HTTPS
+MCP URL and browser-authorization contract. It explicitly fails with
+`manus_custom_mcp_oauth_unavailable` if a Manus build cannot complete secure OAuth, rather than
+falling back to an API key or claiming success. Production still has Remote MCP OAuth disabled,
+and Manus Custom MCP OAuth compatibility has not been exercised with a real Manus account.
+
+Local evidence is **389 passed and 6 explicit skips** (one loopback sandbox restriction and five
+opt-in PostgreSQL cases), plus **10 MCP**, **16 Orbit JavaScript**, **4 TypeScript Connector**, and
+**4 OpenClaw plugin** tests. Ruff check/format, Skill validation, package-copy equality, and diff
+checks pass. A live isolated Orbit demo showed all five cards on desktop, a single-column 390 px
+layout with no horizontal overflow, the distinct Manus/Hermes prompt text, and an empty browser
+warning/error log. A temporary wheel build contained the Hermes adapter, four-host bootstrap, and
+updated Orbit assets; it was deleted after inspection. No release version was changed and nothing
+was deployed. Evidence labels are
+`hermes_local_adapter_tested` and `manus_remote_contract_gated`; neither is real-host acceptance or
+`production_accepted`.
+
 ## Ordinary-user visual polish (local review only, 2026-08-26)
 
 The local Human workspace now uses a unique multicolour orbit-and-relay SVG mark, a bright

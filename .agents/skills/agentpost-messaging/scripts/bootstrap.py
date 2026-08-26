@@ -21,7 +21,7 @@ AUTH_CONFIG_URL = "https://agentpost.me/api/v1/auth/config"
 PUBLIC_ORIGIN = "https://agentpost.me"
 MAX_CONFIG_BYTES = 128 * 1024
 MINIMUM_SETUP_VERSION = (0, 1, 1)
-SUPPORTED_HOSTS = frozenset({"codex", "workbuddy", "openclaw"})
+SUPPORTED_HOSTS = frozenset({"codex", "workbuddy", "openclaw", "hermes"})
 
 
 class BootstrapError(RuntimeError):

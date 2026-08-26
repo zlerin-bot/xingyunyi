@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     codex_setup_platforms: str = ""
     workbuddy_setup_platforms: str = ""
     openclaw_setup_platforms: str = ""
+    hermes_setup_platforms: str = ""
     connector_release_version: str = "0.1.0"
     connector_wheel_url: str = "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl"
     connector_wheel_sha256: str = "1fc3f42e8c1141ce65481778587544fc9bf441438c852c0332594ab24a75fdf7"
@@ -121,6 +122,7 @@ class Settings(BaseSettings):
         "codex_setup_platforms",
         "workbuddy_setup_platforms",
         "openclaw_setup_platforms",
+        "hermes_setup_platforms",
     )
     @classmethod
     def setup_platforms_are_supported(cls, value: str) -> str:
@@ -248,12 +250,25 @@ class Settings(BaseSettings):
         codex = self.enabled_codex_setup_platforms
         workbuddy = tuple(item for item in self.workbuddy_setup_platforms.split(",") if item)
         openclaw = tuple(item for item in self.openclaw_setup_platforms.split(",") if item)
+        hermes = tuple(item for item in self.hermes_setup_platforms.split(",") if item)
         return {
             "codex": codex,
             # Empty host-specific settings preserve the pre-0.1.10 release policy.
             "workbuddy": workbuddy or codex,
             "openclaw": openclaw or codex,
+            # Hermes was added after the shared Codex policy and must be released explicitly.
+            "hermes": hermes,
         }
+
+    @property
+    def enabled_host_connection_modes(self) -> dict[str, str]:
+        """Publish the real connection path separately from OS release gates."""
+
+        platforms = self.enabled_host_setup_platforms
+        return {
+            host: "local_bootstrap" if enabled else "unavailable"
+            for host, enabled in platforms.items()
+        } | {"manus": "remote_mcp_oauth" if self.remote_mcp_oauth_enabled else "unavailable"}
 
     @property
     def is_production(self) -> bool:

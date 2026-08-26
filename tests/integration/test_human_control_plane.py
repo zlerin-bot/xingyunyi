@@ -28,12 +28,16 @@ def _control_client(settings: Settings, database: Database) -> TestClient:
         cursor_secret="test-cursor-secret",
         registration_token="register-secret",
         admin_token=ADMIN_KEY,
+        remote_mcp_oauth_enabled=settings.remote_mcp_oauth_enabled,
         codex_setup_platforms=settings.codex_setup_platforms,
         workbuddy_setup_platforms=settings.workbuddy_setup_platforms,
         openclaw_setup_platforms=settings.openclaw_setup_platforms,
+        hermes_setup_platforms=settings.hermes_setup_platforms,
         connector_release_version=settings.connector_release_version,
         connector_wheel_url=settings.connector_wheel_url,
         connector_wheel_sha256=settings.connector_wheel_sha256,
+        public_base_url=settings.public_base_url,
+        remote_mcp_resource_url=settings.remote_mcp_resource_url,
         log_level="WARNING",
     )
     return TestClient(create_app(settings=protected, database=database))
@@ -114,6 +118,14 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
         "codex": [],
         "workbuddy": [],
         "openclaw": [],
+        "hermes": [],
+    }
+    assert auth_config.json()["host_connection_modes"] == {
+        "codex": "unavailable",
+        "workbuddy": "unavailable",
+        "openclaw": "unavailable",
+        "hermes": "unavailable",
+        "manus": "unavailable",
     }
     assert auth_config.json()["connector_release"] == {
         "version": "0.1.0",
@@ -152,7 +164,11 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert 'data-connector-type="codex"' in orbit.text
     assert 'data-connector-type="workbuddy"' in orbit.text
     assert 'data-connector-type="openclaw"' in orbit.text
+    assert 'data-connector-type="manus"' in orbit.text
+    assert 'data-connector-type="hermes"' in orbit.text
     assert "AP-CODEX-V1" in script.text
+    assert "AP-MANUS-V1" in script.text
+    assert "AP-HERMES-V1" in script.text
     assert "https://agentpost.me/connect/${host}" in script.text
     assert "请先选择要连接的 Agent" in script.text
     assert "复制安装命令" not in orbit.text
@@ -264,6 +280,7 @@ def test_agent_facing_connection_contract_is_public_pinned_and_host_specific(
         ("codex", "AP-CODEX-V1", "Codex"),
         ("workbuddy", "AP-WORKBUDDY-V1", "WorkBuddy"),
         ("openclaw", "AP-OPENCLAW-V1", "OpenClaw"),
+        ("hermes", "AP-HERMES-V1", "Hermes"),
     ):
         instructions = client.get(f"/connect/{host}")
         assert instructions.status_code == 200
@@ -303,6 +320,40 @@ def test_agent_facing_connection_contract_is_public_pinned_and_host_specific(
     )
 
 
+def test_manus_connection_contract_is_remote_only_and_fails_closed(
+    client: TestClient,
+    settings: Settings,
+    database: Database,
+) -> None:
+    unavailable = client.get("/connect/manus?new=40000000-0000-0000-0000-000000000001")
+    assert unavailable.status_code == 409
+    assert "manus_remote_mcp_not_released" in unavailable.text
+    assert "API key" in unavailable.text
+
+    staged = Settings(
+        environment="test",
+        database_url=settings.database_url,
+        storage_path=settings.storage_path,
+        remote_mcp_oauth_enabled=True,
+        public_base_url="https://agentpost.example",
+        remote_mcp_resource_url="https://agentpost.example/mcp",
+        log_level="WARNING",
+    )
+    with _control_client(staged, database) as remote_client:
+        instructions = remote_client.get("/connect/manus?new=40000000-0000-0000-0000-000000000001")
+        reconnect = remote_client.get("/connect/manus?agent=5a7044c7-6a5e-48e9-90dd-78680c91dcb9")
+
+    assert instructions.status_code == 200
+    assert instructions.headers["X-AgentPost-Connection-Code"] == "AP-MANUS-V1"
+    assert "target_host=manus" in instructions.text
+    assert "connection_mode=remote_mcp_oauth" in instructions.text
+    assert "mcp_url=https://agentpost.example/mcp" in instructions.text
+    assert "do not download or run the local AgentPost bootstrap" in instructions.text
+    assert "Do not ask the Human for a server URL, API key, Bearer token" in instructions.text
+    assert reconnect.status_code == 409
+    assert "manus_reconnect_not_released" in reconnect.text
+
+
 def test_auth_config_exposes_release_platforms_per_host(
     settings: Settings,
     database: Database,
@@ -315,6 +366,7 @@ def test_auth_config_exposes_release_platforms_per_host(
         codex_setup_platforms="mac,linux",
         workbuddy_setup_platforms="mac",
         openclaw_setup_platforms="mac,linux",
+        hermes_setup_platforms="linux,windows",
         connector_release_version="0.1.1",
         connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl"),
         connector_wheel_sha256="a" * 64,
@@ -329,6 +381,14 @@ def test_auth_config_exposes_release_platforms_per_host(
         "codex": ["mac", "linux"],
         "workbuddy": ["mac"],
         "openclaw": ["mac", "linux"],
+        "hermes": ["linux", "windows"],
+    }
+    assert response.json()["host_connection_modes"] == {
+        "codex": "local_bootstrap",
+        "workbuddy": "local_bootstrap",
+        "openclaw": "local_bootstrap",
+        "hermes": "local_bootstrap",
+        "manus": "unavailable",
     }
     assert response.json()["connector_release"] == {
         "version": "0.1.1",
