@@ -1,11 +1,11 @@
-"""豆包工作 STDIO launcher without putting the paired credential in its form."""
+"""豆包工作 STDIO setup without putting paired credentials in its form."""
 
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import secrets
-import shlex
 import stat
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +13,7 @@ from pathlib import Path
 from agentpost_sdk.errors import ConfigurationError
 
 MCP_SERVER_NAME = "星云驿"
+LAUNCHER_SCHEMA_VERSION = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,56 +27,48 @@ class DoubaoWorkSetupResult:
     restart_required: bool = False
 
 
-def _launcher_path(profile: str, explicit: Path | None) -> Path:
+def _launcher_path(profile: str, explicit: Path | None, *, windows: bool) -> Path:
     if explicit is not None:
         return explicit.expanduser()
     suffix = hashlib.sha256(profile.encode()).hexdigest()[:12]
-    return Path.home() / ".agentpost" / "launchers" / f"xingyunyi-doubao-{suffix}"
+    executable_suffix = ".exe" if windows else ""
+    filename = f"xingyunyi-doubao-{suffix}{executable_suffix}"
+    return Path.home() / ".agentpost" / "launchers" / filename
 
 
-def _launcher_source(
-    *,
-    connector_command: Path,
-    mcp_command: Path,
-    server: str,
-    profile: str,
-) -> str:
-    connector = shlex.quote(str(connector_command))
-    mcp = shlex.quote(str(mcp_command))
-    quoted_server = shlex.quote(server)
-    quoted_profile = shlex.quote(profile)
-    return f"""#!/bin/sh
-set -eu
-SERVER={quoted_server}
-PROFILE={quoted_profile}
-CONNECTOR={connector}
-set -- --server "$SERVER" --profile "$PROFILE" --connector-type doubao_work --no-browser status
-if ! "$CONNECTOR" "$@" >/dev/null 2>&1; then
-  echo "agentpost_doubao_error code=secure_connection_unavailable" >&2
-  exit 1
-fi
-export AGENTPOST_SERVER="$SERVER"
-export AGENTPOST_PROFILE="$PROFILE"
-exec {mcp}
-"""
+def _config_path(launcher_path: Path) -> Path:
+    return launcher_path.with_name(f"{launcher_path.name}.json")
 
 
-def _atomic_write_executable(path: Path, content: str) -> None:
+def _atomic_write(path: Path, content: bytes, *, mode: int) -> None:
     temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
     try:
         path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        os.chmod(path.parent, 0o700)
-        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o700)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        if os.name != "nt":
+            os.chmod(path.parent, 0o700)
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+        with os.fdopen(descriptor, "wb") as stream:
             stream.write(content)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
-        os.chmod(path, 0o700)
+        os.chmod(path, mode)
     except OSError as exc:
         raise ConfigurationError("豆包工作启动器无法安全写入") from exc
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def _installed_command(mcp_command: Path, name: str) -> Path:
+    suffix = ".exe" if mcp_command.suffix.lower() == ".exe" else ""
+    return mcp_command.with_name(f"{name}{suffix}")
+
+
+def _validate_installed_command(path: Path, error: str) -> Path:
+    resolved = path.expanduser().resolve()
+    if not resolved.is_file() or not os.access(resolved, os.X_OK):
+        raise ConfigurationError(error)
+    return resolved
 
 
 def configure_doubao_work_mcp(
@@ -85,7 +78,7 @@ def configure_doubao_work_mcp(
     mcp_command: Path,
     launcher_path: Path | None = None,
 ) -> DoubaoWorkSetupResult:
-    """Create one command-only launcher for 豆包工作的 native STDIO connector form."""
+    """Create a command-only native launcher for macOS or Windows."""
 
     cleaned_server = server.strip().rstrip("/")
     cleaned_profile = profile.strip()
@@ -93,31 +86,57 @@ def configure_doubao_work_mcp(
         raise ConfigurationError("AgentPost server must not be empty")
     if not cleaned_profile or len(cleaned_profile) > 200:
         raise ConfigurationError("Connector profile must contain 1-200 characters")
-    executable = mcp_command.expanduser().resolve()
-    if not executable.is_file() or not os.access(executable, os.X_OK):
-        raise ConfigurationError("agentpost-mcp is not installed in this runtime")
-    connector = executable.with_name("agentpost-connect")
-    if not connector.is_file() or not os.access(connector, os.X_OK):
-        raise ConfigurationError("agentpost-connect is not installed in this runtime")
 
-    path = _launcher_path(cleaned_profile, launcher_path)
-    source = _launcher_source(
-        connector_command=connector,
-        mcp_command=executable,
-        server=cleaned_server,
-        profile=cleaned_profile,
+    executable = _validate_installed_command(
+        mcp_command,
+        "agentpost-mcp is not installed in this runtime",
     )
-    _atomic_write_executable(path, source)
+    connector = _validate_installed_command(
+        _installed_command(executable, "agentpost-connect"),
+        "agentpost-connect is not installed in this runtime",
+    )
+    launcher_template = _validate_installed_command(
+        _installed_command(executable, "agentpost-doubao"),
+        "agentpost-doubao is not installed in this runtime",
+    )
+
+    path = _launcher_path(
+        cleaned_profile,
+        launcher_path,
+        windows=executable.suffix.lower() == ".exe",
+    )
+    config_path = _config_path(path)
+    config = {
+        "connector_command": str(connector),
+        "mcp_command": str(executable),
+        "profile": cleaned_profile,
+        "schema_version": LAUNCHER_SCHEMA_VERSION,
+        "server": cleaned_server,
+    }
+    config_bytes = (
+        json.dumps(config, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode()
     try:
-        verified = path.read_text(encoding="utf-8")
-        mode = stat.S_IMODE(path.stat().st_mode)
-    except (OSError, UnicodeError) as exc:
+        template_bytes = launcher_template.read_bytes()
+    except OSError as exc:
+        raise ConfigurationError("豆包工作启动器无法安全读取") from exc
+    _atomic_write(path, template_bytes, mode=0o700)
+    _atomic_write(config_path, config_bytes, mode=0o600)
+
+    try:
+        launcher_verified = path.read_bytes()
+        config_verified = config_path.read_bytes()
+        launcher_mode = stat.S_IMODE(path.stat().st_mode)
+        config_mode = stat.S_IMODE(config_path.stat().st_mode)
+    except OSError as exc:
         raise ConfigurationError("豆包工作启动器验证失败") from exc
-    if verified != source or mode & 0o077:
+    insecure_mode = os.name != "nt" and (launcher_mode & 0o077 or config_mode & 0o077)
+    if launcher_verified != template_bytes or config_verified != config_bytes or insecure_mode:
         raise ConfigurationError("豆包工作启动器验证失败")
+
     return DoubaoWorkSetupResult(
         server_name=MCP_SERVER_NAME,
         approval_mode="host",
-        config_path=path,
+        config_path=config_path,
         command=path,
     )
