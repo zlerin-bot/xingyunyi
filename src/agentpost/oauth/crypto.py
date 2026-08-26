@@ -9,6 +9,9 @@ from pydantic import SecretStr
 
 ACCESS_TOKEN_MARKER = "oat_"
 REFRESH_TOKEN_MARKER = "ort_"
+AUTHORIZATION_CODE_MARKER = "oac_"
+DYNAMIC_CLIENT_MARKER = "dcr_"
+AUTHORIZATION_REQUEST_MARKER = "oar_"
 
 
 def _secret_bytes(secret: SecretStr) -> bytes:
@@ -21,6 +24,18 @@ def generate_access_token() -> str:
 
 def generate_refresh_token() -> str:
     return f"{REFRESH_TOKEN_MARKER}{secrets.token_urlsafe(32)}"
+
+
+def generate_authorization_code() -> str:
+    return f"{AUTHORIZATION_CODE_MARKER}{secrets.token_urlsafe(32)}"
+
+
+def generate_dynamic_client_id() -> str:
+    return f"{DYNAMIC_CLIENT_MARKER}{secrets.token_urlsafe(24)}"
+
+
+def generate_authorization_request_id() -> str:
+    return f"{AUTHORIZATION_REQUEST_MARKER}{secrets.token_urlsafe(24)}"
 
 
 def derive_device_access_token(device_code: str, connector_id: str, secret: SecretStr) -> str:

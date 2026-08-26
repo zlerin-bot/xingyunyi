@@ -36,9 +36,11 @@ def _control_client(settings: Settings, database: Database) -> TestClient:
         admin_token=ADMIN_KEY,
         remote_mcp_oauth_enabled=settings.remote_mcp_oauth_enabled,
         doubao_work_remote_mcp_enabled=settings.doubao_work_remote_mcp_enabled,
+        manus_remote_mcp_enabled=settings.manus_remote_mcp_enabled,
         codex_setup_platforms=settings.codex_setup_platforms,
         workbuddy_setup_platforms=settings.workbuddy_setup_platforms,
         doubao_work_setup_platforms=settings.doubao_work_setup_platforms,
+        manus_setup_platforms=settings.manus_setup_platforms,
         openclaw_setup_platforms=settings.openclaw_setup_platforms,
         hermes_setup_platforms=settings.hermes_setup_platforms,
         connector_release_version=settings.connector_release_version,
@@ -138,6 +140,7 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
         "codex": [],
         "workbuddy": [],
         "doubao_work": [],
+        "manus": [],
         "openclaw": [],
         "hermes": [],
     }
@@ -358,7 +361,7 @@ def test_agent_facing_connection_contract_is_public_pinned_and_host_specific(
     )
 
 
-def test_manus_connection_contract_is_remote_only_and_fails_closed(
+def test_manus_connection_contract_keeps_remote_fallback_fail_closed(
     client: TestClient,
     settings: Settings,
     database: Database,
@@ -373,6 +376,7 @@ def test_manus_connection_contract_is_remote_only_and_fails_closed(
         database_url=settings.database_url,
         storage_path=settings.storage_path,
         remote_mcp_oauth_enabled=True,
+        manus_remote_mcp_enabled=True,
         public_base_url="https://agentpost.example",
         remote_mcp_resource_url="https://agentpost.example/mcp",
         log_level="WARNING",
@@ -385,11 +389,47 @@ def test_manus_connection_contract_is_remote_only_and_fails_closed(
     assert instructions.headers["X-AgentPost-Connection-Code"] == "AP-MANUS-V1"
     assert "target_host=manus" in instructions.text
     assert "connection_mode=remote_mcp_oauth" in instructions.text
-    assert "mcp_url=https://agentpost.example/mcp" in instructions.text
-    assert "do not download or run the local AgentPost bootstrap" in instructions.text
+    assert (
+        "mcp_url=https://agentpost.example/mcp/connect/"
+        "new-40000000-0000-0000-0000-000000000001" in instructions.text
+    )
+    assert "do not download or run the" in instructions.text
+    assert "local AgentPost bootstrap" in instructions.text
     assert "Do not ask the Human for a server URL, API key, Bearer token" in instructions.text
-    assert reconnect.status_code == 409
-    assert "manus_reconnect_not_released" in reconnect.text
+    assert reconnect.status_code == 200
+    assert (
+        "mcp_url=https://agentpost.example/mcp/connect/"
+        "agent-5a7044c7-6a5e-48e9-90dd-78680c91dcb9" in reconnect.text
+    )
+    assert "existing_agent_id=5a7044c7-6a5e-48e9-90dd-78680c91dcb9" in reconnect.text
+    assert "macOS and Windows" in instructions.text
+
+
+def test_manus_connection_contract_prefers_cross_platform_local_stdio(
+    settings: Settings,
+    database: Database,
+) -> None:
+    staged = Settings(
+        environment="test",
+        database_url=settings.database_url,
+        storage_path=settings.storage_path,
+        manus_setup_platforms="mac,windows",
+        connector_release_version="0.1.17",
+        connector_wheel_url="https://agentpost.me/downloads/agentpost-0.1.17-py3-none-any.whl",
+        connector_wheel_sha256="a" * 64,
+        public_base_url="https://agentpost.me",
+        log_level="WARNING",
+    )
+    with _control_client(staged, database) as local_client:
+        instructions = local_client.get("/connect/manus?new=40000000-0000-0000-0000-000000000001")
+
+    assert instructions.status_code == 200
+    assert "target_host=manus" in instructions.text
+    assert "setup manus --new-agent-intent" in instructions.text
+    assert "自定义 MCP with the STDIO transport" in instructions.text
+    assert "status=native_registration_required and host=manus" in instructions.text
+    assert "leave args and env empty" in instructions.text
+    assert "Do not use 自定义 API, SSE, HTTP" in instructions.text
 
 
 def test_doubao_work_connection_contract_uses_desktop_custom_mcp_and_fails_closed(
@@ -431,8 +471,8 @@ def test_doubao_work_connection_contract_uses_desktop_custom_mcp_and_fails_close
     assert "Do not add a\nHeader" in instructions.text
     assert "browser and mobile clients do not provide" in instructions.text
     assert "doubao_work_custom_mcp_oauth_unavailable" in instructions.text
-    assert reconnect.status_code == 409
-    assert "doubao_work_reconnect_not_released" in reconnect.text
+    assert reconnect.status_code == 200
+    assert "existing_agent_id=5a7044c7-6a5e-48e9-90dd-78680c91dcb9" in reconnect.text
 
 
 def test_doubao_work_connection_contract_prefers_verified_local_stdio(
@@ -444,6 +484,7 @@ def test_doubao_work_connection_contract_prefers_verified_local_stdio(
         database_url=settings.database_url,
         storage_path=settings.storage_path,
         doubao_work_setup_platforms="mac,windows",
+        manus_setup_platforms="mac,windows",
         connector_release_version="0.1.17",
         connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.17-py3-none-any.whl"),
         connector_wheel_sha256="a" * 64,
@@ -476,6 +517,7 @@ def test_auth_config_exposes_release_platforms_per_host(
         codex_setup_platforms="mac,linux",
         workbuddy_setup_platforms="mac",
         doubao_work_setup_platforms="mac,windows",
+        manus_setup_platforms="mac,windows",
         openclaw_setup_platforms="mac,linux",
         hermes_setup_platforms="linux,windows",
         connector_release_version="0.1.1",
@@ -492,6 +534,7 @@ def test_auth_config_exposes_release_platforms_per_host(
         "codex": ["mac", "linux"],
         "workbuddy": ["mac"],
         "doubao_work": ["mac", "windows"],
+        "manus": ["mac", "windows"],
         "openclaw": ["mac", "linux"],
         "hermes": ["linux", "windows"],
     }
@@ -501,7 +544,7 @@ def test_auth_config_exposes_release_platforms_per_host(
         "openclaw": "local_bootstrap",
         "hermes": "local_bootstrap",
         "codex": "local_bootstrap",
-        "manus": "unavailable",
+        "manus": "local_bootstrap",
     }
     assert response.json()["connector_release"] == {
         "version": "0.1.1",

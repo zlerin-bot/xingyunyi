@@ -38,10 +38,12 @@ class Settings(BaseSettings):
     open_registration_enabled: bool = False
     remote_mcp_oauth_enabled: bool = False
     doubao_work_remote_mcp_enabled: bool = False
+    manus_remote_mcp_enabled: bool = False
     enterprise_oidc_enabled: bool = False
     codex_setup_platforms: str = ""
     workbuddy_setup_platforms: str = ""
     doubao_work_setup_platforms: str = ""
+    manus_setup_platforms: str = ""
     openclaw_setup_platforms: str = ""
     hermes_setup_platforms: str = ""
     connector_release_version: str = "0.1.0"
@@ -79,6 +81,12 @@ class Settings(BaseSettings):
     oauth_access_token_ttl_seconds: int = Field(default=60 * 60, ge=5 * 60, le=24 * 60 * 60)
     oauth_refresh_token_ttl_seconds: int = Field(
         default=30 * 24 * 60 * 60, ge=24 * 60 * 60, le=180 * 24 * 60 * 60
+    )
+    oauth_authorization_code_ttl_seconds: int = Field(default=5 * 60, ge=60, le=10 * 60)
+    oauth_dynamic_client_ttl_seconds: int = Field(
+        default=3650 * 24 * 60 * 60,
+        ge=24 * 60 * 60,
+        le=3650 * 24 * 60 * 60,
     )
     oidc_state_ttl_seconds: int = Field(default=10 * 60, ge=5 * 60, le=15 * 60)
     oidc_http_timeout_seconds: float = Field(default=10.0, gt=0, le=30)
@@ -124,6 +132,7 @@ class Settings(BaseSettings):
         "codex_setup_platforms",
         "workbuddy_setup_platforms",
         "doubao_work_setup_platforms",
+        "manus_setup_platforms",
         "openclaw_setup_platforms",
         "hermes_setup_platforms",
     )
@@ -260,14 +269,16 @@ class Settings(BaseSettings):
         codex = self.enabled_codex_setup_platforms
         workbuddy = tuple(item for item in self.workbuddy_setup_platforms.split(",") if item)
         doubao_work = tuple(item for item in self.doubao_work_setup_platforms.split(",") if item)
+        manus = tuple(item for item in self.manus_setup_platforms.split(",") if item)
         openclaw = tuple(item for item in self.openclaw_setup_platforms.split(",") if item)
         hermes = tuple(item for item in self.hermes_setup_platforms.split(",") if item)
         return {
             "codex": codex,
             # Empty host-specific settings preserve the pre-0.1.10 release policy.
             "workbuddy": workbuddy or codex,
-            # 豆包工作's native STDIO host is currently verified on macOS only.
+            # 豆包工作 uses an explicit platform gate because its launcher is host-local.
             "doubao_work": doubao_work,
+            "manus": manus,
             "openclaw": openclaw or codex,
             # Hermes was added after the shared Codex policy and must be released explicitly.
             "hermes": hermes,
@@ -280,7 +291,7 @@ class Settings(BaseSettings):
         platforms = self.enabled_host_setup_platforms
         local_mode = {
             host: "local_bootstrap" if platforms[host] else "unavailable"
-            for host in ("workbuddy", "doubao_work", "openclaw", "hermes", "codex")
+            for host in ("workbuddy", "doubao_work", "openclaw", "hermes", "codex", "manus")
         }
         doubao_mode = (
             local_mode["doubao_work"]
@@ -297,7 +308,15 @@ class Settings(BaseSettings):
             "openclaw": local_mode["openclaw"],
             "hermes": local_mode["hermes"],
             "codex": local_mode["codex"],
-            "manus": ("remote_mcp_oauth" if self.remote_mcp_oauth_enabled else "unavailable"),
+            "manus": (
+                local_mode["manus"]
+                if local_mode["manus"] == "local_bootstrap"
+                else (
+                    "remote_mcp_oauth"
+                    if self.remote_mcp_oauth_enabled and self.manus_remote_mcp_enabled
+                    else "unavailable"
+                )
+            ),
         }
 
     @property
@@ -347,6 +366,10 @@ class Settings(BaseSettings):
             raise ValueError(
                 "AGENTPOST_REMOTE_MCP_OAUTH_ENABLED must be true when "
                 "Doubao Work Remote MCP is enabled"
+            )
+        if self.manus_remote_mcp_enabled and not self.remote_mcp_oauth_enabled:
+            raise ValueError(
+                "AGENTPOST_REMOTE_MCP_OAUTH_ENABLED must be true when Manus Remote MCP is enabled"
             )
         if self.enterprise_oidc_enabled:
             if not self.human_self_service_enabled:

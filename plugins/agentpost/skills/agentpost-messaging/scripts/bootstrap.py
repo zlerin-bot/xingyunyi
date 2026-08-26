@@ -21,7 +21,7 @@ AUTH_CONFIG_URL = "https://agentpost.me/api/v1/auth/config"
 PUBLIC_ORIGIN = "https://agentpost.me"
 MAX_CONFIG_BYTES = 128 * 1024
 MINIMUM_SETUP_VERSION = (0, 1, 1)
-SUPPORTED_HOSTS = frozenset({"codex", "workbuddy", "doubao_work", "openclaw", "hermes"})
+SUPPORTED_HOSTS = frozenset({"codex", "workbuddy", "doubao_work", "openclaw", "hermes", "manus"})
 
 
 class BootstrapError(RuntimeError):
@@ -75,7 +75,9 @@ def parse_release(
         platforms = host_platforms.get(host_name)
     else:
         # A pre-0.1.10 server published only one shared platform gate.
-        platforms = [] if host_name == "doubao_work" else payload.get("codex_setup_platforms")
+        platforms = (
+            [] if host_name in {"doubao_work", "manus"} else payload.get("codex_setup_platforms")
+        )
     release = payload.get("connector_release")
     if not isinstance(platforms, list) or platform_name not in platforms:
         raise BootstrapError("setup_not_released_for_host_platform")

@@ -5,8 +5,9 @@ from __future__ import annotations
 import math
 import os
 import re
-from dataclasses import dataclass
-from typing import Literal, cast
+from collections import OrderedDict
+from dataclasses import dataclass, replace
+from typing import Any, Literal, cast
 from urllib.parse import urlsplit
 
 import httpx
@@ -15,6 +16,7 @@ from mcp.server import MCPServer
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 from mcp.server.auth.settings import AuthSettings
+from mcp.server.transport_security import TransportSecuritySettings
 
 from agentpost_mcp import __version__
 from agentpost_mcp.server import INSTRUCTIONS
@@ -229,3 +231,71 @@ def create_remote_server(
         remote_client_factory(settings, transport=client_transport),
     )
     return server
+
+
+class DynamicRemoteMCPApp:
+    """Serve bounded intent-specific MCP resources through one stateless process."""
+
+    def __init__(self, settings: RemoteSettings, *, max_resources: int = 256) -> None:
+        self.settings = settings
+        self.max_resources = max_resources
+        self._apps: OrderedDict[str, Any] = OrderedDict()
+        base = re.escape(settings.resource_path.rstrip("/"))
+        self._resource_pattern = re.compile(
+            rf"^{base}(?:/connect/(?:new|agent)-[0-9a-fA-F-]{{36}})?$"
+        )
+
+    def _resource_path(self, path: str) -> str | None:
+        metadata_prefix = "/.well-known/oauth-protected-resource"
+        candidate = path[len(metadata_prefix) :] if path.startswith(metadata_prefix) else path
+        return candidate if self._resource_pattern.fullmatch(candidate) else None
+
+    def _app(self, resource_path: str):
+        cached = self._apps.pop(resource_path, None)
+        if cached is not None:
+            self._apps[resource_path] = cached
+            return cached
+        origin = f"{urlsplit(self.settings.resource_url).scheme}://{urlsplit(self.settings.resource_url).netloc}"
+        runtime = replace(self.settings, resource_url=f"{origin}{resource_path}")
+        server = create_remote_server(runtime)
+        app = server.streamable_http_app(
+            streamable_http_path=resource_path,
+            json_response=True,
+            stateless_http=True,
+            transport_security=TransportSecuritySettings(
+                enable_dns_rebinding_protection=True,
+                allowed_hosts=list(runtime.allowed_hosts),
+                allowed_origins=list(runtime.allowed_origins),
+            ),
+            host=runtime.host,
+        )
+        self._apps[resource_path] = app
+        while len(self._apps) > self.max_resources:
+            self._apps.popitem(last=False)
+        return app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] == "lifespan":
+            while True:
+                message = await receive()
+                if message["type"] == "lifespan.startup":
+                    await send({"type": "lifespan.startup.complete"})
+                elif message["type"] == "lifespan.shutdown":
+                    await send({"type": "lifespan.shutdown.complete"})
+                    return
+        resource_path = self._resource_path(scope.get("path", ""))
+        if resource_path is None:
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 404,
+                    "headers": [(b"content-type", b"text/plain; charset=utf-8")],
+                }
+            )
+            await send({"type": "http.response.body", "body": b"Not Found"})
+            return
+        await self._app(resource_path)(scope, receive, send)
+
+
+def create_dynamic_remote_app(settings: RemoteSettings) -> DynamicRemoteMCPApp:
+    return DynamicRemoteMCPApp(settings)

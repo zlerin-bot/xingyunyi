@@ -82,9 +82,8 @@ def connection_instructions(
             detail="Choose either an existing Agent target or a new Agent intent",
         )
     origin = settings.public_base_url.rstrip("/")
-    if host == "manus" or (
-        host == "doubao_work"
-        and settings.enabled_host_connection_modes["doubao_work"] != "local_bootstrap"
+    if host in {"manus", "doubao_work"} and (
+        settings.enabled_host_connection_modes[host] != "local_bootstrap"
     ):
         return _remote_mcp_connection_instructions(
             host=host,
@@ -170,6 +169,24 @@ def connection_instructions(
    environment variable. Do not claim connection success until the AgentPost tools are listed.
    After that verification, tell the Human the connection is ready and continue the original
    request."""
+    elif host == "manus":
+        host_preflight = """
+   Verify this is the Manus desktop client and that Settings · 连接器 · 已添加连接器 offers
+   自定义 MCP with the STDIO transport. Do not use 自定义 API, SSE, HTTP, JSON import, or URL add:
+   the tested HTTP card can be saved without making the AgentPost tools available to a task."""
+        registration_step = (
+            "creates one secure command-only STDIO launcher; no token, parameter, or environment "
+            "variable is copied into Manus"
+        )
+        completion_step = """Success from setup is one JSON object with
+   status=native_registration_required and host=manus. Use its `command` value to create one Manus
+   Custom MCP server named 星云驿 with transport STDIO; leave args and env empty, then save.
+   Complete that native UI step yourself when Manus permits it. If the native UI cannot be
+   controlled, give the Human only the prepared command and the exact connector path: Settings ·
+   连接器 · 已添加连接器 · 自定义 MCP. Ask them to select STDIO, paste it, and save once. Do not
+   ask them to type a server, profile,
+   token, parameter, or environment variable. Do not claim success until AgentPost tools/list is
+   visible inside a real Manus task. Then return to the original request."""
     body = f"""AGENTPOST_CONNECT_V1
 connection_code={code}
 target_host={host}
@@ -226,21 +243,9 @@ def _remote_mcp_connection_instructions(
 ) -> PlainTextResponse:
     code = _HOST_CODES[host]
     name = _HOST_NAMES[host]
-    if agent is not None:
-        return PlainTextResponse(
-            f"agentpost_connect_error code={host}_reconnect_not_released\n"
-            f"This build cannot yet prove that a {name} Remote MCP connector will preserve the "
-            "requested "
-            "existing Agent identity. Do not create a replacement Agent.\n",
-            status_code=status.HTTP_409_CONFLICT,
-            headers={
-                "Cache-Control": "no-store",
-                "X-AgentPost-Connection-Code": code,
-                "X-Content-Type-Options": "nosniff",
-            },
-        )
     host_enabled = settings.remote_mcp_oauth_enabled and (
-        host == "manus" or settings.doubao_work_remote_mcp_enabled
+        (host == "manus" and settings.manus_remote_mcp_enabled)
+        or (host == "doubao_work" and settings.doubao_work_remote_mcp_enabled)
     )
     if not host_enabled:
         return PlainTextResponse(
@@ -254,8 +259,23 @@ def _remote_mcp_connection_instructions(
                 "X-Content-Type-Options": "nosniff",
             },
         )
-    resource_url = settings.remote_mcp_resource_url or f"{origin}/mcp"
+    if agent is None and new is None:
+        return PlainTextResponse(
+            f"agentpost_connect_error code={host}_target_required\n"
+            "Start this connection from one 星轨 Agent card or from Connect new Agent.\n",
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            headers={
+                "Cache-Control": "no-store",
+                "X-AgentPost-Connection-Code": code,
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+    resource_base = (settings.remote_mcp_resource_url or f"{origin}/mcp").rstrip("/")
+    target = f"agent-{agent}" if agent is not None else f"new-{new}"
+    resource_url = f"{resource_base}/connect/{target}"
     intent_notice = f"new_agent_intent={new}\n" if new is not None else ""
+    if agent is not None:
+        intent_notice = f"existing_agent_id={agent}\n"
     if host == "doubao_work":
         integration = """Use the 豆包工作 desktop client's built-in 自定义连接器 flow. Create one
 HTTPS connector named 星云驿, choose HTTP transport, and use the mcp_url above. Do not add a
@@ -265,10 +285,10 @@ claiming success if this is not the desktop 工作任务 environment."""
         connector_name = "星云驿"
         unavailable_code = "doubao_work_custom_mcp_oauth_unavailable"
     else:
-        integration = (
-            "Use Manus's built-in Custom MCP integration; do not download or run the local "
-            "AgentPost bootstrap because Manus is cloud-hosted."
-        )
+        integration = """Use Manus's built-in Custom MCP integration; do not download or run the
+local AgentPost bootstrap. Add the exact HTTPS mcp_url above and let Manus complete OAuth discovery,
+dynamic client registration and the browser consent. This cloud connection is identical from the
+Manus macOS and Windows desktop clients and does not depend on a local command, path or vault."""
         connector_name = "AgentPost"
         unavailable_code = "manus_custom_mcp_oauth_unavailable"
     body = f"""AGENTPOST_CONNECT_V1

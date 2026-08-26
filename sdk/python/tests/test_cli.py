@@ -11,6 +11,7 @@ from agentpost_sdk import ConnectorCredentialRotation, ConnectorHeartbeat, cli
 from agentpost_sdk.codex_setup import CodexSetupResult
 from agentpost_sdk.doubao_work_setup import DoubaoWorkSetupResult
 from agentpost_sdk.hermes_setup import HermesSetupResult
+from agentpost_sdk.manus_setup import ManusSetupResult
 from agentpost_sdk.onboarding import PairingInstructions
 from agentpost_sdk.openclaw_setup import OpenClawSetupResult
 
@@ -593,6 +594,45 @@ def test_setup_doubao_returns_one_native_save_action_without_false_heartbeat(
         "status": "native_registration_required",
         "transport": "STDIO",
     }
+    assert heartbeat_called is False
+
+
+def test_setup_manus_returns_one_native_save_action_without_false_heartbeat(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    connector = DummyConnector()
+    connector.profile = "manus:test-device"
+    heartbeat_called = False
+
+    def heartbeat():
+        nonlocal heartbeat_called
+        heartbeat_called = True
+        return DummyConnector().heartbeat()
+
+    launcher = tmp_path / "xingyunyi-manus"
+    monkeypatch.setattr(cli, "_connect", lambda _args: connector)
+    monkeypatch.setattr(
+        cli,
+        "_configure_host",
+        lambda *_args: ManusSetupResult(
+            server_name="星云驿",
+            approval_mode="host",
+            config_path=launcher.with_suffix(".json"),
+            command=launcher,
+        ),
+    )
+    monkeypatch.setattr(connector, "heartbeat", heartbeat)
+
+    assert cli.main(["setup", "manus"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "native_registration_required"
+    assert result["host"] == "manus"
+    assert result["command"] == str(launcher)
+    assert result["args"] == []
+    assert result["env"] == {}
+    assert result["next_action"] == "save_manus_custom_stdio_connector"
     assert heartbeat_called is False
 
 

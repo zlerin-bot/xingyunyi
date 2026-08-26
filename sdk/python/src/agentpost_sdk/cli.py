@@ -34,6 +34,7 @@ from agentpost_sdk.hermes_setup import (
     configure_hermes_mcp,
     preflight_hermes_mcp,
 )
+from agentpost_sdk.manus_setup import ManusSetupResult, configure_manus_mcp
 from agentpost_sdk.models import Message
 from agentpost_sdk.onboarding import PairingInstructions
 from agentpost_sdk.openclaw_setup import (
@@ -125,7 +126,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     setup.add_argument(
         "host",
-        choices=("codex", "workbuddy", "doubao_work", "openclaw", "hermes"),
+        choices=("codex", "workbuddy", "doubao_work", "openclaw", "hermes", "manus"),
     )
     setup.add_argument("--existing-agent-id", help=argparse.SUPPRESS)
     setup.add_argument("--new-agent-intent", help=argparse.SUPPRESS)
@@ -318,6 +319,7 @@ def _configure_host(
     | DoubaoWorkSetupResult
     | OpenClawSetupResult
     | HermesSetupResult
+    | ManusSetupResult
 ):
     options = {
         "server": connector.client.server,
@@ -330,6 +332,8 @@ def _configure_host(
         return configure_workbuddy_mcp(**options)
     if host == "doubao_work":
         return configure_doubao_work_mcp(**options)
+    if host == "manus":
+        return configure_manus_mcp(**options)
     if host == "openclaw":
         collection = getattr(
             getattr(connector, "credential_store", None),
@@ -459,7 +463,7 @@ def _run(args: argparse.Namespace) -> int:
             _json(connector.heartbeat())
         elif args.command == "setup":
             configured = _configure_host(connector, args.host)
-            if isinstance(configured, DoubaoWorkSetupResult):
+            if isinstance(configured, (DoubaoWorkSetupResult, ManusSetupResult)):
                 _json(
                     {
                         "status": "native_registration_required",
@@ -473,7 +477,11 @@ def _run(args: argparse.Namespace) -> int:
                         "approval_mode": configured.approval_mode,
                         "credential_storage": credential_storage,
                         "restart_required": configured.restart_required,
-                        "next_action": "save_doubao_custom_stdio_connector",
+                        "next_action": (
+                            "save_doubao_custom_stdio_connector"
+                            if args.host == "doubao_work"
+                            else "save_manus_custom_stdio_connector"
+                        ),
                     }
                 )
                 return 0

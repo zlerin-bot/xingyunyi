@@ -55,6 +55,7 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
         codex_setup_platforms="mac,LINUX,mac",
         workbuddy_setup_platforms="MAC",
         doubao_work_setup_platforms="MAC,windows",
+        manus_setup_platforms="mac,WINDOWS",
         openclaw_setup_platforms="linux,MAC,linux",
         hermes_setup_platforms="linux,WINDOWS,linux",
         connector_release_version="0.1.1",
@@ -70,6 +71,7 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
         "codex": ("mac", "linux"),
         "workbuddy": ("mac",),
         "doubao_work": ("mac", "windows"),
+        "manus": ("mac", "windows"),
         "openclaw": ("linux", "mac"),
         "hermes": ("linux", "windows"),
     }
@@ -79,7 +81,7 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
         "openclaw": "local_bootstrap",
         "hermes": "local_bootstrap",
         "codex": "local_bootstrap",
-        "manus": "unavailable",
+        "manus": "local_bootstrap",
     }
     assert settings.connector_release_version == "0.1.1"
     assert settings.connector_wheel_sha256 == "a" * 64
@@ -110,6 +112,7 @@ def test_host_setup_platforms_fall_back_to_codex_policy_for_compatibility() -> N
         "codex": ("mac",),
         "workbuddy": ("mac",),
         "doubao_work": (),
+        "manus": (),
         "openclaw": ("mac",),
         "hermes": (),
     }
@@ -124,10 +127,23 @@ def test_host_setup_platforms_fall_back_to_codex_policy_for_compatibility() -> N
         )
 
 
-def test_manus_connection_mode_requires_remote_mcp_oauth() -> None:
-    settings = Settings(remote_mcp_oauth_enabled=True)
+def test_manus_prefers_local_stdio_and_keeps_remote_oauth_as_fallback() -> None:
+    settings = Settings(remote_mcp_oauth_enabled=True, manus_remote_mcp_enabled=True)
 
     assert settings.enabled_host_connection_modes["manus"] == "remote_mcp_oauth"
+    assert Settings(remote_mcp_oauth_enabled=True).enabled_host_connection_modes["manus"] == (
+        "unavailable"
+    )
+    local = Settings(
+        remote_mcp_oauth_enabled=True,
+        manus_remote_mcp_enabled=True,
+        manus_setup_platforms="mac,windows",
+        connector_release_version="0.1.1",
+        connector_wheel_url="https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl",
+    )
+    assert local.enabled_host_connection_modes["manus"] == "local_bootstrap"
+    with pytest.raises(ValueError):
+        Settings(manus_remote_mcp_enabled=True)
 
 
 def test_doubao_work_connection_mode_requires_its_gate_and_remote_mcp_oauth() -> None:

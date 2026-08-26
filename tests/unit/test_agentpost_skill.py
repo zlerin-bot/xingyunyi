@@ -41,13 +41,14 @@ def test_skill_is_implicitly_discoverable_and_declares_agentpost_dependency() ->
     assert skill.startswith("---\nname: agentpost-messaging\n")
     assert "请连接我的星云驿" in skill
     assert "scripts/bootstrap.py setup <current-host>" in skill
-    assert "`workbuddy`, `doubao_work`, `openclaw`, or `hermes`" in skill
+    assert "`workbuddy`, `doubao_work`, `openclaw`, `hermes`, or `manus`" in skill
     assert "WorkBuddy, 豆包工作, OpenClaw, Hermes, Codex, or Manus" in skill
     assert "Custom Connector with `STDIO`" in skill
     assert "args and env stay empty" in skill
     assert "no token is copied" in skill
-    assert "Manus is cloud-hosted" in skill
-    assert "Never replace an unavailable\n   Manus OAuth path with a copied API key" in skill
+    assert "Manus desktop uses its built-in Custom MCP with `STDIO`" in skill
+    assert "platform-native launcher" in skill
+    assert "do not claim success until AgentPost\n   tools/list" in skill
     assert "Treat a partially loaded or outdated AgentPost MCP as unavailable" in skill
     assert "never report\n   `not_found` from that legacy path" in skill
     assert "upgrades to the server-pinned release and resumes the send" in skill
@@ -110,6 +111,7 @@ def test_release_metadata_must_enable_platform_and_match_trusted_origin() -> Non
             "codex": ["mac"],
             "workbuddy": ["mac"],
             "doubao_work": ["mac", "windows"],
+            "manus": ["mac", "windows"],
             "openclaw": ["mac", "linux"],
             "hermes": ["linux"],
         },
@@ -133,6 +135,16 @@ def test_release_metadata_must_enable_platform_and_match_trusted_origin() -> Non
     assert bootstrap.parse_release(
         payload,
         host_name="doubao_work",
+        platform_name="windows",
+    ) == _release(bootstrap)
+    assert bootstrap.parse_release(
+        payload,
+        host_name="manus",
+        platform_name="mac",
+    ) == _release(bootstrap)
+    assert bootstrap.parse_release(
+        payload,
+        host_name="manus",
         platform_name="windows",
     ) == _release(bootstrap)
     with pytest.raises(bootstrap.BootstrapError, match="setup_not_released"):
@@ -163,6 +175,8 @@ def test_release_metadata_keeps_pre_host_mapping_compatibility() -> None:
     ) == _release(bootstrap)
     with pytest.raises(bootstrap.BootstrapError, match="setup_not_released"):
         bootstrap.parse_release(payload, host_name="doubao_work", platform_name="mac")
+    with pytest.raises(bootstrap.BootstrapError, match="setup_not_released"):
+        bootstrap.parse_release(payload, host_name="manus", platform_name="mac")
 
 
 def test_bootstrap_passes_requested_host_to_release_gate(tmp_path: Path) -> None:

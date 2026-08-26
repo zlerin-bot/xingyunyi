@@ -8,6 +8,22 @@
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
+### Manus macOS/Windows 本机 STDIO 接入（本地已验证，未部署）
+
+020 的 Codex 在 macOS Manus 1.6 Lite 实测确认自定义 MCP 提供 STDIO、SSE、HTTP；HTTP 卡片虽可
+保存，但未触发 MCP/OAuth 请求，也未让工具进入真实任务。基于该证据，本地主路径已从尚未发布的
+Remote MCP 改为 STDIO。新增 `agentpost-manus` 平台原生 launcher 和 `setup manus` adapter：Mac
+复制 console script，Windows 复制安装生成的 `.exe`，表单 args/env 为空；长期凭据只在 OS vault，
+launcher 配置不含秘密，保险库身份不可用时 fail closed。
+
+接入页、Orbit、Skill、bootstrap 和独立 `AGENTPOST_MANUS_SETUP_PLATFORMS` gate 已统一支持
+`mac,windows`。Remote MCP 的 DCR、Authorization Code + PKCE 和 intent-specific resource 作为
+默认关闭的实验后备保留，不作为当前可用性声明。完整 non-PostgreSQL 回归 416 passed、1 个预期
+sandbox skip、5 个 PostgreSQL deselected；聚焦 Python 87 passed；Orbit JavaScript 24 passed；
+Ruff、JavaScript syntax、diff check 与 wheel 隔离安装入口验证通过。生产仍为 `504683f / 0.1.17`；
+真实 Mac Manus 保存/tools/list/收发和真实 Windows 宿主均待确认，因此当前只是
+`manus_cross_platform_local_verified`，不是 deployed 或 `production_accepted`。
+
 ### 0.1.17 豆包工作跨平台接入与生产发布
 
 0.1.16 的豆包本机方案只对已有 macOS 宿主证据开放了平台 gate；这只是保守门禁，不是豆包工作的

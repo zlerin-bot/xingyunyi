@@ -249,6 +249,7 @@ def create_pairing(
     oauth_client_id: str | None = None,
     oauth_scope: str | None = None,
     oauth_resource: str | None = None,
+    commit: bool = True,
 ) -> CreatedPairing:
     if not settings.pairing_enabled:
         raise PairingDisabledError
@@ -301,7 +302,10 @@ def create_pairing(
                 created_at=now,
             )
         )
-        session.commit()
+        if commit:
+            session.commit()
+        else:
+            session.flush()
         return CreatedPairing(pairing=pairing, device_code=device_code, user_code=user_code)
     raise RuntimeError("Unable to allocate a unique pairing session")
 

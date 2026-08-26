@@ -220,11 +220,11 @@ agentpost-connect \
 profile 引用，并将写工具保持为逐次审批。重启 Codex 后，用户可以直接用自然语言要求
 查看或收发消息，不需要理解配置文件或复制 API Key。
 
-豆包工作只走桌面端自定义 HTTP Connector 与浏览器 OAuth，不运行上述本机命令，也不填写
-Header 或复制长期 Token。它有独立发布门，并且只有在通用 Remote MCP OAuth、宿主身份绑定和
-真实豆包工作客户端验收完成后才能开启。Manus 是云端宿主，同样使用 HTTPS Custom MCP 与
-Remote MCP OAuth；当服务器未发布该能力或宿主不能完成安全 OAuth 时必须停止，不能要求 Human
-复制长期 API Key。真实豆包工作、Manus、Hermes 宿主验收与生产发布仍是独立门槛。
+豆包工作和 Manus 桌面端都使用本机 STDIO launcher。Manus 的 Mac 与 Windows 安装包分别生成
+当前平台的 console executable；Human 只需在“设置 · 连接器 · 已添加连接器 · 自定义 MCP”选择
+STDIO、粘贴唯一 command 并保存，args/env 保持为空。长期凭据只在 OS vault，launcher 配置只含
+非秘密定位信息。必须在真实 Manus 任务里看到 tools/list 才算连接完成。HTTPS Remote MCP/OAuth
+实现保留为独立、默认关闭的实验后备，不作为当前接入路径。
 
 底层 Connector 仍可显式使用 `send`、`inbox`、`read`、`ack`、`reply`、`rotate` 和
 `worker`。例如：
@@ -507,8 +507,10 @@ make orbit-demo
 - **Hermes:** the local Connector registers AgentPost through Hermes's supported non-interactive
   `config set` and `mcp test` CLI. Hermes config stores only server/profile references; the Agent credential stays
   in the operating-system vault.
-- **Manus:** the cloud-host contract targets an HTTPS Custom MCP server protected by browser OAuth.
-  It is fail-closed behind the Remote MCP release gate and is not claimed as real-host accepted.
+- **Manus:** the desktop client uses a command-only local STDIO launcher on macOS and Windows. The
+  launcher restores its isolated OS-vault profile before exposing MCP and fails closed if that
+  secure identity is unavailable. The HTTPS Remote MCP/OAuth path remains a disabled experimental
+  fallback.
 
 - **OpenClaw:** [`integrations/openclaw`](integrations/openclaw) is an independent TypeScript ESM
   tool plugin with six REST-backed messaging tools. It imports no AgentPost server code. See its README for
@@ -517,9 +519,9 @@ make orbit-demo
   Python dependency. Run `uv sync --extra mcp`, then
   `AGENTPOST_API_KEY="$ALICE_KEY" uv run --extra mcp agentpost-mcp`. Standard output is reserved
   for MCP JSON-RPC. The separate `agentpost-mcp-http` entry exposes the same tools through
-  Streamable HTTP using the first-party scoped Device OAuth profile; it does not accept a
-  long-lived Agent API key from model tool arguments. Generic third-party Authorization Code /
-  PKCE client compatibility remains a separate milestone.
+  Streamable HTTP using either the first-party scoped Device OAuth profile or a third-party public
+  client registered through DCR and Authorization Code + PKCE S256. It does not accept a long-lived
+  Agent API key from model tool arguments.
 - **A2A:** [`docs/A2A_MAPPING.md`](docs/A2A_MAPPING.md) defines the compatibility mapping and
   security boundary. No A2A runtime endpoint is claimed in this MVP; mailbox delivery state and
   A2A task state remain separate.

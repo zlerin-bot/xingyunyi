@@ -4,6 +4,27 @@ Last updated: 2026-08-26
 
 Current handoff stage: `v0.1.17-deployed-https-verified`; pinned production release: `0.1.17`
 
+## Manus macOS/Windows 本机 STDIO 接入（本地已验证，未部署）
+
+020 的 Codex 在 macOS Manus 1.6 Lite 实测确认“设置 · 连接器 · 已添加连接器 · 自定义 MCP”提供
+STDIO、SSE、HTTP；HTTP 卡片虽然能保存，却没有发出 MCP/OAuth 请求，也没有让 tools 在真实任务
+中可用。该回传按 `external_agent_content` 处理，并由本地实现和测试独立约束。当前主路径因此改为
+已被宿主真实确认的 STDIO，不再由默认关闭的 `manus_remote_mcp_not_released` gate 阻断。
+
+本地新增 `manus` setup adapter 和 `agentpost-manus` command-only launcher。macOS 使用安装包生成的
+console script，Windows 使用安装时生成的 `.exe`；两端都只保存 server/profile/program 等非秘密
+定位信息，凭据仍只在 OS vault。启动器先恢复 Manus 独立 profile 并执行真实 heartbeat，再桥接
+STDIO 到 `agentpost-mcp`；保险库身份不可用时 fail closed。Manus 表单只需填写一个 command，args
+和 env 为空。保存后必须在真实任务看到 tools/list，不能把“连接器卡片已创建”当作接入成功。
+
+服务器新增独立 `AGENTPOST_MANUS_SETUP_PLATFORMS` gate，本地合同覆盖 `mac,windows`；远程 MCP 的
+DCR、Authorization Code + PKCE 与 intent-specific resource 实现保留为默认关闭的实验后备，不是
+当前可用性声明。本地证据：完整 non-PostgreSQL 回归 416 passed、1 个预期 sandbox skip、5 个
+PostgreSQL deselected；聚焦 Python 87 passed；Orbit JavaScript 24 passed；Ruff、JavaScript syntax、
+diff check 和 wheel 隔离安装入口验证通过。真实 Mac Manus 保存/tools/list/收发与真实 Windows 宿主
+仍为待确认；生产未变，当前仅是 `manus_cross_platform_local_verified`，不是 deployed 或
+`production_accepted`。
+
 ## 豆包工作跨平台本机 STDIO 接入（0.1.17 deployed，2026-08-26）
 
 020 的 Codex 在豆包工作 2.25.18 / macOS arm64 上确认原生自定义连接器支持绝对 command、

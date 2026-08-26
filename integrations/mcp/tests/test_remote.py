@@ -6,6 +6,7 @@ from agentpost_mcp.remote import (
     REMOTE_SCOPE,
     AgentPostTokenVerifier,
     RemoteSettings,
+    create_dynamic_remote_app,
     create_remote_server,
     remote_client_factory,
 )
@@ -178,6 +179,25 @@ def test_remote_server_supports_one_opaque_canary_resource_path() -> None:
     assert "resource_metadata=" in unauthorized.headers["WWW-Authenticate"]
     assert metadata.status_code == 200
     assert metadata.json()["resource"] == runtime.resource_url
+
+
+def test_dynamic_remote_server_routes_mac_and_windows_neutral_manus_intents() -> None:
+    runtime = settings()
+    app = create_dynamic_remote_app(runtime)
+    resource_path = "/mcp/connect/new-40000000-0000-0000-0000-000000000001"
+    with TestClient(app) as client:
+        unauthorized = client.post(
+            resource_path,
+            headers={"MCP-Protocol-Version": "2026-07-28"},
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}},
+        )
+        metadata = client.get(f"/.well-known/oauth-protected-resource{resource_path}")
+        unknown = client.post("/mcp/connect/not-an-intent", json={})
+    assert unauthorized.status_code == 401
+    assert resource_path in unauthorized.headers["WWW-Authenticate"]
+    assert metadata.status_code == 200
+    assert metadata.json()["resource"].endswith(resource_path)
+    assert unknown.status_code == 404
 
 
 def test_remote_settings_reject_credentials_and_unbounded_transport(monkeypatch) -> None:

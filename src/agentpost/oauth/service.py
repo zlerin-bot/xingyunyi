@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 import math
+import re
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from agentpost.config import Settings
@@ -22,11 +28,19 @@ from agentpost.oauth.crypto import (
     derive_device_refresh_token,
     digest_oauth_token,
     generate_access_token,
+    generate_authorization_code,
+    generate_authorization_request_id,
+    generate_dynamic_client_id,
     generate_refresh_token,
     token_prefix,
 )
-from agentpost.oauth.models import OAuthAccessToken, OAuthRefreshToken
-from agentpost.oauth.schemas import OAuthTokenResponse
+from agentpost.oauth.models import (
+    OAuthAccessToken,
+    OAuthAuthorizationRequest,
+    OAuthDynamicClient,
+    OAuthRefreshToken,
+)
+from agentpost.oauth.schemas import OAuthClientRegistrationRequest, OAuthTokenResponse
 from agentpost.onboarding.models import (
     AgentConnectorBinding,
     AgentPairingSession,
@@ -77,11 +91,37 @@ class OAuthAgentNotOwnedError(Exception):
     pass
 
 
+class OAuthInvalidRedirectUriError(Exception):
+    pass
+
+
+class OAuthInvalidRequestError(Exception):
+    pass
+
+
+class OAuthAuthorizationNotReadyError(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class OAuthTokenRecord:
     response: OAuthTokenResponse
     access: OAuthAccessToken
     refresh: OAuthRefreshToken
+
+
+@dataclass(frozen=True)
+class OAuthAuthorizationStart:
+    authorization_request: OAuthAuthorizationRequest
+    pairing: AgentPairingSession
+    user_code: str
+
+
+@dataclass(frozen=True)
+class OAuthAuthorizationCompletion:
+    authorization_request: OAuthAuthorizationRequest
+    code: str | None
+    error: str | None
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -92,6 +132,315 @@ def _as_utc(value: datetime) -> datetime:
 
 def oauth_resource(settings: Settings) -> str:
     return settings.remote_mcp_resource_url or f"{settings.public_base_url}/mcp"
+
+
+def _canonical_remote_resource(
+    settings: Settings,
+    resource: str,
+) -> tuple[str, UUID | None, UUID | None]:
+    cleaned = resource.strip().rstrip("/")
+    configured = oauth_resource(settings).rstrip("/")
+    configured_parts = urlsplit(configured)
+    parts = urlsplit(cleaned)
+    if (
+        parts.scheme != configured_parts.scheme
+        or parts.netloc != configured_parts.netloc
+        or parts.query
+        or parts.fragment
+    ):
+        raise OAuthInvalidTargetError
+    if parts.path == configured_parts.path:
+        return cleaned, None, None
+    prefix = configured_parts.path.rstrip("/") + "/connect/"
+    if not parts.path.startswith(prefix):
+        raise OAuthInvalidTargetError
+    target = parts.path[len(prefix) :]
+    match = re.fullmatch(r"(new|agent)-([0-9a-fA-F-]{36})", target)
+    if match is None:
+        raise OAuthInvalidTargetError
+    try:
+        target_id = UUID(match.group(2))
+    except ValueError as exc:
+        raise OAuthInvalidTargetError from exc
+    if match.group(1) == "agent":
+        return cleaned, target_id, None
+    return cleaned, None, target_id
+
+
+def _valid_redirect_uri(value: str) -> str:
+    cleaned = value.strip()
+    parsed = urlsplit(cleaned)
+    if (
+        not parsed.scheme
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.fragment
+    ):
+        raise OAuthInvalidRedirectUriError
+    if parsed.scheme == "https":
+        return cleaned
+    if parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "::1", "localhost"}:
+        return cleaned
+    raise OAuthInvalidRedirectUriError
+
+
+def register_dynamic_client(
+    session: Session,
+    settings: Settings,
+    *,
+    payload: OAuthClientRegistrationRequest,
+) -> OAuthDynamicClient:
+    if not settings.remote_mcp_oauth_enabled:
+        raise OAuthDisabledError
+    client_name = payload.client_name.strip()
+    if not 1 <= len(client_name) <= 200 or not 1 <= len(payload.redirect_uris) <= 10:
+        raise OAuthInvalidRequestError
+    redirect_uris = list(dict.fromkeys(_valid_redirect_uri(uri) for uri in payload.redirect_uris))
+    if set(payload.grant_types) != {"authorization_code", "refresh_token"}:
+        raise OAuthInvalidRequestError
+    if payload.response_types != ["code"] or payload.token_endpoint_auth_method != "none":
+        raise OAuthInvalidRequestError
+    if payload.scope is not None:
+        normalized_scope = " ".join(sorted(set(payload.scope.split())))
+        if normalized_scope != MESSAGING_SCOPE:
+            raise OAuthInvalidScopeError
+    now = utc_now()
+    client = OAuthDynamicClient(
+        client_id=generate_dynamic_client_id(),
+        client_name=client_name,
+        redirect_uris=redirect_uris,
+        grant_types=["authorization_code", "refresh_token"],
+        response_types=["code"],
+        token_endpoint_auth_method="none",
+        created_at=now,
+        expires_at=now + timedelta(seconds=settings.oauth_dynamic_client_ttl_seconds),
+    )
+    session.add(client)
+    session.commit()
+    return client
+
+
+def _dynamic_client(
+    session: Session,
+    *,
+    client_id: str,
+    require_current: bool = True,
+) -> OAuthDynamicClient:
+    client = session.get(OAuthDynamicClient, client_id)
+    if client is None or (require_current and _as_utc(client.expires_at) <= utc_now()):
+        raise OAuthInvalidClientError
+    return client
+
+
+def start_authorization_code(
+    session: Session,
+    settings: Settings,
+    *,
+    client_id: str,
+    redirect_uri: str,
+    response_type: str,
+    scope: str,
+    resource: str,
+    state: str | None,
+    code_challenge: str,
+    code_challenge_method: str,
+    request_id: str,
+) -> OAuthAuthorizationStart:
+    if not settings.remote_mcp_oauth_enabled:
+        raise OAuthDisabledError
+    client = _dynamic_client(session, client_id=client_id)
+    canonical_redirect = _valid_redirect_uri(redirect_uri)
+    if canonical_redirect not in client.redirect_uris:
+        raise OAuthInvalidRedirectUriError
+    if response_type != "code" or code_challenge_method != "S256":
+        raise OAuthInvalidRequestError
+    if not re.fullmatch(r"[A-Za-z0-9_-]{43,128}", code_challenge):
+        raise OAuthInvalidRequestError
+    normalized_scope = " ".join(sorted(set(scope.split())))
+    if normalized_scope != MESSAGING_SCOPE:
+        raise OAuthInvalidScopeError
+    canonical_resource, existing_agent_id, new_agent_intent_id = _canonical_remote_resource(
+        settings, resource
+    )
+    if (
+        new_agent_intent_id is not None
+        and session.scalar(
+            select(OAuthAuthorizationRequest.id).where(
+                OAuthAuthorizationRequest.new_agent_intent_id == new_agent_intent_id
+            )
+        )
+        is not None
+    ):
+        raise OAuthInvalidTargetError
+    created = create_pairing(
+        session,
+        settings,
+        payload=PairingCreate(
+            connector_type="manus",
+            display_name="Manus",
+            capabilities=["agentpost-messaging"],
+            requested_existing_agent_id=existing_agent_id,
+        ),
+        request_id=request_id,
+        credential_mode="oauth",
+        oauth_client_id=client_id,
+        oauth_scope=normalized_scope,
+        oauth_resource=canonical_resource,
+        commit=False,
+    )
+    now = utc_now()
+    authorization = OAuthAuthorizationRequest(
+        request_id=generate_authorization_request_id(),
+        pairing_session_id=created.pairing.id,
+        client_id=client_id,
+        redirect_uri=canonical_redirect,
+        state=state,
+        scope=normalized_scope,
+        resource=canonical_resource,
+        new_agent_intent_id=new_agent_intent_id,
+        code_challenge=code_challenge,
+        code_challenge_method="S256",
+        status="pending",
+        created_at=now,
+        expires_at=created.pairing.expires_at,
+    )
+    client.last_used_at = now
+    session.add(authorization)
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        raise OAuthInvalidTargetError from exc
+    return OAuthAuthorizationStart(
+        authorization_request=authorization,
+        pairing=created.pairing,
+        user_code=created.user_code,
+    )
+
+
+def complete_authorization_code(
+    session: Session,
+    settings: Settings,
+    *,
+    authorization_request_id: str,
+    human_user_id: UUID,
+) -> OAuthAuthorizationCompletion:
+    authorization = session.scalar(
+        select(OAuthAuthorizationRequest)
+        .where(OAuthAuthorizationRequest.request_id == authorization_request_id)
+        .with_for_update()
+    )
+    if authorization is None:
+        raise OAuthInvalidRequestError
+    pairing = session.get(AgentPairingSession, authorization.pairing_session_id)
+    now = utc_now()
+    if pairing is None or _as_utc(authorization.expires_at) <= now:
+        authorization.status = "expired"
+        session.commit()
+        raise OAuthExpiredTokenError
+    if pairing.decided_by_human_id != human_user_id:
+        raise OAuthInvalidRequestError
+    if pairing.status == "denied":
+        authorization.status = "denied"
+        session.commit()
+        return OAuthAuthorizationCompletion(authorization, None, "access_denied")
+    if pairing.status != "approved" or pairing.connector_instance_id is None:
+        raise OAuthAuthorizationNotReadyError
+    if authorization.authorization_code_digest is not None:
+        raise OAuthInvalidRequestError
+    raw_code = generate_authorization_code()
+    authorization.authorization_code_digest = digest_oauth_token(
+        raw_code, settings.oauth_token_pepper
+    )
+    authorization.code_expires_at = now + timedelta(
+        seconds=settings.oauth_authorization_code_ttl_seconds
+    )
+    authorization.status = "approved"
+    session.commit()
+    return OAuthAuthorizationCompletion(authorization, raw_code, None)
+
+
+def _pkce_matches(verifier: str, challenge: str) -> bool:
+    if not re.fullmatch(r"[A-Za-z0-9._~-]{43,128}", verifier):
+        return False
+    candidate = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode()
+    return secrets.compare_digest(candidate.rstrip("="), challenge)
+
+
+def exchange_authorization_code(
+    session: Session,
+    settings: Settings,
+    *,
+    client_id: str,
+    raw_code: str,
+    redirect_uri: str,
+    code_verifier: str,
+    resource: str | None,
+    request_id: str,
+) -> OAuthTokenResponse:
+    if not settings.remote_mcp_oauth_enabled:
+        raise OAuthDisabledError
+    _dynamic_client(session, client_id=client_id, require_current=False)
+    digest = digest_oauth_token(raw_code, settings.oauth_token_pepper)
+    authorization = session.scalar(
+        select(OAuthAuthorizationRequest)
+        .where(OAuthAuthorizationRequest.authorization_code_digest == digest)
+        .with_for_update()
+    )
+    now = utc_now()
+    if (
+        authorization is None
+        or authorization.client_id != client_id
+        or authorization.redirect_uri != redirect_uri
+        or authorization.status != "approved"
+        or authorization.code_expires_at is None
+        or _as_utc(authorization.code_expires_at) <= now
+        or not _pkce_matches(code_verifier, authorization.code_challenge)
+    ):
+        raise OAuthInvalidGrantError
+    if resource is not None and resource.rstrip("/") != authorization.resource:
+        raise OAuthInvalidTargetError
+    pairing = session.get(AgentPairingSession, authorization.pairing_session_id)
+    if (
+        pairing is None
+        or pairing.status != "approved"
+        or pairing.agent_id is None
+        or pairing.connector_instance_id is None
+        or pairing.decided_by_human_id is None
+    ):
+        raise OAuthInvalidGrantError
+    connector = session.get(ConnectorInstance, pairing.connector_instance_id)
+    binding = session.get(AgentConnectorBinding, pairing.agent_id)
+    if (
+        connector is None
+        or connector.status != "active"
+        or binding is None
+        or binding.connector_instance_id != connector.id
+    ):
+        raise OAuthInvalidGrantError
+    record = _create_token_rows(
+        session,
+        settings,
+        pairing=pairing,
+        connector=connector,
+        human_user_id=pairing.decided_by_human_id,
+        client_id=client_id,
+        scope=authorization.scope,
+        resource=authorization.resource,
+        access_token=generate_access_token(),
+        refresh_token=generate_refresh_token(),
+        family_id=uuid4(),
+        request_id=request_id,
+        audit_action="oauth.authorization_code_token_issued",
+    )
+    authorization.status = "consumed"
+    authorization.consumed_at = now
+    pairing.status = "consumed"
+    pairing.credential_delivered_at = pairing.credential_delivered_at or now
+    pairing.updated_at = now
+    session.commit()
+    return record.response
 
 
 def _validate_client_scope_resource(
@@ -383,7 +732,7 @@ def refresh_access_token(
     if not settings.remote_mcp_oauth_enabled:
         raise OAuthDisabledError
     if client_id != OFFICIAL_REMOTE_MCP_CLIENT_ID:
-        raise OAuthInvalidClientError
+        _dynamic_client(session, client_id=client_id, require_current=False)
     if not raw_refresh_token.startswith(REFRESH_TOKEN_MARKER):
         raise OAuthInvalidGrantError
     digest = digest_oauth_token(raw_refresh_token, settings.oauth_token_pepper)

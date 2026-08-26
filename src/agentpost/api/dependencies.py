@@ -97,6 +97,10 @@ def get_current_agent(
         oauth_token.last_used_at = now
         agent.last_seen_at = now
         connector.last_seen_at = now
+        connector.last_heartbeat_at = now
+        connector.health_status = "healthy"
+        connector.last_error_code = None
+        connector.last_error_at = None
         session.commit()
         request.state.agent_id = str(agent.id)
         request.state.agent_api_key_id = None

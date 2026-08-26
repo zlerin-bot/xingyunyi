@@ -383,7 +383,7 @@ function routeUrl(module, section) {
 
 function currentRouteUrlWithoutWorkflowParameters() {
   const url = new URL(window.location.href);
-  ["pairing", "code"].forEach((name) => url.searchParams.delete(name));
+  ["pairing", "code", "oauth_request"].forEach((name) => url.searchParams.delete(name));
   url.searchParams.set("module", state.activeModule);
   url.searchParams.set("view", state.activeSection);
   url.hash = "";
@@ -2164,7 +2164,7 @@ const PAIRING_HOSTS = Object.freeze({
   openclaw: { name: "OpenClaw", code: "AP-OPENCLAW-V1" },
   hermes: { name: "Hermes", code: "AP-HERMES-V1" },
   codex: { name: "Codex", code: "AP-CODEX-V1" },
-  manus: { name: "Manus", code: "AP-MANUS-V1", connectionMode: "remote_mcp_oauth" },
+  manus: { name: "Manus", code: "AP-MANUS-V1", connectionMode: "local_bootstrap" },
 });
 
 function pairingPrompt(host) {
@@ -2177,11 +2177,11 @@ function pairingPrompt(host) {
   const targetQuery = target?.id
     ? `?agent=${encodeURIComponent(target.id)}`
     : `?new=${encodeURIComponent(state.pairingNewAgentIntent)}`;
-  const connectionMode = state.authConfig?.host_connection_modes?.[host] || selected.connectionMode;
+  const connectionMode = selected.connectionMode || state.authConfig?.host_connection_modes?.[host];
   const instructions = connectionMode === "remote_mcp_oauth"
     ? `请读取这个官方接入页，使用 ${selected.name} 内置的 Custom MCP 连接和星轨网页授权直接完成接入。不要安装 AgentPost 本机程序，也不要让我输入服务器地址、命令、密钥或其他技术参数；如果当前 ${selected.name} 不支持安全网页授权，必须明确停止，不能改用长期密钥或假装已连接。连接后回到本对话继续。`
-    : host === "doubao_work"
-      ? "请读取这个官方接入页并完成本机安全配对。接入程序会准备好豆包工作 STDIO 连接器所需的唯一启动项；不要让我自行填写服务器、参数、环境变量或密钥。若豆包工作不允许自动写入连接器，我只需粘贴这一项并保存一次。确认星云驿工具已出现后，再回到本对话继续。"
+    : host === "doubao_work" || host === "manus"
+      ? `请读取这个官方接入页并完成本机安全配对。接入程序会准备好 ${selected.name} STDIO 连接器所需的唯一启动项；不要让我自行填写服务器、参数、环境变量或密钥。若 ${selected.name} 不允许自动写入连接器，我只需粘贴这一项并保存一次。确认星云驿工具已在真实任务中出现后，再回到本对话继续。`
       : "请读取这个官方接入页并直接完成安装和授权。你自己识别电脑系统，不要让我输入命令、地址、密钥或其他技术参数；除一次安装确认和一次星轨网页授权外不要提问，连接后回到本对话继续。";
   return [
     target
@@ -2546,7 +2546,18 @@ async function decidePairing(event, forcedDecision = null) {
       },
       body: JSON.stringify(payload),
     });
+    const oauthRequest = new URLSearchParams(window.location.search).get("oauth_request") || "";
     closePairingDialog();
+    if (oauthRequest) {
+      const completion = new URL("/api/v1/orbit/oauth/authorize/complete", window.location.origin);
+      completion.searchParams.set("authorization_request", oauthRequest);
+      const completed = await requestJson(completion.toString(), {
+        method: "POST",
+        headers: { "X-CSRF-Token": state.csrfToken },
+      });
+      window.location.assign(completed.redirect_to);
+      return;
+    }
     history.replaceState(
       { module: state.activeModule, section: state.activeSection },
       "",

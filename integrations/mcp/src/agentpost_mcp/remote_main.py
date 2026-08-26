@@ -12,24 +12,17 @@ from agentpost_mcp.__main__ import _configure_stderr_logging
 
 def main() -> None:
     try:
-        from mcp.server.transport_security import TransportSecuritySettings
+        import uvicorn
 
-        from agentpost_mcp.remote import RemoteSettings, create_remote_server
+        from agentpost_mcp.remote import RemoteSettings, create_dynamic_remote_app
 
         settings = RemoteSettings.from_env()
         _configure_stderr_logging(settings.log_level)
-        create_remote_server(settings).run(
-            "streamable-http",
+        uvicorn.run(
+            create_dynamic_remote_app(settings),
             host=settings.host,
             port=settings.port,
-            streamable_http_path=settings.resource_path,
-            json_response=True,
-            stateless_http=True,
-            transport_security=TransportSecuritySettings(
-                enable_dns_rebinding_protection=True,
-                allowed_hosts=list(settings.allowed_hosts),
-                allowed_origins=list(settings.allowed_origins),
-            ),
+            log_level=settings.log_level.casefold(),
         )
     except ImportError as exc:
         sys.stderr.write(
