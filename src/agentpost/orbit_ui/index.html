@@ -255,6 +255,12 @@
             <p class="section-intro">
               在这里管理你加入的组织、成员角色、邀请、企业域名和企业登录。加入组织不会自动公开你的个人 Agent。
             </p>
+            <div class="organization-role-guide" aria-label="组织角色与权限说明">
+              <article><span>Owner</span><strong>治理组织</strong><p>查看完整内容、处理审批、管理组织和全部角色；不会自动拥有或冒充组织 Agent。</p></article>
+              <article><span>Admin</span><strong>管理日常成员</strong><p>查看完整内容、处理审批并管理 Member/Auditor；不能处置 Owner 或受保护管理关系。</p></article>
+              <article><span>Member</span><strong>只读参与协作</strong><p>可查看组织 Agent 与对话正文；不能审批，也不能连接、重命名、断开或删除 Agent。</p></article>
+              <article><span>Auditor</span><strong>仅查看元数据</strong><p>正文、附件内容、审批理由和参数保持隐藏；不能审批、治理组织或管理 Agent。</p></article>
+            </div>
             <div id="organization-list" class="organization-grid" aria-live="polite"></div>
           </section>
 
@@ -604,6 +610,34 @@
       </form>
     </dialog>
 
+    <dialog id="organization-invitation-dialog" class="approval-dialog organization-invitation-dialog" aria-labelledby="organization-invitation-title">
+      <form id="organization-invitation-form" method="dialog" autocomplete="off">
+        <div class="dialog-heading">
+          <div><p class="section-tag">Organization invitation</p><h2 id="organization-invitation-title">确认加入组织</h2></div>
+          <button id="organization-invitation-close" type="button" class="dialog-close" aria-label="关闭组织邀请窗口">×</button>
+        </div>
+        <p class="dialog-summary">加入前请确认组织、角色和权限范围。接受邀请不会公开你的个人 Agent 或个人对话。</p>
+        <div class="organization-invitation-summary">
+          <article><span>组织</span><strong id="organization-invitation-name">—</strong><small id="organization-invitation-slug">—</small></article>
+          <article><span>加入后的角色</span><strong id="organization-invitation-role">—</strong><small id="organization-invitation-expiry">—</small></article>
+        </div>
+        <div class="organization-role-boundary invitation-boundary" role="note">
+          <strong id="organization-invitation-capability">—</strong>
+          <p id="organization-invitation-visibility">—</p>
+          <p id="organization-invitation-actions">—</p>
+        </div>
+        <div class="truth-notice" role="note">
+          <strong>个人范围保持独立</strong>
+          <span>个人 Agent、个人对话和直接 Agent 授权不会因加入组织而自动共享；加入也不会改变 Agent 通信 ACL。</span>
+        </div>
+        <p id="organization-invitation-result" class="form-status" role="status"></p>
+        <div class="dialog-actions">
+          <button id="organization-invitation-cancel" type="button" class="quiet-button">暂不加入</button>
+          <button id="organization-invitation-submit" type="submit" class="approval-submit">确认加入</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="organization-manage-dialog" class="approval-dialog organization-dialog" aria-labelledby="organization-manage-title">
       <form id="organization-invite-form" method="dialog" autocomplete="off">
         <div class="dialog-heading">
@@ -612,11 +646,15 @@
         </div>
         <input id="organization-manage-id" type="hidden">
         <p id="organization-manage-summary" class="dialog-summary"></p>
-        <div class="organization-invite-fields">
-          <div><label for="organization-invite-email">邀请邮箱</label><input id="organization-invite-email" type="email" autocomplete="email" required></div>
-          <div><label for="organization-invite-role">角色</label><select id="organization-invite-role"><option value="member">成员</option><option value="auditor">审计者</option><option value="admin">管理员</option></select></div>
-        </div>
-        <button type="submit" class="quiet-button">发送邀请</button>
+        <div id="organization-role-boundary" class="organization-role-boundary" role="note"></div>
+        <section id="organization-invite-section" class="organization-governance-section">
+          <h3>邀请成员</h3>
+          <div class="organization-invite-fields">
+            <div><label for="organization-invite-email">邀请邮箱</label><input id="organization-invite-email" type="email" autocomplete="email" required></div>
+            <div><label for="organization-invite-role">角色</label><select id="organization-invite-role"></select></div>
+          </div>
+          <button type="submit" class="quiet-button">发送邀请</button>
+        </section>
         <p id="organization-manage-result" class="form-status" role="status"></p>
         <h3>成员</h3>
         <div id="organization-member-list" class="governance-list"></div>

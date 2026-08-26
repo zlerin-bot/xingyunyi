@@ -34,6 +34,7 @@ from agentpost.organizations.schemas import (
     OrganizationInvitationAccepted,
     OrganizationInvitationCreate,
     OrganizationInvitationCreated,
+    OrganizationInvitationPreview,
     OrganizationInvitationResponse,
 )
 
@@ -383,6 +384,54 @@ def list_members(
         session,
         organization_id=organization_id,
         limit=limit,
+    )
+
+
+def preview_invitation(
+    session: Session,
+    settings: Settings,
+    *,
+    user: HumanUser,
+    raw_token: str,
+) -> OrganizationInvitationPreview:
+    if not raw_token.startswith("orginv_"):
+        raise OrganizationInvitationInvalidError
+    invitation = session.scalar(
+        select(OrganizationInvitation).where(
+            OrganizationInvitation.token_digest == _invitation_digest(raw_token, settings)
+        )
+    )
+    now = utc_now()
+    if (
+        invitation is None
+        or invitation.status != "pending"
+        or _as_utc(invitation.expires_at) <= now
+        or not hmac.compare_digest(invitation.email, user.email)
+    ):
+        raise OrganizationInvitationInvalidError
+    organization = session.scalar(
+        select(Organization).where(
+            Organization.id == invitation.organization_id,
+            Organization.status == "active",
+        )
+    )
+    if organization is None:
+        raise OrganizationInvitationInvalidError
+    existing = session.scalar(
+        select(OrganizationMembership).where(
+            OrganizationMembership.organization_id == organization.id,
+            OrganizationMembership.human_user_id == user.id,
+        )
+    )
+    if existing is not None:
+        raise OrganizationAlreadyMemberError
+    return OrganizationInvitationPreview(
+        organization_id=organization.id,
+        organization_slug=organization.slug,
+        organization_name=organization.name,
+        organization_description=organization.description,
+        role=invitation.role,
+        expires_at=_as_utc(invitation.expires_at),
     )
 
 

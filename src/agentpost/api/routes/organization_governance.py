@@ -19,6 +19,7 @@ from agentpost.organizations.schemas import (
     OrganizationInvitationAccepted,
     OrganizationInvitationCreate,
     OrganizationInvitationCreated,
+    OrganizationInvitationPreview,
     OrganizationInvitationResponse,
     OrganizationMembershipUpdate,
 )
@@ -41,6 +42,7 @@ from agentpost.organizations.service import (
     list_domains,
     list_invitations,
     list_members,
+    preview_invitation,
     remove_member,
     revoke_domain_claim,
     revoke_invitation,
@@ -189,6 +191,35 @@ def get_organization_invitations(
         raise _not_found() from exc
     except OrganizationAccessDeniedError as exc:
         raise _forbidden() from exc
+
+
+@router.post(
+    "/organization-invitations/preview",
+    response_model=OrganizationInvitationPreview,
+)
+def preview_organization_invitation(
+    payload: OrganizationInvitationAccept,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> OrganizationInvitationPreview:
+    try:
+        return preview_invitation(
+            session,
+            settings,
+            user=current_human,
+            raw_token=payload.token,
+        )
+    except OrganizationInvitationInvalidError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "organization_invitation_invalid"},
+        ) from exc
+    except OrganizationAlreadyMemberError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "organization_already_member"},
+        ) from exc
 
 
 @router.post(

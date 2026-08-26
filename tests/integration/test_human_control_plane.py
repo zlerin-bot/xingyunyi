@@ -194,6 +194,9 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "organization-list" in orbit.text
     assert "open-organization-create" in orbit.text
     assert "organization-manage-dialog" in orbit.text
+    assert "organization-invitation-dialog" in orbit.text
+    assert "加入前请确认组织、角色和权限范围" in orbit.text
+    assert '"/api/v1/orbit/organization-invitations/preview"' in script.text
     assert '"/api/v1/orbit/organization-invitations/accept"' in script.text
     assert "organization-invitation" in script.text
     assert "history.replaceState" in script.text

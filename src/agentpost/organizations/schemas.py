@@ -51,6 +51,15 @@ class OrganizationInvitationAccept(OrganizationGovernanceModel):
     token: str = Field(min_length=30, max_length=160)
 
 
+class OrganizationInvitationPreview(OrganizationGovernanceModel):
+    organization_id: UUID
+    organization_slug: str
+    organization_name: str
+    organization_description: str | None
+    role: Literal["admin", "member", "auditor"]
+    expires_at: datetime
+
+
 class OrganizationInvitationAccepted(OrganizationGovernanceModel):
     organization: OrganizationResponse
     membership: OrganizationMembershipResponse

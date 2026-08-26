@@ -124,6 +124,11 @@ def test_owner_creates_organization_and_invitation_is_email_bound_and_one_time(
         _logout(client, str(owner["csrf_token"]))
 
         outsider = _register(client, "outsider@example.com")
+        wrong_preview = client.post(
+            "/api/v1/orbit/organization-invitations/preview",
+            json={"token": raw_token},
+        )
+        assert wrong_preview.status_code == 404
         wrong_user = client.post(
             "/api/v1/orbit/organization-invitations/accept",
             headers={"X-CSRF-Token": outsider["csrf_token"]},
@@ -133,6 +138,24 @@ def test_owner_creates_organization_and_invitation_is_email_bound_and_one_time(
         _logout(client, str(outsider["csrf_token"]))
 
         member = _register(client, "member@example.com")
+        preview = client.post(
+            "/api/v1/orbit/organization-invitations/preview",
+            json={"token": raw_token},
+        )
+        assert preview.status_code == 200, preview.text
+        assert preview.json() == {
+            "organization_id": organization_id,
+            "organization_slug": "north-star",
+            "organization_name": "北辰组织",
+            "organization_description": "受控协作",
+            "role": "member",
+            "expires_at": invitation["invitation"]["expires_at"],
+        }
+        assert client.get("/api/v1/orbit/organizations").json() == []
+        with database.session_factory() as session:
+            pending = session.scalar(select(OrganizationInvitation))
+            assert pending is not None
+            assert pending.status == "pending"
         accepted = client.post(
             "/api/v1/orbit/organization-invitations/accept",
             headers={"X-CSRF-Token": member["csrf_token"]},

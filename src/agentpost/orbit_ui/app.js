@@ -273,6 +273,19 @@ const elements = {
   organizationSlug: document.querySelector("#organization-slug"),
   organizationDescription: document.querySelector("#organization-description"),
   organizationCreateResult: document.querySelector("#organization-create-result"),
+  organizationInvitationDialog: document.querySelector("#organization-invitation-dialog"),
+  organizationInvitationForm: document.querySelector("#organization-invitation-form"),
+  organizationInvitationClose: document.querySelector("#organization-invitation-close"),
+  organizationInvitationCancel: document.querySelector("#organization-invitation-cancel"),
+  organizationInvitationSubmit: document.querySelector("#organization-invitation-submit"),
+  organizationInvitationName: document.querySelector("#organization-invitation-name"),
+  organizationInvitationSlug: document.querySelector("#organization-invitation-slug"),
+  organizationInvitationRole: document.querySelector("#organization-invitation-role"),
+  organizationInvitationExpiry: document.querySelector("#organization-invitation-expiry"),
+  organizationInvitationCapability: document.querySelector("#organization-invitation-capability"),
+  organizationInvitationVisibility: document.querySelector("#organization-invitation-visibility"),
+  organizationInvitationActions: document.querySelector("#organization-invitation-actions"),
+  organizationInvitationResult: document.querySelector("#organization-invitation-result"),
   organizationManageDialog: document.querySelector("#organization-manage-dialog"),
   organizationManageTitle: document.querySelector("#organization-manage-title"),
   organizationInviteForm: document.querySelector("#organization-invite-form"),
@@ -280,6 +293,8 @@ const elements = {
   organizationManageCancel: document.querySelector("#organization-manage-cancel"),
   organizationManageId: document.querySelector("#organization-manage-id"),
   organizationManageSummary: document.querySelector("#organization-manage-summary"),
+  organizationRoleBoundary: document.querySelector("#organization-role-boundary"),
+  organizationInviteSection: document.querySelector("#organization-invite-section"),
   organizationInviteEmail: document.querySelector("#organization-invite-email"),
   organizationInviteRole: document.querySelector("#organization-invite-role"),
   organizationManageResult: document.querySelector("#organization-manage-result"),
@@ -778,6 +793,48 @@ function chip(value, type = "status") {
   return item;
 }
 
+const ORGANIZATION_ROLE_EXPERIENCE = Object.freeze({
+  owner: Object.freeze({
+    capability: "Owner · 组织治理与完整协作视图",
+    visibility: "可查看组织 Agent 的完整正文、附件和审批信息，并处理组织 Agent 的审批。",
+    actions: "可管理组织、成员和全部角色；不会因此自动拥有、连接或冒充组织 Agent。",
+  }),
+  admin: Object.freeze({
+    capability: "Admin · 日常治理与完整协作视图",
+    visibility: "可查看组织 Agent 的完整正文、附件和审批信息，并处理组织 Agent 的审批。",
+    actions: "可邀请和管理 Member/Auditor；不能处置 Owner 或其他受保护管理关系。",
+  }),
+  member: Object.freeze({
+    capability: "Member · 只读协作视图",
+    visibility: "可查看组织 Agent、对话正文和附件，但组织范围不会扩展到任何个人 Agent。",
+    actions: "不能审批，也不能连接、重命名、断开或删除组织 Agent。",
+  }),
+  auditor: Object.freeze({
+    capability: "Auditor · 仅元数据审计视图",
+    visibility: "只显示 Agent、消息、任务和审批元数据；正文、附件内容、理由和参数保持隐藏。",
+    actions: "不能审批、治理组织或管理 Agent。",
+  }),
+});
+
+function organizationRoleExperience(role) {
+  return ORGANIZATION_ROLE_EXPERIENCE[role] || Object.freeze({
+    capability: "组织角色尚未确认",
+    visibility: "仅显示服务端实际授权返回的范围。",
+    actions: "界面不会根据未知角色开放治理或 Agent 管理操作。",
+  });
+}
+
+function renderOrganizationRoleBoundary(container, role) {
+  const experience = organizationRoleExperience(role);
+  const capability = document.createElement("strong");
+  capability.textContent = experience.capability;
+  const visibility = document.createElement("p");
+  visibility.textContent = experience.visibility;
+  const actions = document.createElement("p");
+  actions.textContent = experience.actions;
+  container.replaceChildren(capability, visibility, actions);
+}
+
 function renderOrganizations(organizations) {
   elements.organizationList.replaceChildren();
   elements.organizationCount.textContent = `${organizations.length} 个`;
@@ -803,6 +860,10 @@ function renderOrganizations(organizations) {
     const description = document.createElement("p");
     description.textContent = safeText(organization.description, "该组织暂未填写说明。");
 
+    const roleSummary = document.createElement("div");
+    roleSummary.className = "organization-role-summary";
+    renderOrganizationRoleBoundary(roleSummary, organization.membership_role);
+
     const stats = document.createElement("dl");
     [["成员", organization.member_count], ["Agent", organization.agent_count]].forEach(([label, value]) => {
       const cell = document.createElement("div");
@@ -813,7 +874,7 @@ function renderOrganizations(organizations) {
       cell.append(term, detail);
       stats.append(cell);
     });
-    card.append(header, description, stats);
+    card.append(header, description, roleSummary, stats);
     if (["owner", "admin", "member", "auditor"].includes(organization.membership_role)) {
       const actions = document.createElement("div");
       actions.className = "organization-card-actions";
@@ -879,11 +940,37 @@ function closeOrganizationManagement() {
   elements.organizationInvitationList.replaceChildren();
   elements.organizationDomainList.replaceChildren();
   elements.organizationOidcList.replaceChildren();
+  elements.organizationRoleBoundary.replaceChildren();
+  elements.organizationInviteRole.replaceChildren();
+  elements.organizationLeave.disabled = false;
+  elements.organizationLeave.textContent = "退出组织";
   state.managedOrganization = null;
   state.organizationDomainProofs.clear();
   if (elements.organizationManageDialog.open) {
     elements.organizationManageDialog.close();
   }
+}
+
+function configureOrganizationInvitationRoles(actorRole) {
+  elements.organizationInviteRole.replaceChildren();
+  const roles = actorRole === "owner" ? ["member", "auditor", "admin"] : ["member", "auditor"];
+  roles.forEach((role) => {
+    const option = document.createElement("option");
+    option.value = role;
+    option.textContent = statusLabel(role);
+    elements.organizationInviteRole.append(option);
+  });
+}
+
+function configureOrganizationLeave(members) {
+  const organization = state.managedOrganization;
+  const ownerCount = members.filter((member) => member.role === "owner").length;
+  const isLastOwner = organization?.membership_role === "owner" && ownerCount <= 1;
+  elements.organizationLeave.disabled = isLastOwner;
+  elements.organizationLeave.textContent = isLastOwner ? "请先转交 Owner 角色" : "退出组织";
+  elements.organizationLeave.title = isLastOwner
+    ? "最后一名 Owner 不能直接退出；请先把另一名成员提升为 Owner"
+    : "退出后只撤销组织派生权限，个人和直接授权保持不变";
 }
 
 function governanceRow(primary, secondary) {
@@ -1229,9 +1316,11 @@ async function loadOrganizationManagement() {
     return;
   }
   const isManager = ["owner", "admin"].includes(organization.membership_role);
+  renderOrganizationRoleBoundary(elements.organizationRoleBoundary, organization.membership_role);
+  elements.organizationInviteSection.hidden = !isManager;
   elements.organizationInviteEmail.disabled = !isManager;
   elements.organizationInviteRole.disabled = !isManager;
-  elements.organizationInviteForm.querySelector("button[type='submit']").hidden = !isManager;
+  configureOrganizationInvitationRoles(organization.membership_role);
   elements.organizationInvitationList.hidden = !isManager;
   const isOwner = organization.membership_role === "owner";
   elements.organizationDomainName.disabled = !isOwner;
@@ -1242,7 +1331,9 @@ async function loadOrganizationManagement() {
   const members = await requestJson(
     `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/members`,
   );
-  renderOrganizationMembers(Array.isArray(members.items) ? members.items : []);
+  const memberItems = Array.isArray(members.items) ? members.items : [];
+  renderOrganizationMembers(memberItems);
+  configureOrganizationLeave(memberItems);
   if (isManager) {
     const invitations = await requestJson(
       `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/invitations`,
@@ -1334,22 +1425,75 @@ async function leaveOrganization() {
   }
 }
 
-async function maybeAcceptOrganizationInvitation() {
+function closeOrganizationInvitationDialog() {
+  state.pendingOrganizationInvitation = "";
+  elements.organizationInvitationName.textContent = "—";
+  elements.organizationInvitationSlug.textContent = "—";
+  elements.organizationInvitationRole.textContent = "—";
+  elements.organizationInvitationExpiry.textContent = "—";
+  elements.organizationInvitationCapability.textContent = "—";
+  elements.organizationInvitationVisibility.textContent = "—";
+  elements.organizationInvitationActions.textContent = "—";
+  elements.organizationInvitationResult.textContent = "";
+  if (elements.organizationInvitationDialog.open) {
+    elements.organizationInvitationDialog.close();
+  }
+}
+
+async function acceptOrganizationInvitation(event) {
+  event.preventDefault();
   const token = state.pendingOrganizationInvitation;
   if (!token || !state.csrfToken) {
     return;
   }
-  state.pendingOrganizationInvitation = "";
+  elements.organizationInvitationSubmit.disabled = true;
   try {
     await requestJson("/api/v1/orbit/organization-invitations/accept", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
       body: JSON.stringify({ token }),
     });
+    state.pendingOrganizationInvitation = "";
+    if (elements.organizationInvitationDialog.open) {
+      elements.organizationInvitationDialog.close();
+    }
     await loadDashboard();
+    activateRoute("settings", "organizations", { updateHistory: true });
     setConnection("组织邀请已接受", "success");
   } catch (error) {
-    setConnection("组织邀请无法接受", "error");
+    elements.organizationInvitationResult.textContent = error.message;
+    elements.organizationInvitationResult.className = "form-status error";
+  } finally {
+    elements.organizationInvitationSubmit.disabled = false;
+  }
+}
+
+async function maybePreviewOrganizationInvitation() {
+  const token = state.pendingOrganizationInvitation;
+  if (!token || !state.csrfToken) {
+    return;
+  }
+  try {
+    const preview = await requestJson("/api/v1/orbit/organization-invitations/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    const experience = organizationRoleExperience(preview.role);
+    elements.organizationInvitationName.textContent = safeText(preview.organization_name);
+    elements.organizationInvitationSlug.textContent = safeText(preview.organization_slug);
+    elements.organizationInvitationRole.textContent = statusLabel(preview.role);
+    elements.organizationInvitationExpiry.textContent = `邀请有效至 ${dateText(preview.expires_at)}`;
+    elements.organizationInvitationCapability.textContent = experience.capability;
+    elements.organizationInvitationVisibility.textContent = experience.visibility;
+    elements.organizationInvitationActions.textContent = experience.actions;
+    elements.organizationInvitationResult.textContent = "请确认后再加入；关闭窗口不会接受邀请。";
+    elements.organizationInvitationResult.className = "form-status";
+    elements.organizationInvitationDialog.showModal();
+    elements.organizationInvitationSubmit.focus();
+  } catch (error) {
+    state.pendingOrganizationInvitation = "";
+    setConnection("组织邀请无法预览", "error");
     setFormStatus(error.message, "error");
   }
 }
@@ -3291,7 +3435,7 @@ async function loadDashboard() {
     elements.workspaceView.hidden = false;
     setConnection("数据已同步", "success");
     await maybeOpenRequestedPairing();
-    await maybeAcceptOrganizationInvitation();
+    await maybePreviewOrganizationInvitation();
   } catch (error) {
     setConnection("数据同步失败", "error");
     throw error;
@@ -4020,6 +4164,10 @@ elements.organizationCreateForm.addEventListener("submit", createOrganization);
 elements.organizationCreateClose.addEventListener("click", closeOrganizationCreateDialog);
 elements.organizationCreateCancel.addEventListener("click", closeOrganizationCreateDialog);
 elements.organizationCreateDialog.addEventListener("close", closeOrganizationCreateDialog);
+elements.organizationInvitationForm.addEventListener("submit", acceptOrganizationInvitation);
+elements.organizationInvitationClose.addEventListener("click", closeOrganizationInvitationDialog);
+elements.organizationInvitationCancel.addEventListener("click", closeOrganizationInvitationDialog);
+elements.organizationInvitationDialog.addEventListener("close", closeOrganizationInvitationDialog);
 elements.organizationInviteForm.addEventListener("submit", inviteOrganizationMember);
 elements.organizationManageClose.addEventListener("click", closeOrganizationManagement);
 elements.organizationManageCancel.addEventListener("click", closeOrganizationManagement);

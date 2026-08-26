@@ -1861,6 +1861,63 @@ summary:focus-visible {
   line-height: 1.6;
 }
 
+.organization-role-guide {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.organization-role-guide article,
+.organization-role-summary,
+.organization-role-boundary,
+.organization-invitation-summary article {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(103, 216, 212, 0.045);
+}
+
+.organization-role-guide article {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 13px;
+}
+
+.organization-role-guide span,
+.organization-invitation-summary span {
+  color: var(--cyan);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.organization-role-guide strong {
+  font-size: 0.76rem;
+}
+
+.organization-role-guide p,
+.organization-role-summary p,
+.organization-role-boundary p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.55;
+}
+
+.organization-role-summary {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+}
+
+.organization-role-summary strong,
+.organization-role-boundary strong {
+  color: var(--text);
+  font-size: 0.72rem;
+}
+
 .organization-card dl {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2353,6 +2410,48 @@ summary:focus-visible {
 
 .organization-dialog {
   width: min(760px, calc(100% - 32px));
+}
+
+.organization-invitation-dialog {
+  width: min(640px, calc(100% - 32px));
+}
+
+.organization-invitation-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.organization-invitation-summary article {
+  display: grid;
+  gap: 5px;
+  padding: 13px;
+}
+
+.organization-invitation-summary small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.organization-role-boundary {
+  display: grid;
+  gap: 6px;
+  padding: 13px;
+}
+
+.invitation-boundary {
+  border-color: rgba(103, 216, 212, 0.28);
+}
+
+.organization-governance-section {
+  display: grid;
+  gap: 9px;
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+
+.organization-governance-section[hidden] {
+  display: none;
 }
 
 .organization-dialog h3 {
@@ -3869,6 +3968,8 @@ footer {
 
   .pairing-fields,
   .pairing-chat-card,
+  .organization-role-guide,
+  .organization-invitation-summary,
   .organization-invite-fields,
   .organization-domain-fields,
   .organization-oidc-fields,
