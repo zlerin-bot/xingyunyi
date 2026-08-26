@@ -43,14 +43,21 @@ test("Star Orbit opens directly on conversations without a duplicate overview", 
   assert.match(script, /orbit: "communications"/);
 });
 
-test("brand uses the selected high-resolution Xingyun Relay artwork", () => {
-  assert.match(html, /class="brand-lockup"/);
-  assert.match(html, /src="\/orbit\/xingyun-relay-logo\.png"/);
-  assert.match(html, /alt="星云驿 XINGYUN RELAY"/);
-  assert.match(html, /width="2172"/);
-  assert.match(html, /height="724"/);
-  assert.match(stylesheet, /\.brand-lockup \{[\s\S]*?width: 220px;/);
-  assert.match(stylesheet, /\.brand-lockup \{[\s\S]*?width: 190px;/);
+test("header matches the approved compact Xingyunyi lockup without centre navigation", () => {
+  const header = html.match(/<header class="topbar">[\s\S]*?<\/header>/)?.[0] || "";
+  assert.match(html, /class="brand-mark"/);
+  assert.match(html, /id="brand-mark-gradient"/);
+  assert.match(html, /M11 25c6-13 13-14 18-7/);
+  assert.match(html, /<strong>星云驿<\/strong>/);
+  assert.match(html, /<small>AgentPost · 星轨<\/small>/);
+  assert.doesNotMatch(header, /plane-switch/);
+  assert.doesNotMatch(header, /星轨看协作/);
+  assert.doesNotMatch(header, /云驿管 Agent/);
+  assert.doesNotMatch(header, /设置管账户/);
+  assert.match(stylesheet, /\.topbar \{[\s\S]*?min-height: 78px;/);
+  assert.match(stylesheet, /\.brand-mark \{[\s\S]*?width: 40px;[\s\S]*?height: 40px;/);
+  assert.match(stylesheet, /\.brand-copy strong \{[\s\S]*?font-size: 1\.375rem;/);
+  assert.match(stylesheet, /\.connection \{[\s\S]*?min-width: 235px;/);
   assert.match(stylesheet, /"Google Sans"/);
 });
 
@@ -114,6 +121,7 @@ test("confirmed header and timeline match the approved three-column mockup", () 
   assert.match(script, /完整对话 · \$\{messages\.length\} 条往来/);
   assert.match(script, /发送自：\$\{agentConversationLabel\(firstMessage\.sender\)\}/);
   assert.match(script, /card\.classList\.toggle\("from-current-human"/);
+  assert.match(script, /elements\.topHumanAvatar\.textContent = "我"/);
   assert.match(stylesheet, /\.top-human-avatar/);
   assert.match(stylesheet, /\.thread-message\.from-current-human/);
 });

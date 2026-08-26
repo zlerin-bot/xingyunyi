@@ -4,6 +4,9 @@ Status: current release deployed and HTTPS-verified on 2026-08-26 at
 `https://agentpost.me`; this remains operational deployment evidence rather than
 full production acceptance.
 
+For the preferred SSH/rsync release path, Command Assistant fallback and the one-time changes that
+still require authorization, see [ALIYUN_DEPLOYMENT_EFFICIENCY.md](ALIYUN_DEPLOYMENT_EFFICIENCY.md).
+
 ## Deployed topology
 
 - Alibaba Cloud Light Application Server, Hangzhou

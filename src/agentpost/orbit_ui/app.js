@@ -3556,7 +3556,7 @@ function renderDashboard(dashboard) {
   elements.humanEmail.textContent = safeText(user.email);
   elements.humanAvatar.textContent = safeText(user.display_name, "星").slice(0, 1);
   elements.topHumanName.textContent = safeText(user.display_name, "星轨用户");
-  elements.topHumanAvatar.textContent = safeText(user.display_name, "星").slice(0, 1);
+  elements.topHumanAvatar.textContent = "我";
   elements.profileName.textContent = safeText(user.display_name, "未设置");
   elements.profileEmail.textContent = safeText(user.email);
   elements.profileTimezone.textContent = safeText(

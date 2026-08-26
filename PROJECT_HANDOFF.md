@@ -8,6 +8,23 @@
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
+### 确认稿顶部栏与阿里云发布提效（本地，未部署）
+
+本地顶部栏已按 `docs/startrail-conversation-navigation-demo.svg/.png` 的原生 1600px 几何实现：
+78px 通栏白底、左右 34px 内距、确认稿原路径的 40px 渐变 Logo、两行“星云驿 / AgentPost · 星轨”、
+235px 连接状态胶囊和右侧 Human 信息。顶部中央原“星轨看协作 / 云驿管 Agent / 设置管账户”三段已
+删除；左栏三个业务入口不受影响。390×844 下顶部保持紧凑、无横向溢出。
+
+验证：Human 控制面集成 15 passed、Orbit JavaScript 21 passed、JavaScript syntax、Ruff
+check/format 和 diff check 通过；1600×1040 与 390×844 浏览器实测，控制台 warning/error 为 0。
+本切片尚未修改版本号、构建发布物或切换生产，线上仍为 `91d0e4f / 0.1.14`。
+
+`AGENTS.md` 与 `docs/ALIYUN_DEPLOYMENT_EFFICIENCY.md` 已补充实际提效方案。核心不是删除备份和
+回退，而是一次性经用户授权给 `admin` **追加**部署专用 SSH 公钥，用 `rsync/SFTP` 一次传完整
+源码包、wheel 和 manifest，再各用一次 SSH 执行预检、受保护切换和后检。命令助手保留给 24 KB
+以内短脚本和应急操作；大文件不再拆成数百段 Base64。追加公钥、Nginx 稳定 wheel 规则、RAM/CLI
+身份与本切片生产发布均需另行明确授权。
+
 ### 星轨对话导航生产发布 `91d0e4f` / 0.1.14
 
 生产已于 2026-08-26 15:28:58（Asia/Shanghai）受保护切换到提交 `91d0e4f` / package

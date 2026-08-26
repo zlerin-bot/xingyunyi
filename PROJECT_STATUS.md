@@ -4,6 +4,27 @@ Last updated: 2026-08-26
 
 Current handoff stage: `v0.1.14-startrail-conversations-deployed`; pinned production release: `0.1.14`
 
+## Approved compact header and Alibaba deployment workflow (local, 2026-08-26)
+
+The local Orbit header now matches the approved SVG at its native 1600 px reference geometry:
+full-width 78 px white bar, 34 px side inset, exact 40 px gradient mark/path, two-line
+`星云驿` / `AgentPost · 星轨` lockup, 235 px connection pill, and Human identity at the right.
+The former centre `星轨看协作 / 云驿管 Agent / 设置管账户` strip is absent. At 390 px the compact
+lockup remains visible, the account controls retain their current compact form, and document width
+equals the viewport.
+
+Focused evidence is 15 Human-control-plane integration tests and 21 Orbit JavaScript tests, plus
+JavaScript syntax, Ruff check/format, desktop 1600×1040 browser measurement, 390×844 browser
+measurement, no overflow and an empty warning/error console. This is a local UI slice and has not
+changed the pinned 0.1.14 production release.
+
+`AGENTS.md` and `docs/ALIYUN_DEPLOYMENT_EFFICIENCY.md` now record the actual 0.1.14 bottlenecks and
+the preferred flow: user-approved appended `admin` SSH key, one `rsync/SFTP` transfer of complete
+artifacts, one reusable guarded switch and one postflight. Workbench/Command Assistant becomes an
+emergency path; its 24 KB file-send limit is not suitable for normal wheel/source transfer. Adding
+the SSH key, changing Nginx to a stable wheel pattern, creating RAM access or deploying this slice
+all remain separately authorized production changes.
+
 ## Startrail conversation navigation and Human unread state (0.1.14 deployed, 2026-08-26)
 
 Commit `91d0e4f` / package `0.1.14` is deployed as immutable source

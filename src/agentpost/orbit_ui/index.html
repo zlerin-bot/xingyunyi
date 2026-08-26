@@ -22,27 +22,28 @@
 
     <header class="topbar">
       <a class="brand" href="/orbit" aria-label="星云驿首页">
-        <img
-          class="brand-lockup"
-          src="/orbit/xingyun-relay-logo.png"
-          alt="星云驿 XINGYUN RELAY"
-          width="2172"
-          height="724"
-          decoding="async"
-        />
+        <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id="brand-mark-gradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#1a73e8"></stop>
+              <stop offset="1" stop-color="#6d5ce7"></stop>
+            </linearGradient>
+          </defs>
+          <rect width="40" height="40" rx="12" fill="url(#brand-mark-gradient)"></rect>
+          <path d="M11 25c6-13 13-14 18-7M12 28c7-5 13-4 18 1M13 13l3 5 5-7 3 6 5-2"></path>
+        </svg>
+        <span class="brand-copy">
+          <strong>星云驿</strong>
+          <small>AgentPost · 星轨</small>
+        </span>
       </a>
-      <div class="plane-switch" aria-label="平台入口说明">
-        <span class="plane active">星轨看协作</span>
-        <span class="plane">云驿管 Agent</span>
-        <span class="plane">设置管账户</span>
-      </div>
       <div class="topbar-account">
         <div id="connection-state" class="connection" role="status">
           <span class="connection-dot" aria-hidden="true"></span>
           等待进入星轨
         </div>
         <div class="top-human" aria-label="当前 Human">
-          <span id="top-human-avatar" class="top-human-avatar" aria-hidden="true">星</span>
+          <span id="top-human-avatar" class="top-human-avatar" aria-hidden="true">我</span>
           <span class="top-human-copy">
             <strong id="top-human-name">—</strong>
             <small>Human</small>

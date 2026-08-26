@@ -105,10 +105,14 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     auth_config = client.get("/api/v1/auth/config")
 
     assert home.status_code == orbit.status_code == 200
+    header = orbit.text.split('<header class="topbar">', 1)[1].split("</header>", 1)[0]
     assert "星云驿" in orbit.text
-    assert "星轨看协作" in orbit.text
-    assert "云驿管 Agent" in orbit.text
-    assert "设置管账户" in orbit.text
+    assert "AgentPost · 星轨" in header
+    assert 'id="brand-mark-gradient"' in header
+    assert "plane-switch" not in header
+    assert "星轨看协作" not in header
+    assert "云驿管 Agent" not in header
+    assert "设置管账户" not in header
     assert 'data-module="orbit"' in orbit.text
     assert 'data-module="relay"' in orbit.text
     assert 'data-module="settings"' in orbit.text
