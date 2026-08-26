@@ -2,28 +2,40 @@
 
 Last updated: 2026-08-26
 
-Current handoff stage: `v0.1.14-startrail-conversations-deployed`; pinned production release: `0.1.14`
+Current handoff stage: `v0.1.15-startrail-header-deployed`; pinned production release: `0.1.15`
 
-## Approved compact header and Alibaba deployment workflow (local, 2026-08-26)
+## Approved compact header and Alibaba deployment workflow (0.1.15 deployed, 2026-08-26)
 
-The local Orbit header now matches the approved SVG at its native 1600 px reference geometry:
+The Orbit header now matches the approved SVG at its native 1600 px reference geometry:
 full-width 78 px white bar, 34 px side inset, exact 40 px gradient mark/path, two-line
 `星云驿` / `AgentPost · 星轨` lockup, 235 px connection pill, and Human identity at the right.
 The former centre `星轨看协作 / 云驿管 Agent / 设置管账户` strip is absent. At 390 px the compact
 lockup remains visible, the account controls retain their current compact form, and document width
 equals the viewport.
 
-Focused evidence is 15 Human-control-plane integration tests and 21 Orbit JavaScript tests, plus
-JavaScript syntax, Ruff check/format, desktop 1600×1040 browser measurement, 390×844 browser
-measurement, no overflow and an empty warning/error console. This is a local UI slice and has not
-changed the pinned 0.1.14 production release.
+Commit `0b2dc9c` / package `0.1.15` is deployed as immutable source
+`/opt/agentpost/releases/0b2dc9c` with runtime `/opt/agentpost/venvs/0b2dc9c`. The public wheel is
+`https://agentpost.me/downloads/agentpost-0.1.15-py3-none-any.whl`, SHA-256
+`dcf9f8d414efa478a4192c8892902cfd2e3aa0c6219db128680b55c51f5601df`.
+
+Focused local evidence is 34 Python tests and 21 Orbit JavaScript tests, plus JavaScript syntax,
+Ruff check/format and reproducible clean-archive wheel construction. Production desktop and 390 px
+measurements confirm the two-line lockup, no centre navigation and no horizontal overflow.
 
 `AGENTS.md` and `docs/ALIYUN_DEPLOYMENT_EFFICIENCY.md` now record the actual 0.1.14 bottlenecks and
-the preferred flow: user-approved appended `admin` SSH key, one `rsync/SFTP` transfer of complete
-artifacts, one reusable guarded switch and one postflight. Workbench/Command Assistant becomes an
-emergency path; its 24 KB file-send limit is not suitable for normal wheel/source transfer. Adding
-the SSH key, changing Nginx to a stable wheel pattern, creating RAM access or deploying this slice
-all remain separately authorized production changes.
+the preferred flow. This release proved the immediate improvement without changing server access:
+Workbench file management transferred the complete 1.5 MB source archive and 672 KB wheel directly,
+instead of hundreds of Base64 fragments. A canary path error stopped before mutation; a later
+postflight permission error exercised automatic rollback to 0.1.14; the corrected final switch
+completed successfully.
+
+The verified rollback point is
+`/opt/agentpost/backups/20260826-164945-0b2dc9c-pre-015/`, with checked PostgreSQL dump, attachment
+archive/list, protected environment, systemd, Nginx, checksums and
+`rollback-immediate-0.1.15.sh`. Independent postflight reports local/public 0.1.15 health/readiness,
+schema `0021_human_thread_views`, 25 Agents / 58 Messages / 58 Deliveries / 4 Attachments / 7 Humans,
+environment `600 root:root`, exact public wheel SHA, unknown download 404 and zero error journal
+entries. Nginx and PostgreSQL retained main PIDs `127548` and `137458`.
 
 ## Startrail conversation navigation and Human unread state (0.1.14 deployed, 2026-08-26)
 

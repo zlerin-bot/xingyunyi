@@ -1,29 +1,38 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.14-startrail-conversations-deployed`
+- 交接阶段：`v0.1.15-startrail-header-deployed`
 - 核验日期：2026-08-26
 - 代码分支：`main`
-- 阶段性质：确认稿中的星轨对话导航、未查看红点、完整右栏详情和移动端对应体验已随 0.1.14 部署并完成 HTTPS 核验；仍不是完整生产验收
-- 本地开发状态：发布候选 `91d0e4f` 已提交并部署；本节记录本次部署与回滚证据
+- 阶段性质：确认稿顶部栏及既有星轨对话体验已随 0.1.15 部署并完成 HTTPS 核验；仍不是完整生产验收
+- 本地开发状态：发布提交 `0b2dc9c` 已部署；交接与部署证据已更新
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 确认稿顶部栏与阿里云发布提效（本地，未部署）
+### 确认稿顶部栏与阿里云发布提效（`0b2dc9c` / 0.1.15 已部署）
 
 本地顶部栏已按 `docs/startrail-conversation-navigation-demo.svg/.png` 的原生 1600px 几何实现：
 78px 通栏白底、左右 34px 内距、确认稿原路径的 40px 渐变 Logo、两行“星云驿 / AgentPost · 星轨”、
 235px 连接状态胶囊和右侧 Human 信息。顶部中央原“星轨看协作 / 云驿管 Agent / 设置管账户”三段已
 删除；左栏三个业务入口不受影响。390×844 下顶部保持紧凑、无横向溢出。
 
-验证：Human 控制面集成 15 passed、Orbit JavaScript 21 passed、JavaScript syntax、Ruff
-check/format 和 diff check 通过；1600×1040 与 390×844 浏览器实测，控制台 warning/error 为 0。
-本切片尚未修改版本号、构建发布物或切换生产，线上仍为 `91d0e4f / 0.1.14`。
+生产已于 2026-08-26 16:49（Asia/Shanghai）切换到 `0b2dc9c / 0.1.15`。不可变源码与 runtime
+分别为 `/opt/agentpost/releases/0b2dc9c`、`/opt/agentpost/venvs/0b2dc9c`；公开 wheel 为
+`https://agentpost.me/downloads/agentpost-0.1.15-py3-none-any.whl`，SHA-256 为
+`dcf9f8d414efa478a4192c8892902cfd2e3aa0c6219db128680b55c51f5601df`。
 
-`AGENTS.md` 与 `docs/ALIYUN_DEPLOYMENT_EFFICIENCY.md` 已补充实际提效方案。核心不是删除备份和
-回退，而是一次性经用户授权给 `admin` **追加**部署专用 SSH 公钥，用 `rsync/SFTP` 一次传完整
-源码包、wheel 和 manifest，再各用一次 SSH 执行预检、受保护切换和后检。命令助手保留给 24 KB
-以内短脚本和应急操作；大文件不再拆成数百段 Base64。追加公钥、Nginx 稳定 wheel 规则、RAM/CLI
-身份与本切片生产发布均需另行明确授权。
+验证：34 个聚焦 Python 测试、Orbit JavaScript 21 passed、JavaScript syntax、Ruff
+check/format、锁文件和干净归档可重复构建通过。生产浏览器实测桌面 Logo 40×40、左距 34px；
+390×844 下 Logo 36×36、左距 12px；两端均无顶部中央导航和横向溢出。
+
+本次未新增长期权限，直接用 Workbench 文件管理上传完整的 1.5 MB 源码归档与 672 KB wheel，已
+消除上次 246 个 Base64 片段的低效路径。第一次尝试因 canary 工作目录权限在生产变更前停止；
+第二次切换在后检读取 root-only 文件属性时触发自动回退并完整恢复 0.1.14；修正只读后检后第三次
+成功。验证回滚点为 `/opt/agentpost/backups/20260826-164945-0b2dc9c-pre-015/`，含可读 PostgreSQL
+dump、附件归档/list、环境、systemd、Nginx、校验和及 `rollback-immediate-0.1.15.sh`。
+
+最终本机/公网 health、ready 均为 0.1.15，schema 仍为 `0021_human_thread_views`，数据为 25 Agents /
+58 Messages / 58 Deliveries / 4 Attachments / 7 Humans；环境仍为 `600 root:root`，未知 wheel 路径
+404，切换后 error 日志为 0。Nginx/PostgreSQL 主进程保持 `127548`/`137458`；仅 AgentPost 重启。
 
 ### 星轨对话导航生产发布 `91d0e4f` / 0.1.14
 

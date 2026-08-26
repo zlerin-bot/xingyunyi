@@ -1,17 +1,17 @@
 schema_version: "1"
 project: xingyunyi-agentpost
-evidence_status: startrail_conversation_navigation_deployed_https_verified
-verified_at: "2026-08-26T15:28:58+08:00"
+evidence_status: startrail_header_deployed_https_verified
+verified_at: "2026-08-26T16:52:03+08:00"
 
 local_stage:
   prior_tag: v0.1.12-local.1
   committed_svg_baseline: 43796a1
-  feature_commit: 91d0e4f
-  release_commit: 91d0e4f
-  package_version: 0.1.14
+  feature_commit: be6f0a1
+  release_commit: 0b2dc9c
+  package_version: 0.1.15
   production_change: true
   validation_snapshot: clean_git_archive
-  evidence_status: startrail_conversation_navigation_local_verified
+  evidence_status: startrail_header_local_verified
   excludes_preserved_uncommitted_png_experiment: false
 
 provider:
@@ -22,14 +22,14 @@ provider:
   operating_system: ubuntu-24.04
 
 release:
-  git_commit: 91d0e4f
+  git_commit: 0b2dc9c
   current_path: /opt/agentpost/current
-  immutable_path: /opt/agentpost/releases/91d0e4f
-  virtualenv_path: /opt/agentpost/venvs/91d0e4f
+  immutable_path: /opt/agentpost/releases/0b2dc9c
+  virtualenv_path: /opt/agentpost/venvs/0b2dc9c
   alembic_revision: 0021_human_thread_views
-  package_version: 0.1.14
-  connector_wheel_sha256: dbbb8dc61b95742eeb1a8b02f9fa187994225bd50c3bdabc9077ef1ee56b97f6
-  schema_change: true
+  package_version: 0.1.15
+  connector_wheel_sha256: dcf9f8d414efa478a4192c8892902cfd2e3aa0c6219db128680b55c51f5601df
+  schema_change: false
 
 topology:
   reverse_proxy: nginx
@@ -95,14 +95,14 @@ rollback:
     fresh_0_1_3_attempt: failed_snapshot_limit_exceeded
     existing_snapshots_preserved: true
   application_backup: /opt/agentpost/backups/20260824-https
-  current_update_backup: /opt/agentpost/backups/20260826-152452-91d0e4f-pre-014
+  current_update_backup: /opt/agentpost/backups/20260826-164945-0b2dc9c-pre-015
   incomplete_backups_preserved:
     - /opt/agentpost/backups/20260825-1746-e378a7e-pre-016
     - /opt/agentpost/backups/20260825-1747-e378a7e-pre-016
     - /opt/agentpost/backups/20260826-1313-f15df99-pre-013
-  prior_release: /opt/agentpost/releases/f15df99
-  prior_unit: /opt/agentpost/backups/20260826-152452-91d0e4f-pre-014/agentpost.service
-  immediate_script: /opt/agentpost/backups/20260826-152452-91d0e4f-pre-014/rollback-immediate-0.1.14.sh
+  prior_release: /opt/agentpost/releases/91d0e4f
+  prior_unit: /opt/agentpost/backups/20260826-164945-0b2dc9c-pre-015/agentpost.service
+  immediate_script: /opt/agentpost/backups/20260826-164945-0b2dc9c-pre-015/rollback-immediate-0.1.15.sh
   database_dump_verified: true
   attachment_archive_verified: true
 
@@ -122,9 +122,9 @@ acceptance:
   orbit_codex_0_1_1_guide: superseded_by_connection_code_v1
   orbit_frontend_errors: none
   pinned_connector_wheel: passed
-  public_connector_wheel_version: 0.1.14
+  public_connector_wheel_version: 0.1.15
   clean_public_wheel_install: passed
-  server_sdk_mcp_package_versions: aligned_0.1.14
+  server_sdk_mcp_package_versions: aligned_0.1.15
   package_boundary_regression: passed
   recipient_resolver_api_sdk_cli_mcp_skill_ui: deployed
   recipient_handle_editor: passed_without_mutation
@@ -164,11 +164,15 @@ acceptance:
   orbit_html_attachment_sandbox_preview: passed_real_authenticated_attachment
   orbit_pdf_attachment_open: passed_local_contract_production_click_pending
   orbit_mobile_390_production: pending
+  orbit_header_desktop_public: passed_40px_logo_34px_left_inset_no_centre_navigation
+  orbit_header_mobile_390_public: passed_36px_logo_12px_left_inset_no_overflow
   orbit_conversation_parent_and_thread_cards: deployed
   orbit_human_unread_red_dot: deployed_backend_and_ui_cross_human_acceptance_pending
   orbit_human_thread_view_independent_from_agent_state: passed_postgresql
   production_migration_0021_human_thread_views: passed
   production_counts_after_0_1_14: 24_agents_56_messages_56_deliveries_4_attachments_9_current_bindings_6_humans
+  production_counts_after_0_1_15: 25_agents_58_messages_58_deliveries_4_attachments_7_humans
+  guarded_0_1_15_rollback: passed_postflight_permission_failure_restored_0_1_14
   production_counts_after_0_1_12: 23_agents_51_messages_51_deliveries_9_current_bindings
   workbuddy_020_current_connector: healthy_current
   workbuddy_020_message_to_mars: msg_3904d107573943528aea85861ffbaa09_delivered

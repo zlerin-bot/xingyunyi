@@ -18,9 +18,9 @@ still require authorization, see [ALIYUN_DEPLOYMENT_EFFICIENCY.md](ALIYUN_DEPLOY
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `91d0e4f` at
-`/opt/agentpost/releases/91d0e4f`, with its independent Python environment at
-`/opt/agentpost/venvs/91d0e4f`. Package/server/SDK/MCP are aligned at `0.1.14`.
+The active application release is Git commit `0b2dc9c` at
+`/opt/agentpost/releases/0b2dc9c`, with its independent Python environment at
+`/opt/agentpost/venvs/0b2dc9c`. Package/server/SDK/MCP are aligned at `0.1.15`.
 The database is at Alembic revision `0021_human_thread_views`.
 
 The environment file is root-readable only. Do not copy it into Git, command
@@ -48,6 +48,30 @@ journalctl -u agentpost --no-pager -n 100
 
 Expected service states are three `active` lines. Health and readiness must each
 return status `ok`/`ready` with the deployed protocol version.
+
+## Approved compact-header release 0.1.15 (2026-08-26)
+
+Release `0b2dc9c` is deployed from a clean archive. Its exact public wheel is
+`https://agentpost.me/downloads/agentpost-0.1.15-py3-none-any.whl`, SHA-256
+`dcf9f8d414efa478a4192c8892902cfd2e3aa0c6219db128680b55c51f5601df`. The immutable source and
+runtime are `/opt/agentpost/releases/0b2dc9c` and `/opt/agentpost/venvs/0b2dc9c`.
+
+The verified pre-release backup is
+`/opt/agentpost/backups/20260826-164945-0b2dc9c-pre-015/`. Its checksums cover a readable
+PostgreSQL custom dump/catalog, attachment archive/list, protected environment, systemd unit,
+Nginx site and `rollback-immediate-0.1.15.sh`.
+
+The release used Workbench file management to transfer one complete 1.5 MB source archive and one
+672 KB wheel. The first canary attempt stopped before mutation because of its working directory;
+the second switch exercised automatic rollback when a root-only postflight check lacked `sudo`.
+After correcting that read-only check, the final guarded switch succeeded.
+
+Independent postflight verified local/public 0.1.15 health/readiness, revision
+`0021_human_thread_views`, non-decreasing 25/58/58/4/7 production counts, environment mode
+`600 root:root`, exact wheel hash, unmatched download 404 and zero AgentPost error entries. Nginx
+and PostgreSQL retained main PIDs `127548` and `137458`; only AgentPost restarted. Production
+browser measurements confirmed the approved header at desktop and 390 px without horizontal
+overflow. This is `startrail_header_deployed_https_verified`, not `production_accepted`.
 
 ## Startrail conversation-navigation release 0.1.14 (2026-08-26)
 
