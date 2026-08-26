@@ -8,21 +8,28 @@
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-新增宿主接入切片已在本地完成：星轨“连接新的 Agent”现在列出 Codex、WorkBuddy、OpenClaw、
-Manus、Hermes。Hermes 走本机 bootstrap，并通过官方 `hermes config set` / `hermes mcp test`
+新增宿主接入切片已在本地完成：星轨“连接新的 Agent”现在按固定顺序列出 WorkBuddy、豆包工作、
+OpenClaw、Hermes、Codex、Manus。Hermes 走本机 bootstrap，并通过官方 `hermes config set` / `hermes mcp test`
 注册与验证 MCP；配置
 只含 server/profile，headless Linux 与 OpenClaw 一样选用 OS vault 的 `session` collection。
 `AGENTPOST_HERMES_SETUP_PLATFORMS` 必须显式发布，不继承 Codex，避免生产 0.1.11 wheel 被误报
-为可用。Manus 走独立 HTTPS Custom MCP 合同，不运行本机安装；Remote MCP OAuth 未开启时以
+为可用。豆包工作和 Manus 都走独立 HTTPS Custom MCP 合同，不运行本机安装。豆包工作仅采用
+桌面端“自定义连接器”的 HTTP + 浏览器 OAuth 路径，浏览器/移动端不宣称支持；新增的
+`AGENTPOST_DOUBAO_WORK_REMOTE_MCP_ENABLED` 还必须与全局 Remote MCP OAuth 同时开启。当前通用
+第三方 OAuth 与 remote host/新 Agent 意图绑定尚未完成，故豆包工作发布门保持关闭，重连也以
+稳定 409 停止，不能改用 Header 或长期密钥。Manus 的 Remote MCP OAuth 未开启时以
 `manus_remote_mcp_not_released` 安全停止，现有 Agent 重连尚未发布并以
 `manus_reconnect_not_released` 停止。当前生产 Remote MCP 仍关闭，也没有真实 Manus/Hermes
-账户或宿主验收，因此本切片未部署、未发布，不能写成可真实体验或 `production_accepted`。
+或豆包工作账户宿主验收，因此本切片未部署、未发布，不能写成可真实体验或
+`production_accepted`。
 
-新增后的本地证据：389 passed、6 个明确 skip（1 个 loopback sandbox、5 个 PostgreSQL opt-in），
-另有 MCP 10、Orbit JavaScript 16、TypeScript Connector 4、OpenClaw plugin 4 passed；Ruff、Skill
-校验、插件副本一致性与 diff 检查通过。隔离演示页实测桌面五卡同屏、390 px 单列无横向溢出、
-Manus/Hermes 接入码分流正确且控制台无告警/错误；临时 wheel 也已核对包含 Hermes adapter、
-四宿主 bootstrap 和更新后的 Orbit 资源，检查后已删除。
+新增后的本地证据：391 passed、1 个明确 loopback sandbox skip、5 个 PostgreSQL deselected，
+另有 MCP 10、Orbit JavaScript 20、TypeScript Connector 4、OpenClaw plugin 4 passed；Ruff、Skill
+校验、插件三文件副本一致性与 diff 检查通过。隔离演示页实测六卡顺序严格为 WorkBuddy、豆包
+工作、OpenClaw、Hermes、Codex、Manus；桌面为 3 × 2，首个键盘焦点为 WorkBuddy，390 px 为
+单列且无横向溢出、弹窗可滚动，豆包工作接入码分流正确且控制台无告警/错误。此前临时 wheel
+已核对包含 Hermes adapter、四宿主 bootstrap 和更新后的 Orbit 资源，检查后已删除；本次没有
+改动本机 bootstrap 或发布 wheel。
 
 本地新增的 Human 工作台把现有能力统一到三个一级入口：星轨看协作、云驿管 Agent、设置管
 Human 账户和平台关系。桌面使用三栏，移动端使用底部三个具名入口；`module` / `view` 查询参数

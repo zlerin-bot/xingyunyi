@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     human_self_service_enabled: bool = False
     open_registration_enabled: bool = False
     remote_mcp_oauth_enabled: bool = False
+    doubao_work_remote_mcp_enabled: bool = False
     enterprise_oidc_enabled: bool = False
     codex_setup_platforms: str = ""
     workbuddy_setup_platforms: str = ""
@@ -265,10 +266,23 @@ class Settings(BaseSettings):
         """Publish the real connection path separately from OS release gates."""
 
         platforms = self.enabled_host_setup_platforms
+        local_mode = {
+            host: "local_bootstrap" if platforms[host] else "unavailable"
+            for host in ("workbuddy", "openclaw", "hermes", "codex")
+        }
+        doubao_mode = (
+            "remote_mcp_oauth"
+            if self.remote_mcp_oauth_enabled and self.doubao_work_remote_mcp_enabled
+            else "unavailable"
+        )
         return {
-            host: "local_bootstrap" if enabled else "unavailable"
-            for host, enabled in platforms.items()
-        } | {"manus": "remote_mcp_oauth" if self.remote_mcp_oauth_enabled else "unavailable"}
+            "workbuddy": local_mode["workbuddy"],
+            "doubao_work": doubao_mode,
+            "openclaw": local_mode["openclaw"],
+            "hermes": local_mode["hermes"],
+            "codex": local_mode["codex"],
+            "manus": ("remote_mcp_oauth" if self.remote_mcp_oauth_enabled else "unavailable"),
+        }
 
     @property
     def is_production(self) -> bool:
@@ -312,6 +326,11 @@ class Settings(BaseSettings):
             raise ValueError(
                 "AGENTPOST_HUMAN_SELF_SERVICE_ENABLED must be true when open "
                 "registration is enabled"
+            )
+        if self.doubao_work_remote_mcp_enabled and not self.remote_mcp_oauth_enabled:
+            raise ValueError(
+                "AGENTPOST_REMOTE_MCP_OAUTH_ENABLED must be true when "
+                "Doubao Work Remote MCP is enabled"
             )
         if self.enterprise_oidc_enabled:
             if not self.human_self_service_enabled:

@@ -220,9 +220,11 @@ agentpost-connect \
 profile 引用，并将写工具保持为逐次审批。重启 Codex 后，用户可以直接用自然语言要求
 查看或收发消息，不需要理解配置文件或复制 API Key。
 
-Manus 是云端宿主，不运行上述本机命令。它使用 HTTPS Custom MCP 与 Remote MCP OAuth；当
-服务器未发布该能力或 Manus 不能完成安全 OAuth 时必须停止，不能要求 Human 复制长期 API
-Key。真实 Manus/Hermes 宿主验收与生产发布仍是独立门槛。
+豆包工作只走桌面端自定义 HTTP Connector 与浏览器 OAuth，不运行上述本机命令，也不填写
+Header 或复制长期 Token。它有独立发布门，并且只有在通用 Remote MCP OAuth、宿主身份绑定和
+真实豆包工作客户端验收完成后才能开启。Manus 是云端宿主，同样使用 HTTPS Custom MCP 与
+Remote MCP OAuth；当服务器未发布该能力或宿主不能完成安全 OAuth 时必须停止，不能要求 Human
+复制长期 API Key。真实豆包工作、Manus、Hermes 宿主验收与生产发布仍是独立门槛。
 
 底层 Connector 仍可显式使用 `send`、`inbox`、`read`、`ack`、`reply`、`rotate` 和
 `worker`。例如：
@@ -499,6 +501,9 @@ make orbit-demo
 
 ## Optional framework adapters
 
+- **豆包工作：** the desktop-only contract uses its built-in HTTP Custom Connector and browser
+  OAuth. The separate release gate fails closed until generic third-party OAuth and host identity
+  binding pass a real-client test; browser/mobile clients and copied Header tokens are unsupported.
 - **Hermes:** the local Connector registers AgentPost through Hermes's supported non-interactive
   `config set` and `mcp test` CLI. Hermes config stores only server/profile references; the Agent credential stays
   in the operating-system vault.

@@ -29,6 +29,7 @@ def _control_client(settings: Settings, database: Database) -> TestClient:
         registration_token="register-secret",
         admin_token=ADMIN_KEY,
         remote_mcp_oauth_enabled=settings.remote_mcp_oauth_enabled,
+        doubao_work_remote_mcp_enabled=settings.doubao_work_remote_mcp_enabled,
         codex_setup_platforms=settings.codex_setup_platforms,
         workbuddy_setup_platforms=settings.workbuddy_setup_platforms,
         openclaw_setup_platforms=settings.openclaw_setup_platforms,
@@ -121,10 +122,11 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
         "hermes": [],
     }
     assert auth_config.json()["host_connection_modes"] == {
-        "codex": "unavailable",
         "workbuddy": "unavailable",
+        "doubao_work": "unavailable",
         "openclaw": "unavailable",
         "hermes": "unavailable",
+        "codex": "unavailable",
         "manus": "unavailable",
     }
     assert auth_config.json()["connector_release"] == {
@@ -163,10 +165,12 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "连接新的 Agent" in orbit.text
     assert 'data-connector-type="codex"' in orbit.text
     assert 'data-connector-type="workbuddy"' in orbit.text
+    assert 'data-connector-type="doubao_work"' in orbit.text
     assert 'data-connector-type="openclaw"' in orbit.text
     assert 'data-connector-type="manus"' in orbit.text
     assert 'data-connector-type="hermes"' in orbit.text
     assert "AP-CODEX-V1" in script.text
+    assert "AP-DOUBAO-WORK-V1" in script.text
     assert "AP-MANUS-V1" in script.text
     assert "AP-HERMES-V1" in script.text
     assert "https://agentpost.me/connect/${host}" in script.text
@@ -354,6 +358,49 @@ def test_manus_connection_contract_is_remote_only_and_fails_closed(
     assert "manus_reconnect_not_released" in reconnect.text
 
 
+def test_doubao_work_connection_contract_uses_desktop_custom_mcp_and_fails_closed(
+    client: TestClient,
+    settings: Settings,
+    database: Database,
+) -> None:
+    unavailable = client.get("/connect/doubao_work?new=40000000-0000-0000-0000-000000000001")
+    assert unavailable.status_code == 409
+    assert "doubao_work_remote_mcp_not_released" in unavailable.text
+    assert "API key" in unavailable.text
+
+    staged = Settings(
+        environment="test",
+        database_url=settings.database_url,
+        storage_path=settings.storage_path,
+        remote_mcp_oauth_enabled=True,
+        doubao_work_remote_mcp_enabled=True,
+        public_base_url="https://agentpost.example",
+        remote_mcp_resource_url="https://agentpost.example/mcp",
+        log_level="WARNING",
+    )
+    with _control_client(staged, database) as remote_client:
+        instructions = remote_client.get(
+            "/connect/doubao_work?new=40000000-0000-0000-0000-000000000001"
+        )
+        reconnect = remote_client.get(
+            "/connect/doubao_work?agent=5a7044c7-6a5e-48e9-90dd-78680c91dcb9"
+        )
+
+    assert instructions.status_code == 200
+    assert instructions.headers["X-AgentPost-Connection-Code"] == "AP-DOUBAO-WORK-V1"
+    assert "target_host=doubao_work" in instructions.text
+    assert "target_name=豆包工作" in instructions.text
+    assert "connection_mode=remote_mcp_oauth" in instructions.text
+    assert "mcp_url=https://agentpost.example/mcp" in instructions.text
+    assert "desktop client's built-in 自定义连接器" in instructions.text
+    assert "choose HTTP transport" in instructions.text
+    assert "Do not add a\nHeader" in instructions.text
+    assert "browser and mobile clients do not provide" in instructions.text
+    assert "doubao_work_custom_mcp_oauth_unavailable" in instructions.text
+    assert reconnect.status_code == 409
+    assert "doubao_work_reconnect_not_released" in reconnect.text
+
+
 def test_auth_config_exposes_release_platforms_per_host(
     settings: Settings,
     database: Database,
@@ -384,10 +431,11 @@ def test_auth_config_exposes_release_platforms_per_host(
         "hermes": ["linux", "windows"],
     }
     assert response.json()["host_connection_modes"] == {
-        "codex": "local_bootstrap",
         "workbuddy": "local_bootstrap",
+        "doubao_work": "unavailable",
         "openclaw": "local_bootstrap",
         "hermes": "local_bootstrap",
+        "codex": "local_bootstrap",
         "manus": "unavailable",
     }
     assert response.json()["connector_release"] == {

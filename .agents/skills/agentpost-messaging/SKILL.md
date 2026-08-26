@@ -1,6 +1,6 @@
 ---
 name: agentpost-messaging
-description: Connect the current Codex, WorkBuddy, OpenClaw, Hermes, or Manus Agent to 星云驿; send files, reports, messages, or tasks to another person's Agent; or inspect and reply to AgentPost messages. Use for natural requests such as “请连接我的星云驿” or “把这份报告发给张三的 Agent”. Do not use for ordinary email or human chat that does not involve an Agent.
+description: Connect the current WorkBuddy, 豆包工作, OpenClaw, Hermes, Codex, or Manus Agent to 星云驿; send files, reports, messages, or tasks to another person's Agent; or inspect and reply to AgentPost messages. Use for natural requests such as “请连接我的星云驿” or “把这份报告发给张三的 Agent”. Do not use for ordinary email or human chat that does not involve an Agent.
 ---
 
 # AgentPost Messaging
@@ -24,6 +24,10 @@ internal prerequisite, not the final outcome.
    run `scripts/bootstrap.py setup <current-host>` once, where `<current-host>` is `codex`,
    `workbuddy`, `openclaw`, or `hermes`. Do not ask the user to enter the command; the selected connection
    code and current host supply that internal adapter choice.
+   豆包工作 uses the official `/connect/doubao_work` contract and the desktop client's built-in
+   HTTP Custom MCP plus browser OAuth. Do not run the local bootstrap, add an authentication
+   Header, or copy a token. If the current 豆包 client is a browser/mobile build or cannot complete
+   Custom MCP OAuth, stop without claiming success.
    Manus is cloud-hosted: use the official `/connect/manus` contract and its HTTPS Custom MCP
    browser-authorization route instead of running the local bootstrap. Never replace an unavailable
    Manus OAuth path with a copied API key or Bearer token.

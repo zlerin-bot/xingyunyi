@@ -123,19 +123,21 @@ test("Relay groups Agents and derives five explicit connection states", () => {
   assert.match(script, /曾经连接，但最近报到已超时/);
 });
 
-test("new Agent guide offers five real host-specific connection paths", () => {
+test("new Agent guide offers six host-specific paths in the product order", () => {
   const pickerStart = html.indexOf('class="pairing-host-picker"');
   const pickerEnd = html.indexOf("</fieldset>", pickerStart);
   const picker = html.slice(pickerStart, pickerEnd);
   const hosts = [...picker.matchAll(/data-connector-type="([^"]+)"/g)]
     .map((match) => match[1]);
 
-  assert.deepEqual(hosts, ["codex", "workbuddy", "openclaw", "manus", "hermes"]);
+  assert.deepEqual(hosts, ["workbuddy", "doubao_work", "openclaw", "hermes", "codex", "manus"]);
+  assert.match(script, /doubao_work: \{ name: "豆包工作", code: "AP-DOUBAO-WORK-V1", connectionMode: "remote_mcp_oauth" \}/);
   assert.match(script, /manus: \{ name: "Manus", code: "AP-MANUS-V1", connectionMode: "remote_mcp_oauth" \}/);
   assert.match(script, /hermes: \{ name: "Hermes", code: "AP-HERMES-V1" \}/);
-  assert.match(script, /Manus 内置的 Custom MCP 云端连接/);
+  assert.match(script, /使用 \$\{selected\.name\} 内置的 Custom MCP 连接/);
   assert.match(script, /不能改用长期密钥或假装已连接/);
-  assert.match(stylesheet, /repeat\(auto-fit, minmax\(145px, 1fr\)\)/);
+  assert.match(stylesheet, /\.pairing-host-picker\s*\{[^}]*repeat\(3, minmax\(0, 1fr\)\)/s);
+  assert.match(stylesheet, /@media \(max-width: 580px\)[\s\S]*\.pairing-host-picker\s*\{\s*grid-template-columns: 1fr/);
 });
 
 test("Agent detail keeps current connection, history, access and actions distinct", () => {

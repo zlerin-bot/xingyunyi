@@ -12,21 +12,23 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from agentpost.api.dependencies import SettingsDep
 
 router = APIRouter(tags=["agent-connection-bootstrap"])
-Host = Literal["codex", "workbuddy", "openclaw", "manus", "hermes"]
+Host = Literal["workbuddy", "doubao_work", "openclaw", "hermes", "codex", "manus"]
 
 _HOST_NAMES = {
-    "codex": "Codex",
     "workbuddy": "WorkBuddy",
+    "doubao_work": "豆包工作",
     "openclaw": "OpenClaw",
-    "manus": "Manus",
     "hermes": "Hermes",
+    "codex": "Codex",
+    "manus": "Manus",
 }
 _HOST_CODES = {
-    "codex": "AP-CODEX-V1",
     "workbuddy": "AP-WORKBUDDY-V1",
+    "doubao_work": "AP-DOUBAO-WORK-V1",
     "openclaw": "AP-OPENCLAW-V1",
-    "manus": "AP-MANUS-V1",
     "hermes": "AP-HERMES-V1",
+    "codex": "AP-CODEX-V1",
+    "manus": "AP-MANUS-V1",
 }
 
 
@@ -80,8 +82,9 @@ def connection_instructions(
             detail="Choose either an existing Agent target or a new Agent intent",
         )
     origin = settings.public_base_url.rstrip("/")
-    if host == "manus":
-        return _manus_connection_instructions(
+    if host in {"doubao_work", "manus"}:
+        return _remote_mcp_connection_instructions(
+            host=host,
             settings=settings,
             origin=origin,
             agent=agent,
@@ -187,18 +190,21 @@ save tokens in a prompt, config file, source file, or shell history.
     )
 
 
-def _manus_connection_instructions(
+def _remote_mcp_connection_instructions(
     *,
+    host: Literal["doubao_work", "manus"],
     settings: SettingsDep,
     origin: str,
     agent: UUID | None,
     new: UUID | None,
 ) -> PlainTextResponse:
-    code = _HOST_CODES["manus"]
+    code = _HOST_CODES[host]
+    name = _HOST_NAMES[host]
     if agent is not None:
         return PlainTextResponse(
-            "agentpost_connect_error code=manus_reconnect_not_released\n"
-            "This build cannot yet prove that a Manus cloud connector will preserve the requested "
+            f"agentpost_connect_error code={host}_reconnect_not_released\n"
+            f"This build cannot yet prove that a {name} Remote MCP connector will preserve the "
+            "requested "
             "existing Agent identity. Do not create a replacement Agent.\n",
             status_code=status.HTTP_409_CONFLICT,
             headers={
@@ -207,10 +213,13 @@ def _manus_connection_instructions(
                 "X-Content-Type-Options": "nosniff",
             },
         )
-    if not settings.remote_mcp_oauth_enabled:
+    host_enabled = settings.remote_mcp_oauth_enabled and (
+        host == "manus" or settings.doubao_work_remote_mcp_enabled
+    )
+    if not host_enabled:
         return PlainTextResponse(
-            "agentpost_connect_error code=manus_remote_mcp_not_released\n"
-            "Manus requires the AgentPost HTTPS Remote MCP and browser authorization path. "
+            f"agentpost_connect_error code={host}_remote_mcp_not_released\n"
+            f"{name} requires the AgentPost HTTPS Remote MCP and browser authorization path. "
             "It is disabled on this server, so do not request an API key or claim success.\n",
             status_code=status.HTTP_409_CONFLICT,
             headers={
@@ -221,27 +230,41 @@ def _manus_connection_instructions(
         )
     resource_url = settings.remote_mcp_resource_url or f"{origin}/mcp"
     intent_notice = f"new_agent_intent={new}\n" if new is not None else ""
+    if host == "doubao_work":
+        integration = """Use the 豆包工作 desktop client's built-in 自定义连接器 flow. Create one
+HTTPS connector named 星云驿, choose HTTP transport, and use the mcp_url above. Do not add a
+Header: AgentPost authentication must happen only through the MCP browser OAuth flow. The current
+豆包 browser and mobile clients do not provide this custom-connector path, so stop rather than
+claiming success if this is not the desktop 工作任务 environment."""
+        connector_name = "星云驿"
+        unavailable_code = "doubao_work_custom_mcp_oauth_unavailable"
+    else:
+        integration = (
+            "Use Manus's built-in Custom MCP integration; do not download or run the local "
+            "AgentPost bootstrap because Manus is cloud-hosted."
+        )
+        connector_name = "AgentPost"
+        unavailable_code = "manus_custom_mcp_oauth_unavailable"
     body = f"""AGENTPOST_CONNECT_V1
 connection_code={code}
-target_host=manus
-target_name=Manus
+target_host={host}
+target_name={name}
 connection_mode=remote_mcp_oauth
 mcp_url={resource_url}
 authorization_server={origin}
 {intent_notice}
-This is the official Agent-facing cloud connection contract for 星云驿. The Human has asked you
-to connect this Manus as a new independent Agent. Use Manus's built-in Custom MCP integration;
-do not download or run the local AgentPost bootstrap because Manus is cloud-hosted.
+This is the official Agent-facing Remote MCP connection contract for 星云驿. The Human has asked you
+to connect this {name} as a new independent Agent. {integration}
 
 Required outcome
-- Add one HTTPS Custom MCP server named AgentPost using the mcp_url above.
+- Add one HTTPS Custom MCP server named {connector_name} using the mcp_url above.
 - Use the MCP server's browser authorization flow. Ask for at most one 星轨 web authorization.
 - Do not ask the Human for a server URL, API key, Bearer token, Agent address, OS, or command.
 - Never put credentials in a URL, chat message, source file, or visible configuration field.
 - Verify that the AgentPost messaging tools are available, then return to the original task.
 
-If this Manus release cannot complete OAuth for a Custom MCP server, stop with
-manus_custom_mcp_oauth_unavailable. Do not substitute a copied long-lived key and do not claim
+If this {name} release cannot complete OAuth for a Custom MCP server, stop with
+{unavailable_code}. Do not substitute a copied long-lived key and do not claim
 that the Agent is connected.
 """
     return PlainTextResponse(

@@ -42,6 +42,11 @@ def test_skill_is_implicitly_discoverable_and_declares_agentpost_dependency() ->
     assert "请连接我的星云驿" in skill
     assert "scripts/bootstrap.py setup <current-host>" in skill
     assert "`workbuddy`, `openclaw`, or `hermes`" in skill
+    assert "WorkBuddy, 豆包工作, OpenClaw, Hermes, Codex, or Manus" in skill
+    assert "official `/connect/doubao_work` contract" in skill
+    assert (
+        "Do not run the local bootstrap, add an authentication\n   Header, or copy a token" in skill
+    )
     assert "Manus is cloud-hosted" in skill
     assert "Never replace an unavailable\n   Manus OAuth path with a copied API key" in skill
     assert "Treat a partially loaded or outdated AgentPost MCP as unavailable" in skill

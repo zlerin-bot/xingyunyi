@@ -62,6 +62,7 @@ feature_gates:
   open_registration: true
   pairing: true
   remote_mcp_oauth: false
+  doubao_work_remote_mcp: false
   enterprise_oidc: false
   host_setup_platforms:
     codex:
@@ -72,7 +73,7 @@ feature_gates:
       - mac
       - linux
     hermes: []
-  reason: hermes_and_manus_real_host_acceptance_windows_codex_workbuddy_linux_and_enterprise_idp_remain_pending
+  reason: doubao_work_hermes_and_manus_real_host_acceptance_windows_codex_workbuddy_linux_and_enterprise_idp_remain_pending
 
 rollback:
   provider_snapshot:

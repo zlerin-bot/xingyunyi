@@ -4,13 +4,24 @@ Last updated: 2026-08-26
 
 Frozen handoff stage: `v0.1.0-local.1`; current source and pinned production release: `0.1.11`
 
-## Manus and Hermes host onboarding (local contract slice, 2026-08-26)
+## 豆包工作, Manus and Hermes host onboarding (local contract slice, 2026-08-26)
 
-The ordinary-user `连接新的 Agent` picker now contains Codex, WorkBuddy, OpenClaw, Manus, and
-Hermes. Each card generates one host-specific block for the Human to paste into the Agent's normal
-chat. Hermes uses the same local bootstrap and one-browser-authorization pattern as the existing
-local hosts. Manus is deliberately separate: its contract uses an HTTPS Custom MCP server and
-must not download the local bootstrap or ask the Human to copy a long-lived key.
+The ordinary-user `连接新的 Agent` picker now contains six choices in the fixed product order
+WorkBuddy → 豆包工作 → OpenClaw → Hermes → Codex → Manus. Each card generates one host-specific
+block for the Human to paste into the Agent's normal chat. Hermes uses the same local bootstrap and
+one-browser-authorization pattern as the existing local hosts. 豆包工作 and Manus are deliberately
+separate: their contracts use an HTTPS Custom MCP server and must not download the local bootstrap
+or ask the Human to copy a long-lived key.
+
+豆包工作的 current desktop product surface supports a user-created HTTP Custom MCP connector and
+browser authorization; browser and mobile builds do not expose that path. AgentPost now has a
+dedicated `AP-DOUBAO-WORK-V1` contract, `/connect/doubao_work` fail-closed route, UI/Agent type
+label, and `AGENTPOST_DOUBAO_WORK_REMOTE_MCP_ENABLED` gate. The gate additionally requires the
+global Remote MCP OAuth gate. Existing Agent reconnect remains blocked as
+`doubao_work_reconnect_not_released`, because the current first-party Device Flow does not yet
+prove generic third-party OAuth compatibility or bind a remote client to the requested durable
+Agent and host type. Production keeps both gates disabled; this is a selectable, testable contract
+slice, not a claim that a real 豆包工作 account can already connect.
 
 Hermes now has a dedicated SDK adapter built around its supported non-interactive
 `hermes config set` and `hermes mcp test` commands. The adapter validates the host before pairing,
@@ -28,16 +39,15 @@ MCP URL and browser-authorization contract. It explicitly fails with
 falling back to an API key or claiming success. Production still has Remote MCP OAuth disabled,
 and Manus Custom MCP OAuth compatibility has not been exercised with a real Manus account.
 
-Local evidence is **389 passed and 6 explicit skips** (one loopback sandbox restriction and five
-opt-in PostgreSQL cases), plus **10 MCP**, **16 Orbit JavaScript**, **4 TypeScript Connector**, and
-**4 OpenClaw plugin** tests. Ruff check/format, Skill validation, package-copy equality, and diff
-checks pass. A live isolated Orbit demo showed all five cards on desktop, a single-column 390 px
-layout with no horizontal overflow, the distinct Manus/Hermes prompt text, and an empty browser
-warning/error log. A temporary wheel build contained the Hermes adapter, four-host bootstrap, and
-updated Orbit assets; it was deleted after inspection. No release version was changed and nothing
-was deployed. Evidence labels are
-`hermes_local_adapter_tested` and `manus_remote_contract_gated`; neither is real-host acceptance or
-`production_accepted`.
+Local evidence is **391 passed, 1 explicit loopback sandbox skip, and 5 PostgreSQL tests
+deselected**, plus **10 MCP**, **20 Orbit JavaScript**, **4 TypeScript Connector**, and **4
+OpenClaw plugin** tests. Ruff check/format, Skill validation, three-file plugin-copy equality, and
+diff checks pass. A live isolated Orbit demo confirmed the exact six-card order, WorkBuddy as the
+initial keyboard focus, a balanced 3 × 2 desktop grid, a single-column 390 px layout with no
+horizontal overflow, a scrollable mobile dialog, the dedicated 豆包工作 prompt, and an empty
+browser warning/error log. No release version was changed and nothing was deployed. Evidence
+labels are `doubao_work_remote_contract_gated`, `hermes_local_adapter_tested`, and
+`manus_remote_contract_gated`; none is real-host acceptance or `production_accepted`.
 
 ## Ordinary-user visual polish (local review only, 2026-08-26)
 

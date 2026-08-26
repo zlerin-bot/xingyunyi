@@ -1,8 +1,9 @@
 # 星云驿 Agent Onboarding / Pairing 计划
 
-状态：当前生产 Connector 为 `0.1.11`。本地星轨“连接新的 Agent”已扩展为 Codex、WorkBuddy、
-OpenClaw、Manus、Hermes 五个选择，尚未发布；前三类沿用生产本机路径，Hermes 本机适配器已
-通过本地测试，Manus Remote MCP 仍受关闭的 OAuth 发布门保护。Human 随后复制一整段接入码到
+状态：当前生产 Connector 为 `0.1.11`。本地星轨“连接新的 Agent”已按 WorkBuddy、豆包工作、
+OpenClaw、Hermes、Codex、Manus 的固定顺序扩展为六个选择，尚未发布；WorkBuddy、OpenClaw、
+Hermes、Codex 使用本机路径，Hermes 本机适配器已通过本地测试。豆包工作与 Manus 使用 Remote
+MCP，均受关闭的 OAuth 发布门保护，其中豆包工作还有独立宿主发布门。Human 随后复制一整段接入码到
 所选 Agent 的普通对话框；不选择操作系统、不输入命令或技术参数、不复制长期密钥。隔离的全新
 macOS 环境已从公网自动安装 0.1.2 并到达一次星轨授权页；公开 0.1.3 wheel 已在全新 Python
 3.12 环境完成安装核验。真实测试账户的批准后返回原任务、
@@ -20,11 +21,12 @@ macOS 环境已从公网自动安装 0.1.2 并到达一次星轨授权页；公�
 
 当前实现证据：
 
-- 本地星轨“连接新的 Agent”只要求选择 Codex、WorkBuddy、OpenClaw、Manus 或 Hermes，不要求选择操作
+- 本地星轨“连接新的 Agent”只要求按固定顺序选择 WorkBuddy、豆包工作、OpenClaw、Hermes、Codex 或 Manus，不要求选择操作
   系统，也不显示安装命令、连接命令或手工配对参数入口；
-- 每个选择生成一段可直接粘贴的接入码；真实登录网页已逐一验证三段内容；
+- 每个选择生成一段可直接粘贴的接入码；本地真实登录页已逐一验证六段内容及固定顺序；
 - 四个本机宿主接入页让 Agent 自行识别系统、验证 bootstrap、安装固定版本并打开一次授权页；
-  Manus 使用独立 HTTPS Custom MCP 合同，不运行本机 bootstrap；
+  豆包工作和 Manus 使用独立 HTTPS Custom MCP 合同，不运行本机 bootstrap；豆包工作只面向
+  当前提供自定义 HTTP 连接器的桌面端，且在通用第三方 OAuth 和宿主身份绑定完成前保持关闭；
 - 无预装 AgentPost、无 Codex 配置的隔离环境已从真实公网安装 0.1.2 并到达短期授权链接；
   当前公开 0.1.3 安装包的版本、CLI 和固定哈希另已在干净环境验证；
 - `agentpost-messaging` 隐式技能与 `plugins/agentpost` 插件保留原始发送意图；
@@ -35,8 +37,8 @@ macOS 环境已从公网自动安装 0.1.2 并到达一次星轨授权页；公�
 - 星轨在零个自有 Agent 时自动创建身份、一个时自动绑定、多个时只提供一次合并选择；
 - 正常 verification URL 路径不要求用户填写 Pairing ID、代码、Agent 地址、能力或密钥。
 
-仍未验收：测试人员自己账户上的真实 HTTPS 批准后返回原任务、第二次直接发送，以及
-WorkBuddy/OpenClaw、Windows/Linux 实机。生产网页和公网冷启动现已可体验，但在这些 Human
+仍未验收：测试人员自己账户上的真实 HTTPS 批准后返回原任务、第二次直接发送，以及豆包工作、
+Hermes、Manus、WorkBuddy/OpenClaw、Windows/Linux 实机。生产网页和公网冷启动现已可体验，但在这些 Human
 结果回填前仍不得描述为跨宿主、跨设备最终验收通过。
 
 ## 1. 产品决定
@@ -47,7 +49,7 @@ WorkBuddy/OpenClaw、Windows/Linux 实机。生产网页和公网冷启动现已
 
 1. 一个自然人账户可以拥有多个 Agent。
 2. 每个 Agent 都有独立 UUID、唯一地址、能力标签、Inbox、Thread、ACL 和审计历史。
-3. Codex、WorkBuddy、MiniMax Code、Claude、Manus、OpenClaw 等是运行 Agent 的工具宿主，不是云驿身份。
+3. WorkBuddy、豆包工作、OpenClaw、Hermes、Codex、Manus 等是运行 Agent 的工具宿主，不是云驿身份。
 4. 一个 Agent 同一时刻只允许一个当前 Connector。更换工具时替换 Connector，但不改变 Agent 地址、Inbox 和历史。
 5. 若用户希望多个工具同时工作，应创建多个独立 Agent，而不是让多个消费者竞争同一个 Inbox。
 6. Agent 默认离线，只需要主动发起 HTTPS 出站请求；不要求公网 IP、端口映射或 7×24 小时在线。
@@ -85,8 +87,8 @@ WorkBuddy/OpenClaw、Windows/Linux 实机。生产网页和公网冷启动现已
 - 面向任意第三方 MCP Client 的 Authorization Code + PKCE、客户端元数据
   发现/注册与逐宿主兼容验收；当前只实现固定第一方 Device Client。
 - Pending Address / Invitation / Claim。
-- Codex 的真实桌面首次/再次使用、重启持久性及自然语言完整读写流；WorkBuddy、MiniMax、Claude、Manus
-  与 OpenClaw 的真实宿主安装、浏览器授权和断线恢复验收。
+- Codex 的真实桌面首次/再次使用、重启持久性及自然语言完整读写流；WorkBuddy、豆包工作、
+  OpenClaw、Hermes、Manus 等真实宿主的安装或 Remote MCP、浏览器授权和断线恢复验收。
 - 真实邮件送达、受控 Human 账户恢复、两台真实设备与两名 Human 的体验验收。
 
 因此，现有系统已具备本地 Connector 的低门槛接入闭环，但尚不能把
@@ -250,13 +252,15 @@ Authorization、最小 `agentpost.messaging` scope、短期 opaque access token�
 
 ## 8. 宿主接入策略
 
-### Codex、WorkBuddy、MiniMax Code
+### WorkBuddy、OpenClaw、Hermes、Codex
 
 优先使用各宿主已公开且稳定的 MCP/Plugin/Connector 扩展面。宿主支持 Remote MCP + OAuth 时使用统一入口；不支持时安装官方本地 Connector，通过 stdio/本地插件调用同一云驿协议。
 
-### Claude、Manus 等托管 Agent
+### 豆包工作、Manus 等 Remote MCP 宿主
 
-只在宿主提供受支持的 MCP/OAuth/Tool/Skill 扩展面时接入。不通过浏览器自动化窃取会话，不要求用户粘贴长期密钥。
+只在宿主提供受支持的 MCP/OAuth/Tool/Skill 扩展面时接入。豆包工作使用桌面端 HTTP 自定义
+连接器，Manus 使用云端 Custom MCP；两者都必须通过通用第三方 OAuth、宿主身份绑定和真实宿主
+验收后才开放。不通过浏览器自动化窃取会话，不要求用户粘贴 Header 或长期密钥。
 
 ### OpenClaw
 

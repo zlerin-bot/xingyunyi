@@ -72,10 +72,11 @@ def test_pairing_configuration_is_bounded_and_canonical() -> None:
         "hermes": ("linux", "windows"),
     }
     assert settings.enabled_host_connection_modes == {
-        "codex": "local_bootstrap",
         "workbuddy": "local_bootstrap",
+        "doubao_work": "unavailable",
         "openclaw": "local_bootstrap",
         "hermes": "local_bootstrap",
+        "codex": "local_bootstrap",
         "manus": "unavailable",
     }
     assert settings.connector_release_version == "0.1.1"
@@ -124,6 +125,17 @@ def test_manus_connection_mode_requires_remote_mcp_oauth() -> None:
     settings = Settings(remote_mcp_oauth_enabled=True)
 
     assert settings.enabled_host_connection_modes["manus"] == "remote_mcp_oauth"
+
+
+def test_doubao_work_connection_mode_requires_its_gate_and_remote_mcp_oauth() -> None:
+    settings = Settings(
+        remote_mcp_oauth_enabled=True,
+        doubao_work_remote_mcp_enabled=True,
+    )
+
+    assert settings.enabled_host_connection_modes["doubao_work"] == "remote_mcp_oauth"
+    with pytest.raises(ValidationError, match="Remote MCP"):
+        Settings(doubao_work_remote_mcp_enabled=True)
 
 
 def test_production_rejects_development_secrets() -> None:
