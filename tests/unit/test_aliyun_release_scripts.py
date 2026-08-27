@@ -70,6 +70,7 @@ def test_release_switch_and_postflight_enforce_three_platform_host_contract() ->
         assert f'"AGENTPOST_{host_variable}_SETUP_PLATFORMS": "mac,linux,windows"' in switch
     assert "public host platform contract mismatch" in postflight
     assert 'expected = ["mac", "linux", "windows"]' in postflight
+    assert 'payload.get("connector_release", {}).get("version")' in postflight
 
 
 def test_prepare_script_builds_one_workbench_upload_and_staging_command() -> None:

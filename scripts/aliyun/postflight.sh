@@ -62,7 +62,7 @@ from pathlib import Path
 payload = json.loads(Path(sys.argv[1]).read_text())
 expected = ["mac", "linux", "windows"]
 hosts = ("codex", "workbuddy", "doubao_work", "openclaw", "hermes", "manus")
-if payload.get("version") != sys.argv[2]:
+if payload.get("connector_release", {}).get("version") != sys.argv[2]:
     raise SystemExit("public auth config version mismatch")
 published = payload.get("host_setup_platforms", {})
 incorrect = {host: published.get(host) for host in hosts if published.get(host) != expected}
