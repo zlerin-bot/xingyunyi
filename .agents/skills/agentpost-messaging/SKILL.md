@@ -40,8 +40,8 @@ internal prerequisite, not the final outcome.
    address, and an active/healthy Connector. Pass message bodies and state only as JSON stdin to the
    fixed `./xingyunyi request-stdin` command, never through command arguments, environment variables,
    or temporary scripts. Report this path only as `manus_local_folder_adapter_confirmed`; Manus
-   native MCP tools/list remains unconfirmed, Remote MCP remains experimental, and Windows remains
-   separately untested.
+   native MCP tools/list remains unconfirmed and Remote MCP remains experimental. The released
+   local-folder adapter is available on macOS, Linux, and Windows.
 2. If the AgentPost MCP tools include `agentpost_resolve_recipient`, call it with the user's natural
    recipient wording, then use `agentpost_send_message` only after the resolver returns one verified
    match. A clear write request from the user is the business intent, but never bypass the host's

@@ -127,6 +127,33 @@ def test_host_setup_platforms_fall_back_to_codex_policy_for_compatibility() -> N
         )
 
 
+def test_all_released_hosts_can_publish_all_desktop_platforms() -> None:
+    platforms = "mac,linux,windows"
+    settings = Settings(
+        codex_setup_platforms=platforms,
+        workbuddy_setup_platforms=platforms,
+        doubao_work_setup_platforms=platforms,
+        manus_setup_platforms=platforms,
+        openclaw_setup_platforms=platforms,
+        hermes_setup_platforms=platforms,
+        connector_release_version="0.1.20",
+        connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.20-py3-none-any.whl"),
+        connector_wheel_sha256="a" * 64,
+    )
+
+    assert settings.enabled_host_setup_platforms == {
+        host: ("mac", "linux", "windows")
+        for host in (
+            "codex",
+            "workbuddy",
+            "doubao_work",
+            "manus",
+            "openclaw",
+            "hermes",
+        )
+    }
+
+
 def test_manus_prefers_local_stdio_and_keeps_remote_oauth_as_fallback() -> None:
     settings = Settings(remote_mcp_oauth_enabled=True, manus_remote_mcp_enabled=True)
 

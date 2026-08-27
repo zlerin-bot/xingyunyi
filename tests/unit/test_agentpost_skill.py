@@ -50,7 +50,7 @@ def test_skill_is_implicitly_discoverable_and_declares_agentpost_dependency() ->
     assert "fixed `xingyunyi` adapter" in skill
     assert "`./xingyunyi request-stdin`" in skill
     assert "manus_local_folder_adapter_confirmed" in skill
-    assert "Windows remains\n   separately untested" in skill
+    assert "available on macOS, Linux, and Windows" in skill
     assert "Treat a partially loaded or outdated AgentPost MCP as unavailable" in skill
     assert "never report\n   `not_found` from that legacy path" in skill
     assert "upgrades to the server-pinned release and resumes the send" in skill
@@ -88,6 +88,21 @@ def test_plugin_packages_the_same_implicit_skill_without_machine_specific_mcp_co
         ).read_bytes()
 
 
+def test_production_example_publishes_every_host_on_three_platforms() -> None:
+    production_env = (REPOSITORY_ROOT / ".env.production.example").read_text(encoding="utf-8")
+    expected = "mac,linux,windows"
+
+    for host_variable in (
+        "CODEX",
+        "WORKBUDDY",
+        "DOUBAO_WORK",
+        "OPENCLAW",
+        "HERMES",
+        "MANUS",
+    ):
+        assert f"AGENTPOST_{host_variable}_SETUP_PLATFORMS={expected}" in production_env
+
+
 def test_bootstrap_imports_with_the_system_python_used_by_the_copyable_prompt() -> None:
     system_python = Path("/usr/bin/python3")
     if not system_python.is_file():
@@ -108,14 +123,17 @@ def test_bootstrap_imports_with_the_system_python_used_by_the_copyable_prompt() 
 def test_release_metadata_must_enable_platform_and_match_trusted_origin() -> None:
     bootstrap = _load_bootstrap()
     payload = {
-        "codex_setup_platforms": ["mac"],
+        "codex_setup_platforms": ["mac", "linux", "windows"],
         "host_setup_platforms": {
-            "codex": ["mac"],
-            "workbuddy": ["mac"],
-            "doubao_work": ["mac", "windows"],
-            "manus": ["mac", "windows"],
-            "openclaw": ["mac", "linux"],
-            "hermes": ["linux"],
+            host: ["mac", "linux", "windows"]
+            for host in (
+                "codex",
+                "workbuddy",
+                "doubao_work",
+                "manus",
+                "openclaw",
+                "hermes",
+            )
         },
         "connector_release": {
             "version": "0.1.1",
@@ -124,33 +142,16 @@ def test_release_metadata_must_enable_platform_and_match_trusted_origin() -> Non
         },
     }
 
-    assert bootstrap.parse_release(
-        payload,
-        host_name="openclaw",
-        platform_name="linux",
-    ) == _release(bootstrap)
-    assert bootstrap.parse_release(
-        payload,
-        host_name="doubao_work",
-        platform_name="mac",
-    ) == _release(bootstrap)
-    assert bootstrap.parse_release(
-        payload,
-        host_name="doubao_work",
-        platform_name="windows",
-    ) == _release(bootstrap)
-    assert bootstrap.parse_release(
-        payload,
-        host_name="manus",
-        platform_name="mac",
-    ) == _release(bootstrap)
-    assert bootstrap.parse_release(
-        payload,
-        host_name="manus",
-        platform_name="windows",
-    ) == _release(bootstrap)
+    for host_name in payload["host_setup_platforms"]:
+        for platform_name in ("mac", "linux", "windows"):
+            assert bootstrap.parse_release(
+                payload,
+                host_name=host_name,
+                platform_name=platform_name,
+            ) == _release(bootstrap)
+
     with pytest.raises(bootstrap.BootstrapError, match="setup_not_released"):
-        bootstrap.parse_release(payload, host_name="codex", platform_name="linux")
+        bootstrap.parse_release(payload, host_name="codex", platform_name="android")
 
     payload["connector_release"]["wheel_url"] = (
         "https://example.com/downloads/agentpost-0.1.1-py3-none-any.whl"

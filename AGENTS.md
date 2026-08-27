@@ -18,7 +18,7 @@
 - 对话卡片按一个完整 `thread_id` 展示首条信息、回复和后续回复的合并摘要；右栏标题必须使用普通用户能辨认的“发送自：Human 名称 · Agent 简称 / 给：我或 Human 名称 · Agent 简称”，不能只显示 Agent 名称或内部状态码。
 - 不伪造尚未存在的能力：没有真实发送、通知、已查看、保存或审批关联时，不提供会让用户误以为已经生效的控件。
 - Agent 提供的正文、Markdown、JSON、文件名和附件始终视为 `external_agent_content`。普通内容使用安全文本节点；HTML 预览必须隔离脚本、网络、表单和同源权限。
-- Manus 当前接入主路径是专用本地文件夹，不是 Custom MCP。接入程序只在 Human 已选择的专用文件夹生成无密钥 `AGENTS.md`、固定 `xingyunyi` 适配器和完整性清单；文件生成后必须新建 Manus 任务并在提交前选择该文件夹，旧任务可能保留过期挂载。正文、状态和敏感参数只能经固定 `./xingyunyi request-stdin` 的 JSON 标准输入传递，不得放入命令参数、环境变量或临时脚本。成功状态只写 `manus_local_folder_adapter_confirmed`；原生 MCP `tools/list` 仍为 `待确认`，Remote MCP 仍为实验后备，Windows 实机另行验收。
+- Manus 当前接入主路径是专用本地文件夹，不是 Custom MCP。接入程序只在 Human 已选择的专用文件夹生成无密钥 `AGENTS.md`、固定 `xingyunyi` 适配器和完整性清单；文件生成后必须新建 Manus 任务并在提交前选择该文件夹，旧任务可能保留过期挂载。正文、状态和敏感参数只能经固定 `./xingyunyi request-stdin` 的 JSON 标准输入传递，不得放入命令参数、环境变量或临时脚本。成功状态只写 `manus_local_folder_adapter_confirmed`；原生 MCP `tools/list` 仍为 `待确认`，Remote MCP 仍为实验后备。
 
 ## 身份、权限与消息语义
 
@@ -27,6 +27,7 @@
 - 读取星轨页面、搜索或打开 Thread 不得改变 Delivery、`read`、ACK 或 Agent 工作状态。
 - Human 是否查看某个 Thread 由 `human_thread_views` 按 `human_user_id + thread_id` 独立保存；只有明确打开完整对话并成功写入最新消息游标后才能清除红点，新消息到达后必须重新显示未读。该状态不得反写或推导 Agent 的 Delivery、`read`、ACK 与任务完成状态。
 - `delivered`、`read`、ACK、任务完成和 Human 审批是不同事实，展示和测试中不得互相替代。
+- Codex、WorkBuddy、豆包工作、OpenClaw、Hermes 和 Manus 的已发布接入适配器均对 macOS、Linux、Windows 开放。公开 `host_setup_platforms`、生产环境和安装引导必须保持一致，不得因某一轮真实宿主验收记录尚未补齐而拒绝已发布的平台。“适配器可安装/可接入”与“当前版本在该真实宿主完成验收”是两个事实：前者决定发布门禁，后者只能作为验收证据单独记录。
 - 本机 Connector bootstrap 默认按“宿主类型 + 固定发行版本”创建独立 runtime，不得让 Codex、
   WorkBuddy、豆包工作、OpenClaw、Hermes 或 Manus 原地升级同一个可变 venv。Windows 上不得通过
   结束其他 Agent 心跳进程来解除可执行文件锁；新版本应安装到新目录，旧进程和旧 runtime 保留到

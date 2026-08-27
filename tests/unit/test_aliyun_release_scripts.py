@@ -55,6 +55,23 @@ def test_switch_script_preserves_verified_migration_and_rollback_guards() -> Non
     assert "production counts invalid" in script
 
 
+def test_release_switch_and_postflight_enforce_three_platform_host_contract() -> None:
+    switch = ALIYUN_SCRIPTS[1].read_text()
+    postflight = ALIYUN_SCRIPTS[2].read_text()
+
+    for host_variable in (
+        "CODEX",
+        "WORKBUDDY",
+        "DOUBAO_WORK",
+        "OPENCLAW",
+        "HERMES",
+        "MANUS",
+    ):
+        assert f'"AGENTPOST_{host_variable}_SETUP_PLATFORMS": "mac,linux,windows"' in switch
+    assert "public host platform contract mismatch" in postflight
+    assert 'expected = ["mac", "linux", "windows"]' in postflight
+
+
 def test_prepare_script_builds_one_workbench_upload_and_staging_command() -> None:
     script = ALIYUN_SCRIPTS[0].read_text()
 

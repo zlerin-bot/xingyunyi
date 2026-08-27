@@ -50,8 +50,25 @@ expected_ready="{\"status\":\"ready\",\"version\":\"${version}\"}"
 [[ "$(curl -fsS http://127.0.0.1:8000/ready)" == "${expected_ready}" ]]
 [[ "$(curl -fsS https://agentpost.me/health)" == "${expected_health}" ]]
 [[ "$(curl -fsS https://agentpost.me/ready)" == "${expected_ready}" ]]
+auth_config="$(mktemp)"
 public_copy="$(mktemp)"
-trap 'rm -f "${public_copy}"' EXIT
+trap 'rm -f "${auth_config}" "${public_copy}"' EXIT
+curl -fsS https://agentpost.me/api/v1/auth/config -o "${auth_config}"
+python3 - "${auth_config}" "${version}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text())
+expected = ["mac", "linux", "windows"]
+hosts = ("codex", "workbuddy", "doubao_work", "openclaw", "hermes", "manus")
+if payload.get("version") != sys.argv[2]:
+    raise SystemExit("public auth config version mismatch")
+published = payload.get("host_setup_platforms", {})
+incorrect = {host: published.get(host) for host in hosts if published.get(host) != expected}
+if incorrect:
+    raise SystemExit(f"public host platform contract mismatch: {incorrect}")
+PY
 curl -fsS "https://agentpost.me/downloads/${wheel_name}" -o "${public_copy}"
 [[ "$(sha256sum "${public_copy}" | awk '{print $1}')" == "${wheel_sha}" ]]
 unknown_status="$(curl -sS -o /dev/null -w '%{http_code}' "https://agentpost.me/downloads/agentpost-${version}-NOTFOUND.whl")"
@@ -70,7 +87,7 @@ backup="$(cat /opt/agentpost/shared/DEPLOYED_BACKUP)"
 bash -n "${backup}/rollback-immediate-${version}.sh"
 
 current_counts="$(mktemp)"
-trap 'rm -f "${public_copy}" "${current_counts}"' EXIT
+trap 'rm -f "${auth_config}" "${public_copy}" "${current_counts}"' EXIT
 sudo -u postgres psql -d agentpost -Atc "select 'agents='||count(*) from agents; select 'messages='||count(*) from messages; select 'deliveries='||count(*) from deliveries; select 'attachments='||count(*) from attachments; select 'humans='||count(*) from human_users;" > "${current_counts}"
 python3 - "${backup}/row-counts.txt" "${current_counts}" <<'PY'
 import sys

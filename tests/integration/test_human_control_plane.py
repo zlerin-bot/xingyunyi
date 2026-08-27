@@ -402,7 +402,7 @@ def test_manus_connection_contract_keeps_remote_fallback_fail_closed(
         "agent-5a7044c7-6a5e-48e9-90dd-78680c91dcb9" in reconnect.text
     )
     assert "existing_agent_id=5a7044c7-6a5e-48e9-90dd-78680c91dcb9" in reconnect.text
-    assert "macOS and Windows" in instructions.text
+    assert "macOS, Linux, and Windows" in instructions.text
 
 
 def test_manus_connection_contract_uses_new_local_folder_task(
@@ -517,12 +517,12 @@ def test_auth_config_exposes_release_platforms_per_host(
         database_url=settings.database_url,
         storage_path=settings.storage_path,
         api_key_pepper="test-agent-pepper",
-        codex_setup_platforms="mac,linux",
-        workbuddy_setup_platforms="mac",
-        doubao_work_setup_platforms="mac,windows",
-        manus_setup_platforms="mac,windows",
-        openclaw_setup_platforms="mac,linux",
-        hermes_setup_platforms="linux,windows",
+        codex_setup_platforms="mac,linux,windows",
+        workbuddy_setup_platforms="mac,linux,windows",
+        doubao_work_setup_platforms="mac,linux,windows",
+        manus_setup_platforms="mac,linux,windows",
+        openclaw_setup_platforms="mac,linux,windows",
+        hermes_setup_platforms="mac,linux,windows",
         connector_release_version="0.1.1",
         connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl"),
         connector_wheel_sha256="a" * 64,
@@ -532,14 +532,17 @@ def test_auth_config_exposes_release_platforms_per_host(
         response = client.get("/api/v1/auth/config")
 
     assert response.status_code == 200
-    assert response.json()["codex_setup_platforms"] == ["mac", "linux"]
+    assert response.json()["codex_setup_platforms"] == ["mac", "linux", "windows"]
     assert response.json()["host_setup_platforms"] == {
-        "codex": ["mac", "linux"],
-        "workbuddy": ["mac"],
-        "doubao_work": ["mac", "windows"],
-        "manus": ["mac", "windows"],
-        "openclaw": ["mac", "linux"],
-        "hermes": ["linux", "windows"],
+        host: ["mac", "linux", "windows"]
+        for host in (
+            "codex",
+            "workbuddy",
+            "doubao_work",
+            "manus",
+            "openclaw",
+            "hermes",
+        )
     }
     assert response.json()["host_connection_modes"] == {
         "workbuddy": "local_bootstrap",

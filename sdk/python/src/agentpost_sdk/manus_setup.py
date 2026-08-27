@@ -110,7 +110,7 @@ def configure_manus_mcp(
     mcp_command: Path,
     launcher_path: Path | None = None,
 ) -> ManusSetupResult:
-    """Create a command-only native launcher for Manus on macOS or Windows."""
+    """Create a command-only native launcher for Manus on macOS, Linux, or Windows."""
 
     cleaned_server = server.strip().rstrip("/")
     cleaned_profile = profile.strip()

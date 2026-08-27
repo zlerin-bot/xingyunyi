@@ -78,7 +78,7 @@ def configure_doubao_work_mcp(
     mcp_command: Path,
     launcher_path: Path | None = None,
 ) -> DoubaoWorkSetupResult:
-    """Create a command-only native launcher for macOS or Windows."""
+    """Create a command-only native launcher for macOS, Linux, or Windows."""
 
     cleaned_server = server.strip().rstrip("/")
     cleaned_profile = profile.strip()

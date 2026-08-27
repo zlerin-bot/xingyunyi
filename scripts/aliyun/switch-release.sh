@@ -253,6 +253,12 @@ updates = {
     "AGENTPOST_CONNECTOR_RELEASE_VERSION": version,
     "AGENTPOST_CONNECTOR_WHEEL_URL": f"https://agentpost.me/downloads/{os.environ['AGENTPOST_DEPLOY_WHEEL']}",
     "AGENTPOST_CONNECTOR_WHEEL_SHA256": os.environ["AGENTPOST_DEPLOY_SHA"],
+    "AGENTPOST_CODEX_SETUP_PLATFORMS": "mac,linux,windows",
+    "AGENTPOST_WORKBUDDY_SETUP_PLATFORMS": "mac,linux,windows",
+    "AGENTPOST_DOUBAO_WORK_SETUP_PLATFORMS": "mac,linux,windows",
+    "AGENTPOST_OPENCLAW_SETUP_PLATFORMS": "mac,linux,windows",
+    "AGENTPOST_HERMES_SETUP_PLATFORMS": "mac,linux,windows",
+    "AGENTPOST_MANUS_SETUP_PLATFORMS": "mac,linux,windows",
 }
 lines = path.read_text().splitlines()
 seen = {key: 0 for key in updates}

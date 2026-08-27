@@ -114,7 +114,7 @@ def connection_instructions(
     platform_notice = ""
     if host == "openclaw":
         platform_notice = (
-            "\nOpenClaw runs on macOS and Linux, including a headless cloud server. "
+            "\nOpenClaw runs on macOS, Linux, and Windows, including a headless cloud server. "
             "On Linux, use only an available operating-system secure credential backend; "
             "never replace it with a plaintext token file.\n"
         )
@@ -186,9 +186,8 @@ def connection_instructions(
    manus_task_mount_stale and stop. Pass message content only as JSON stdin to the fixed
    `./xingyunyi request-stdin` command. Do not ask for or expose a server, profile, token,
    parameter, or environment variable. Report success only as
-   manus_local_folder_adapter_confirmed; native Manus MCP tools/list is unconfirmed and Windows is
-   separately untested. Then return to the
-   original request."""
+   manus_local_folder_adapter_confirmed; native Manus MCP tools/list is unconfirmed. Then
+   return to the original request."""
     body = f"""AGENTPOST_CONNECT_V1
 connection_code={code}
 target_host={host}
@@ -290,7 +289,7 @@ claiming success if this is not the desktop 工作任务 environment."""
         integration = """Use Manus's built-in Custom MCP integration; do not download or run the
 local AgentPost bootstrap. Add the exact HTTPS mcp_url above and let Manus complete OAuth discovery,
 dynamic client registration and the browser consent. This cloud connection is identical from the
-Manus macOS and Windows desktop clients and does not depend on a local command, path or vault."""
+Manus macOS, Linux, and Windows clients and does not depend on a local command, path or vault."""
         connector_name = "AgentPost"
         unavailable_code = "manus_custom_mcp_oauth_unavailable"
     body = f"""AGENTPOST_CONNECT_V1

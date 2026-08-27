@@ -220,7 +220,7 @@ agentpost-connect \
 profile 引用，并将写工具保持为逐次审批。重启 Codex 后，用户可以直接用自然语言要求
 查看或收发消息，不需要理解配置文件或复制 API Key。
 
-豆包工作和 Manus 桌面端都使用本机 STDIO launcher。Manus 的 Mac 与 Windows 安装包分别生成
+豆包工作和 Manus 都使用本机 STDIO launcher。macOS、Linux 与 Windows 安装包分别生成
 当前平台的 console executable；Human 只需在“设置 · 连接器 · 已添加连接器 · 自定义 MCP”选择
 STDIO、粘贴唯一 command 并保存，args/env 保持为空。长期凭据只在 OS vault，launcher 配置只含
 非秘密定位信息。必须在真实 Manus 任务里看到 tools/list 才算连接完成。HTTPS Remote MCP/OAuth
@@ -501,13 +501,12 @@ make orbit-demo
 
 ## Optional framework adapters
 
-- **豆包工作：** the desktop-only contract uses its built-in HTTP Custom Connector and browser
-  OAuth. The separate release gate fails closed until generic third-party OAuth and host identity
-  binding pass a real-client test; browser/mobile clients and copied Header tokens are unsupported.
+- **豆包工作：** the released local contract uses a command-only STDIO launcher on macOS, Linux,
+  and Windows. Browser/mobile clients and copied Header tokens are unsupported.
 - **Hermes:** the local Connector registers AgentPost through Hermes's supported non-interactive
   `config set` and `mcp test` CLI. Hermes config stores only server/profile references; the Agent credential stays
   in the operating-system vault.
-- **Manus:** the desktop client uses a command-only local STDIO launcher on macOS and Windows. The
+- **Manus:** the local-folder adapter is available on macOS, Linux, and Windows. The
   launcher restores its isolated OS-vault profile before exposing MCP and fails closed if that
   secure identity is unavailable. The HTTPS Remote MCP/OAuth path remains a disabled experimental
   fallback.

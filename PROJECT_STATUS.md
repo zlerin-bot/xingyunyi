@@ -4,6 +4,23 @@ Last updated: 2026-08-27
 
 Current handoff stage: `v0.1.20-deployed-https-verified`; pinned production release: `0.1.20`
 
+## Three-platform publication contract correction (local development, 2026-08-27)
+
+The released Codex, WorkBuddy, OpenClaw, Hermes, 豆包工作 and Manus adapters are product-supported
+on macOS, Linux and Windows. Production 0.1.20 still publishes a restrictive
+`host_setup_platforms` matrix, so another Agent can incorrectly stop with `setup_not_released` on
+a platform that the adapter supports. This was caused by treating an incomplete per-run acceptance
+ledger as a product capability gate.
+
+Local configuration, Skills and connection guidance now publish all six hosts on all three
+platforms. The guarded production switch will update the six protected environment entries, and
+postflight now verifies the public `/api/v1/auth/config` matrix exactly. Platform availability and
+version-specific real-host acceptance remain separate evidence. This correction is not deployed;
+production remains restrictive until an explicitly authorized release passes public postflight.
+Focused configuration/Skill/release-script/control-plane regression is 64 passed. Full
+non-PostgreSQL regression is 448 passed, with one expected loopback sandbox skip and five
+PostgreSQL tests deselected; Ruff check/format, Bash syntax and diff check passed.
+
 ## Windows host-isolated runtime and Manus canary reply (local development, 2026-08-27)
 
 Real Windows 豆包工作 feedback from 张子良 found that the shared mutable
