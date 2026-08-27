@@ -21,10 +21,10 @@ Command Assistant file transfer, Base64 fragments or the legacy Docker Compose s
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `8429a41` at
-`/opt/agentpost/releases/8429a41`, with its independent Python environment at
-`/opt/agentpost/venvs/8429a41`. Package/server/SDK/MCP are aligned at `0.1.18`.
-The database is at Alembic revision `0022_oauth_authorization_code`.
+The active application release is Git commit `8f9bc79` at
+`/opt/agentpost/releases/8f9bc79`, with its independent Python environment at
+`/opt/agentpost/venvs/8f9bc79`. Package/server/SDK/MCP are aligned at `0.1.19`.
+The database is at Alembic revision `0023_human_usernames`.
 
 The environment file is root-readable only. Do not copy it into Git, command
 output, tickets, or chat. API keys remain one-time registration results and must
@@ -51,6 +51,28 @@ journalctl -u agentpost --no-pager -n 100
 
 Expected service states are three `active` lines. Health and readiness must each
 return status `ok`/`ready` with the deployed protocol version.
+
+## Navigation, presence and Human username release 0.1.19 (2026-08-27)
+
+Release `8f9bc79` was built from a clean archive and deployed through the fixed six-file Workbench
+upload plus guarded switch/postflight flow. The source archive SHA-256 is
+`1960b3884accfa75e7d0d1b10285c38643b6f699ca594783e9d63beaa92c108b`; the public wheel
+`https://agentpost.me/downloads/agentpost-0.1.19-py3-none-any.whl` has SHA-256
+`6760b579bf9840671edb707df928f35879afb28bb361ba368bdc4bc4f4459c6a`.
+
+The protected switch backup is `/opt/agentpost/backups/20260827-094118-8f9bc79-pre-019/`.
+The server rehearsal completed `0022 -> 0023 -> 0022 -> 0023` before production advanced to
+`0023_human_usernames`. Postflight verified all backup artifacts, local/public health and readiness,
+the exact wheel hash, unknown-download 404, root-only environment permissions and three active
+services. Counts were non-decreasing at 40/99/99/15/14; AgentPost/Nginx/PostgreSQL PIDs were
+`259118/245451/245492`, so Nginx and PostgreSQL remained continuous.
+
+An authenticated fresh production page verified `AgentPost · 设置 / 云驿 / 星轨`, the new “在线”
+connection wording and a working newest-first conversation list. A tab already open before the
+release retained the old JavaScript until a new page was opened; the public JavaScript itself was
+verified to contain the 0.1.19 brand update. Real cross-Human username resolution, live Agent
+heartbeat transitions and cross-device mobile acceptance remain pending. This is
+`navigation_presence_human_username_deployed_https_verified`, not `production_accepted`.
 
 ## Cross-platform Manus local-STDIO release 0.1.18 (2026-08-27)
 

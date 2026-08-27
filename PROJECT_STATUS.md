@@ -2,12 +2,12 @@
 
 Last updated: 2026-08-27
 
-Current handoff stage: `v0.1.18-deployed-https-verified`; pinned production release: `0.1.18`
+Current handoff stage: `v0.1.19-deployed-https-verified`; pinned production release: `0.1.19`
 
-## Navigation, newest-first conversations, presence and Human usernames (local verified, 2026-08-27)
+## Navigation, newest-first conversations, presence and Human usernames (0.1.19 deployed, 2026-08-27)
 
-Development continues from `8429a41 / 0.1.18`; production remains pinned to that release and this
-slice is not deployed. The header subtitle now follows the active `星轨 / 云驿 / 设置` module.
+Feature/release commits are `eca0b01 / 8f9bc79`; production is pinned to `8f9bc79 / 0.1.19`.
+The header subtitle now follows the active `星轨 / 云驿 / 设置` module.
 Conversation details render a copied message list newest-first while retaining the chronological
 first message for the thread's sender/recipient summary, on desktop and mobile alike.
 
@@ -28,7 +28,19 @@ PostgreSQL tests deselected; 12 MCP and 24 Orbit JavaScript tests passed; JavaSc
 check/format, Alembic single-head and diff checks passed. Browser acceptance covered desktop and
 390×844 with correct module branding, newest-first detail order, visible username, no horizontal
 overflow and no console warnings/errors. A real PostgreSQL `0022 → 0023 → 0022 → 0023` migration
-rehearsal remains a release gate because Docker/PostgreSQL is unavailable locally.
+rehearsal was completed on a temporary server PostgreSQL database before production advanced to
+`0023_human_usernames`. Clean source/wheel SHA-256 values are
+`1960b3884accfa75e7d0d1b10285c38643b6f699ca594783e9d63beaa92c108b` and
+`6760b579bf9840671edb707df928f35879afb28bb361ba368bdc4bc4f4459c6a`.
+
+The guarded switch created `/opt/agentpost/backups/20260827-094118-8f9bc79-pre-019/`. Independent
+postflight passed local/public health and readiness, exact public wheel hash, unknown-download 404,
+backup verification and all three service checks. Counts are 40 Agents / 99 Messages / 99
+Deliveries / 15 Attachments / 14 Humans; PIDs are AgentPost `259118`, Nginx `245451`, PostgreSQL
+`245492`. An authenticated fresh production page verified dynamic module branding, “在线” status
+wording and the conversation list. Real cross-Human username resolution, live heartbeat state
+transitions and cross-device mobile acceptance remain pending, so this is
+`navigation_presence_human_username_deployed_https_verified`, not `production_accepted`.
 
 ## Manus macOS/Windows 本机 STDIO 接入（0.1.18 deployed，2026-08-27）
 

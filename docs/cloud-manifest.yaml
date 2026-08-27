@@ -1,17 +1,17 @@
 schema_version: "1"
 project: xingyunyi-agentpost
-evidence_status: manus_cross_platform_deployed_https_verified
-verified_at: "2026-08-27T08:13:10+08:00"
+evidence_status: navigation_presence_human_username_deployed_https_verified
+verified_at: "2026-08-27T10:05:00+08:00"
 
 local_stage:
   prior_tag: v0.1.12-local.1
   committed_svg_baseline: 43796a1
-  feature_commit: 6094afd
-  release_commit: 8429a41
-  package_version: 0.1.18
+  feature_commit: eca0b01
+  release_commit: 8f9bc79
+  package_version: 0.1.19
   production_change: true
   validation_snapshot: clean_git_archive
-  evidence_status: manus_cross_platform_local_verified
+  evidence_status: navigation_presence_human_username_local_verified
   excludes_preserved_uncommitted_png_experiment: false
 
 provider:
@@ -22,13 +22,13 @@ provider:
   operating_system: ubuntu-24.04
 
 release:
-  git_commit: 8429a41
+  git_commit: 8f9bc79
   current_path: /opt/agentpost/current
-  immutable_path: /opt/agentpost/releases/8429a41
-  virtualenv_path: /opt/agentpost/venvs/8429a41
-  alembic_revision: 0022_oauth_authorization_code
-  package_version: 0.1.18
-  connector_wheel_sha256: 71af53d2e35c94a256aa619c4622fd635a91670a4b8c1d756177cd0bd186002b
+  immutable_path: /opt/agentpost/releases/8f9bc79
+  virtualenv_path: /opt/agentpost/venvs/8f9bc79
+  alembic_revision: 0023_human_usernames
+  package_version: 0.1.19
+  connector_wheel_sha256: 6760b579bf9840671edb707df928f35879afb28bb361ba368bdc4bc4f4459c6a
   schema_change: true
 
 topology:
@@ -101,16 +101,16 @@ rollback:
     fresh_0_1_3_attempt: failed_snapshot_limit_exceeded
     existing_snapshots_preserved: true
   application_backup: /opt/agentpost/backups/20260824-https
-  current_update_backup: /opt/agentpost/backups/20260827-080717-8429a41-pre-018
+  current_update_backup: /opt/agentpost/backups/20260827-094118-8f9bc79-pre-019
   incomplete_backups_preserved:
     - /opt/agentpost/backups/20260825-1746-e378a7e-pre-016
     - /opt/agentpost/backups/20260825-1747-e378a7e-pre-016
     - /opt/agentpost/backups/20260826-1313-f15df99-pre-013
     - /opt/agentpost/backups/20260827-080230-8429a41-pre-018
     - /opt/agentpost/backups/20260827-080509-8429a41-pre-018
-  prior_release: /opt/agentpost/releases/504683f
-  prior_unit: /opt/agentpost/backups/20260827-080717-8429a41-pre-018/agentpost.service
-  immediate_script: /opt/agentpost/backups/20260827-080717-8429a41-pre-018/rollback-immediate-0.1.18.sh
+  prior_release: /opt/agentpost/releases/8429a41
+  prior_unit: /opt/agentpost/backups/20260827-094118-8f9bc79-pre-019/agentpost.service
+  immediate_script: /opt/agentpost/backups/20260827-094118-8f9bc79-pre-019/rollback-immediate-0.1.19.sh
   database_dump_verified: true
   attachment_archive_verified: true
 
@@ -130,9 +130,9 @@ acceptance:
   orbit_codex_0_1_1_guide: superseded_by_connection_code_v1
   orbit_frontend_errors: none
   pinned_connector_wheel: passed
-  public_connector_wheel_version: 0.1.18
+  public_connector_wheel_version: 0.1.19
   clean_public_wheel_install: passed
-  server_sdk_mcp_package_versions: aligned_0.1.18
+  server_sdk_mcp_package_versions: aligned_0.1.19
   package_boundary_regression: passed
   recipient_resolver_api_sdk_cli_mcp_skill_ui: deployed
   recipient_handle_editor: deployed_authenticated_production_acceptance_pending
@@ -193,6 +193,11 @@ acceptance:
   production_counts_after_0_1_16: 29_agents_66_messages_66_deliveries_4_attachments_9_humans
   production_counts_after_0_1_17: 32_agents_83_messages_83_deliveries_15_attachments_12_humans
   production_counts_after_0_1_18: 33_agents_92_messages_92_deliveries_15_attachments_13_humans
+  production_counts_after_0_1_19: 40_agents_99_messages_99_deliveries_15_attachments_14_humans
+  production_migration_0023_human_usernames: passed_after_upgrade_downgrade_upgrade_rehearsal
+  orbit_module_branding: passed_authenticated_fresh_production_page
+  connector_online_status_semantics: deployed_authenticated_wording_verified_live_state_transition_pending
+  human_username_recipient_resolution: deployed_cross_human_end_to_end_pending
   task_round_completion_semantics: deployed_authenticated_production_acceptance_pending
   relationship_scoped_agent_directory: deployed_authenticated_production_acceptance_pending
   mobile_startrail_shortcuts: deployed_authenticated_390px_production_acceptance_pending

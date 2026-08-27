@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.18-deployed-https-verified`
+- 交接阶段：`v0.1.19-deployed-https-verified`
 - 核验日期：2026-08-27
 - 代码分支：`main`
-- 阶段性质：0.1.18 已完成受保护生产切换和独立 HTTPS 后检；真实 Manus 宿主交互验收仍待 Human 确认
-- 本地开发状态：以 `8429a41 / 0.1.18` 为基线继续开发；生产仍为 `8429a41 / 0.1.18`，本地新切片未部署
+- 阶段性质：0.1.19 已完成受保护生产切换、独立 HTTPS 后检和登录态浏览器核验；真实跨 Human 用户名解析等端到端验收仍待确认
+- 本地开发状态：功能/发布提交为 `eca0b01 / 8f9bc79`，生产为 `8f9bc79 / 0.1.19`；部署流程提交为 `560752f`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 导航标题、对话倒序、真实在线状态与 Human 用户名（本地已验证，未部署）
+### 导航标题、对话倒序、真实在线状态与 Human 用户名（0.1.19 已部署并完成 HTTPS 后检）
 
 本地在 `8429a41 / 0.1.18` 基础上完成四项体验和身份切片。顶部品牌副标题现在随一级入口显示
 `AgentPost · 星轨 / 云驿 / 设置`；对话详情保留首条消息用于“发送自/给”主题路由，但正文改为
@@ -28,8 +28,22 @@ Agent 枚举。
 tests deselected；MCP 12 passed；Orbit JavaScript 24 passed；JavaScript syntax、Ruff check/format、
 Alembic 单头检查和 diff check 通过。隔离 Orbit 演示已验证桌面及 390×844：导航品牌同步切换、
 最新回复位于首条、设置页显示 Human 用户名、无横向溢出且控制台无 warning/error。当前本机没有
-Docker/PostgreSQL，因此 `0022 → 0023 → 0022 → 0023` 的真实 PostgreSQL 迁移演练仍是发布前门禁；
-本切片尚未上传、部署或生产验收。
+Docker/PostgreSQL；发布脚本已在服务器临时 PostgreSQL 数据库完成 `0022 → 0023 → 0022 → 0023`
+演练，再升级生产 schema 至 `0023_human_usernames`。
+
+发布物来自干净提交 `8f9bc79`：源码 SHA-256 为
+`1960b3884accfa75e7d0d1b10285c38643b6f699ca594783e9d63beaa92c108b`，wheel SHA-256 为
+`6760b579bf9840671edb707df928f35879afb28bb361ba368bdc4bc4f4459c6a`。生产当前指向
+`/opt/agentpost/releases/8f9bc79`，runtime 为 `/opt/agentpost/venvs/8f9bc79`；受保护切换备份为
+`/opt/agentpost/backups/20260827-094118-8f9bc79-pre-019/`。
+
+独立后检确认本机/公网 health、ready、公开 wheel 精确哈希、未知下载 404、三个服务 active、
+schema 和备份校验均通过；数据量为 40 Agents / 99 Messages / 99 Deliveries / 15 Attachments /
+14 Humans，未低于 0.1.18。AgentPost/Nginx/PostgreSQL PID 为 `259118/245451/245492`，Nginx 与
+PostgreSQL 未重启。登录态生产新标签页验证设置/云驿/星轨品牌分别正确、连接状态使用“在线”，
+对话列表可正常加载。旧已打开标签仍可能保留 0.1.18 JavaScript，重新开页即可加载新资源。
+当前状态为 `navigation_presence_human_username_deployed_https_verified`，真实跨 Human 用户名解析、
+真实 Agent 心跳在线/过期转换和跨设备移动端仍待验收，因此不是 `production_accepted`。
 
 ### Manus macOS/Windows 本机 STDIO 接入与 0.1.18 生产发布
 
