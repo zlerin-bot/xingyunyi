@@ -93,6 +93,8 @@ def _relationship_scope(
             session.flush()
         if session.get(AgentOwnership, target.id) is None:
             session.add(AgentOwnership(agent_id=target.id, human_user_id=target_owner.id))
+        if target_owner.default_agent_id is None:
+            target_owner.default_agent_id = target.id
 
         organization = session.scalar(
             select(Organization).where(Organization.slug == organization_slug)
@@ -181,6 +183,8 @@ def _assign_human_owner(
                         connector_instance_id=connector.id,
                     )
                 )
+            if owner.default_agent_id is None:
+                owner.default_agent_id = agent.id
         session.commit()
 
 
@@ -336,15 +340,12 @@ def test_phone_agent_inherits_its_humans_contact_scope_for_username_resolution(
     resolved_020 = _resolve(client, phone, "020")
     resolved_020_manus = _resolve(client, phone, "020 的 Manus")
     resolved_ianw = _resolve(client, phone, "ianw")
-    unresolved_lan = _resolve(client, phone, "lan")
+    suggested_lan = _resolve(client, phone, "lan")
+    suggested_lan_codex = _resolve(client, phone, "lan 的 Codex")
 
     assert resolved_020.status_code == 200, resolved_020.text
-    assert resolved_020.json()["status"] == "needs_clarification"
-    assert resolved_020.json()["total_candidates"] == 2
-    assert {candidate["agent_id"] for candidate in resolved_020.json()["candidates"]} == {
-        target_020_manus["agent"]["id"],
-        target_020_workbuddy["agent"]["id"],
-    }
+    assert resolved_020.json()["status"] == "resolved"
+    assert resolved_020.json()["match"]["agent_id"] == target_020_manus["agent"]["id"]
     assert resolved_020_manus.status_code == 200, resolved_020_manus.text
     assert resolved_020_manus.json()["status"] == "resolved"
     assert resolved_020_manus.json()["match"]["agent_id"] == target_020_manus["agent"]["id"]
@@ -353,9 +354,13 @@ def test_phone_agent_inherits_its_humans_contact_scope_for_username_resolution(
     assert resolved_ianw.json()["status"] == "resolved"
     assert resolved_ianw.json()["match"]["agent_id"] == target_ianw["agent"]["id"]
     assert resolved_ianw.json()["match"]["owner_username"] == "ianw"
-    assert unresolved_lan.status_code == 200, unresolved_lan.text
-    assert unresolved_lan.json()["status"] == "not_found"
-    assert unresolved_lan.json()["candidates"] == []
+    assert suggested_lan.status_code == 200, suggested_lan.text
+    assert suggested_lan.json()["status"] == "needs_clarification"
+    assert suggested_lan.json()["total_candidates"] == 1
+    assert suggested_lan.json()["candidates"][0]["agent_id"] == target_dylan["agent"]["id"]
+    assert suggested_lan.json()["candidates"][0]["owner_username"] == "dylan"
+    assert suggested_lan_codex.json()["status"] == "needs_clarification"
+    assert suggested_lan_codex.json()["candidates"][0]["owner_username"] == "dylan"
 
     for suffix, resolution in (
         ("020-manus", resolved_020_manus),
@@ -376,6 +381,39 @@ def test_phone_agent_inherits_its_humans_contact_scope_for_username_resolution(
         )
         assert sent.status_code == 201, sent.text
         assert sent.json()["to"][0]["agent_id"] == resolution.json()["match"]["agent_id"]
+
+
+def test_new_agent_can_target_a_strangers_exact_human_username_default(
+    client: TestClient,
+    database: Database,
+) -> None:
+    caller = _register(client, "new-user@agentpost.me", display_name="New User")
+    default = _register(client, "020-default@agentpost.me", display_name="020 Codex")
+    other = _register(client, "020-other@agentpost.me", display_name="020 WorkBuddy")
+    _assign_human_owner(
+        database,
+        addresses=(default["agent"]["address"], other["agent"]["address"]),
+        username="020",
+        display_name="020",
+        connector_types={
+            default["agent"]["address"]: "codex",
+            other["agent"]["address"]: "workbuddy",
+        },
+    )
+
+    resolved = _resolve(client, caller, "给020发信息")
+    directory = client.get(
+        "/api/v1/directory/search",
+        headers=_bearer(caller),
+        params={"q": "020"},
+    )
+
+    assert resolved.status_code == 200, resolved.text
+    assert resolved.json()["status"] == "resolved"
+    assert resolved.json()["match"]["agent_id"] == default["agent"]["id"]
+    assert resolved.json()["match"]["owner_username"] == "020"
+    assert directory.status_code == 200, directory.text
+    assert directory.json()["items"] == []
 
 
 @pytest.mark.parametrize(
@@ -652,7 +690,7 @@ def test_same_human_display_name_is_distinguished_by_shared_organization(
     assert all("@" not in item["label"] for item in result["candidates"])
 
 
-def test_human_name_lookup_does_not_enumerate_unrelated_people(
+def test_targeted_stranger_human_name_resolves_only_their_default_agent(
     client: TestClient,
     database: Database,
 ) -> None:
@@ -674,11 +712,14 @@ def test_human_name_lookup_does_not_enumerate_unrelated_people(
         session.add(owner)
         session.flush()
         session.add(AgentOwnership(agent_id=agent.id, human_user_id=owner.id))
+        owner.default_agent_id = agent.id
         session.commit()
 
     by_human = _resolve(client, caller, "给张子良的 Codex 发消息")
     by_explicit_handle = _resolve(client, caller, "给 private-code 发消息")
 
-    assert by_human.json()["status"] == "not_found"
+    assert by_human.json()["status"] == "resolved"
+    assert by_human.json()["match"]["agent_id"] == target["agent"]["id"]
+    assert by_human.json()["match"]["owner_display_name"] == "张子良"
     assert by_explicit_handle.json()["status"] == "resolved"
     assert by_explicit_handle.json()["match"]["owner_display_name"] is None

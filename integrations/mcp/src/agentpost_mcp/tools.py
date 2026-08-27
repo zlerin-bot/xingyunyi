@@ -84,8 +84,9 @@ def register_tools(mcp: Any, create_client: ClientFactory) -> None:
     @mcp.tool(
         name="agentpost_resolve_recipient",
         description=(
-            "Resolve a natural recipient such as an Agent handle or 'Human name + Agent type'. "
-            "Never construct an address from user input."
+            "Resolve a natural recipient such as an Agent handle, Human username, or partial "
+            "Human name. Send only for status=resolved; needs_clarification requires the Human "
+            "to confirm a candidate. Never construct an address from user input."
         ),
         annotations=READ_ONLY,
         structured_output=False,

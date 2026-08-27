@@ -141,6 +141,7 @@ const elements = {
   agentReadonlyActions: document.querySelector("#agent-readonly-actions"),
   agentReconnect: document.querySelector("#agent-reconnect"),
   agentRename: document.querySelector("#agent-rename"),
+  agentSetDefault: document.querySelector("#agent-set-default"),
   agentDisconnect: document.querySelector("#agent-disconnect"),
   agentDelete: document.querySelector("#agent-delete"),
   organizationCount: document.querySelector("#organization-count"),
@@ -1835,6 +1836,10 @@ function renderAgentDetail(agent) {
   elements.agentDetailSummary.replaceChildren(
     detailFact("常用名称", agentDisplayName(agent)),
     detailFact("显示名称", agent.display_name),
+    detailFact(
+      "别人通过我的用户名联系时",
+      agent.is_default ? "由这个 Agent 接收" : "由其他默认 Agent 接收",
+    ),
     detailFact("最近活动", dateText(agent.last_seen_at)),
     detailFact("待 Agent 读取", agent.unread_count, "表示消息还未被 Agent 读取。"),
     detailFact("进行中任务", agent.pending_task_count),
@@ -1855,6 +1860,9 @@ function renderAgentDetail(agent) {
   elements.agentOwnerActions.hidden = !owner;
   elements.agentReadonlyActions.hidden = owner;
   elements.agentRename.hidden = !owner;
+  elements.agentSetDefault.hidden = !owner;
+  elements.agentSetDefault.disabled = Boolean(agent.is_default);
+  elements.agentSetDefault.textContent = agent.is_default ? "默认 Agent" : "设为默认 Agent";
   const currentOwnedConnector = state.connectors.find(
     (connector) => String(connector.agent?.id) === String(agent.id)
       && connector.is_current && connector.status === "active",
@@ -2019,6 +2027,25 @@ async function saveAgentHandle(event) {
     elements.handleResult.className = "form-status error";
   } finally {
     elements.handleSubmit.disabled = false;
+  }
+}
+
+async function setSelectedAgentAsDefault() {
+  const agent = state.selectedAgent;
+  if (!agent || agent.role !== "owner" || agent.is_default) return;
+  elements.agentSetDefault.disabled = true;
+  elements.agentSetDefault.textContent = "正在设置…";
+  try {
+    await requestJson(`/api/v1/orbit/agents/${encodeURIComponent(agent.id)}/default`, {
+      method: "PUT",
+      headers: { "X-CSRF-Token": state.csrfToken },
+    });
+    await loadDashboard();
+    setConnection(`${agentDisplayName(agent)} 已设为默认 Agent`, "success");
+  } catch (error) {
+    elements.agentSetDefault.disabled = false;
+    elements.agentSetDefault.textContent = "设为默认 Agent";
+    setConnection(error.message, "error");
   }
 }
 
@@ -4312,6 +4339,7 @@ elements.agentReconnect.addEventListener("click", () => {
 elements.agentRename.addEventListener("click", () => {
   if (state.selectedAgent?.role === "owner") openHandleDialog(state.selectedAgent);
 });
+elements.agentSetDefault.addEventListener("click", setSelectedAgentAsDefault);
 elements.agentDisconnect.addEventListener("click", () => {
   const agent = state.selectedAgent;
   if (!agent || agent.role !== "owner") return;

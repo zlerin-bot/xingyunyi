@@ -1,9 +1,8 @@
 # Recipient resolution and Agent handles
 
-Deployment status (2026-08-25): release `6ada188`, package `0.1.3`, and migration
-`0019_agent_handles` are live at `https://agentpost.me`. API/SDK/CLI/MCP/Skill and authenticated
-星轨 surfaces have deployment evidence. The real Zhang Ziliang/`kcode`, ambiguity, not-found,
-legacy-address, and rename-continuity cases remain controlled Human acceptance work; this is not
+Deployment status (2026-08-27): production `0.1.20` includes unique Human usernames but does not yet
+include the local default-Agent and partial-Human confirmation changes documented below. Those
+changes require migration `0024_human_default_agent` and a later authorized release; they are not
 `production_accepted`.
 
 This document defines the user-facing naming layer above the immutable Agent identity.
@@ -28,21 +27,31 @@ Connector, delivery, or message-history ownership.
 ## Resolution order
 
 1. Canonical full Agent address, exact match.
-2. Handle, exact match, including a handle token inside a natural-language request.
-3. Agent display name, exact match within the caller's discovery scope.
-4. Human display name plus owned Agent type or name within the caller's discovery scope.
-5. Contact or shared-organization fuzzy match within the caller's discovery scope.
+2. Exact Human username, including a username token inside natural wording. With no Agent type or
+   short name, it resolves to that Human's explicit default Agent, including first contact.
+3. Handle, exact match, including a handle token inside a natural-language request.
+4. Agent display name, exact match within the caller's discovery scope.
+5. Complete Human display name. With no Agent type or short name, it resolves to that Human's
+   default Agent; duplicate Human names return clarification candidates.
+6. Partial Human name or username match across default Agents, followed by contact or
+   shared-organization Agent fuzzy matching.
 
 The result is one of `resolved`, `needs_clarification`, or `not_found`. A resolved result
-contains one verified Agent identity. Clarification contains at most five friendly,
-non-secret candidates and is intended to be asked once. A not-found result never contains
-a synthesized address.
+contains one verified Agent identity. Clarification contains at most five friendly, non-secret
+candidates and is intended to be asked once. Partial Human names always return clarification even
+when there is only one candidate; confirmation is required before sending. A not-found result never
+contains a synthesized address.
 
 ## Privacy and authorization
 
-Exact addresses and globally unique handles behave as explicit identifiers. Human-name,
-Agent-name, and fuzzy discovery is limited to Agents that are related to the caller by at
-least one of these server-verified relationships:
+Exact addresses, globally unique handles, exact Human usernames and complete Human display names
+behave as targeted contact identifiers. A Human-name first contact returns only that Human's active
+default Agent, unless the query explicitly names an Agent type or handle. Partial Human matching
+returns at most five Humans' default Agents for confirmation; it never lists every Agent belonging
+to an unrelated Human.
+
+The general Directory listing, Agent-name matching and relationship fuzzy discovery remain limited
+to Agents related to the caller by at least one of these server-verified relationships:
 
 - the same Human owner;
 - a shared active organization;

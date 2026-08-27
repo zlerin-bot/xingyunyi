@@ -100,6 +100,7 @@ def human_profile(user: HumanUser) -> HumanProfile:
         username=user.username,
         display_name=user.display_name,
         status=user.status,
+        default_agent_id=user.default_agent_id,
         created_at=user.created_at,
         updated_at=user.updated_at,
         last_seen_at=user.last_seen_at,
@@ -205,6 +206,11 @@ def grant_agent_access(
     )
     now = utc_now()
 
+    previous_owner_id: UUID | None = None
+    existing_ownership = session.get(AgentOwnership, agent.id)
+    if existing_ownership is not None:
+        previous_owner_id = existing_ownership.human_user_id
+
     if role == "owner":
         session.execute(delete(AgentOwnership).where(AgentOwnership.agent_id == agent.id))
         session.execute(
@@ -221,12 +227,20 @@ def grant_agent_access(
             )
         )
         agent.owner_id = str(user.id)
+        session.flush()
+        ensure_human_default_agent(session, user=user)
+        if previous_owner_id is not None and previous_owner_id != user.id:
+            previous_owner = session.get(HumanUser, previous_owner_id)
+            if previous_owner is not None:
+                ensure_human_default_agent(session, user=previous_owner)
         granted_at = now
     else:
         ownership = session.get(AgentOwnership, agent.id)
         if ownership is not None and ownership.human_user_id == user.id:
             session.delete(ownership)
             agent.owner_id = None
+            session.flush()
+            ensure_human_default_agent(session, user=user)
         grant = session.scalar(
             select(HumanAgentGrant).where(
                 HumanAgentGrant.human_user_id == user.id,
@@ -289,6 +303,8 @@ def revoke_agent_access(
     if ownership is not None and ownership.human_user_id == user.id:
         session.delete(ownership)
         agent.owner_id = None
+        session.flush()
+        ensure_human_default_agent(session, user=user)
         removed = True
     grant = session.scalar(
         select(HumanAgentGrant).where(
@@ -376,6 +392,79 @@ def list_agent_access(session: Session, user: HumanUser) -> list[AccessEntry]:
     return sorted(entries.values(), key=lambda entry: entry.agent.address)
 
 
+def ensure_human_default_agent(session: Session, *, user: HumanUser) -> UUID | None:
+    """Keep a Human's default Agent pointed at an active Agent they own."""
+
+    if user.default_agent_id is not None:
+        current = session.scalar(
+            select(Agent.id)
+            .join(AgentOwnership, AgentOwnership.agent_id == Agent.id)
+            .where(
+                Agent.id == user.default_agent_id,
+                AgentOwnership.human_user_id == user.id,
+                Agent.status == "active",
+            )
+        )
+        if current is not None:
+            return current
+
+    replacement = session.scalar(
+        select(Agent.id)
+        .join(AgentOwnership, AgentOwnership.agent_id == Agent.id)
+        .where(
+            AgentOwnership.human_user_id == user.id,
+            Agent.status == "active",
+        )
+        .order_by(AgentOwnership.assigned_at, Agent.address, Agent.id)
+        .limit(1)
+    )
+    user.default_agent_id = replacement
+    return replacement
+
+
+def set_human_default_agent(
+    session: Session,
+    *,
+    user: HumanUser,
+    agent_id: UUID,
+    human_session_id: UUID | None,
+    request_id: str,
+) -> None:
+    """Select the active owned Agent used for Human-name first contact."""
+
+    agent = session.scalar(
+        select(Agent)
+        .join(AgentOwnership, AgentOwnership.agent_id == Agent.id)
+        .where(
+            Agent.id == agent_id,
+            AgentOwnership.human_user_id == user.id,
+            Agent.status == "active",
+        )
+        .with_for_update()
+    )
+    if agent is None:
+        raise AgentOwnerActionDeniedError
+    previous_agent_id = user.default_agent_id
+    user.default_agent_id = agent.id
+    session.add(
+        HumanActionAudit(
+            human_user_id=user.id,
+            human_session_id=human_session_id,
+            action="control.default_agent_updated",
+            target_type="agent",
+            target_id=str(agent.id),
+            outcome="success",
+            request_id=request_id,
+            audit_metadata={
+                "previous_agent_id": str(previous_agent_id) if previous_agent_id else None,
+                "default_agent_id": str(agent.id),
+            },
+            created_at=utc_now(),
+        )
+    )
+    session.commit()
+
+
 def disable_owned_agent(
     session: Session,
     *,
@@ -429,6 +518,8 @@ def disable_owned_agent(
 
     agent.status = "disabled"
     agent.updated_at = now
+    session.flush()
+    ensure_human_default_agent(session, user=user)
     session.add(
         HumanActionAudit(
             human_user_id=user.id,
@@ -1206,6 +1297,7 @@ def build_orbit_dashboard(
                 description=entry.agent.description,
                 status=entry.agent.status,
                 role=entry.role,
+                is_default=(entry.agent.id == user.default_agent_id),
                 access_source=entry.source,
                 organization=(
                     OrbitOrganizationReference(

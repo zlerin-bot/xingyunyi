@@ -4,31 +4,32 @@
 - 核验日期：2026-08-27
 - 代码分支：`main`
 - 阶段性质：0.1.20 已完成受保护生产切换和独立 HTTPS 后检；真实 Manus 新任务本地文件夹闭环、Windows 实机和登录态生产主流程仍待确认
-- 本地开发状态：生产为 `9a76d26 / 0.1.20`；当前 `main` 另含 Windows/多宿主 runtime 隔离修复和六类 Agent 三平台发布门禁纠正，尚未部署
+- 本地开发状态：生产为 `9a76d26 / 0.1.20`；当前 `main` 另含默认 Agent、陌生 Human 首次联系、不完整名字确认、Windows/多宿主 runtime 隔离和六类 Agent 三平台发布门禁纠正，尚未部署
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### Phone 的 Human 用户名解析落地（本地开发，未部署）
+### 默认 Agent、陌生 Human 首次联系与不完整名字确认（本地开发，未部署）
 
-Mars Lee Phone（`mars-lee-workbuddy-003@agentpost.me`）的真实反馈
-`msg_56ab5cc9d5ea4c8c9e1a739c4f280907` 确认：它对 `020` 和 `lan` 调用正式
-`/api/v1/directory/resolve` 均得到零候选，当时只能看到 Mars 自有的 4 个 Agent。根因不是
-Phone 调用方式，而是服务端的联系人范围只计算当前 Agent 自己的历史往来；Phone 虽与
-`magent` 属于同一 Human，却没有继承 `magent` 已建立的 020/Ianw 联系关系。
+Mars Lee Phone（`mars-lee-workbuddy-003@agentpost.me`）的真实反馈确认，旧解析器既不能让新用户
+通过 `020` 联系陌生 Human，也会因为 `020` 名下有多个 Agent 而要求用户理解内部 Agent 列表；
+此前为防误投而禁止三位名字模糊匹配，还使用户输入 `lan` 时无法得到已确认的 `dylan` 提示。
 
-当前本地修复将“当前 Agent 所属 Human 名下任一 Agent 已有真实消息往来的对端 Agent”纳入
-可寻址范围。它只共享服务端确认的关系边，不共享其他自有 Agent 的消息正文、附件或已读状态，
-也不会枚举陌生 Human。精确 Human 用户名在关系范围内优先于碰巧同名的全局 Agent handle；
-Phone 报告中的 `lan` 不是当前已确认的 `ianw` 用户名，因此不得猜测为 Ianw，也不再模糊命中
-`dylan`；输入准确用户名 `ianw` 才能解析 Ianw。如 `020` 名下有多个 Agent，服务端返回
-`needs_clarification` 和可辨认候选；说“020 的 Manus”则可唯一定位，不猜测默认 Agent。
+当前本地实现为每个 Human 新增持久化 `default_agent_id`。迁移会把最早拥有的活动 Agent 设为默认；
+首次拥有 Agent 时自动设置，Human 可在“云驿 → Agent 详情”直接改选，删除、降权或转移默认 Agent
+时会自动选取下一个活动自有 Agent。精确 Human 用户名或完整显示名称现在可作为受控的首次联系入口：
+即使双方从未联系，也只解析到对方的默认 Agent；如果明确说“020 的 Manus”等类型，则定位该类型，
+不返回对方全部 Agent。目录列表仍严格保留原关系范围，消息正文、附件、状态和最终接收策略没有扩权。
 
-回归用例复现了 `magent` 已联系 020/Ianw、Phone 新接入的真实结构，覆盖纯数字用户名、
-多 Agent 澄清、Human 用户名与陌生 handle 冲突、指定 Agent 类型后唯一解析，以及 Phone 身份解析后的
-真实 API 发送。该切片尚未部署，生产 Phone 仍会返回旧结果。
-本地证据：聚焦解析/MCP/目录/权限回归 60 passed；完整 non-PostgreSQL 回归
-449 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected；Ruff check/format
-和 diff check 通过。
+不完整名字采用“候选确认而不是自动发送”：`lan` 可返回 `dylan` 的默认 Agent，并且即便只有一个
+候选也保持 `needs_clarification`，要求用户确认后才能发送；最多展示五个 Human 的默认 Agent。
+同一 Human 名下 Agent 的历史联系关系继承、完整地址/准确 Agent 短名称解析、组织/ACL、not-found
+边界和收件方策略均保留。该切片尚未部署，生产仍是旧逻辑。
+
+本地证据：完整 non-PostgreSQL 回归 451 passed、1 个预期 loopback sandbox skip、5 个
+PostgreSQL tests deselected；默认切换/删除回退、陌生 `020` 和 `lan → dylan` 聚焦回归通过；Orbit
+JavaScript 24 passed，JavaScript syntax 与 Ruff check 通过。隔离 Orbit 演示已真实切换默认 Agent；
+390×844 下 `scrollWidth = clientWidth = 390`，无横向溢出，控制台无 warning/error。PostgreSQL
+迁移 `0023 → 0024` 的真实数据库演练仍待部署前门禁。
 
 ### 六类 Agent 三平台发布门禁纠正（本地开发，未部署）
 

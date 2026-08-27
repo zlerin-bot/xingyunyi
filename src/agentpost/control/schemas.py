@@ -54,6 +54,7 @@ class HumanProfile(ControlModel):
     username: str
     display_name: str
     status: str
+    default_agent_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
     last_seen_at: datetime | None
@@ -168,6 +169,7 @@ class OrbitAgent(ControlModel):
     description: str | None
     status: str
     role: Literal["owner", "operator", "viewer", "auditor"]
+    is_default: bool = False
     access_source: Literal["direct", "organization"] = "direct"
     organization: OrbitOrganizationReference | None = None
     capabilities: list[str]

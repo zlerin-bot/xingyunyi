@@ -46,6 +46,7 @@ from agentpost.control.service import (
     list_orbit_tasks,
     list_orbit_threads,
     mark_orbit_thread_viewed,
+    set_human_default_agent,
 )
 from agentpost.control.sessions import (
     HUMAN_SESSION_COOKIE,
@@ -363,6 +364,34 @@ def update_orbit_agent_handle(
     session.commit()
     session.refresh(agent)
     return agent_profile(agent)
+
+
+@router.put("/api/v1/orbit/agents/{agent_id}/default", response_model=HumanProfile)
+def update_orbit_default_agent(
+    agent_id: UUID,
+    request: Request,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    csrf: HumanCsrfDep,
+) -> HumanProfile:
+    _ = csrf
+    try:
+        set_human_default_agent(
+            session,
+            user=current_human,
+            agent_id=agent_id,
+            human_session_id=human_session_id_from_request(request),
+            request_id=request.state.request_id,
+        )
+    except AgentOwnerActionDeniedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "default_agent_access_denied",
+                "message": "Only the Human owner can set this default Agent",
+            },
+        ) from exc
+    return human_profile(current_human)
 
 
 @router.delete(

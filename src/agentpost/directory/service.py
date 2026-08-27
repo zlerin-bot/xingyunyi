@@ -44,6 +44,9 @@ _ADDRESS_TOKEN = re.compile(
     flags=re.ASCII,
 )
 _HANDLE_TOKEN = re.compile(r"(?<![A-Za-z0-9-])([A-Za-z][A-Za-z0-9-]{2,31})(?![A-Za-z0-9-])")
+_HUMAN_USERNAME_TOKEN = re.compile(
+    r"(?<![A-Za-z0-9-])([A-Za-z0-9](?:[A-Za-z0-9-]{1,30}[A-Za-z0-9]))(?![A-Za-z0-9-])"
+)
 _GENERIC_AGENT_TERMS = frozenset({"agent", "智能体", "助手"})
 _TYPE_LABELS = {
     "codex": "Codex",
@@ -288,6 +291,136 @@ def _candidate_contexts(session: Session, caller: Agent) -> list[_CandidateConte
     ]
 
 
+def _owned_human_contexts(session: Session, human: HumanUser) -> list[_CandidateContext]:
+    rows = session.execute(
+        select(Agent, ConnectorInstance.connector_type)
+        .join(AgentOwnership, AgentOwnership.agent_id == Agent.id)
+        .outerjoin(AgentConnectorBinding, AgentConnectorBinding.agent_id == Agent.id)
+        .outerjoin(
+            ConnectorInstance,
+            ConnectorInstance.id == AgentConnectorBinding.connector_instance_id,
+        )
+        .where(
+            AgentOwnership.human_user_id == human.id,
+            Agent.status == "active",
+        )
+        .order_by(Agent.address)
+    ).all()
+    return [
+        _CandidateContext(
+            agent=agent,
+            owner_id=human.id,
+            owner_display_name=human.display_name,
+            owner_username=human.username,
+            agent_type=agent_type,
+        )
+        for agent, agent_type in rows
+    ]
+
+
+def _default_human_context(
+    session: Session,
+    human: HumanUser,
+) -> _CandidateContext | None:
+    if human.default_agent_id is None:
+        return None
+    return next(
+        (
+            context
+            for context in _owned_human_contexts(session, human)
+            if context.agent.id == human.default_agent_id
+        ),
+        None,
+    )
+
+
+def _contexts_for_targeted_human(
+    session: Session,
+    *,
+    human: HumanUser,
+    normalized_query: str,
+) -> list[_CandidateContext]:
+    contexts = _owned_human_contexts(session, human)
+    return _select_targeted_contexts(
+        contexts,
+        default_agent_id=human.default_agent_id,
+        normalized_query=normalized_query,
+    )
+
+
+def _select_targeted_contexts(
+    contexts: list[_CandidateContext],
+    *,
+    default_agent_id: UUID | None,
+    normalized_query: str,
+) -> list[_CandidateContext]:
+    typed = [
+        context
+        for context in contexts
+        if _query_mentions_agent_type(normalized_query, context.agent_type)
+    ]
+    if typed:
+        return typed
+    handles = set(_handle_tokens(normalized_query))
+    named = [
+        context
+        for context in contexts
+        if (context.agent.handle and context.agent.handle in handles)
+        or context.agent.display_name.strip().casefold() in normalized_query
+    ]
+    if named:
+        return named
+    default = next(
+        (context for context in contexts if context.agent.id == default_agent_id),
+        None,
+    )
+    return [default] if default is not None else []
+
+
+def _human_username_tokens(query: str) -> list[str]:
+    tokens: list[str] = []
+    normalized = query.strip().casefold()
+    for token in [
+        normalized,
+        *(match.group(1).casefold() for match in _HUMAN_USERNAME_TOKEN.finditer(query)),
+    ]:
+        if token not in tokens:
+            tokens.append(token)
+    return tokens
+
+
+def _fuzzy_human_contexts(session: Session, query: str) -> list[_CandidateContext]:
+    fuzzy_terms = [
+        token
+        for token in _human_username_tokens(query)
+        if token not in _GENERIC_AGENT_TERMS and token not in _KNOWN_AGENT_TYPE_TERMS
+    ]
+    matches: list[tuple[float, HumanUser]] = []
+    for human in session.scalars(
+        select(HumanUser)
+        .where(HumanUser.status == "active", HumanUser.default_agent_id.is_not(None))
+        .order_by(HumanUser.username)
+    ):
+        score = 0.0
+        for term in fuzzy_terms:
+            if len(term) < 2:
+                continue
+            for value in (human.username, human.display_name):
+                normalized_value = value.strip().casefold()
+                if term in normalized_value or normalized_value in term:
+                    score = max(score, 0.9)
+                elif len(term) >= 4:
+                    score = max(score, SequenceMatcher(None, term, normalized_value).ratio())
+        if score >= 0.72:
+            matches.append((score, human))
+    matches.sort(key=lambda item: (-item[0], item[1].username))
+    return [
+        context
+        for _, human in matches
+        if (context := _default_human_context(session, human)) is not None
+    ]
+
+
 def _address_from_query(query: str) -> str | None:
     tokens = [query, *(match.group(1) for match in _ADDRESS_TOKEN.finditer(query))]
     for token in tokens:
@@ -442,6 +575,27 @@ def _resolution(
     )
 
 
+def _clarification_resolution(
+    query: str,
+    contexts: list[_CandidateContext],
+    match_kind: str,
+) -> RecipientResolution:
+    candidates = _friendly_candidates(contexts, match_kind=match_kind)
+    if candidates:
+        return RecipientResolution(
+            status="needs_clarification",
+            query=query,
+            candidates=candidates[:5],
+            total_candidates=len(candidates),
+            reason="recipient_ambiguous",
+        )
+    return RecipientResolution(
+        status="not_found",
+        query=query,
+        reason="recipient_not_found",
+    )
+
+
 def _context_for_exact_agent(
     agent: Agent,
     scoped_by_id: dict[UUID, _CandidateContext],
@@ -467,13 +621,83 @@ def resolve_recipient(session: Session, *, caller: Agent, query: str) -> Recipie
         contexts = [_context_for_exact_agent(exact, scoped_by_id)] if exact is not None else []
         return _resolution(cleaned_query, contexts, "address")
 
-    exact_username_matches = [
+    username_tokens = [
+        token
+        for token in _human_username_tokens(cleaned_query)
+        if token not in _GENERIC_AGENT_TERMS and token not in _KNOWN_AGENT_TYPE_TERMS
+    ]
+    exact_humans = list(
+        session.scalars(
+            select(HumanUser)
+            .where(
+                HumanUser.username.in_(username_tokens),
+                HumanUser.status == "active",
+            )
+            .order_by(HumanUser.username)
+        )
+    )
+    if exact_humans:
+        contexts = [
+            context
+            for human in exact_humans
+            for context in _contexts_for_targeted_human(
+                session,
+                human=human,
+                normalized_query=normalized_query,
+            )
+        ]
+        return _resolution(cleaned_query, contexts, "human_agent")
+
+    scoped_display_humans = [
         context
         for context in scoped
-        if context.owner_username and context.owner_username.strip().casefold() == normalized_query
+        if context.owner_display_name
+        and len(context.owner_display_name.strip()) >= 2
+        and context.owner_display_name.strip().casefold() in normalized_query
     ]
-    if exact_username_matches:
-        return _resolution(cleaned_query, exact_username_matches, "human_agent")
+    if scoped_display_humans:
+        contexts: list[_CandidateContext] = []
+        owner_ids = list(
+            dict.fromkeys(context.owner_id for context in scoped_display_humans if context.owner_id)
+        )
+        humans = {
+            human.id: human
+            for human in session.scalars(select(HumanUser).where(HumanUser.id.in_(owner_ids)))
+        }
+        for owner_id in owner_ids:
+            owner_contexts = [
+                context for context in scoped_display_humans if context.owner_id == owner_id
+            ]
+            contexts.extend(
+                _select_targeted_contexts(
+                    owner_contexts,
+                    default_agent_id=humans[owner_id].default_agent_id,
+                    normalized_query=normalized_query,
+                )
+            )
+        return _resolution(cleaned_query, contexts, "human_agent")
+
+    exact_display_humans = [
+        human
+        for human in session.scalars(
+            select(HumanUser)
+            .where(HumanUser.status == "active", HumanUser.default_agent_id.is_not(None))
+            .order_by(HumanUser.display_name, HumanUser.username)
+        )
+        if len(human.display_name.strip()) >= 2
+        and human.display_name.strip().casefold() in normalized_query
+    ]
+    if exact_display_humans:
+        contexts = [
+            context
+            for human in exact_display_humans
+            for context in _contexts_for_targeted_human(
+                session,
+                human=human,
+                normalized_query=normalized_query,
+            )
+        ]
+        return _resolution(cleaned_query, contexts, "human_agent")
 
     if HANDLE_PATTERN.fullmatch(normalized_query):
         exact_handle = session.scalar(
@@ -541,6 +765,9 @@ def resolve_recipient(session: Session, *, caller: Agent, query: str) -> Recipie
         return _resolution(cleaned_query, owner_matches, "human_agent")
 
     if _looks_like_human_agent_query(cleaned_query):
+        human_contexts = _fuzzy_human_contexts(session, cleaned_query)
+        if human_contexts:
+            return _clarification_resolution(cleaned_query, human_contexts, "fuzzy")
         return _resolution(cleaned_query, [], "human_agent")
 
     handles = _handle_tokens(cleaned_query)
@@ -559,12 +786,11 @@ def resolve_recipient(session: Session, *, caller: Agent, query: str) -> Recipie
                 "handle",
             )
 
+    human_contexts = _fuzzy_human_contexts(session, cleaned_query)
+    if human_contexts:
+        return _clarification_resolution(cleaned_query, human_contexts, "fuzzy")
+
     fuzzy_matches: list[tuple[float, _CandidateContext]] = []
-    # Three-character usernames such as `lan` are valid stable identifiers.
-    # Fuzzy matching them to a different owner such as `dylan` is more likely
-    # to misroute a message than to help, so short unresolved queries fail closed.
-    if len(normalized_query) < 4:
-        return _resolution(cleaned_query, [], "fuzzy")
     for context in scoped:
         values = [
             context.agent.handle,

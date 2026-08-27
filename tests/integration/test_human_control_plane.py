@@ -240,6 +240,8 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "pairing-handle" in orbit.text
     assert "连接时就可以设置" in orbit.text
     assert "/api/v1/orbit/agents/${encodeURIComponent(agentId)}/handle" in script.text
+    assert "/api/v1/orbit/agents/${encodeURIComponent(agent.id)}/default" in script.text
+    assert "设为默认 Agent" in orbit.text
     assert "does-not-exist@agentpost.me" not in script.text
     assert "查看底层身份" in script.text
     assert "修改短名称" in script.text
@@ -745,6 +747,66 @@ def test_non_owner_cannot_change_agent_handle(
 
     assert denied.status_code == 403
     assert denied.json()["error"]["code"] == "AGENT_HANDLE_ACCESS_DENIED"
+
+
+def test_owner_can_choose_the_default_agent_used_for_human_name_contact(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with _control_client(settings, database) as client:
+        first = _create_agent(client, "first-default@agents.local", "First Codex")
+        second = _create_agent(client, "second-default@agents.local", "Second WorkBuddy")
+        owner = _create_human(client, "default-owner@example.com", "默认联系人")
+        _grant(
+            client,
+            human_id=owner["user"]["id"],
+            agent_id=first["agent"]["id"],
+            role="owner",
+        )
+        _grant(
+            client,
+            human_id=owner["user"]["id"],
+            agent_id=second["agent"]["id"],
+            role="owner",
+        )
+        headers = {"Authorization": f"Bearer {owner['access_key']}"}
+
+        before = client.get("/api/v1/orbit/dashboard", headers=headers)
+        updated = client.put(
+            f"/api/v1/orbit/agents/{second['agent']['id']}/default",
+            headers=headers,
+        )
+        after = client.get("/api/v1/orbit/dashboard", headers=headers)
+        deleted = client.request(
+            "DELETE",
+            f"/api/v1/orbit/agents/{second['agent']['id']}",
+            headers=headers,
+            json={"confirmation": "delete"},
+        )
+        fallback = client.get("/api/v1/orbit/dashboard", headers=headers)
+
+    assert (
+        before.status_code
+        == updated.status_code
+        == after.status_code
+        == fallback.status_code
+        == 200
+    )
+    assert deleted.status_code == 204
+    assert before.json()["user"]["default_agent_id"] == first["agent"]["id"]
+    assert updated.json()["default_agent_id"] == second["agent"]["id"]
+    default_agents = [agent for agent in after.json()["agents"] if agent["is_default"]]
+    assert [agent["id"] for agent in default_agents] == [second["agent"]["id"]]
+    assert fallback.json()["user"]["default_agent_id"] == first["agent"]["id"]
+
+    with database.session_factory() as session:
+        audit = session.scalar(
+            select(HumanActionAudit).where(
+                HumanActionAudit.action == "control.default_agent_updated"
+            )
+        )
+        assert audit is not None
+        assert audit.target_id == second["agent"]["id"]
 
 
 def test_owner_dashboard_separates_delivery_from_work_and_isolates_other_agents(

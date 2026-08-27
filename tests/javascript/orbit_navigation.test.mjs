@@ -249,8 +249,11 @@ test("Agent owners can find the short-name action in the detail heading", () => 
   const dangerActions = html.slice(dangerStart, dangerEnd);
 
   assert.match(headingActions, /id="agent-rename"/);
+  assert.match(headingActions, /id="agent-set-default"/);
   assert.doesNotMatch(dangerActions, /id="agent-rename"/);
   assert.match(script, /elements\.agentRename\.hidden = !owner/);
+  assert.match(script, /elements\.agentSetDefault\.hidden = !owner/);
+  assert.match(script, /agent\.is_default \? "默认 Agent" : "设为默认 Agent"/);
 });
 
 test("Agent selection and tab survive deep links and browser history", () => {

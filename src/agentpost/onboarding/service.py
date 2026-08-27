@@ -593,6 +593,8 @@ def decide_pairing(
                     assigned_at=now,
                 )
             )
+        if user.default_agent_id is None:
+            user.default_agent_id = agent.id
         current_binding = session.scalar(
             select(AgentConnectorBinding)
             .where(AgentConnectorBinding.agent_id == agent.id)
