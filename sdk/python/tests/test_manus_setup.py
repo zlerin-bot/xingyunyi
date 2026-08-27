@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import stat
 import subprocess
 import sys
 from pathlib import Path
 
-from agentpost_sdk.manus_setup import configure_manus_mcp
+import pytest
+from agentpost_sdk.errors import ConfigurationError
+from agentpost_sdk.manus_setup import configure_manus_local_folder, configure_manus_mcp
 
 
 def _executable(path: Path, source: str = "#!/bin/sh\nexit 0\n") -> Path:
@@ -26,6 +29,67 @@ def _runtime(tmp_path: Path, *, windows: bool = False) -> tuple[Path, Path, Path
         "raise SystemExit(main())\n",
     )
     return mcp, connector, launcher
+
+
+def _local_runtime(tmp_path: Path) -> tuple[Path, Path]:
+    mcp = _executable(tmp_path / "agentpost-mcp")
+    adapter = _executable(
+        tmp_path / "agentpost-manus-folder",
+        "#!/usr/bin/env python3\nfrom agentpost_sdk.manus_local_adapter import main\n",
+    )
+    return mcp, adapter
+
+
+def test_manus_local_folder_setup_creates_secret_free_verified_files(tmp_path: Path) -> None:
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    mcp, adapter = _local_runtime(runtime)
+    workspace = tmp_path / "manus-workspace"
+    workspace.mkdir()
+
+    result = configure_manus_local_folder(
+        server="https://agentpost.me/",
+        profile="manus:test-device",
+        expected_agent_address="020-manus-001@agentpost.me",
+        mcp_command=mcp,
+        workspace_path=workspace,
+    )
+
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert result.mode == "local_folder"
+    assert result.command.read_bytes() == adapter.read_bytes()
+    assert "# 星云驿 Manus 本地文件夹" in result.agents_path.read_text(encoding="utf-8")
+    assert stat.S_IMODE(result.command.stat().st_mode) == 0o700
+    assert stat.S_IMODE(result.agents_path.stat().st_mode) == 0o600
+    assert stat.S_IMODE(result.manifest_path.stat().st_mode) == 0o600
+    assert manifest["expected_agent_address"] == "020-manus-001@agentpost.me"
+    assert manifest["adapter_sha256"] == hashlib.sha256(adapter.read_bytes()).hexdigest()
+    assert manifest["agents_sha256"] == hashlib.sha256(result.agents_path.read_bytes()).hexdigest()
+    serialized = result.manifest_path.read_text(encoding="utf-8")
+    assert "AGENTPOST_API_KEY" not in serialized
+    assert "agt_" not in serialized
+    assert "new task" not in result.first_task_prompt.lower()
+    assert "manus_task_mount_stale" in result.first_task_prompt
+
+
+def test_manus_local_folder_setup_refuses_incomplete_or_unmanaged_bundle(tmp_path: Path) -> None:
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    mcp, _ = _local_runtime(runtime)
+    workspace = tmp_path / "manus-workspace"
+    workspace.mkdir()
+    (workspace / "AGENTS.md").write_text("user-owned instructions\n", encoding="utf-8")
+
+    with pytest.raises(ConfigurationError) as exc_info:
+        configure_manus_local_folder(
+            server="https://agentpost.me",
+            profile="manus:test-device",
+            expected_agent_address="020-manus-001@agentpost.me",
+            mcp_command=mcp,
+            workspace_path=workspace,
+        )
+
+    assert exc_info.value.code == "manus_local_adapter_conflict"
 
 
 def test_manus_setup_creates_secret_free_command_only_launcher(tmp_path: Path) -> None:

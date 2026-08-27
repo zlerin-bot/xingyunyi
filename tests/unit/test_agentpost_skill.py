@@ -46,9 +46,11 @@ def test_skill_is_implicitly_discoverable_and_declares_agentpost_dependency() ->
     assert "Custom Connector with `STDIO`" in skill
     assert "args and env stay empty" in skill
     assert "no token is copied" in skill
-    assert "Manus desktop uses its built-in Custom MCP with `STDIO`" in skill
-    assert "platform-native launcher" in skill
-    assert "do not claim success until AgentPost\n   tools/list" in skill
+    assert "Manus currently uses a dedicated local folder, not Custom MCP" in skill
+    assert "fixed `xingyunyi` adapter" in skill
+    assert "`./xingyunyi request-stdin`" in skill
+    assert "manus_local_folder_adapter_confirmed" in skill
+    assert "Windows remains\n   separately untested" in skill
     assert "Treat a partially loaded or outdated AgentPost MCP as unavailable" in skill
     assert "never report\n   `not_found` from that legacy path" in skill
     assert "upgrades to the server-pinned release and resumes the send" in skill
@@ -205,6 +207,42 @@ def test_bootstrap_passes_requested_host_to_release_gate(tmp_path: Path) -> None
         == 0
     )
     assert observed == [{"host_name": "openclaw", "platform_name": bootstrap.current_platform()}]
+
+
+def test_bootstrap_passes_selected_local_folder_to_manus_setup(tmp_path: Path) -> None:
+    bootstrap = _load_bootstrap()
+    runtime = tmp_path / "runtime"
+    connector = runtime / "bin" / "agentpost-connect"
+    connector.parent.mkdir(parents=True)
+    connector.touch()
+    calls: list[tuple[str, ...]] = []
+    workspace = tmp_path / "manus-workspace"
+    workspace.mkdir()
+
+    def runner(command, **_kwargs):
+        normalized = tuple(str(item) for item in command)
+        calls.append(normalized)
+        if "-I" in normalized:
+            return SimpleNamespace(returncode=0, stdout="0.1.1\n")
+        return SimpleNamespace(returncode=0, stdout="")
+
+    assert (
+        bootstrap.execute(
+            ["setup", "manus"],
+            fetcher=lambda **_kwargs: _release(bootstrap),
+            runtime=runtime,
+            runner=runner,
+            workspace=workspace,
+        )
+        == 0
+    )
+    assert calls[-1] == (
+        str(connector),
+        "setup",
+        "manus",
+        "--workspace",
+        str(workspace.resolve()),
+    )
 
 
 def test_bootstrap_installs_hash_pinned_release_once_and_resumes_original_send(

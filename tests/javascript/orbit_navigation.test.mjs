@@ -219,6 +219,10 @@ test("new Agent guide offers six host-specific paths in the product order", () =
   assert.match(script, /hermes: \{ name: "Hermes", code: "AP-HERMES-V1" \}/);
   assert.match(script, /使用 \$\{selected\.name\} 内置的 Custom MCP 连接/);
   assert.match(script, /不能改用长期密钥或假装已连接/);
+  assert.match(html, /<strong>Manus<\/strong>\s*<span>本地文件夹<\/span>/);
+  assert.match(script, /文件生成后必须新建 Manus 任务/);
+  assert.match(script, /\.\/xingyunyi status/);
+  assert.match(script, /不要改用 Custom MCP 或 Remote MCP/);
   assert.match(stylesheet, /\.pairing-host-picker\s*\{[^}]*repeat\(3, minmax\(0, 1fr\)\)/s);
   assert.match(stylesheet, /@media \(max-width: 580px\)[\s\S]*\.pairing-host-picker\s*\{\s*grid-template-columns: 1fr/);
 });

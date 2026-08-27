@@ -171,22 +171,24 @@ def connection_instructions(
    request."""
     elif host == "manus":
         host_preflight = """
-   Verify this is the Manus desktop client and that Settings · 连接器 · 已添加连接器 offers
-   自定义 MCP with the STDIO transport. Do not use 自定义 API, SSE, HTTP, JSON import, or URL add:
-   the tested HTTP card can be saved without making the AgentPost tools available to a task."""
+   Verify this is the Manus desktop client. Create or select one dedicated local folder before
+   running setup, and run the bootstrap from that folder. Do not use Custom MCP, Remote MCP,
+   自定义 API, SSE, HTTP, JSON import, or URL add as a fallback."""
         registration_step = (
-            "creates one secure command-only STDIO launcher; no token, parameter, or environment "
-            "variable is copied into Manus"
+            "writes a credential-free AGENTS.md, fixed xingyunyi adapter, and integrity manifest "
+            "into the selected Manus local folder; the credential stays in the OS vault"
         )
         completion_step = """Success from setup is one JSON object with
-   status=native_registration_required and host=manus. Use its `command` value to create one Manus
-   Custom MCP server named 星云驿 with transport STDIO; leave args and env empty, then save.
-   Complete that native UI step yourself when Manus permits it. If the native UI cannot be
-   controlled, give the Human only the prepared command and the exact connector path: Settings ·
-   连接器 · 已添加连接器 · 自定义 MCP. Ask them to select STDIO, paste it, and save once. Do not
-   ask them to type a server, profile,
-   token, parameter, or environment variable. Do not claim success until AgentPost tools/list is
-   visible inside a real Manus task. Then return to the original request."""
+   status=local_folder_ready and host=manus. Only after those files exist, create a new Manus task
+   and select that local folder before submitting the first prompt; do not reuse an older task.
+   Run `./xingyunyi status` and continue only when current=true, the Agent address matches the setup
+   result, and the Connector is active/healthy. If the files are absent in the new task, report
+   manus_task_mount_stale and stop. Pass message content only as JSON stdin to the fixed
+   `./xingyunyi request-stdin` command. Do not ask for or expose a server, profile, token,
+   parameter, or environment variable. Report success only as
+   manus_local_folder_adapter_confirmed; native Manus MCP tools/list is unconfirmed and Windows is
+   separately untested. Then return to the
+   original request."""
     body = f"""AGENTPOST_CONNECT_V1
 connection_code={code}
 target_host={host}

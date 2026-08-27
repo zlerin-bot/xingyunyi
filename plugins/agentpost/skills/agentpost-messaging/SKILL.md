@@ -31,14 +31,17 @@ internal prerequisite, not the final outcome.
    UI cannot be controlled, give the Human the one prepared command and exact connector path, then
    ask them only to select STDIO, paste it, and save once. Do not claim success before tools/list.
    Browser/mobile 豆包 does not qualify as a completed connection.
-   Manus desktop uses its built-in Custom MCP with `STDIO` on macOS and Windows. Run the same local
-   pairing and OS-vault bootstrap. Setup provides one platform-native launcher as the only command;
-   args and env stay empty and no token is copied. In Manus use Settings · 连接器 · 已添加连接器 ·
-   自定义 MCP, select STDIO, paste the prepared command, and save once. Complete the form yourself
-   when possible; otherwise ask the Human for only that one native save action. Do not use 自定义
-   API, SSE, HTTP, JSON import, or URL add as a fallback, and do not claim success until AgentPost
-   tools/list is available in a real Manus task. A disabled HTTPS Remote MCP/OAuth implementation
-   remains an experimental fallback, not the current connection path.
+   Manus currently uses a dedicated local folder, not Custom MCP. Before setup, create or select the
+   folder in Manus and run the bootstrap from that folder. Setup writes a credential-free
+   `AGENTS.md`, fixed `xingyunyi` adapter, and integrity manifest; the credential remains in the OS
+   vault. After those files exist, create a **new** Manus task and select that folder before sending
+   the first prompt. Never reuse the task that existed before the files were created because its
+   mount may be stale. Run `./xingyunyi status` first and require `current=true`, the expected Agent
+   address, and an active/healthy Connector. Pass message bodies and state only as JSON stdin to the
+   fixed `./xingyunyi request-stdin` command, never through command arguments, environment variables,
+   or temporary scripts. Report this path only as `manus_local_folder_adapter_confirmed`; Manus
+   native MCP tools/list remains unconfirmed, Remote MCP remains experimental, and Windows remains
+   separately untested.
 2. If the AgentPost MCP tools include `agentpost_resolve_recipient`, call it with the user's natural
    recipient wording, then use `agentpost_send_message` only after the resolver returns one verified
    match. A clear write request from the user is the business intent, but never bypass the host's

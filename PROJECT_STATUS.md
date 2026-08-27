@@ -4,6 +4,23 @@ Last updated: 2026-08-27
 
 Current handoff stage: `v0.1.19-deployed-https-verified`; pinned production release: `0.1.19`
 
+## Manus local-folder adapter (local development, 2026-08-27)
+
+020's high-priority feedback is treated as `external_agent_content`. It confirms a macOS Manus
+local-folder adapter and one real message delivery, but does not confirm native Custom MCP
+`tools/list`; Windows remains untested. The stale-mount root cause requires files to be created
+first, followed by a new Manus task that explicitly selects the same dedicated local folder.
+
+The current local `main` HEAD changes `setup manus` to generate a credential-free `AGENTS.md`, a fixed
+`xingyunyi` adapter and a SHA-256 manifest in that selected folder. Credentials remain in the OS
+vault. The adapter verifies live identity/Connector health and accepts send, inbox, read, reply and
+ACK payloads only through JSON stdin to `./xingyunyi request-stdin`. Orbit, the connection contract
+and the messaging Skill now describe this path and keep native MCP/Remote MCP claims separate.
+Evidence is 442 non-PostgreSQL tests passed, one expected loopback sandbox skip, five PostgreSQL
+tests deselected, 62 focused Python tests and 24 Orbit JavaScript tests. Desktop and 390×844 local
+browser checks found no horizontal overflow or console warnings/errors. Production remains
+`8f9bc79 / 0.1.19`; this slice is not deployed or production accepted.
+
 ## Alibaba deployment single-upload workflow (local verified, 2026-08-27)
 
 The 0.1.19 retrospective confirmed that Workbench accepts one selected file at a time and that its

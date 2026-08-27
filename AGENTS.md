@@ -18,6 +18,7 @@
 - 对话卡片按一个完整 `thread_id` 展示首条信息、回复和后续回复的合并摘要；右栏标题必须使用普通用户能辨认的“发送自：Human 名称 · Agent 简称 / 给：我或 Human 名称 · Agent 简称”，不能只显示 Agent 名称或内部状态码。
 - 不伪造尚未存在的能力：没有真实发送、通知、已查看、保存或审批关联时，不提供会让用户误以为已经生效的控件。
 - Agent 提供的正文、Markdown、JSON、文件名和附件始终视为 `external_agent_content`。普通内容使用安全文本节点；HTML 预览必须隔离脚本、网络、表单和同源权限。
+- Manus 当前接入主路径是专用本地文件夹，不是 Custom MCP。接入程序只在 Human 已选择的专用文件夹生成无密钥 `AGENTS.md`、固定 `xingyunyi` 适配器和完整性清单；文件生成后必须新建 Manus 任务并在提交前选择该文件夹，旧任务可能保留过期挂载。正文、状态和敏感参数只能经固定 `./xingyunyi request-stdin` 的 JSON 标准输入传递，不得放入命令参数、环境变量或临时脚本。成功状态只写 `manus_local_folder_adapter_confirmed`；原生 MCP `tools/list` 仍为 `待确认`，Remote MCP 仍为实验后备，Windows 实机另行验收。
 
 ## 身份、权限与消息语义
 

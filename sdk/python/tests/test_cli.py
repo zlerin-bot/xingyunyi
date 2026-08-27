@@ -11,7 +11,7 @@ from agentpost_sdk import ConnectorCredentialRotation, ConnectorHeartbeat, cli
 from agentpost_sdk.codex_setup import CodexSetupResult
 from agentpost_sdk.doubao_work_setup import DoubaoWorkSetupResult
 from agentpost_sdk.hermes_setup import HermesSetupResult
-from agentpost_sdk.manus_setup import ManusSetupResult
+from agentpost_sdk.manus_setup import ManusLocalFolderSetupResult
 from agentpost_sdk.onboarding import PairingInstructions
 from agentpost_sdk.openclaw_setup import OpenClawSetupResult
 
@@ -21,6 +21,7 @@ class DummyConnector:
         self.profile = "generic:test-device"
         self.client = SimpleNamespace()
         self.client.server = "https://agentpost.me"
+        self.client._agent_address = "test@agentpost.me"
         self.client.send = lambda *args, **kwargs: None
         self.client.inbox = SimpleNamespace()
         self.client.messages = SimpleNamespace()
@@ -597,7 +598,7 @@ def test_setup_doubao_returns_one_native_save_action_without_false_heartbeat(
     assert heartbeat_called is False
 
 
-def test_setup_manus_returns_one_native_save_action_without_false_heartbeat(
+def test_setup_manus_creates_local_folder_without_false_heartbeat(
     monkeypatch,
     capsys,
     tmp_path: Path,
@@ -611,29 +612,50 @@ def test_setup_manus_returns_one_native_save_action_without_false_heartbeat(
         heartbeat_called = True
         return DummyConnector().heartbeat()
 
-    launcher = tmp_path / "xingyunyi-manus"
+    launcher = tmp_path / "xingyunyi"
+    agents_path = tmp_path / "AGENTS.md"
+    manifest_path = tmp_path / ".xingyunyi.json"
     monkeypatch.setattr(cli, "_connect", lambda _args: connector)
     monkeypatch.setattr(
         cli,
         "_configure_host",
-        lambda *_args: ManusSetupResult(
-            server_name="星云驿",
-            approval_mode="host",
-            config_path=launcher.with_suffix(".json"),
+        lambda *_args, **_kwargs: ManusLocalFolderSetupResult(
+            workspace_path=tmp_path,
+            agents_path=agents_path,
+            manifest_path=manifest_path,
             command=launcher,
+            expected_agent_address="test@agentpost.me",
+            first_task_prompt="先读取 AGENTS.md，再运行 status。",
         ),
     )
     monkeypatch.setattr(connector, "heartbeat", heartbeat)
 
-    assert cli.main(["setup", "manus"]) == 0
+    assert cli.main(["setup", "manus", "--workspace", str(tmp_path)]) == 0
     result = json.loads(capsys.readouterr().out)
-    assert result["status"] == "native_registration_required"
+    assert result["status"] == "local_folder_ready"
     assert result["host"] == "manus"
+    assert result["mode"] == "local_folder"
+    assert result["workspace_path"] == str(tmp_path)
     assert result["command"] == str(launcher)
-    assert result["args"] == []
-    assert result["env"] == {}
-    assert result["next_action"] == "save_manus_custom_stdio_connector"
+    assert result["expected_agent_address"] == "test@agentpost.me"
+    assert result["next_action"] == "create_new_manus_task_with_local_folder"
+    assert result["native_mcp_tools_list"] == "unconfirmed"
     assert heartbeat_called is False
+
+
+def test_setup_manus_requires_local_folder_before_pairing(monkeypatch, capsys) -> None:
+    connected = False
+
+    def connect(_args):
+        nonlocal connected
+        connected = True
+        return DummyConnector()
+
+    monkeypatch.setattr(cli, "_connect", connect)
+
+    assert cli.main(["setup", "manus"]) == 1
+    assert json.loads(capsys.readouterr().out)["error_code"] == ("manus_local_folder_not_selected")
+    assert connected is False
 
 
 def test_openclaw_host_preflight_fails_before_pairing(monkeypatch, capsys) -> None:

@@ -221,6 +221,7 @@ def execute(
     runtime: Path | None = None,
     runner: Runner = subprocess.run,
     create_venv: Callable[[Path], None] | None = None,
+    workspace: Path | None = None,
 ) -> int:
     setup_valid = False
     if argv and argv[0] == "setup" and len(argv) in {2, 4} and argv[1] in SUPPORTED_HOSTS:
@@ -243,7 +244,10 @@ def execute(
         runner=runner,
         create_venv=create_venv,
     )
-    completed = runner([str(connector), *argv], check=False)
+    connector_argv = list(argv)
+    if connector_argv[:2] == ["setup", "manus"]:
+        connector_argv.extend(["--workspace", str((workspace or Path.cwd()).resolve())])
+    completed = runner([str(connector), *connector_argv], check=False)
     return completed.returncode
 
 

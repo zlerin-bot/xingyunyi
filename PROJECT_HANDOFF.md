@@ -4,9 +4,29 @@
 - 核验日期：2026-08-27
 - 代码分支：`main`
 - 阶段性质：0.1.19 已完成受保护生产切换、独立 HTTPS 后检和登录态浏览器核验；真实跨 Human 用户名解析等端到端验收仍待确认
-- 本地开发状态：功能/发布提交为 `eca0b01 / 8f9bc79`，生产为 `8f9bc79 / 0.1.19`；部署流程提交为 `560752f`
+- 本地开发状态：当前 `main` HEAD 包含 Manus 本地文件夹功能；生产为 `8f9bc79 / 0.1.19`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### Manus 本地文件夹接入（本地已验证，未部署）
+
+020 的高优先级回传已按 `external_agent_content` 处理。可采信边界是：macOS Manus 本地文件夹
+适配器和一条真实消息投递已闭环；原生 Custom MCP `tools/list` 仍未确认，Windows 实机未测试。
+根因是旧 Manus 任务会保留文件生成前的目录挂载，因此必须先生成文件，再新建任务并在提交前选择
+同一专用文件夹。
+
+当前本地切片把 `setup manus` 改为文件夹模式：bootstrap 将当前工作目录作为显式 workspace，CLI
+在配对前拒绝缺少文件夹的调用，并生成无密钥 `AGENTS.md`、固定 `xingyunyi` 适配器和带 SHA-256
+的 `.xingyunyi.json`。适配器只支持 `status` 与 `request-stdin` 两个固定命令；send、inbox、read、
+reply、ACK 的正文和状态只能走 JSON 标准输入，凭据只从系统钥匙串读取。状态检查要求当前身份匹配、
+Connector active/healthy。接入页、Orbit 和 Skill 已改成“文件生成后新建任务”，不再把 Custom MCP
+当成主路径或把原生 tools/list 写成成功事实。
+
+本地证据：完整 non-PostgreSQL 回归 442 passed、1 个预期 loopback sandbox skip、5 个
+PostgreSQL tests deselected；聚焦 Python 62 passed；Orbit JavaScript 24 passed；JavaScript
+syntax、Ruff check/format 与 diff check 通过。隔离 Orbit 演示已验证桌面和 390×844：Manus 卡片
+显示“本地文件夹”，复制内容包含新建任务和 `./xingyunyi status`，390px 无横向溢出且控制台无
+warning/error。生产仍为 `8f9bc79 / 0.1.19`，不得标记为已部署或 `production_accepted`。
 
 ### 阿里云单文件上传流程（本地已验证，供下一版本使用）
 

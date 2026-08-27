@@ -34,7 +34,10 @@ from agentpost_sdk.hermes_setup import (
     configure_hermes_mcp,
     preflight_hermes_mcp,
 )
-from agentpost_sdk.manus_setup import ManusSetupResult, configure_manus_mcp
+from agentpost_sdk.manus_setup import (
+    ManusLocalFolderSetupResult,
+    configure_manus_local_folder,
+)
 from agentpost_sdk.models import Message
 from agentpost_sdk.onboarding import PairingInstructions
 from agentpost_sdk.openclaw_setup import (
@@ -130,6 +133,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     setup.add_argument("--existing-agent-id", help=argparse.SUPPRESS)
     setup.add_argument("--new-agent-intent", help=argparse.SUPPRESS)
+    setup.add_argument(
+        "--workspace",
+        type=Path,
+        help="dedicated local folder selected for a new Manus task",
+    )
 
     send = commands.add_parser("send", help="send a message using the paired Agent identity")
     recipient = send.add_mutually_exclusive_group(required=True)
@@ -313,13 +321,15 @@ def _upload_attachments(client: AgentPost, paths: list[Path]) -> list[str]:
 def _configure_host(
     connector: ManagedConnector,
     host: str,
+    *,
+    manus_workspace: Path | None = None,
 ) -> (
     CodexSetupResult
     | WorkBuddySetupResult
     | DoubaoWorkSetupResult
     | OpenClawSetupResult
     | HermesSetupResult
-    | ManusSetupResult
+    | ManusLocalFolderSetupResult
 ):
     options = {
         "server": connector.client.server,
@@ -333,7 +343,16 @@ def _configure_host(
     if host == "doubao_work":
         return configure_doubao_work_mcp(**options)
     if host == "manus":
-        return configure_manus_mcp(**options)
+        if manus_workspace is None:
+            raise ConfigurationError(
+                "Select a dedicated Manus local folder",
+                code="manus_local_folder_not_selected",
+            )
+        return configure_manus_local_folder(
+            **options,
+            expected_agent_address=connector.client._agent_address or "",
+            workspace_path=manus_workspace,
+        )
     if host == "openclaw":
         collection = getattr(
             getattr(connector, "credential_store", None),
@@ -432,6 +451,11 @@ def _run_worker(args: argparse.Namespace, connector: ManagedConnector) -> int:
 def _run(args: argparse.Namespace) -> int:
     if args.command == "setup":
         args.connector_type = args.host
+        if args.host == "manus" and args.workspace is None:
+            raise ConfigurationError(
+                "Select a dedicated Manus local folder",
+                code="manus_local_folder_not_selected",
+            )
     elif args.command == "send" and args.ensure_host:
         args.connector_type = args.ensure_host
     if args.connector_type in {"openclaw", "hermes"} and (
@@ -462,8 +486,35 @@ def _run(args: argparse.Namespace) -> int:
         elif args.command == "status":
             _json(connector.heartbeat())
         elif args.command == "setup":
-            configured = _configure_host(connector, args.host)
-            if isinstance(configured, (DoubaoWorkSetupResult, ManusSetupResult)):
+            if args.host == "manus":
+                configured = _configure_host(
+                    connector,
+                    args.host,
+                    manus_workspace=args.workspace,
+                )
+            else:
+                configured = _configure_host(connector, args.host)
+            if isinstance(configured, ManusLocalFolderSetupResult):
+                _json(
+                    {
+                        "status": "local_folder_ready",
+                        "host": "manus",
+                        "mode": configured.mode,
+                        "workspace_path": str(configured.workspace_path),
+                        "agents_path": str(configured.agents_path),
+                        "command": str(configured.command),
+                        "manifest_path": str(configured.manifest_path),
+                        "expected_agent_address": configured.expected_agent_address,
+                        "profile": connector.profile,
+                        "credential_storage": credential_storage,
+                        "restart_required": configured.restart_required,
+                        "next_action": "create_new_manus_task_with_local_folder",
+                        "first_task_prompt": configured.first_task_prompt,
+                        "native_mcp_tools_list": "unconfirmed",
+                    }
+                )
+                return 0
+            if isinstance(configured, DoubaoWorkSetupResult):
                 _json(
                     {
                         "status": "native_registration_required",
@@ -477,11 +528,7 @@ def _run(args: argparse.Namespace) -> int:
                         "approval_mode": configured.approval_mode,
                         "credential_storage": credential_storage,
                         "restart_required": configured.restart_required,
-                        "next_action": (
-                            "save_doubao_custom_stdio_connector"
-                            if args.host == "doubao_work"
-                            else "save_manus_custom_stdio_connector"
-                        ),
+                        "next_action": "save_doubao_custom_stdio_connector",
                     }
                 )
                 return 0

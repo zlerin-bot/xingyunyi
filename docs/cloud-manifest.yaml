@@ -165,10 +165,10 @@ acceptance:
   hermes_connection_code_real_orbit: passed_without_copy_or_pairing
   hermes_real_pairing_send_receive_restart: pending_human_test
   manus_remote_mcp_gate: disabled_experimental_fallback
-  manus_local_stdio_gate: released_mac_windows
-  manus_launcher_os_vault_only: passed
-  manus_windows_packaging_and_unit_contract: passed_real_host_pending
-  manus_macos_real_save_tools_list_send_receive: pending_human_test
+  manus_local_folder_adapter: passed_local_code_tests_and_desktop_mobile_browser
+  manus_local_folder_macos_real_message_delivery: external_feedback_confirmed
+  manus_native_custom_mcp_tools_list: unconfirmed
+  manus_windows_local_folder_real_host: pending_human_test
   doubao_work_remote_mcp_gate: unavailable_409_fail_closed
   doubao_work_local_stdio_gate: released_mac_windows
   doubao_work_launcher_os_vault_only: passed

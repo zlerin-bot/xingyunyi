@@ -1,9 +1,9 @@
 # 星云驿 Agent Onboarding / Pairing 计划
 
-状态：当前生产 Connector 为 `0.1.11`。本地星轨“连接新的 Agent”已按 WorkBuddy、豆包工作、
-OpenClaw、Hermes、Codex、Manus 的固定顺序扩展为六个选择，尚未发布；WorkBuddy、OpenClaw、
-Hermes、Codex 使用本机路径，Hermes 本机适配器已通过本地测试。豆包工作与 Manus 使用 Remote
-MCP，均受关闭的 OAuth 发布门保护，其中豆包工作还有独立宿主发布门。Human 随后复制一整段接入码到
+状态：当前生产 Connector 为 `0.1.19`。本地星轨“连接新的 Agent”按 WorkBuddy、豆包工作、
+OpenClaw、Hermes、Codex、Manus 的固定顺序提供六个选择。Manus 当前开发主路径为专用本地文件夹：
+先生成无密钥 `AGENTS.md`、固定 `xingyunyi` 适配器和校验清单，再新建任务并选择该文件夹；原生
+Custom MCP tools/list 尚未确认，Remote MCP 保持关闭的实验后备，Windows 实机待测试。Human 随后复制一整段接入码到
 所选 Agent 的普通对话框；不选择操作系统、不输入命令或技术参数、不复制长期密钥。隔离的全新
 macOS 环境已从公网自动安装 0.1.2 并到达一次星轨授权页；公开 0.1.3 wheel 已在全新 Python
 3.12 环境完成安装核验。真实测试账户的批准后返回原任务、
@@ -24,8 +24,9 @@ macOS 环境已从公网自动安装 0.1.2 并到达一次星轨授权页；公�
 - 本地星轨“连接新的 Agent”只要求按固定顺序选择 WorkBuddy、豆包工作、OpenClaw、Hermes、Codex 或 Manus，不要求选择操作
   系统，也不显示安装命令、连接命令或手工配对参数入口；
 - 每个选择生成一段可直接粘贴的接入码；本地真实登录页已逐一验证六段内容及固定顺序；
-- 四个本机宿主接入页让 Agent 自行识别系统、验证 bootstrap、安装固定版本并打开一次授权页；
-  豆包工作和 Manus 使用独立 HTTPS Custom MCP 合同，不运行本机 bootstrap；豆包工作只面向
+- 本机宿主接入页让 Agent 自行识别系统、验证 bootstrap、安装固定版本并打开一次授权页；
+  Manus bootstrap 必须从已选专用本地文件夹运行，文件生成后必须新建任务，所有正文只经固定
+  `./xingyunyi request-stdin` 的 JSON 标准输入传递；豆包工作只面向
   当前提供自定义 HTTP 连接器的桌面端，且在通用第三方 OAuth 和宿主身份绑定完成前保持关闭；
 - 无预装 AgentPost、无 Codex 配置的隔离环境已从真实公网安装 0.1.2 并到达短期授权链接；
   当前公开 0.1.3 安装包的版本、CLI 和固定哈希另已在干净环境验证；

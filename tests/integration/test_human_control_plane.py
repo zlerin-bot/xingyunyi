@@ -405,7 +405,7 @@ def test_manus_connection_contract_keeps_remote_fallback_fail_closed(
     assert "macOS and Windows" in instructions.text
 
 
-def test_manus_connection_contract_prefers_cross_platform_local_stdio(
+def test_manus_connection_contract_uses_new_local_folder_task(
     settings: Settings,
     database: Database,
 ) -> None:
@@ -426,10 +426,13 @@ def test_manus_connection_contract_prefers_cross_platform_local_stdio(
     assert instructions.status_code == 200
     assert "target_host=manus" in instructions.text
     assert "setup manus --new-agent-intent" in instructions.text
-    assert "自定义 MCP with the STDIO transport" in instructions.text
-    assert "status=native_registration_required and host=manus" in instructions.text
-    assert "leave args and env empty" in instructions.text
-    assert "Do not use 自定义 API, SSE, HTTP" in instructions.text
+    assert "dedicated local folder" in instructions.text
+    assert "status=local_folder_ready and host=manus" in instructions.text
+    assert "create a new Manus task" in instructions.text
+    assert "./xingyunyi request-stdin" in instructions.text
+    assert "manus_local_folder_adapter_confirmed" in instructions.text
+    assert "MCP tools/list is unconfirmed" in instructions.text
+    assert "Do not use Custom MCP, Remote MCP" in instructions.text
 
 
 def test_doubao_work_connection_contract_uses_desktop_custom_mcp_and_fails_closed(
