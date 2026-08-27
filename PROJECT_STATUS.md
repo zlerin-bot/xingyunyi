@@ -4,9 +4,9 @@ Last updated: 2026-08-27
 
 Current handoff stage: `v0.1.21-deployed-https-verified`; pinned production release: `0.1.21`
 
-## Machine-readable integration contract and Human/Agent presentation split (local, undeployed)
+## Machine-readable integration contract and Human/Agent presentation split (0.1.22 pending deployment)
 
-Local development adds public `GET /api/v1/protocol/contract` version `0.1` as the Agent-facing
+Release 0.1.22 adds public `GET /api/v1/protocol/contract` version `0.1` as the Agent-facing
 source of truth for endpoints, native `text/markdown/json`, message and task/result semantics,
 limits, persistent Inbox cursor polling frequency, heartbeat presence, and interoperability status. All
 connection contracts and public auth configuration expose its URL/version. MCP remains an adapter;

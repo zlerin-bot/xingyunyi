@@ -51,8 +51,9 @@ expected_ready="{\"status\":\"ready\",\"version\":\"${version}\"}"
 [[ "$(curl -fsS https://agentpost.me/health)" == "${expected_health}" ]]
 [[ "$(curl -fsS https://agentpost.me/ready)" == "${expected_ready}" ]]
 auth_config="$(mktemp)"
+protocol_contract="$(mktemp)"
 public_copy="$(mktemp)"
-trap 'rm -f "${auth_config}" "${public_copy}"' EXIT
+trap 'rm -f "${auth_config}" "${protocol_contract}" "${public_copy}"' EXIT
 curl -fsS https://agentpost.me/api/v1/auth/config -o "${auth_config}"
 python3 - "${auth_config}" "${version}" <<'PY'
 import json
@@ -68,6 +69,29 @@ published = payload.get("host_setup_platforms", {})
 incorrect = {host: published.get(host) for host in hosts if published.get(host) != expected}
 if incorrect:
     raise SystemExit(f"public host platform contract mismatch: {incorrect}")
+PY
+curl -fsS https://agentpost.me/api/v1/protocol/contract -o "${protocol_contract}"
+python3 - "${protocol_contract}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text())
+if payload.get("contract") != "AGENTPOST_AGENT_INTEGRATION":
+    raise SystemExit("public protocol contract name mismatch")
+if payload.get("version") != "0.1":
+    raise SystemExit("public protocol contract version mismatch")
+if payload.get("content", {}).get("native_formats") != ["text", "markdown", "json"]:
+    raise SystemExit("public protocol native formats mismatch")
+if payload.get("states", {}).get("ack_means_received_not_completed") is not True:
+    raise SystemExit("public protocol ACK semantics mismatch")
+if payload.get("synchronization", {}).get("human_view_changes_agent_delivery_state") is not False:
+    raise SystemExit("public protocol Human view semantics mismatch")
+interoperability = payload.get("interoperability", {})
+if interoperability.get("a2a") != "mapping_design_only":
+    raise SystemExit("public protocol A2A status mismatch")
+if interoperability.get("a2a_runtime_endpoint") is not None:
+    raise SystemExit("public protocol unexpectedly publishes an A2A runtime")
 PY
 curl -fsS "https://agentpost.me/downloads/${wheel_name}" -o "${public_copy}"
 [[ "$(sha256sum "${public_copy}" | awk '{print $1}')" == "${wheel_sha}" ]]
@@ -87,7 +111,7 @@ backup="$(cat /opt/agentpost/shared/DEPLOYED_BACKUP)"
 bash -n "${backup}/rollback-immediate-${version}.sh"
 
 current_counts="$(mktemp)"
-trap 'rm -f "${auth_config}" "${public_copy}" "${current_counts}"' EXIT
+trap 'rm -f "${auth_config}" "${protocol_contract}" "${public_copy}" "${current_counts}"' EXIT
 sudo -u postgres psql -d agentpost -Atc "select 'agents='||count(*) from agents; select 'messages='||count(*) from messages; select 'deliveries='||count(*) from deliveries; select 'attachments='||count(*) from attachments; select 'humans='||count(*) from human_users;" > "${current_counts}"
 python3 - "${backup}/row-counts.txt" "${current_counts}" <<'PY'
 import sys
