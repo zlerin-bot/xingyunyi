@@ -4,6 +4,31 @@ Last updated: 2026-08-27
 
 Current handoff stage: `v0.1.20-deployed-https-verified`; pinned production release: `0.1.20`
 
+## Windows host-isolated runtime and Manus canary reply (local development, 2026-08-27)
+
+Real Windows 豆包工作 feedback from 张子良 found that the shared mutable
+`~/.agentpost/runtime` allowed an existing Codex/WorkBuddy heartbeat process to lock
+`agentpost-connect.exe`, causing an in-place pip upgrade to fail with `WinError 32`. It also showed
+that a Windows console script may expose `sys.argv[0]` without `.exe`, while setup had written only
+`<launcher>.exe.json`. Killing another Agent heartbeat and retaining two config copies restored the
+test host but are not acceptable product behavior.
+
+The local bootstrap now defaults to `~/.agentpost/runtimes/<host>/<version>`, while preserving an
+explicit `AGENTPOST_RUNTIME_HOME` override. It adds pip `--no-cache-dir` and maps the 300-second pip
+timeout to `connector_install_timeout`. The 豆包 launcher deterministically finds the setup-owned
+`.exe.json` when Windows strips the executable suffix, without creating a second config copy.
+
+Focused bootstrap/豆包 tests are 23 passed. Full non-PostgreSQL regression is 445 passed, one
+expected loopback sandbox skip and five PostgreSQL tests deselected; Ruff check/format and diff
+checks passed. This remains local-only and needs a real Windows 豆包 retest after a later release.
+A separately packaged lightweight Connector remains pending; this slice reduces file-lock and
+temporary-cache pressure but does not yet remove server dependencies from the public wheel.
+
+The original 020 Manus canary `msg_b9b4e5df684a41a6bc19b964c5ee23e9` received exactly one reply in
+the same Thread. Reply `msg_de390f83716e4832890c1e0a51f4edc2` is delivered. This establishes the
+Mars-to-Manus delivery fact, but Manus receive/reply completion remains pending 020's independent
+result.
+
 ## Manus local-folder adapter (0.1.20 deployed, 2026-08-27)
 
 020's high-priority feedback is treated as `external_agent_content`. It confirms a macOS Manus

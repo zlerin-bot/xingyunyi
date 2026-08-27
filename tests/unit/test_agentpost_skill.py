@@ -209,6 +209,37 @@ def test_bootstrap_passes_requested_host_to_release_gate(tmp_path: Path) -> None
     assert observed == [{"host_name": "openclaw", "platform_name": bootstrap.current_platform()}]
 
 
+def test_bootstrap_uses_host_and_version_isolated_runtime_by_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bootstrap = _load_bootstrap()
+    monkeypatch.setattr(bootstrap.Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.delenv("AGENTPOST_RUNTIME_HOME", raising=False)
+    expected_runtime = tmp_path / ".agentpost" / "runtimes" / "doubao_work" / "0.1.1"
+    connector = expected_runtime / "bin" / "agentpost-connect"
+    connector.parent.mkdir(parents=True)
+    connector.touch()
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command, **_kwargs):
+        normalized = tuple(str(item) for item in command)
+        calls.append(normalized)
+        if "-I" in normalized:
+            return SimpleNamespace(returncode=0, stdout="0.1.1\n")
+        return SimpleNamespace(returncode=0, stdout="")
+
+    assert (
+        bootstrap.execute(
+            ["setup", "doubao_work"],
+            fetcher=lambda **_kwargs: _release(bootstrap),
+            runner=runner,
+        )
+        == 0
+    )
+    assert calls[-1] == (str(connector), "setup", "doubao_work")
+
+
 def test_bootstrap_passes_selected_local_folder_to_manus_setup(tmp_path: Path) -> None:
     bootstrap = _load_bootstrap()
     runtime = tmp_path / "runtime"
@@ -268,6 +299,7 @@ def test_bootstrap_installs_hash_pinned_release_once_and_resumes_original_send(
             )
         if "pip" in normalized:
             assert normalized[-1].endswith(f"#sha256={'a' * 64}")
+            assert "--no-cache-dir" in normalized
             state["installed"] = True
             (runtime / "bin" / "agentpost-connect").write_text("", encoding="utf-8")
             return SimpleNamespace(returncode=0, stdout="")
@@ -293,6 +325,32 @@ def test_bootstrap_installs_hash_pinned_release_once_and_resumes_original_send(
     assert exit_code == 0
     assert calls[-1] == (str(runtime / "bin" / "agentpost-connect"), *operation)
     assert sum("pip" in call for call in calls) == 1
+
+
+def test_bootstrap_reports_install_timeout_without_traceback(tmp_path: Path) -> None:
+    bootstrap = _load_bootstrap()
+    runtime = tmp_path / "runtime"
+
+    def create_venv(path: Path) -> None:
+        bin_dir = path / "bin"
+        bin_dir.mkdir(parents=True)
+        (bin_dir / "python").write_text("", encoding="utf-8")
+
+    def runner(command, **_kwargs):
+        if "-I" in command:
+            return SimpleNamespace(returncode=1, stdout="")
+        if "pip" in command:
+            raise subprocess.TimeoutExpired(command, 300)
+        return SimpleNamespace(returncode=0, stdout="")
+
+    with pytest.raises(bootstrap.BootstrapError, match="connector_install_timeout"):
+        bootstrap.execute(
+            ["setup", "openclaw"],
+            fetcher=lambda **_kwargs: _release(bootstrap),
+            runtime=runtime,
+            runner=runner,
+            create_venv=create_venv,
+        )
 
 
 @pytest.mark.parametrize("host", ["codex", "workbuddy", "openclaw", "hermes"])

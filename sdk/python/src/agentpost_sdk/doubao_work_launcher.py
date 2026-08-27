@@ -15,7 +15,11 @@ LAUNCHER_SCHEMA_VERSION = 1
 
 
 def _config_path(launcher_path: Path) -> Path:
-    return launcher_path.with_name(f"{launcher_path.name}.json")
+    primary = launcher_path.with_name(f"{launcher_path.name}.json")
+    if primary.is_file() or launcher_path.suffix.lower() == ".exe":
+        return primary
+    windows_console_script = launcher_path.with_name(f"{launcher_path.name}.exe.json")
+    return windows_console_script if windows_console_script.is_file() else primary
 
 
 def _required_text(config: dict[str, Any], key: str) -> str:

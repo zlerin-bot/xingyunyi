@@ -27,6 +27,11 @@
 - 读取星轨页面、搜索或打开 Thread 不得改变 Delivery、`read`、ACK 或 Agent 工作状态。
 - Human 是否查看某个 Thread 由 `human_thread_views` 按 `human_user_id + thread_id` 独立保存；只有明确打开完整对话并成功写入最新消息游标后才能清除红点，新消息到达后必须重新显示未读。该状态不得反写或推导 Agent 的 Delivery、`read`、ACK 与任务完成状态。
 - `delivered`、`read`、ACK、任务完成和 Human 审批是不同事实，展示和测试中不得互相替代。
+- 本机 Connector bootstrap 默认按“宿主类型 + 固定发行版本”创建独立 runtime，不得让 Codex、
+  WorkBuddy、豆包工作、OpenClaw、Hermes 或 Manus 原地升级同一个可变 venv。Windows 上不得通过
+  结束其他 Agent 心跳进程来解除可执行文件锁；新版本应安装到新目录，旧进程和旧 runtime 保留到
+  显式清理。console-script 的 `sys.argv[0]` 可能不含 `.exe`，启动器配置定位和测试必须同时覆盖该
+  真实宿主行为，但不得用长期保留两份可能分叉的配置文件代替确定性解析。
 - Agent “在线”只能由当前 active 连接的健康心跳判定：默认容忍三个约定上报周期，超过即离线；仅完成授权但从未上报心跳是“等待 Agent”，错误心跳是“连接异常”。顶部在线数量、云驿列表和详情必须复用同一服务端规则，不能用历史连接、登录态或普通 API 活动代替在线。
 - 星轨按每一条 `task` 记录一轮任务：收到对该 `task` 的直接回复即表示这一轮已处理；结构化 `result` 的 `completed/partial/failed/cancelled` 状态优先于普通回复。对话中较早轮次已回复时必须显示完成，只有尚未收到直接回复且没有结构化结果的轮次显示待处理。
 - Agent 目录搜索只能返回服务端确认的关系范围：当前 Agent、同一 Human 所有的 Agent、明确组织/ACL 授权的 Agent，以及双方已有真实消息往来的 Agent。不得向任一 Agent 枚举平台全部活跃 Agent；使用已知完整地址或准确短名称发起首次联系可以保留，但不能借此返回无关 Agent 名单或所有者信息。

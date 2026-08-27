@@ -4,9 +4,31 @@
 - 核验日期：2026-08-27
 - 代码分支：`main`
 - 阶段性质：0.1.20 已完成受保护生产切换和独立 HTTPS 后检；真实 Manus 新任务本地文件夹闭环、Windows 实机和登录态生产主流程仍待确认
-- 本地开发状态：当前 `main` 与生产均为 `9a76d26 / 0.1.20`
+- 本地开发状态：生产为 `9a76d26 / 0.1.20`；当前 `main` 另含 Windows/多宿主 runtime 隔离修复，尚未部署
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### Windows 豆包运行时隔离与 Manus 0.1.20 回信（本地已验证，未部署）
+
+张子良的 Windows 豆包工作真实接入反馈确认了三个问题：多个宿主共享
+`~/.agentpost/runtime` 时，既有心跳进程会锁定 `agentpost-connect.exe` 并让 pip 原地升级触发
+`WinError 32`；Windows console-script 运行时可能从 `sys.argv[0]` 去掉 `.exe`，导致 setup 写入的
+`<launcher>.exe.json` 与运行时查找的 `<launcher>.json` 不一致；结束其他 Agent 进程和同时保留两份
+配置只能作为现场绕行，不能成为正式产品方案。
+
+当前本地修复把默认 runtime 改为 `~/.agentpost/runtimes/<host>/<version>`，显式
+`AGENTPOST_RUNTIME_HOME` 仍作为高级覆盖保留。新版本不再原地覆盖其他宿主或旧版本正在使用的
+可执行文件；pip 加入 `--no-cache-dir`，300 秒超时统一返回 `connector_install_timeout`。豆包启动器
+在 `sys.argv[0]` 不含 `.exe` 时会确定性回退到同目录的 `.exe.json`，不需要复制第二份配置。
+
+聚焦 bootstrap/豆包测试 23 passed；完整 non-PostgreSQL 回归 445 passed、1 个预期 loopback
+sandbox skip、5 个 PostgreSQL tests deselected；Ruff check/format 与 diff check 通过。该切片尚未在
+真实 Windows 豆包工作复测，也未部署，不得写成已修复生产问题。轻量 Connector 独立分发仍是下一
+资源优化切片，本次只通过宿主/版本隔离和禁用 pip cache 降低冲突与临时占用。
+
+020 的 Manus 0.1.20 canary `msg_b9b4e5df684a41a6bc19b964c5ee23e9` 已在原 Thread 唯一回复固定
+文本；回信 `msg_de390f83716e4832890c1e0a51f4edc2` 为 `delivered`。这证明 Mars → Manus 的
+投递已发生，但 020 Manus 是否成功收件并再次回复仍待其独立结果，不能提前标记完整闭环。
 
 ### Manus 本地文件夹接入（0.1.20 已部署并完成 HTTPS 后检）
 

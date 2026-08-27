@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from agentpost_sdk import doubao_work_launcher
 from agentpost_sdk.doubao_work_setup import configure_doubao_work_mcp
 from agentpost_sdk.errors import ConfigurationError
 
@@ -119,6 +120,23 @@ def test_doubao_work_setup_preserves_windows_executable_launcher(tmp_path: Path)
     config = json.loads(result.config_path.read_text(encoding="utf-8"))
     assert config["connector_command"].endswith("agentpost-connect.exe")
     assert config["mcp_command"].endswith("agentpost-mcp.exe")
+
+
+def test_doubao_work_launcher_finds_windows_config_when_argv_strips_exe(
+    tmp_path: Path,
+) -> None:
+    mcp, _, _ = _runtime(tmp_path, windows_names=True)
+    launcher = tmp_path / "launchers" / "xingyunyi-doubao.exe"
+    result = configure_doubao_work_mcp(
+        server="https://agentpost.me",
+        profile="doubao_work:windows-device",
+        mcp_command=mcp,
+        launcher_path=launcher,
+    )
+
+    stripped_argv_path = launcher.with_suffix("")
+    assert not stripped_argv_path.with_name(f"{stripped_argv_path.name}.json").exists()
+    assert doubao_work_launcher._config_path(stripped_argv_path) == result.config_path
 
 
 def test_doubao_work_launcher_restores_profile_heartbeats_and_bridges_stdio(

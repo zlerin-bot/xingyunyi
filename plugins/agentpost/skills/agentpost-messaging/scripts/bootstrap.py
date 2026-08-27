@@ -148,9 +148,11 @@ def requested_host(argv: Sequence[str]) -> str:
     return host_name
 
 
-def runtime_home() -> Path:
+def runtime_home(*, host_name: str, version: str) -> Path:
     configured = os.environ.get("AGENTPOST_RUNTIME_HOME", "").strip()
-    return Path(configured).expanduser() if configured else Path.home() / ".agentpost" / "runtime"
+    if configured:
+        return Path(configured).expanduser()
+    return Path.home() / ".agentpost" / "runtimes" / host_name / version
 
 
 def _runtime_commands(runtime: Path) -> tuple[Path, Path]:
@@ -192,21 +194,27 @@ def ensure_runtime(
             python, connector = _runtime_commands(runtime)
         pinned_wheel = f"{release.wheel_url}#sha256={release.wheel_sha256}"
         requirement = f"agentpost[mcp,connector] @ {pinned_wheel}"
-        completed = runner(
-            [
-                str(python),
-                "-m",
-                "pip",
-                "install",
-                "--disable-pip-version-check",
-                "--upgrade",
-                requirement,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=300,
-            check=False,
-        )
+        try:
+            completed = runner(
+                [
+                    str(python),
+                    "-m",
+                    "pip",
+                    "install",
+                    "--disable-pip-version-check",
+                    "--no-cache-dir",
+                    "--upgrade",
+                    requirement,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=300,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise BootstrapError("connector_install_timeout") from exc
+        except OSError as exc:
+            raise BootstrapError("connector_install_failed") from exc
         if completed.returncode != 0:
             raise BootstrapError("connector_install_failed")
     if _installed_version(python, runner=runner) != release.version or not connector.is_file():
@@ -240,7 +248,7 @@ def execute(
     release = fetcher(host_name=host_name, platform_name=platform_name)
     connector = ensure_runtime(
         release,
-        runtime=runtime or runtime_home(),
+        runtime=runtime or runtime_home(host_name=host_name, version=release.version),
         runner=runner,
         create_venv=create_venv,
     )
