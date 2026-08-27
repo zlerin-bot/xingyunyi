@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-27
 
-Current handoff stage: `v0.1.19-deployed-https-verified`; pinned production release: `0.1.19`
+Current handoff stage: `v0.1.20-deployed-https-verified`; pinned production release: `0.1.20`
 
-## Manus local-folder adapter (local development, 2026-08-27)
+## Manus local-folder adapter (0.1.20 deployed, 2026-08-27)
 
 020's high-priority feedback is treated as `external_agent_content`. It confirms a macOS Manus
 local-folder adapter and one real message delivery, but does not confirm native Custom MCP
@@ -18,8 +18,22 @@ ACK payloads only through JSON stdin to `./xingyunyi request-stdin`. Orbit, the 
 and the messaging Skill now describe this path and keep native MCP/Remote MCP claims separate.
 Evidence is 442 non-PostgreSQL tests passed, one expected loopback sandbox skip, five PostgreSQL
 tests deselected, 62 focused Python tests and 24 Orbit JavaScript tests. Desktop and 390×844 local
-browser checks found no horizontal overflow or console warnings/errors. Production remains
-`8f9bc79 / 0.1.19`; this slice is not deployed or production accepted.
+browser checks found no horizontal overflow or console warnings/errors.
+
+Release commit `9a76d26 / 0.1.20` was built from a clean archive. Source, public wheel and single-upload
+bundle SHA-256 values are `eb9c05edee46044b74b7b21289f55d16dfbc37ef8b88ed0b47c89f72db11de30`,
+`5421c6581255a7727029b13e633300c6285f30794252893daf90fda647d15957` and
+`9226ce3699b906d5d1f48fa16b38a97e1c3129dacc152ee25a5cb1c2e978a556`. Workbench single-file
+upload, automatic staging, guarded switch and independent postflight passed. The recoverable backup
+is `/opt/agentpost/backups/20260827-105055-9a76d26-pre-020/`.
+
+Local/public health and readiness, exact public wheel hash, unknown-download 404, schema
+`0023_human_usernames`, backup checks and all services passed. Counts are 42 Agents / 105 Messages /
+105 Deliveries / 15 Attachments / 14 Humans. AgentPost/Nginx/PostgreSQL PIDs are
+`262280/245451/245492`; Nginx and PostgreSQL were preserved. Public Orbit rendered and its deployed
+asset contains the new-task/local-folder guidance. Authenticated production Orbit, a real newly
+created Manus task selecting the folder, a complete send/reply round and a Windows real host remain
+pending. Evidence is `manus_local_folder_deployed_https_verified`, not `production_accepted`.
 
 ## Alibaba deployment single-upload workflow (local verified, 2026-08-27)
 

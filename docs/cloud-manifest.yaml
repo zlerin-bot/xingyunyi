@@ -1,17 +1,17 @@
 schema_version: "1"
 project: xingyunyi-agentpost
-evidence_status: navigation_presence_human_username_deployed_https_verified
-verified_at: "2026-08-27T10:05:00+08:00"
+evidence_status: manus_local_folder_deployed_https_verified
+verified_at: "2026-08-27T10:52:00+08:00"
 
 local_stage:
   prior_tag: v0.1.12-local.1
   committed_svg_baseline: 43796a1
-  feature_commit: eca0b01
-  release_commit: 8f9bc79
-  package_version: 0.1.19
+  feature_commit: 71a1dae
+  release_commit: 9a76d26
+  package_version: 0.1.20
   production_change: true
   validation_snapshot: clean_git_archive
-  evidence_status: navigation_presence_human_username_local_verified
+  evidence_status: manus_local_folder_deployed_https_verified
   excludes_preserved_uncommitted_png_experiment: false
 
 provider:
@@ -22,14 +22,14 @@ provider:
   operating_system: ubuntu-24.04
 
 release:
-  git_commit: 8f9bc79
+  git_commit: 9a76d26
   current_path: /opt/agentpost/current
-  immutable_path: /opt/agentpost/releases/8f9bc79
-  virtualenv_path: /opt/agentpost/venvs/8f9bc79
+  immutable_path: /opt/agentpost/releases/9a76d26
+  virtualenv_path: /opt/agentpost/venvs/9a76d26
   alembic_revision: 0023_human_usernames
-  package_version: 0.1.19
-  connector_wheel_sha256: 6760b579bf9840671edb707df928f35879afb28bb361ba368bdc4bc4f4459c6a
-  schema_change: true
+  package_version: 0.1.20
+  connector_wheel_sha256: 5421c6581255a7727029b13e633300c6285f30794252893daf90fda647d15957
+  schema_change: false
 
 topology:
   reverse_proxy: nginx
@@ -101,16 +101,16 @@ rollback:
     fresh_0_1_3_attempt: failed_snapshot_limit_exceeded
     existing_snapshots_preserved: true
   application_backup: /opt/agentpost/backups/20260824-https
-  current_update_backup: /opt/agentpost/backups/20260827-094118-8f9bc79-pre-019
+  current_update_backup: /opt/agentpost/backups/20260827-105055-9a76d26-pre-020
   incomplete_backups_preserved:
     - /opt/agentpost/backups/20260825-1746-e378a7e-pre-016
     - /opt/agentpost/backups/20260825-1747-e378a7e-pre-016
     - /opt/agentpost/backups/20260826-1313-f15df99-pre-013
     - /opt/agentpost/backups/20260827-080230-8429a41-pre-018
     - /opt/agentpost/backups/20260827-080509-8429a41-pre-018
-  prior_release: /opt/agentpost/releases/8429a41
-  prior_unit: /opt/agentpost/backups/20260827-094118-8f9bc79-pre-019/agentpost.service
-  immediate_script: /opt/agentpost/backups/20260827-094118-8f9bc79-pre-019/rollback-immediate-0.1.19.sh
+  prior_release: /opt/agentpost/releases/8f9bc79
+  prior_unit: /opt/agentpost/backups/20260827-105055-9a76d26-pre-020/agentpost.service
+  immediate_script: /opt/agentpost/backups/20260827-105055-9a76d26-pre-020/rollback-immediate-0.1.20.sh
   database_dump_verified: true
   attachment_archive_verified: true
 
@@ -126,13 +126,13 @@ acceptance:
   orbit_tool_switching: workbuddy_doubao_work_openclaw_hermes_codex_manus_fixed_order
   orbit_manual_pairing_fallback: operator_only
   orbit_pairing_address_validation: passed
-  orbit_authenticated_existing_agent_view: passed
+  orbit_authenticated_existing_agent_view: passed_on_0_1_19_0_1_20_pending
   orbit_codex_0_1_1_guide: superseded_by_connection_code_v1
   orbit_frontend_errors: none
   pinned_connector_wheel: passed
-  public_connector_wheel_version: 0.1.19
+  public_connector_wheel_version: 0.1.20
   clean_public_wheel_install: passed
-  server_sdk_mcp_package_versions: aligned_0.1.19
+  server_sdk_mcp_package_versions: aligned_0.1.20
   package_boundary_regression: passed
   recipient_resolver_api_sdk_cli_mcp_skill_ui: deployed
   recipient_handle_editor: deployed_authenticated_production_acceptance_pending
@@ -165,7 +165,7 @@ acceptance:
   hermes_connection_code_real_orbit: passed_without_copy_or_pairing
   hermes_real_pairing_send_receive_restart: pending_human_test
   manus_remote_mcp_gate: disabled_experimental_fallback
-  manus_local_folder_adapter: passed_local_code_tests_and_desktop_mobile_browser
+  manus_local_folder_adapter: deployed_public_asset_and_postflight_passed
   manus_local_folder_macos_real_message_delivery: external_feedback_confirmed
   manus_native_custom_mcp_tools_list: unconfirmed
   manus_windows_local_folder_real_host: pending_human_test
@@ -194,6 +194,7 @@ acceptance:
   production_counts_after_0_1_17: 32_agents_83_messages_83_deliveries_15_attachments_12_humans
   production_counts_after_0_1_18: 33_agents_92_messages_92_deliveries_15_attachments_13_humans
   production_counts_after_0_1_19: 40_agents_99_messages_99_deliveries_15_attachments_14_humans
+  production_counts_after_0_1_20: 42_agents_105_messages_105_deliveries_15_attachments_14_humans
   production_migration_0023_human_usernames: passed_after_upgrade_downgrade_upgrade_rehearsal
   orbit_module_branding: passed_authenticated_fresh_production_page
   connector_online_status_semantics: deployed_authenticated_wording_verified_live_state_transition_pending
@@ -204,6 +205,7 @@ acceptance:
   guarded_0_1_16_switch: passed
   guarded_0_1_17_switch: passed
   guarded_0_1_18_switch: passed_after_full_0021_0022_0021_0022_rehearsal
+  guarded_0_1_20_switch: passed_schema_unchanged_0023_human_usernames
   guarded_0_1_15_rollback: passed_postflight_permission_failure_restored_0_1_14
   production_counts_after_0_1_12: 23_agents_51_messages_51_deliveries_9_current_bindings
   workbuddy_020_current_connector: healthy_current

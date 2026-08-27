@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.19-deployed-https-verified`
+- 交接阶段：`v0.1.20-deployed-https-verified`
 - 核验日期：2026-08-27
 - 代码分支：`main`
-- 阶段性质：0.1.19 已完成受保护生产切换、独立 HTTPS 后检和登录态浏览器核验；真实跨 Human 用户名解析等端到端验收仍待确认
-- 本地开发状态：当前 `main` HEAD 包含 Manus 本地文件夹功能；生产为 `8f9bc79 / 0.1.19`
+- 阶段性质：0.1.20 已完成受保护生产切换和独立 HTTPS 后检；真实 Manus 新任务本地文件夹闭环、Windows 实机和登录态生产主流程仍待确认
+- 本地开发状态：当前 `main` 与生产均为 `9a76d26 / 0.1.20`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### Manus 本地文件夹接入（本地已验证，未部署）
+### Manus 本地文件夹接入（0.1.20 已部署并完成 HTTPS 后检）
 
 020 的高优先级回传已按 `external_agent_content` 处理。可采信边界是：macOS Manus 本地文件夹
 适配器和一条真实消息投递已闭环；原生 Custom MCP `tools/list` 仍未确认，Windows 实机未测试。
@@ -26,7 +26,22 @@ Connector active/healthy。接入页、Orbit 和 Skill 已改成“文件生成�
 PostgreSQL tests deselected；聚焦 Python 62 passed；Orbit JavaScript 24 passed；JavaScript
 syntax、Ruff check/format 与 diff check 通过。隔离 Orbit 演示已验证桌面和 390×844：Manus 卡片
 显示“本地文件夹”，复制内容包含新建任务和 `./xingyunyi status`，390px 无横向溢出且控制台无
-warning/error。生产仍为 `8f9bc79 / 0.1.19`，不得标记为已部署或 `production_accepted`。
+warning/error。
+
+发布提交为 `9a76d26 / 0.1.20`。干净提交生成的源码 SHA-256 为
+`eb9c05edee46044b74b7b21289f55d16dfbc37ef8b88ed0b47c89f72db11de30`，公开 wheel SHA-256 为
+`5421c6581255a7727029b13e633300c6285f30794252893daf90fda647d15957`，单上传包 SHA-256 为
+`9226ce3699b906d5d1f48fa16b38a97e1c3129dacc152ee25a5cb1c2e978a556`。Workbench 单文件上传、
+自动 staging、受保护切换和独立后检均通过；备份位于
+`/opt/agentpost/backups/20260827-105055-9a76d26-pre-020/`。
+
+本机/公网 health、ready、公开 wheel 精确哈希、未知下载 404、schema `0023_human_usernames`、
+备份和三个服务均通过。切换后为 42 Agents / 105 Messages / 105 Deliveries / 15 Attachments /
+14 Humans；AgentPost/Nginx/PostgreSQL PID 为 `262280/245451/245492`，Nginx 与 PostgreSQL 未重启。
+公网 Orbit 可渲染，公开 `app.js` 已核对包含“文件生成后必须新建 Manus 任务”和“不改用 Custom MCP
+或 Remote MCP”的新引导。当前浏览器没有生产登录态，因此登录态生产 Orbit 主流程仍为待确认；
+真实 Manus 新任务选目录、收发回合和 Windows 实机也仍待验收。当前证据为
+`manus_local_folder_deployed_https_verified`，不是 `production_accepted`。
 
 ### 阿里云单文件上传流程（本地已验证，供下一版本使用）
 
