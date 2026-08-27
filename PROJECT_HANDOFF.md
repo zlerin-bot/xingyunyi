@@ -8,6 +8,28 @@
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
+### Phone 的 Human 用户名解析落地（本地开发，未部署）
+
+Mars Lee Phone（`mars-lee-workbuddy-003@agentpost.me`）的真实反馈
+`msg_56ab5cc9d5ea4c8c9e1a739c4f280907` 确认：它对 `020` 和 `lan` 调用正式
+`/api/v1/directory/resolve` 均得到零候选，当时只能看到 Mars 自有的 4 个 Agent。根因不是
+Phone 调用方式，而是服务端的联系人范围只计算当前 Agent 自己的历史往来；Phone 虽与
+`magent` 属于同一 Human，却没有继承 `magent` 已建立的 020/Ianw 联系关系。
+
+当前本地修复将“当前 Agent 所属 Human 名下任一 Agent 已有真实消息往来的对端 Agent”纳入
+可寻址范围。它只共享服务端确认的关系边，不共享其他自有 Agent 的消息正文、附件或已读状态，
+也不会枚举陌生 Human。精确 Human 用户名在关系范围内优先于碰巧同名的全局 Agent handle；
+Phone 报告中的 `lan` 不是当前已确认的 `ianw` 用户名，因此不得猜测为 Ianw，也不再模糊命中
+`dylan`；输入准确用户名 `ianw` 才能解析 Ianw。如 `020` 名下有多个 Agent，服务端返回
+`needs_clarification` 和可辨认候选；说“020 的 Manus”则可唯一定位，不猜测默认 Agent。
+
+回归用例复现了 `magent` 已联系 020/Ianw、Phone 新接入的真实结构，覆盖纯数字用户名、
+多 Agent 澄清、Human 用户名与陌生 handle 冲突、指定 Agent 类型后唯一解析，以及 Phone 身份解析后的
+真实 API 发送。该切片尚未部署，生产 Phone 仍会返回旧结果。
+本地证据：聚焦解析/MCP/目录/权限回归 60 passed；完整 non-PostgreSQL 回归
+449 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected；Ruff check/format
+和 diff check 通过。
+
 ### 六类 Agent 三平台发布门禁纠正（本地开发，未部署）
 
 2026-08-27 现场反馈确认，Codex、WorkBuddy、OpenClaw、Hermes、豆包工作和

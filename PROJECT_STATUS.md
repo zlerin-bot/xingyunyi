@@ -4,6 +4,26 @@ Last updated: 2026-08-27
 
 Current handoff stage: `v0.1.20-deployed-https-verified`; pinned production release: `0.1.20`
 
+## Human username resolution across one Human's Agents (local development, 2026-08-27)
+
+Mars Lee Phone's report `msg_56ab5cc9d5ea4c8c9e1a739c4f280907` reproduced a server-side
+gap: `mars-lee-workbuddy-003@agentpost.me` received zero candidates for `020` and `lan` even though
+another Agent owned by Mars had established those contacts. The directory scope previously included
+all Agents owned by the same Human, but inherited correspondence only from the individual calling
+Agent.
+
+Local resolution now inherits the server-verified contact edges established by any Agent owned by
+the same Human. It does not expose sibling message bodies, attachments or read state, and does not
+enumerate unrelated Humans. Exact scoped Human usernames take precedence over a colliding global
+Agent handle. The report's `lan` is not guessed to mean the confirmed username `ianw`, and it no
+longer fuzzily matches `dylan`; the exact `ianw` username resolves the intended scoped contact.
+An unqualified Human with multiple Agents returns clarification candidates, while `020 的 Manus`
+resolves uniquely. The regression reproduces primary-Agent contact history, a newly connected Phone
+Agent, username/handle collision and end-to-end API sends. This remains local-only until deployment.
+Focused resolver/MCP/directory/access regression is 60 passed. Full non-PostgreSQL regression is
+449 passed, with one expected loopback sandbox skip and five PostgreSQL tests deselected; Ruff
+check/format and diff check passed.
+
 ## Three-platform publication contract correction (local development, 2026-08-27)
 
 The released Codex, WorkBuddy, OpenClaw, Hermes, 豆包工作 and Manus adapters are product-supported

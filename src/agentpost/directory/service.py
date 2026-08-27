@@ -191,17 +191,23 @@ def _related_agent_ids(session: Session, caller: Agent) -> set[UUID]:
     """Return the server-verified contact/organization discovery scope."""
 
     related = {caller.id}
+    contact_source_ids = {caller.id}
     caller_owner_id = session.scalar(
         select(AgentOwnership.human_user_id).where(AgentOwnership.agent_id == caller.id)
     )
     if caller_owner_id is not None:
-        related.update(
+        owned_agent_ids = set(
             session.scalars(
                 select(AgentOwnership.agent_id).where(
                     AgentOwnership.human_user_id == caller_owner_id
                 )
             )
         )
+        related.update(owned_agent_ids)
+        # A Human's newly connected Agent must be able to address contacts that
+        # another Agent owned by the same Human has already corresponded with.
+        # This shares only the server-verified contact edge, never message bodies.
+        contact_source_ids.update(owned_agent_ids)
         organization_ids = list(
             session.scalars(
                 select(OrganizationMembership.organization_id).where(
@@ -222,14 +228,14 @@ def _related_agent_ids(session: Session, caller: Agent) -> set[UUID]:
         session.scalars(
             select(Delivery.recipient_agent_id)
             .join(Message, Message.id == Delivery.message_id)
-            .where(Message.sender_agent_id == caller.id)
+            .where(Message.sender_agent_id.in_(contact_source_ids))
         )
     )
     related.update(
         session.scalars(
             select(Message.sender_agent_id)
             .join(Delivery, Delivery.message_id == Message.id)
-            .where(Delivery.recipient_agent_id == caller.id)
+            .where(Delivery.recipient_agent_id.in_(contact_source_ids))
         )
     )
     related.update(
@@ -461,6 +467,14 @@ def resolve_recipient(session: Session, *, caller: Agent, query: str) -> Recipie
         contexts = [_context_for_exact_agent(exact, scoped_by_id)] if exact is not None else []
         return _resolution(cleaned_query, contexts, "address")
 
+    exact_username_matches = [
+        context
+        for context in scoped
+        if context.owner_username and context.owner_username.strip().casefold() == normalized_query
+    ]
+    if exact_username_matches:
+        return _resolution(cleaned_query, exact_username_matches, "human_agent")
+
     if HANDLE_PATTERN.fullmatch(normalized_query):
         exact_handle = session.scalar(
             select(Agent).where(Agent.handle == normalized_query, Agent.status == "active")
@@ -546,6 +560,11 @@ def resolve_recipient(session: Session, *, caller: Agent, query: str) -> Recipie
             )
 
     fuzzy_matches: list[tuple[float, _CandidateContext]] = []
+    # Three-character usernames such as `lan` are valid stable identifiers.
+    # Fuzzy matching them to a different owner such as `dylan` is more likely
+    # to misroute a message than to help, so short unresolved queries fail closed.
+    if len(normalized_query) < 4:
+        return _resolution(cleaned_query, [], "fuzzy")
     for context in scoped:
         values = [
             context.agent.handle,

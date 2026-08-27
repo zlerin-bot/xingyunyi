@@ -141,6 +141,69 @@ def _relationship_scope(
         session.commit()
 
 
+def _assign_human_owner(
+    database: Database,
+    *,
+    addresses: tuple[str, ...],
+    username: str,
+    display_name: str,
+    connector_types: dict[str, str] | None = None,
+) -> None:
+    with database.session_factory() as session:
+        owner = HumanUser(
+            email=f"{username}@example.com",
+            username=username,
+            display_name=display_name,
+            status="active",
+        )
+        session.add(owner)
+        session.flush()
+        for address in addresses:
+            agent = session.scalar(select(Agent).where(Agent.address == address))
+            assert agent is not None
+            session.add(AgentOwnership(agent_id=agent.id, human_user_id=owner.id))
+            connector_type = (connector_types or {}).get(address)
+            if connector_type is not None:
+                connector = ConnectorInstance(
+                    connector_id=f"connector-{agent.id}",
+                    agent_id=agent.id,
+                    human_user_id=owner.id,
+                    connector_type=connector_type,
+                    display_name=f"{connector_type} connector",
+                    status="active",
+                    health_status="healthy",
+                )
+                session.add(connector)
+                session.flush()
+                session.add(
+                    AgentConnectorBinding(
+                        agent_id=agent.id,
+                        connector_instance_id=connector.id,
+                    )
+                )
+        session.commit()
+
+
+def _establish_contact(
+    client: TestClient,
+    *,
+    sender: dict[str, Any],
+    recipient: dict[str, Any],
+    suffix: str,
+) -> None:
+    response = client.post(
+        "/api/v1/messages",
+        headers={**_bearer(sender), "Idempotency-Key": f"owner-contact-{suffix}"},
+        json={
+            "to": [{"address": recipient["agent"]["address"]}],
+            "type": "message",
+            "subject": "建立联系人关系",
+            "content": {"format": "text", "body": "历史联系记录"},
+        },
+    )
+    assert response.status_code == 201, response.text
+
+
 def test_unique_human_username_resolves_their_scoped_agent(
     client: TestClient,
     database: Database,
@@ -171,6 +234,148 @@ def test_unique_human_username_resolves_their_scoped_agent(
     assert result["match"]["agent_id"] == target["agent"]["id"]
     assert result["match"]["owner_username"] == "020"
     assert result["match"]["match_kind"] == "human_agent"
+
+
+def test_phone_agent_inherits_its_humans_contact_scope_for_username_resolution(
+    client: TestClient,
+    database: Database,
+) -> None:
+    primary = _register(client, "magent@agentpost.me", display_name="mars agent", handle="codex")
+    phone = _register(
+        client,
+        "mars-lee-workbuddy-003@agentpost.me",
+        display_name="Mars Lee Phone",
+        handle="phone",
+    )
+    target_020_manus = _register(
+        client,
+        "020-manus-001@agentpost.me",
+        display_name="020 Manus",
+        handle="pa020",
+    )
+    target_020_workbuddy = _register(
+        client,
+        "020-workbuddy-001@agentpost.me",
+        display_name="020 WorkBuddy",
+        handle="wb020",
+    )
+    target_ianw = _register(
+        client,
+        "ianw-codex-001@agentpost.me",
+        display_name="Ianw Codex",
+        handle="ianw-code",
+    )
+    _register(
+        client,
+        "unrelated-ianw-handle@agentpost.me",
+        display_name="Unrelated Agent",
+        handle="ianw",
+    )
+    target_dylan = _register(
+        client,
+        "dylan-codex-001@agentpost.me",
+        display_name="Dylan Codex",
+        handle="dylan-code",
+    )
+    _assign_human_owner(
+        database,
+        addresses=(primary["agent"]["address"], phone["agent"]["address"]),
+        username="mars-lee",
+        display_name="Mars Lee",
+    )
+    _assign_human_owner(
+        database,
+        addresses=(
+            target_020_manus["agent"]["address"],
+            target_020_workbuddy["agent"]["address"],
+        ),
+        username="020",
+        display_name="020",
+        connector_types={
+            target_020_manus["agent"]["address"]: "manus",
+            target_020_workbuddy["agent"]["address"]: "workbuddy",
+        },
+    )
+    _assign_human_owner(
+        database,
+        addresses=(target_ianw["agent"]["address"],),
+        username="ianw",
+        display_name="Ianw",
+    )
+    _assign_human_owner(
+        database,
+        addresses=(target_dylan["agent"]["address"],),
+        username="dylan",
+        display_name="Dylan",
+    )
+    _establish_contact(
+        client,
+        sender=primary,
+        recipient=target_020_manus,
+        suffix="020-manus",
+    )
+    _establish_contact(
+        client,
+        sender=primary,
+        recipient=target_020_workbuddy,
+        suffix="020-workbuddy",
+    )
+    _establish_contact(
+        client,
+        sender=primary,
+        recipient=target_ianw,
+        suffix="ianw",
+    )
+    _establish_contact(
+        client,
+        sender=primary,
+        recipient=target_dylan,
+        suffix="dylan",
+    )
+
+    resolved_020 = _resolve(client, phone, "020")
+    resolved_020_manus = _resolve(client, phone, "020 的 Manus")
+    resolved_ianw = _resolve(client, phone, "ianw")
+    unresolved_lan = _resolve(client, phone, "lan")
+
+    assert resolved_020.status_code == 200, resolved_020.text
+    assert resolved_020.json()["status"] == "needs_clarification"
+    assert resolved_020.json()["total_candidates"] == 2
+    assert {candidate["agent_id"] for candidate in resolved_020.json()["candidates"]} == {
+        target_020_manus["agent"]["id"],
+        target_020_workbuddy["agent"]["id"],
+    }
+    assert resolved_020_manus.status_code == 200, resolved_020_manus.text
+    assert resolved_020_manus.json()["status"] == "resolved"
+    assert resolved_020_manus.json()["match"]["agent_id"] == target_020_manus["agent"]["id"]
+    assert resolved_020_manus.json()["match"]["owner_username"] == "020"
+    assert resolved_ianw.status_code == 200, resolved_ianw.text
+    assert resolved_ianw.json()["status"] == "resolved"
+    assert resolved_ianw.json()["match"]["agent_id"] == target_ianw["agent"]["id"]
+    assert resolved_ianw.json()["match"]["owner_username"] == "ianw"
+    assert unresolved_lan.status_code == 200, unresolved_lan.text
+    assert unresolved_lan.json()["status"] == "not_found"
+    assert unresolved_lan.json()["candidates"] == []
+
+    for suffix, resolution in (
+        ("020-manus", resolved_020_manus),
+        ("ianw", resolved_ianw),
+    ):
+        sent = client.post(
+            "/api/v1/messages",
+            headers={
+                **_bearer(phone),
+                "Idempotency-Key": f"phone-human-username-{suffix}",
+            },
+            json={
+                "to": [{"address": resolution.json()["match"]["address"]}],
+                "type": "message",
+                "subject": "Phone Human username resolution",
+                "content": {"format": "text", "body": "我手机都能接上了"},
+            },
+        )
+        assert sent.status_code == 201, sent.text
+        assert sent.json()["to"][0]["agent_id"] == resolution.json()["match"]["agent_id"]
 
 
 @pytest.mark.parametrize(
