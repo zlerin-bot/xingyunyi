@@ -5,6 +5,97 @@
 适用环境：阿里云轻量应用服务器（杭州）、Ubuntu 24.04、systemd AgentPost、Nginx、同机
 PostgreSQL。本文优化操作通道，不删减预检、备份、迁移、健康检查或自动回退。
 
+## 0. 当前唯一推荐的成功路径
+
+截至 2026-08-27，这台生产服务器尚未完成部署专用 SSH 公钥的只读连通验证。因此后续发布**不要
+先尝试 SSH、命令助手传文件、Base64 分片或 Docker Compose**；当前默认路径固定为：
+
+> 干净提交生成六个文件 → Workbench 文件管理一次上传 → 一条受保护切换命令 → 一条后检命令
+
+### 第一步：本机从明确提交生成完整发布物
+
+先确认版本提交已经存在且本地验证完成，再运行：
+
+```bash
+scripts/aliyun/prepare-release.sh <commit> <version> <alembic-head>
+```
+
+例如 0.1.19：
+
+```bash
+scripts/aliyun/prepare-release.sh 8f9bc79 0.1.19 0023_human_usernames
+```
+
+脚本只读取指定 Git 提交，不打包当前工作树，并在 `dist/<version>/` 固定生成：
+
+1. `agentpost-<version>-source.tar.gz`
+2. `agentpost-<version>-py3-none-any.whl`
+3. `manifest-<version>.txt`
+4. `SHA256SUMS`
+5. `aliyun-switch-release.sh` 与 `aliyun-postflight.sh`
+
+缺少项目 `.venv`、提交版本不匹配、wheel 文件名不匹配或任一构建步骤失败时立即停止，不进入阿里云。
+
+### 第二步：Workbench 一次上传
+
+在 Workbench 文件管理中创建 `/home/admin/agentpost-release-<version>/`，把
+`dist/<version>/` 中上述全部文件一次上传。不要上传源码工作区、环境文件、密钥或数据库备份。
+
+上传后只运行以下短检查，不粘贴临时长脚本：
+
+```bash
+cd /home/admin/agentpost-release-<version>
+sha256sum -c SHA256SUMS
+bash -n aliyun-switch-release.sh aliyun-postflight.sh
+```
+
+所有文件必须显示 `OK`。任一不一致都重新上传对应完整文件，禁止绕过哈希继续。
+
+### 第三步：一条命令完成预检、备份、演练和切换
+
+```bash
+sudo -n env CONFIRM_PRODUCTION_CHANGE=YES \
+  /home/admin/agentpost-release-<version>/aliyun-switch-release.sh \
+  /home/admin/agentpost-release-<version>/manifest-<version>.txt
+```
+
+该脚本自动从生产读取旧 release、旧版本和旧 schema，不再手工抄参数；按固定顺序完成：
+
+1. 旧生产 release/schema/health、三个服务、环境权限和全部发布物校验；
+2. PostgreSQL、附件、环境、systemd、Nginx、旧 wheel 和即时回滚脚本的完整备份；
+3. 新不可变 release/venv 准备和 package/server/SDK/MCP 版本核验；
+4. PostgreSQL 可访问临时 dump 上的 `upgrade → downgrade → upgrade` 演练；
+5. release 配置、systemd、Nginx 下载入口和生产 schema 更新；
+6. 原子 `current` 指针切换，仅重启 AgentPost、reload Nginx；
+7. 本机 health/ready 失败时自动回滚。
+
+只有看到下面一行才表示切换成功：
+
+```text
+deploy_status=ok release=<version> commit=<commit> backup=<verified-backup-path>
+```
+
+在此之前失败时不得手工接着执行后半段；先确认旧生产仍健康，再修复固定脚本并重新生成/上传。
+
+### 第四步：一条命令完成服务器和公网后检
+
+```bash
+sudo -n /home/admin/agentpost-release-<version>/aliyun-postflight.sh \
+  /home/admin/agentpost-release-<version>/manifest-<version>.txt
+```
+
+只有看到 `postflight_status=ok` 才能更新部署记录。随后用有登录态浏览器打开 Orbit 检查主流程，
+并把真实 Agent 宿主接入、收发和跨设备测试继续单列为 `待确认`。
+
+### SSH 何时替代 Workbench
+
+只有部署专用公钥已经追加到 `admin`、主机指纹固定、`ssh` 与 `sudo -n true` 的只读探针明确通过后，
+才把第二步替换为一次 `rsync`。构建、服务器切换脚本和后检脚本完全不变；不得在每次发布现场
+重新试 SSH 登录。也就是说，SSH 只是未来更快的传输通道，不是另一套发布逻辑。
+
+仓库根目录的 `scripts/deploy-production.sh` 是旧 Docker Compose 拓扑入口，默认会拒绝运行；当前
+阿里云生产禁止使用它。
+
 ## 1. 0.1.14–0.1.18 发布暴露的问题
 
 1. 本机 SSH 客户端能到达服务器，但没有服务器接受的身份；`root` 与 `admin` 公钥登录均失败。
@@ -28,7 +119,7 @@ PostgreSQL。本文优化操作通道，不删减预检、备份、迁移、健�
 结论：不能为了“快”删掉保护门禁；应把稳定门禁脚本化，并把大文件传输从命令助手移到
 `rsync/SFTP`。
 
-## 2. 推荐的日常发布通道
+## 2. SSH 已完成一次性准备后的日常发布通道
 
 ### 一次性准备（需要用户单独授权）
 

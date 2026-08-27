@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${AGENTPOST_DEPLOY_TOPOLOGY:-}" != "docker-compose" ]]; then
+  echo "Refusing to run the legacy Docker Compose deployment path." >&2
+  echo "The current Alibaba Cloud production uses systemd + Nginx + PostgreSQL." >&2
+  echo "Use scripts/aliyun/prepare-release.sh and scripts/aliyun/switch-release.sh." >&2
+  exit 2
+fi
+
 if [[ "${CONFIRM_PRODUCTION_CHANGE:-}" != "YES" ]]; then
   echo "Refusing to deploy without CONFIRM_PRODUCTION_CHANGE=YES." >&2
   exit 2
@@ -35,4 +42,3 @@ done
 "${compose[@]}" logs --tail=100 api db caddy >&2
 echo "AgentPost did not become ready within 180 seconds." >&2
 exit 1
-

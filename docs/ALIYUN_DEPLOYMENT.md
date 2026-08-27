@@ -4,8 +4,11 @@ Status: current release deployed and HTTPS-verified on 2026-08-27 at
 `https://agentpost.me`; this remains operational deployment evidence rather than
 full production acceptance.
 
-For the preferred SSH/rsync release path, Command Assistant fallback and the one-time changes that
-still require authorization, see [ALIYUN_DEPLOYMENT_EFFICIENCY.md](ALIYUN_DEPLOYMENT_EFFICIENCY.md).
+The currently verified release path is a clean-commit build, one complete Workbench upload, the
+versioned guarded switch script and its postflight script. SSH/rsync replaces only the upload step
+after the dedicated SSH identity passes its one-time read-only probe. Do not retry unconfigured SSH,
+Command Assistant file transfer, Base64 fragments or the legacy Docker Compose script. See
+[ALIYUN_DEPLOYMENT_EFFICIENCY.md](ALIYUN_DEPLOYMENT_EFFICIENCY.md).
 
 ## Deployed topology
 
