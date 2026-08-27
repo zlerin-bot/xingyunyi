@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.17-deployed-https-verified`
-- 核验日期：2026-08-26
+- 交接阶段：`v0.1.18-deployed-https-verified`
+- 核验日期：2026-08-27
 - 代码分支：`main`
-- 阶段性质：0.1.17 已完成受保护生产切换和独立 HTTPS 后检；真实豆包宿主交互验收仍待 Human 确认
-- 本地开发状态：发布提交为 `504683f`；生产为 `504683f / 0.1.17`
+- 阶段性质：0.1.18 已完成受保护生产切换和独立 HTTPS 后检；真实 Manus 宿主交互验收仍待 Human 确认
+- 本地开发状态：发布提交为 `8429a41`；生产为 `8429a41 / 0.1.18`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### Manus macOS/Windows 本机 STDIO 接入（本地已验证，未部署）
+### Manus macOS/Windows 本机 STDIO 接入与 0.1.18 生产发布
 
 020 的 Codex 在 macOS Manus 1.6 Lite 实测确认自定义 MCP 提供 STDIO、SSE、HTTP；HTTP 卡片虽可
 保存，但未触发 MCP/OAuth 请求，也未让工具进入真实任务。基于该证据，本地主路径已从尚未发布的
@@ -20,9 +20,25 @@ launcher 配置不含秘密，保险库身份不可用时 fail closed。
 `mac,windows`。Remote MCP 的 DCR、Authorization Code + PKCE 和 intent-specific resource 作为
 默认关闭的实验后备保留，不作为当前可用性声明。完整 non-PostgreSQL 回归 416 passed、1 个预期
 sandbox skip、5 个 PostgreSQL deselected；聚焦 Python 87 passed；Orbit JavaScript 24 passed；
-Ruff、JavaScript syntax、diff check 与 wheel 隔离安装入口验证通过。生产仍为 `504683f / 0.1.17`；
-真实 Mac Manus 保存/tools/list/收发和真实 Windows 宿主均待确认，因此当前只是
-`manus_cross_platform_local_verified`，不是 deployed 或 `production_accepted`。
+Ruff、JavaScript syntax、diff check 与 wheel 隔离安装入口验证通过。
+
+功能提交 `6094afd` 已由发布提交 `8429a41` 对齐为 package/server/SDK/MCP `0.1.18`。发布物来自
+干净提交归档：源码 SHA-256 为
+`1d4c0a131cfb4ae35ba41651b507bae1d4e4b22874a2620800017bd2647534f5`，wheel SHA-256 为
+`71af53d2e35c94a256aa619c4622fd635a91670a4b8c1d756177cd0bd186002b`。生产现指向
+`/opt/agentpost/releases/8429a41`，runtime 为 `/opt/agentpost/venvs/8429a41`。
+
+最终受保护切换备份位于 `/opt/agentpost/backups/20260827-080717-8429a41-pre-018/`。备份 dump、
+附件、环境、systemd、Nginx、旧 0.1.17 wheel、即时回滚脚本的校验和和脚本语法均已复核。临时
+PostgreSQL 数据库完成 `0021 → 0022 → 0021 → 0022` 迁移演练，随后生产升级至
+`0022_oauth_authorization_code`；临时数据库和 dump 已清理。
+
+独立后检确认本机/公网 health、ready 均为 0.1.18，三个服务 active，33 Agents / 92 Messages /
+92 Deliveries / 15 Attachments / 13 Humans 与切换前一致，环境权限仍为 `600 root:root`。
+Nginx/PostgreSQL PID 保持 `245451/245492`，仅 AgentPost 重启，切换后 warning 日志为 0。公开
+配置明确 Manus `mac,windows`、`local_bootstrap`，公开 wheel 哈希精确且未知下载返回 404；登录态
+生产 Orbit 已正常渲染。真实 Mac Manus 保存/tools/list/收发和真实 Windows 宿主均待确认，因此
+当前是 `manus_cross_platform_deployed_https_verified`，不是 `production_accepted`。
 
 ### 0.1.17 豆包工作跨平台接入与生产发布
 

@@ -1,17 +1,17 @@
 schema_version: "1"
 project: xingyunyi-agentpost
-evidence_status: doubao_cross_platform_deployed_https_verified
-verified_at: "2026-08-26T22:31:00+08:00"
+evidence_status: manus_cross_platform_deployed_https_verified
+verified_at: "2026-08-27T08:13:10+08:00"
 
 local_stage:
   prior_tag: v0.1.12-local.1
   committed_svg_baseline: 43796a1
-  feature_commit: bdd59f6
-  release_commit: 504683f
-  package_version: 0.1.17
+  feature_commit: 6094afd
+  release_commit: 8429a41
+  package_version: 0.1.18
   production_change: true
   validation_snapshot: clean_git_archive
-  evidence_status: doubao_cross_platform_local_verified
+  evidence_status: manus_cross_platform_local_verified
   excludes_preserved_uncommitted_png_experiment: false
 
 provider:
@@ -22,14 +22,14 @@ provider:
   operating_system: ubuntu-24.04
 
 release:
-  git_commit: 504683f
+  git_commit: 8429a41
   current_path: /opt/agentpost/current
-  immutable_path: /opt/agentpost/releases/504683f
-  virtualenv_path: /opt/agentpost/venvs/504683f
-  alembic_revision: 0021_human_thread_views
-  package_version: 0.1.17
-  connector_wheel_sha256: 4edac3b5e45377cf1598bc49ea6c9e53d8a9f003262124a94983c91c44abb2b3
-  schema_change: false
+  immutable_path: /opt/agentpost/releases/8429a41
+  virtualenv_path: /opt/agentpost/venvs/8429a41
+  alembic_revision: 0022_oauth_authorization_code
+  package_version: 0.1.18
+  connector_wheel_sha256: 71af53d2e35c94a256aa619c4622fd635a91670a4b8c1d756177cd0bd186002b
+  schema_change: true
 
 topology:
   reverse_proxy: nginx
@@ -89,7 +89,10 @@ feature_gates:
     doubao_work:
       - mac
       - windows
-  reason: doubao_work_linux_host_contract_and_real_mac_windows_acceptance_manus_remote_oauth_windows_codex_workbuddy_linux_and_enterprise_idp_remain_pending
+    manus:
+      - mac
+      - windows
+  reason: real_manus_mac_windows_and_doubao_mac_windows_host_acceptance_doubao_linux_host_contract_windows_codex_workbuddy_linux_and_enterprise_idp_remain_pending
 
 rollback:
   provider_snapshot:
@@ -98,14 +101,16 @@ rollback:
     fresh_0_1_3_attempt: failed_snapshot_limit_exceeded
     existing_snapshots_preserved: true
   application_backup: /opt/agentpost/backups/20260824-https
-  current_update_backup: /opt/agentpost/backups/20260826-223010-504683f-pre-017
+  current_update_backup: /opt/agentpost/backups/20260827-080717-8429a41-pre-018
   incomplete_backups_preserved:
     - /opt/agentpost/backups/20260825-1746-e378a7e-pre-016
     - /opt/agentpost/backups/20260825-1747-e378a7e-pre-016
     - /opt/agentpost/backups/20260826-1313-f15df99-pre-013
-  prior_release: /opt/agentpost/releases/e50652e
-  prior_unit: /opt/agentpost/backups/20260826-223010-504683f-pre-017/agentpost.service
-  immediate_script: /opt/agentpost/backups/20260826-223010-504683f-pre-017/rollback-immediate-0.1.17.sh
+    - /opt/agentpost/backups/20260827-080230-8429a41-pre-018
+    - /opt/agentpost/backups/20260827-080509-8429a41-pre-018
+  prior_release: /opt/agentpost/releases/504683f
+  prior_unit: /opt/agentpost/backups/20260827-080717-8429a41-pre-018/agentpost.service
+  immediate_script: /opt/agentpost/backups/20260827-080717-8429a41-pre-018/rollback-immediate-0.1.18.sh
   database_dump_verified: true
   attachment_archive_verified: true
 
@@ -125,9 +130,9 @@ acceptance:
   orbit_codex_0_1_1_guide: superseded_by_connection_code_v1
   orbit_frontend_errors: none
   pinned_connector_wheel: passed
-  public_connector_wheel_version: 0.1.17
+  public_connector_wheel_version: 0.1.18
   clean_public_wheel_install: passed
-  server_sdk_mcp_package_versions: aligned_0.1.17
+  server_sdk_mcp_package_versions: aligned_0.1.18
   package_boundary_regression: passed
   recipient_resolver_api_sdk_cli_mcp_skill_ui: deployed
   recipient_handle_editor: deployed_authenticated_production_acceptance_pending
@@ -159,7 +164,11 @@ acceptance:
   hermes_release_gate_mac_linux: passed_live_contract
   hermes_connection_code_real_orbit: passed_without_copy_or_pairing
   hermes_real_pairing_send_receive_restart: pending_human_test
-  manus_remote_mcp_gate: unavailable_409_fail_closed
+  manus_remote_mcp_gate: disabled_experimental_fallback
+  manus_local_stdio_gate: released_mac_windows
+  manus_launcher_os_vault_only: passed
+  manus_windows_packaging_and_unit_contract: passed_real_host_pending
+  manus_macos_real_save_tools_list_send_receive: pending_human_test
   doubao_work_remote_mcp_gate: unavailable_409_fail_closed
   doubao_work_local_stdio_gate: released_mac_windows
   doubao_work_launcher_os_vault_only: passed
@@ -178,15 +187,18 @@ acceptance:
   orbit_human_unread_red_dot: deployed_backend_and_ui_cross_human_acceptance_pending
   orbit_human_thread_view_independent_from_agent_state: passed_postgresql
   production_migration_0021_human_thread_views: passed
+  production_migration_0022_oauth_authorization_code: passed_after_upgrade_downgrade_upgrade_rehearsal
   production_counts_after_0_1_14: 24_agents_56_messages_56_deliveries_4_attachments_9_current_bindings_6_humans
   production_counts_after_0_1_15: 25_agents_58_messages_58_deliveries_4_attachments_7_humans
   production_counts_after_0_1_16: 29_agents_66_messages_66_deliveries_4_attachments_9_humans
   production_counts_after_0_1_17: 32_agents_83_messages_83_deliveries_15_attachments_12_humans
+  production_counts_after_0_1_18: 33_agents_92_messages_92_deliveries_15_attachments_13_humans
   task_round_completion_semantics: deployed_authenticated_production_acceptance_pending
   relationship_scoped_agent_directory: deployed_authenticated_production_acceptance_pending
   mobile_startrail_shortcuts: deployed_authenticated_390px_production_acceptance_pending
   guarded_0_1_16_switch: passed
   guarded_0_1_17_switch: passed
+  guarded_0_1_18_switch: passed_after_full_0021_0022_0021_0022_rehearsal
   guarded_0_1_15_rollback: passed_postflight_permission_failure_restored_0_1_14
   production_counts_after_0_1_12: 23_agents_51_messages_51_deliveries_9_current_bindings
   workbuddy_020_current_connector: healthy_current

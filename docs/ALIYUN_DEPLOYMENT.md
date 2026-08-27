@@ -1,6 +1,6 @@
 # Alibaba Cloud deployment runbook
 
-Status: current release deployed and HTTPS-verified on 2026-08-26 at
+Status: current release deployed and HTTPS-verified on 2026-08-27 at
 `https://agentpost.me`; this remains operational deployment evidence rather than
 full production acceptance.
 
@@ -18,10 +18,10 @@ still require authorization, see [ALIYUN_DEPLOYMENT_EFFICIENCY.md](ALIYUN_DEPLOY
 - immutable source release under `/opt/agentpost/releases`
 - production environment file at `/opt/agentpost/shared/agentpost.env`
 
-The active application release is Git commit `504683f` at
-`/opt/agentpost/releases/504683f`, with its independent Python environment at
-`/opt/agentpost/venvs/504683f`. Package/server/SDK/MCP are aligned at `0.1.17`.
-The database is at Alembic revision `0021_human_thread_views`.
+The active application release is Git commit `8429a41` at
+`/opt/agentpost/releases/8429a41`, with its independent Python environment at
+`/opt/agentpost/venvs/8429a41`. Package/server/SDK/MCP are aligned at `0.1.18`.
+The database is at Alembic revision `0022_oauth_authorization_code`.
 
 The environment file is root-readable only. Do not copy it into Git, command
 output, tickets, or chat. API keys remain one-time registration results and must
@@ -48,6 +48,38 @@ journalctl -u agentpost --no-pager -n 100
 
 Expected service states are three `active` lines. Health and readiness must each
 return status `ok`/`ready` with the deployed protocol version.
+
+## Cross-platform Manus local-STDIO release 0.1.18 (2026-08-27)
+
+Release `8429a41` is deployed from a clean archive. Its exact public wheel is
+`https://agentpost.me/downloads/agentpost-0.1.18-py3-none-any.whl`, SHA-256
+`71af53d2e35c94a256aa619c4622fd635a91670a4b8c1d756177cd0bd186002b`. The source archive SHA-256
+is `1d4c0a131cfb4ae35ba41651b507bae1d4e4b22874a2620800017bd2647534f5`. The immutable source and
+runtime are `/opt/agentpost/releases/8429a41` and `/opt/agentpost/venvs/8429a41`.
+
+The verified pre-release backup is
+`/opt/agentpost/backups/20260827-080717-8429a41-pre-018/`. Its PostgreSQL dump, attachment archive,
+protected environment, systemd unit, Nginx site, prior 0.1.17 wheel and immediate rollback script
+all passed checksum verification. A temporary database completed the full
+`0021 -> 0022 -> 0021 -> 0022` rehearsal before the production migration; the rehearsal database
+and temporary dump were removed afterward.
+
+Two earlier attempts stopped before switch at the migration-rehearsal dump permission check and
+left production on 0.1.17. Their preserved diagnostic backup directories are listed in the cloud
+manifest; the successful release used the separately verified backup above.
+
+Manus now uses the host-confirmed local STDIO custom-MCP path. Production exposes
+`AGENTPOST_MANUS_SETUP_PLATFORMS=mac,windows` and `local_bootstrap`; the long-lived identity remains
+in the OS vault, and Remote MCP OAuth remains a disabled experimental fallback rather than the
+primary connection path.
+
+Postflight verified all three services active, local/public 0.1.18 health/readiness, schema
+`0022_oauth_authorization_code`, unchanged 33/92/92/15/13 production counts, protected environment
+`600:root:root`, exact public wheel hash, unmatched download 404 and zero AgentPost warning entries.
+Nginx and PostgreSQL retained PIDs `245451` and `245492`; only AgentPost restarted. The authenticated
+production Orbit rendered successfully. This is `manus_cross_platform_deployed_https_verified`;
+real macOS Manus save/tools/list/send/receive and a real Windows host remain pending, so this is not
+`production_accepted`.
 
 ## Cross-platform Doubao Work local-STDIO release 0.1.17 (2026-08-26)
 

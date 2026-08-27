@@ -1,10 +1,10 @@
 # 星云驿 Project Status
 
-Last updated: 2026-08-26
+Last updated: 2026-08-27
 
-Current handoff stage: `v0.1.17-deployed-https-verified`; pinned production release: `0.1.17`
+Current handoff stage: `v0.1.18-deployed-https-verified`; pinned production release: `0.1.18`
 
-## Manus macOS/Windows 本机 STDIO 接入（本地已验证，未部署）
+## Manus macOS/Windows 本机 STDIO 接入（0.1.18 deployed，2026-08-27）
 
 020 的 Codex 在 macOS Manus 1.6 Lite 实测确认“设置 · 连接器 · 已添加连接器 · 自定义 MCP”提供
 STDIO、SSE、HTTP；HTTP 卡片虽然能保存，却没有发出 MCP/OAuth 请求，也没有让 tools 在真实任务
@@ -21,8 +21,23 @@ STDIO 到 `agentpost-mcp`；保险库身份不可用时 fail closed。Manus 表�
 DCR、Authorization Code + PKCE 与 intent-specific resource 实现保留为默认关闭的实验后备，不是
 当前可用性声明。本地证据：完整 non-PostgreSQL 回归 416 passed、1 个预期 sandbox skip、5 个
 PostgreSQL deselected；聚焦 Python 87 passed；Orbit JavaScript 24 passed；Ruff、JavaScript syntax、
-diff check 和 wheel 隔离安装入口验证通过。真实 Mac Manus 保存/tools/list/收发与真实 Windows 宿主
-仍为待确认；生产未变，当前仅是 `manus_cross_platform_local_verified`，不是 deployed 或
+diff check 和 wheel 隔离安装入口验证通过。
+
+功能提交 `6094afd` 已由发布提交 `8429a41` 对齐为 package/server/SDK/MCP `0.1.18`。生产已通过
+受保护切换部署到 `/opt/agentpost/releases/8429a41`，独立 runtime 为
+`/opt/agentpost/venvs/8429a41`。源码归档 SHA-256 为
+`1d4c0a131cfb4ae35ba41651b507bae1d4e4b22874a2620800017bd2647534f5`，公开 wheel SHA-256 为
+`71af53d2e35c94a256aa619c4622fd635a91670a4b8c1d756177cd0bd186002b`。可恢复备份位于
+`/opt/agentpost/backups/20260827-080717-8429a41-pre-018/`，其中 PostgreSQL dump、附件归档、环境、
+systemd、Nginx、旧 wheel 和即时回滚脚本的校验和均通过；迁移演练完整执行
+`0021 → 0022 → 0021 → 0022`，演练数据库和临时 dump 已清理。
+
+独立后检确认三个服务 active，本机/公网 health、ready 均为 0.1.18，schema 为
+`0022_oauth_authorization_code`，33 Agents / 92 Messages / 92 Deliveries / 15 Attachments / 13 Humans
+与切换前一致，环境仍为 `600:root:root`。Nginx/PostgreSQL PID 保持 `245451/245492`，仅 AgentPost
+重启；切换后 warning 日志为 0。公开配置返回 Manus `mac,windows` 和 `local_bootstrap`，公开 wheel
+哈希精确、未知下载 404，登录态生产 Orbit 可正常渲染。真实 Mac Manus 保存/tools/list/收发与真实
+Windows 宿主仍为待确认；当前证据是 `manus_cross_platform_deployed_https_verified`，不是
 `production_accepted`。
 
 ## 豆包工作跨平台本机 STDIO 接入（0.1.17 deployed，2026-08-26）
