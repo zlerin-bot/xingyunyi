@@ -77,9 +77,10 @@ rehearsal_db="agentpost_rehearsal_${release_id}"
 rehearsal_dump="/var/lib/postgresql/${rehearsal_db}.dump"
 mutated=0
 rehearsal_exists=0
+deploy_started_epoch="$(date +%s)"
 
 step() {
-  echo "deploy_step=$1"
+  echo "deploy_step=$1 at=$(date --iso-8601=seconds)"
 }
 
 rollback_on_error() {
@@ -171,7 +172,7 @@ systemctl restart agentpost
 systemctl reload nginx
 health_response=''
 for attempt in {1..30}; do
-  health_response="\$(curl -fsS --max-time 5 http://127.0.0.1:8000/health || true)"
+  health_response="\$(curl -fs --max-time 5 http://127.0.0.1:8000/health 2>/dev/null || true)"
   [[ "\${health_response}" == '{"status":"ok","version":"${prior_version}"}' ]] && break
   sleep 1
 done
@@ -331,8 +332,8 @@ step verify_local
 health_response=''
 ready_response=''
 for attempt in {1..30}; do
-  health_response="$(curl -fsS --max-time 5 http://127.0.0.1:8000/health || true)"
-  ready_response="$(curl -fsS --max-time 5 http://127.0.0.1:8000/ready || true)"
+  health_response="$(curl -fs --max-time 5 http://127.0.0.1:8000/health 2>/dev/null || true)"
+  ready_response="$(curl -fs --max-time 5 http://127.0.0.1:8000/ready 2>/dev/null || true)"
   if [[ "${health_response}" == "{\"status\":\"ok\",\"version\":\"${version}\"}" && "${ready_response}" == "{\"status\":\"ready\",\"version\":\"${version}\"}" ]]; then
     break
   fi
@@ -375,4 +376,4 @@ chmod 644 /opt/agentpost/shared/DEPLOYED_BACKUP
 mutated=0
 trap - ERR
 
-echo "deploy_status=ok release=${version} commit=${release_id} backup=${backup}"
+echo "deploy_status=ok release=${version} commit=${release_id} backup=${backup} duration_seconds=$(($(date +%s) - deploy_started_epoch))"

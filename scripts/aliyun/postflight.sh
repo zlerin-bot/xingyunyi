@@ -8,6 +8,7 @@ fi
 
 manifest="$(readlink -f "$1")"
 manifest_dir="$(dirname "${manifest}")"
+postflight_started_epoch="$(date +%s)"
 
 manifest_value() {
   local key="$1"
@@ -96,4 +97,4 @@ cat "${current_counts}"
 printf 'agentpost_pid=%s\n' "$(systemctl show -p MainPID --value agentpost)"
 printf 'nginx_pid=%s\n' "$(systemctl show -p MainPID --value nginx)"
 printf 'postgres_pid=%s\n' "$(pgrep -o postgres)"
-echo "postflight_status=ok release=${version} commit=${release_id} schema=${target_schema}"
+echo "postflight_status=ok release=${version} commit=${release_id} schema=${target_schema} duration_seconds=$(($(date +%s) - postflight_started_epoch))"

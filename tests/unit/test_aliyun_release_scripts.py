@@ -53,3 +53,26 @@ def test_switch_script_preserves_verified_migration_and_rollback_guards() -> Non
     assert "install -o postgres -g postgres -m 600" in script
     assert "SHA256SUMS.backup" in script
     assert "production counts invalid" in script
+
+
+def test_prepare_script_builds_one_workbench_upload_and_staging_command() -> None:
+    script = ALIYUN_SCRIPTS[0].read_text()
+
+    assert 'upload_name="agentpost-${version}-aliyun-upload.tar.gz"' in script
+    assert "tar -czf" in script
+    assert "Upload only this file in Workbench" in script
+    assert "do not create it in File Navigator" in script
+    assert "stage_error code=directory_exists" in script
+    assert "sha256sum -c SHA256SUMS" in script
+    assert "chmod 750 aliyun-switch-release.sh aliyun-postflight.sh" in script
+
+
+def test_switch_and_postflight_report_progress_without_health_retry_noise() -> None:
+    switch = ALIYUN_SCRIPTS[1].read_text()
+    postflight = ALIYUN_SCRIPTS[2].read_text()
+
+    assert "deploy_step=$1 at=" in switch
+    assert "duration_seconds=" in switch
+    assert "curl -fs --max-time 5" in switch
+    assert "2>/dev/null || true" in switch
+    assert "duration_seconds=" in postflight

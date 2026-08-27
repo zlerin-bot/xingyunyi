@@ -4,6 +4,22 @@ Last updated: 2026-08-27
 
 Current handoff stage: `v0.1.19-deployed-https-verified`; pinned production release: `0.1.19`
 
+## Alibaba deployment single-upload workflow (local verified, 2026-08-27)
+
+The 0.1.19 retrospective confirmed that Workbench accepts one selected file at a time and that its
+narrow File Navigator is a poor place to create and refresh release directories. Future
+`prepare-release.sh` runs now produce one `agentpost-<version>-aliyun-upload.tar.gz` plus a local-only
+`workbench-commands-<version>.txt`. Upload the bundle to `/home/admin`; the generated staging command
+checks its outer SHA-256, creates the version directory, extracts and verifies all six internal
+files, checks Bash syntax and fixes script modes. The other two generated commands run the existing
+guarded switch and postflight. Switch output now includes step timestamps and duration while health
+startup retries stay quiet; production UI smoke uses a fresh tab in the authenticated session.
+
+Evidence: Bash syntax, Ruff check/format, six focused tests and diff check passed. A real bundle was
+built from `8f9bc79 / 0.1.19`; it contained only the six expected files, retained executable modes,
+and passed internal SHA and syntax verification. This is a local workflow improvement for the next
+release and did not mutate the already deployed 0.1.19 production environment.
+
 ## Navigation, newest-first conversations, presence and Human usernames (0.1.19 deployed, 2026-08-27)
 
 Feature/release commits are `eca0b01 / 8f9bc79`; production is pinned to `8f9bc79 / 0.1.19`.

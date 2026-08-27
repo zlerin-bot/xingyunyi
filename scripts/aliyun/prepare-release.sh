@@ -52,6 +52,8 @@ PY
 source_name="agentpost-${version}-source.tar.gz"
 wheel_name="agentpost-${version}-py3-none-any.whl"
 manifest_name="manifest-${version}.txt"
+upload_name="agentpost-${version}-aliyun-upload.tar.gz"
+commands_name="workbench-commands-${version}.txt"
 uv_cache_dir="${UV_CACHE_DIR:-${TMPDIR:-/tmp}/agentpost-uv-release-cache}"
 mkdir -p "${uv_cache_dir}"
 
@@ -93,6 +95,33 @@ install -m 755 "${repository_root}/scripts/aliyun/postflight.sh" "${output_dir}/
   fi
 )
 
+bundle_root="${temporary_root}/upload"
+mkdir -p "${bundle_root}"
+install -m 644 \
+  "${output_dir}/${source_name}" \
+  "${output_dir}/${wheel_name}" \
+  "${output_dir}/${manifest_name}" \
+  "${output_dir}/SHA256SUMS" \
+  "${bundle_root}/"
+install -m 755 \
+  "${output_dir}/aliyun-switch-release.sh" \
+  "${output_dir}/aliyun-postflight.sh" \
+  "${bundle_root}/"
+tar -czf "${output_dir}/${upload_name}" -C "${bundle_root}" .
+upload_sha="$(sha256_file "${output_dir}/${upload_name}")"
+
+remote_upload="/home/admin/${upload_name}"
+remote_stage="/home/admin/agentpost-release-${version}"
+cat > "${output_dir}/${commands_name}" <<EOF
+# Upload only this file in Workbench: ${output_dir}/${upload_name}
+# Then run these commands in order. The first command creates the staging directory; do not create it in File Navigator.
+if test -e '${remote_stage}'; then echo 'stage_error code=directory_exists path=${remote_stage}' >&2; false; else install -d -m 755 '${remote_stage}' && printf '%s  %s\n' '${upload_sha}' '${remote_upload}' | sha256sum -c - && tar -xzf '${remote_upload}' -C '${remote_stage}' && cd '${remote_stage}' && sha256sum -c SHA256SUMS && bash -n aliyun-switch-release.sh aliyun-postflight.sh && chmod 750 aliyun-switch-release.sh aliyun-postflight.sh && echo 'stage_status=ok release=${version}'; fi
+sudo -n env CONFIRM_PRODUCTION_CHANGE=YES '${remote_stage}/aliyun-switch-release.sh' '${remote_stage}/${manifest_name}'
+sudo -n '${remote_stage}/aliyun-postflight.sh' '${remote_stage}/${manifest_name}'
+EOF
+
 printf 'release_artifacts=%s\n' "${output_dir}"
 printf 'release_version=%s commit=%s alembic=%s\n' "${version}" "${release_id}" "${alembic_head}"
 printf 'source_sha256=%s\nwheel_sha256=%s\n' "${source_sha}" "${wheel_sha}"
+printf 'workbench_upload=%s\nworkbench_upload_sha256=%s\n' "${output_dir}/${upload_name}" "${upload_sha}"
+printf 'workbench_commands=%s\n' "${output_dir}/${commands_name}"

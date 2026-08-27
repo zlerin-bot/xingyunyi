@@ -10,7 +10,7 @@ PostgreSQL。本文优化操作通道，不删减预检、备份、迁移、健�
 截至 2026-08-27，这台生产服务器尚未完成部署专用 SSH 公钥的只读连通验证。因此后续发布**不要
 先尝试 SSH、命令助手传文件、Base64 分片或 Docker Compose**；当前默认路径固定为：
 
-> 干净提交生成六个文件 → Workbench 文件管理一次上传 → 一条受保护切换命令 → 一条后检命令
+> 干净提交生成一个上传包 → Workbench 上传一个文件到 `/home/admin` → 一条 staging 命令自动建目录并校验解包 → 一条受保护切换命令 → 一条后检命令
 
 ### 第一步：本机从明确提交生成完整发布物
 
@@ -26,38 +26,45 @@ scripts/aliyun/prepare-release.sh <commit> <version> <alembic-head>
 scripts/aliyun/prepare-release.sh 8f9bc79 0.1.19 0023_human_usernames
 ```
 
-脚本只读取指定 Git 提交，不打包当前工作树，并在 `dist/<version>/` 固定生成：
+脚本只读取指定 Git 提交，不打包当前工作树，并在 `dist/<version>/` 生成内部六个发布文件，另外
+自动生成两个操作入口：
 
 1. `agentpost-<version>-source.tar.gz`
 2. `agentpost-<version>-py3-none-any.whl`
 3. `manifest-<version>.txt`
 4. `SHA256SUMS`
 5. `aliyun-switch-release.sh` 与 `aliyun-postflight.sh`
+6. **唯一需要上传的** `agentpost-<version>-aliyun-upload.tar.gz`
+7. 本机复制命令用的 `workbench-commands-<version>.txt`（不要上传）
 
 缺少项目 `.venv`、提交版本不匹配、wheel 文件名不匹配或任一构建步骤失败时立即停止，不进入阿里云。
 
-### 第二步：Workbench 一次上传
+### 第二步：Workbench 只上传一个文件，不在界面建目录
 
-在 Workbench 文件管理中创建 `/home/admin/agentpost-release-<version>/`，把
-`dist/<version>/` 中上述全部文件一次上传。不要上传源码工作区、环境文件、密钥或数据库备份。
+Workbench 当前文件选择器只支持单文件，不能把“选择六个文件”当成一次上传。文件树在窄窗口里
+创建、刷新和进入目录也很慢。因此固定进入 `/home/admin`，只上传：
 
-上传后只运行以下短检查，不粘贴临时长脚本：
-
-```bash
-cd /home/admin/agentpost-release-<version>
-sha256sum -c SHA256SUMS
-bash -n aliyun-switch-release.sh aliyun-postflight.sh
+```text
+dist/<version>/agentpost-<version>-aliyun-upload.tar.gz
 ```
 
-所有文件必须显示 `OK`。任一不一致都重新上传对应完整文件，禁止绕过哈希继续。
+不要先在文件管理器创建 `agentpost-release-<version>`，不要逐个上传内部六个文件，也不要上传
+`workbench-commands-<version>.txt`、源码工作区、环境文件、密钥或数据库备份。
+
+上传后从本机打开 `dist/<version>/workbench-commands-<version>.txt`，复制第一条 staging 命令。它会
+一次完成外层上传包 SHA-256、版本目录创建、解包、内部六文件 SHA-256、脚本语法及执行权限修正，
+最后必须输出：
+
+```text
+stage_status=ok release=<version>
+```
+
+所有文件必须显示 `OK`。目录已存在时 staging 命令会停止，不覆盖既有目录；先只读检查它属于哪次
+尝试，再决定是否使用新的版本号或另行处理。任一哈希不一致都重新上传完整单包，禁止绕过继续。
 
 ### 第三步：一条命令完成预检、备份、演练和切换
 
-```bash
-sudo -n env CONFIRM_PRODUCTION_CHANGE=YES \
-  /home/admin/agentpost-release-<version>/aliyun-switch-release.sh \
-  /home/admin/agentpost-release-<version>/manifest-<version>.txt
-```
+复制 `workbench-commands-<version>.txt` 的第二条命令即可；不要现场重新拼路径。
 
 该脚本自动从生产读取旧 release、旧版本和旧 schema，不再手工抄参数；按固定顺序完成：
 
@@ -72,19 +79,20 @@ sudo -n env CONFIRM_PRODUCTION_CHANGE=YES \
 只有看到下面一行才表示切换成功：
 
 ```text
-deploy_status=ok release=<version> commit=<commit> backup=<verified-backup-path>
+deploy_status=ok release=<version> commit=<commit> backup=<verified-backup-path> duration_seconds=<seconds>
 ```
 
 在此之前失败时不得手工接着执行后半段；先确认旧生产仍健康，再修复固定脚本并重新生成/上传。
 
 ### 第四步：一条命令完成服务器和公网后检
 
-```bash
-sudo -n /home/admin/agentpost-release-<version>/aliyun-postflight.sh \
-  /home/admin/agentpost-release-<version>/manifest-<version>.txt
-```
+复制 `workbench-commands-<version>.txt` 的第三条命令即可；不要现场重新拼路径。
 
-只有看到 `postflight_status=ok` 才能更新部署记录。随后用有登录态浏览器打开 Orbit 检查主流程，
+切换脚本的每个 `deploy_step` 都带服务器时间，健康启动等待会安静重试，不再用重复的 curl 错误刷屏；
+这让“仍在正常等待”和“已经停止”可以直接区分。
+
+只有看到带 `duration_seconds` 的 `postflight_status=ok` 才能更新部署记录。随后用同一登录会话**新开
+标签页**打开 Orbit 检查主流程，
 并把真实 Agent 宿主接入、收发和跨设备测试继续单列为 `待确认`。
 
 ### SSH 何时替代 Workbench
@@ -96,7 +104,7 @@ sudo -n /home/admin/agentpost-release-<version>/aliyun-postflight.sh \
 仓库根目录的 `scripts/deploy-production.sh` 是旧 Docker Compose 拓扑入口，默认会拒绝运行；当前
 阿里云生产禁止使用它。
 
-## 1. 0.1.14–0.1.18 发布暴露的问题
+## 1. 0.1.14–0.1.19 发布暴露的问题
 
 1. 本机 SSH 客户端能到达服务器，但没有服务器接受的身份；`root` 与 `admin` 公钥登录均失败。
 2. 只能转用浏览器 Workbench 和命令助手。源码包与 688 KB wheel 被拆成 246 个片段上传，既慢，
@@ -115,9 +123,17 @@ sudo -n /home/admin/agentpost-release-<version>/aliyun-postflight.sh \
    真正执行。发布脚本应优先作为完整文件上传，再以一条短命令做语法、哈希和显式确认参数检查。
 9. 某一步在生产指针切换前失败时，应保留诊断备份并重新核对生产仍指向旧版本；已完成哈希校验的
    release/venv 可以在幂等条件成立时复用，但不能跳过备份、迁移演练或切换前状态核对。
+10. 0.1.19 实际验证了 Workbench 文件选择器是单文件模式，“六个文件一次上传”的文字与工具能力
+    不一致；逐文件选择会被上传任务浮层和提示气泡打断。
+11. 0.1.19 在文件树里建立目标目录时，窄视口导致按钮在可视区外，目录缓存又需要折叠/展开刷新；
+    这个步骤没有安全价值，应由 staging 命令确定性完成。
+12. Workbench 直接上传的脚本没有保留可执行位，第一次切换在任何生产变更前以 `Permission denied`
+    停止。上传包内保留模式，同时 staging 命令显式 `chmod 750`，以后不再现场排查。
+13. 登录态旧标签可能保留发布前 JavaScript，即使服务端和公网资源已更新。生产 UI smoke 必须打开
+    一个同会话的新标签页，不用旧标签刷新结果判断发布内容。
 
-结论：不能为了“快”删掉保护门禁；应把稳定门禁脚本化，并把大文件传输从命令助手移到
-`rsync/SFTP`。
+结论：不能为了“快”删掉保护门禁；当前无 SSH 时用单上传包消除目录操作和六次文件选择，完成
+专用 SSH 验证后再把传输替换为 `rsync/SFTP`。
 
 ## 2. SSH 已完成一次性准备后的日常发布通道
 
@@ -158,8 +174,9 @@ sudo -n /home/admin/agentpost-release-<version>/aliyun-postflight.sh \
    - 核对 schema、数据量不减少、服务 PID 连续性、错误/5xx、wheel SHA、未知下载 404。
    - 记录备份与即时回退脚本路径，再更新交接文档。
 
-正常情况下，交互动作从“数百次分片/粘贴”降为：一次构建、一次 rsync、一次受保护切换、一次
-后检。网络和依赖安装时间仍存在，但人为操作应控制在约 5–10 分钟内。
+正常情况下，SSH 路径的交互动作是一次构建、一次 rsync、一次受保护切换、一次后检；Workbench
+路径是一次构建、一次单文件上传、一条 staging、一条切换、一条后检。网络、备份、依赖安装和迁移
+演练时间仍存在，但 Workbench 人工操作目标应控制在 2–3 分钟，总发布通常 5–10 分钟。
 
 ## 3. Nginx 的一次性提效改造
 
@@ -194,9 +211,10 @@ location /downloads/ { return 404; }
 
 Workbench 回退发布按以下顺序执行：
 
-1. 文件管理一次上传源码归档、wheel、manifest/校验和文件和短发布脚本到 `admin` 的 staging；
-   不上传环境文件、私钥或数据库备份。
-2. 终端先逐项运行服务端 SHA-256 和 `bash -n`。如需粘贴多行只读探针，处理“确认粘贴”后还要
+1. 文件管理只上传 `agentpost-<version>-aliyun-upload.tar.gz` 到 `/home/admin`；不在界面建目录，
+   不逐个上传内部文件，不上传环境文件、私钥或数据库备份。
+2. 终端复制生成的 staging 单行命令，自动创建目录并运行外层/内层 SHA-256、`bash -n` 和权限修正。
+   如需粘贴多行只读探针，处理“确认粘贴”后还要
    再按一次执行键并观察 shell prompt/退出状态；切换命令保持单行、短且带显式确认参数。
 3. 先运行只读 preflight，再运行受保护切换脚本。脚本输出必须有可检索的步骤标记、最终 release、
    commit、备份路径和成功/回退状态。
