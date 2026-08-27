@@ -49,7 +49,8 @@ test("header matches the approved compact Xingyunyi lockup without centre naviga
   assert.match(html, /id="brand-mark-gradient"/);
   assert.match(html, /M11 25c6-13 13-14 18-7/);
   assert.match(html, /<strong>星云驿<\/strong>/);
-  assert.match(html, /<small>AgentPost · 星轨<\/small>/);
+  assert.match(html, /<small id="brand-section">AgentPost · 星轨<\/small>/);
+  assert.match(script, /elements\.brandSection\.textContent = `AgentPost · \$\{definition\.label\}`/);
   assert.doesNotMatch(header, /plane-switch/);
   assert.doesNotMatch(header, /星轨看协作/);
   assert.doesNotMatch(header, /云驿管 Agent/);
@@ -87,10 +88,11 @@ test("mobile Star Orbit uses two lightweight shortcuts instead of a second tab b
   assert.match(stylesheet, /\.thread-list-item \{[\s\S]*?min-width: 0;/);
 });
 
-test("mobile connection status stays on one line and uses a compact Agent count", () => {
+test("mobile connection status stays on one line and reports heartbeat-backed online Agents", () => {
   assert.match(html, /connection-label-full/);
   assert.match(html, /connection-label-compact/);
   assert.match(script, /`\$\{connectedAgentCount\} 个 Agent`/);
+  assert.match(script, /`\$\{connectedAgentCount\} 个 Agent 在线`/);
   assert.match(script, /connectedAgentCount > 0 \? "success" : ""/);
   assert.match(stylesheet, /\.connection-label-compact \{\s*display: none;/);
   assert.match(stylesheet, /@media \(max-width: 580px\)[\s\S]*?\.connection \{[\s\S]*?white-space: nowrap;/);
@@ -150,6 +152,10 @@ test("confirmed header and timeline match the approved three-column mockup", () 
 });
 
 test("Thread timeline keeps communication, work, replies, and system events distinct", () => {
+  assert.match(script, /const messages = \[\.\.\.chronologicalMessages\]\.sort/);
+  assert.match(script, /new Date\(right\.created_at\)\.getTime\(\) - new Date\(left\.created_at\)\.getTime\(\)/);
+  assert.match(script, /最新内容排在最上面/);
+  assert.match(script, /messageList\.firstElementChild\?\.scrollIntoView\(\{ behavior: "smooth", block: "start" \}\)/);
   assert.match(script, /document\.createTextNode\("送达情况"\)/);
   assert.match(script, /document\.createTextNode\("任务进度"\)/);
   assert.match(script, /replied: "已回复"/);
@@ -259,6 +265,10 @@ test("mobile Agent list and detail are separate layers", () => {
 });
 
 test("unavailable settings are explanatory, not fake controls", () => {
+  assert.match(html, /id="profile-username"/);
+  assert.match(html, /id="register-username"[^>]*required/);
+  assert.match(html, /用于让他人准确找到你，例如 020/);
+  assert.match(script, /username: elements\.registerUsername\.value\.trim\(\)\.toLowerCase\(\)/);
   for (const section of ["notifications", "privacy", "preferences"]) {
     const start = html.indexOf(`id="${section}"`);
     const end = html.indexOf("</section>", start);

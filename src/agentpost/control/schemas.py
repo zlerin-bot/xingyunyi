@@ -7,6 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
+from agentpost.accounts.usernames import canonicalize_human_username
 from agentpost.control.approval_schemas import OrbitApprovalRequest
 from agentpost.identity.handles import canonicalize_agent_handle
 
@@ -22,6 +23,7 @@ class ControlModel(BaseModel):
 
 class HumanCreate(ControlModel):
     email: str = Field(min_length=3, max_length=320)
+    username: str | None = Field(default=None, min_length=3, max_length=32)
     display_name: str = Field(min_length=1, max_length=200)
 
     @field_validator("email")
@@ -40,10 +42,16 @@ class HumanCreate(ControlModel):
             raise ValueError("display_name must not be blank")
         return cleaned
 
+    @field_validator("username")
+    @classmethod
+    def canonical_username(cls, value: str | None) -> str | None:
+        return canonicalize_human_username(value) if value is not None else None
+
 
 class HumanProfile(ControlModel):
     id: UUID
     email: str
+    username: str
     display_name: str
     status: str
     created_at: datetime

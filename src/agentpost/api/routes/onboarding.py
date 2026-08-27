@@ -574,10 +574,17 @@ def orbit_decide_pairing(
 def orbit_list_connectors(
     response: Response,
     session: SessionDep,
+    settings: SettingsDep,
     current_human: CurrentHumanDep,
 ) -> OrbitConnectorList:
     response.headers["Cache-Control"] = "no-store"
-    return OrbitConnectorList(items=list_human_connectors(session, user=current_human))
+    return OrbitConnectorList(
+        items=list_human_connectors(
+            session,
+            user=current_human,
+            heartbeat_interval_seconds=settings.connector_heartbeat_interval_seconds,
+        )
+    )
 
 
 @router.post(

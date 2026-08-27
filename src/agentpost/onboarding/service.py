@@ -25,6 +25,7 @@ from agentpost.identity.api_keys import api_key_prefix, digest_api_key, generate
 from agentpost.identity.handles import available_handle_suggestions
 from agentpost.identity.models import Agent, AgentApiKey, utc_now
 from agentpost.messaging.models import AuditLog
+from agentpost.onboarding.connectivity import connector_connection_state
 from agentpost.onboarding.crypto import (
     canonicalize_user_code,
     derive_agent_api_key,
@@ -718,7 +719,12 @@ def pairing_decision_response(
     )
 
 
-def list_human_connectors(session: Session, *, user: HumanUser) -> list[OrbitConnector]:
+def list_human_connectors(
+    session: Session,
+    *,
+    user: HumanUser,
+    heartbeat_interval_seconds: int = 30,
+) -> list[OrbitConnector]:
     rows = session.execute(
         select(ConnectorInstance, Agent)
         .join(Agent, Agent.id == ConnectorInstance.agent_id)
@@ -740,12 +746,14 @@ def list_human_connectors(session: Session, *, user: HumanUser) -> list[OrbitCon
     results: list[OrbitConnector] = []
     for connector, agent in rows:
         is_current = connector.id in bindings
-        if not is_current or connector.status != "active":
+        if not is_current:
             connection_state = "historical"
-        elif connector.last_heartbeat_at is None:
-            connection_state = "awaiting_agent"
         else:
-            connection_state = "connected"
+            connection_state = connector_connection_state(
+                connector,
+                now=utc_now(),
+                heartbeat_interval_seconds=heartbeat_interval_seconds,
+            )
         results.append(
             OrbitConnector(
                 **_connector_response(connector).model_dump(),

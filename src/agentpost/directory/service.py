@@ -74,6 +74,7 @@ class _CandidateContext:
     agent: Agent
     owner_id: UUID | None = None
     owner_display_name: str | None = None
+    owner_username: str | None = None
     agent_type: str | None = None
     organization_name: str | None = None
 
@@ -252,6 +253,7 @@ def _candidate_contexts(session: Session, caller: Agent) -> list[_CandidateConte
             Agent,
             HumanUser.id,
             HumanUser.display_name,
+            HumanUser.username,
             ConnectorInstance.connector_type,
             Organization.name,
         )
@@ -272,10 +274,11 @@ def _candidate_contexts(session: Session, caller: Agent) -> list[_CandidateConte
             agent=agent,
             owner_id=owner_id,
             owner_display_name=owner_name,
+            owner_username=owner_username,
             agent_type=agent_type,
             organization_name=organization_name,
         )
-        for agent, owner_id, owner_name, agent_type, organization_name in rows
+        for agent, owner_id, owner_name, owner_username, agent_type, organization_name in rows
     ]
 
 
@@ -394,6 +397,7 @@ def _friendly_candidates(
                 handle=context.agent.handle,
                 display_name=context.agent.display_name,
                 owner_display_name=context.owner_display_name,
+                owner_username=context.owner_username,
                 agent_type=context.agent_type,
                 organization_name=context.organization_name,
                 label=label,
@@ -476,7 +480,16 @@ def resolve_recipient(session: Session, *, caller: Agent, query: str) -> Recipie
     if display_matches:
         return _resolution(cleaned_query, display_matches, "display_name")
 
-    owner_matches = [
+    username_matches = [
+        context
+        for context in scoped
+        if context.owner_username
+        and re.search(
+            rf"(?<![a-z0-9-]){re.escape(context.owner_username.casefold())}(?![a-z0-9-])",
+            normalized_query,
+        )
+    ]
+    owner_matches = username_matches or [
         context
         for context in scoped
         if context.owner_display_name
@@ -538,6 +551,7 @@ def resolve_recipient(session: Session, *, caller: Agent, query: str) -> Recipie
             context.agent.handle,
             context.agent.display_name,
             context.owner_display_name,
+            context.owner_username,
             context.agent_type,
             context.organization_name,
         ]

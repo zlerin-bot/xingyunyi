@@ -286,16 +286,26 @@ def delete_orbit_session(
 def orbit_dashboard(
     current_human: CurrentHumanDep,
     session: SessionDep,
+    settings: SettingsDep,
 ) -> OrbitDashboard:
-    return build_orbit_dashboard(session, current_human)
+    return build_orbit_dashboard(
+        session,
+        current_human,
+        heartbeat_interval_seconds=settings.connector_heartbeat_interval_seconds,
+    )
 
 
 @router.get("/api/v1/orbit/agents", response_model=list[OrbitAgent])
 def orbit_agents(
     current_human: CurrentHumanDep,
     session: SessionDep,
+    settings: SettingsDep,
 ) -> list[OrbitAgent]:
-    return build_orbit_dashboard(session, current_human).agents
+    return build_orbit_dashboard(
+        session,
+        current_human,
+        heartbeat_interval_seconds=settings.connector_heartbeat_interval_seconds,
+    ).agents
 
 
 @router.patch("/api/v1/orbit/agents/{agent_id}/handle", response_model=AgentProfile)

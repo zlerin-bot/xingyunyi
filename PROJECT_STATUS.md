@@ -4,6 +4,32 @@ Last updated: 2026-08-27
 
 Current handoff stage: `v0.1.18-deployed-https-verified`; pinned production release: `0.1.18`
 
+## Navigation, newest-first conversations, presence and Human usernames (local verified, 2026-08-27)
+
+Development continues from `8429a41 / 0.1.18`; production remains pinned to that release and this
+slice is not deployed. The header subtitle now follows the active `星轨 / 云驿 / 设置` module.
+Conversation details render a copied message list newest-first while retaining the chronological
+first message for the thread's sender/recipient summary, on desktop and mobile alike.
+
+Online presence now comes exclusively from the current Connector binding. A Connector is online
+only when it is active, has no health error, has emitted a heartbeat, and that heartbeat is within
+three configured heartbeat intervals with a 60-second minimum grace period. Missing bindings,
+first-heartbeat waits, stale heartbeats and unhealthy bindings remain separate states; the header
+count includes only the online state.
+
+Human accounts now have a canonical, globally unique `username`. The registration UI requires a
+3–32 character lowercase alphanumeric/single-hyphen value and accepts numeric names such as `020`;
+the server and database unique index remain authoritative. Migration `0023_human_usernames`
+deterministically backfills and de-duplicates existing Humans. Relationship-scoped recipient
+resolution matches the Human username before display name without broadening directory visibility.
+
+Evidence: 429 non-PostgreSQL tests passed, one expected loopback sandbox test skipped and five
+PostgreSQL tests deselected; 12 MCP and 24 Orbit JavaScript tests passed; JavaScript syntax, Ruff
+check/format, Alembic single-head and diff checks passed. Browser acceptance covered desktop and
+390×844 with correct module branding, newest-first detail order, visible username, no horizontal
+overflow and no console warnings/errors. A real PostgreSQL `0022 → 0023 → 0022 → 0023` migration
+rehearsal remains a release gate because Docker/PostgreSQL is unavailable locally.
+
 ## Manus macOS/Windows 本机 STDIO 接入（0.1.18 deployed，2026-08-27）
 
 020 的 Codex 在 macOS Manus 1.6 Lite 实测确认“设置 · 连接器 · 已添加连接器 · 自定义 MCP”提供

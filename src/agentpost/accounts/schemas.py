@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
+from agentpost.accounts.usernames import canonicalize_human_username
 from agentpost.control.schemas import HumanProfile
 
 _EMAIL_PATTERN = re.compile(
@@ -42,6 +43,7 @@ class EmailChallengeResponse(AccountModel):
 class RegistrationComplete(AccountModel):
     challenge_id: str = Field(min_length=10, max_length=64)
     code: str = Field(pattern=r"^[0-9]{8}$")
+    username: str | None = Field(default=None, min_length=3, max_length=32)
     display_name: str = Field(min_length=1, max_length=200)
     password: SecretStr
 
@@ -52,6 +54,11 @@ class RegistrationComplete(AccountModel):
         if not cleaned:
             raise ValueError("display_name must not be blank")
         return cleaned
+
+    @field_validator("username")
+    @classmethod
+    def canonical_username(cls, value: str | None) -> str | None:
+        return canonicalize_human_username(value) if value is not None else None
 
 
 class HumanLogin(AccountModel):

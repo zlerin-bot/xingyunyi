@@ -56,6 +56,7 @@ def _register(client: TestClient, email: str = "owner@example.com") -> dict[str,
         json={
             "challenge_id": challenge["challenge_id"],
             "code": challenge["test_verification_code"],
+            "username": email.partition("@")[0].replace("_", "-")[:32],
             "display_name": "Self Service Owner",
             "password": "correct horse battery staple",
         },
@@ -65,6 +66,29 @@ def _register(client: TestClient, email: str = "owner@example.com") -> dict[str,
     assert response.json()["mfa_authenticated"] is False
     assert client.cookies.get("xinggui_session", "").startswith("hss_")
     return response.json()
+
+
+def test_registration_rejects_a_username_already_used_by_another_email(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with TestClient(create_app(settings=_settings(settings), database=database)) as client:
+        first = _register(client, "first@example.com")
+        assert first["user"]["username"] == "first"
+        challenge = _start(client, "second@example.com", "register")
+        conflict = client.post(
+            "/api/v1/auth/register",
+            json={
+                "challenge_id": challenge["challenge_id"],
+                "code": challenge["test_verification_code"],
+                "username": "first",
+                "display_name": "Second Person",
+                "password": "correct horse battery staple",
+            },
+        )
+
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "USERNAME_ALREADY_REGISTERED"
 
 
 def _logout(client: TestClient, csrf: str) -> None:

@@ -38,6 +38,10 @@ from agentpost.accounts.schemas import (
     SecurityOverview,
     TotpSetupStart,
 )
+from agentpost.accounts.usernames import (
+    HumanUsernameAlreadyRegisteredError,
+    available_human_username,
+)
 from agentpost.config import Settings
 from agentpost.control.api_keys import digest_human_key, generate_human_key, human_key_prefix
 from agentpost.control.models import HumanAccessKey, HumanSession, HumanUser
@@ -248,8 +252,18 @@ def complete_registration(
         raise EmailAlreadyRegisteredError
     now = utc_now()
     salt, password_hash = hash_password(password)
+    try:
+        username = available_human_username(
+            session,
+            requested=payload.username,
+            email=challenge.email,
+        )
+    except HumanUsernameAlreadyRegisteredError:
+        session.rollback()
+        raise
     user = HumanUser(
         email=challenge.email,
+        username=username,
         display_name=payload.display_name,
         status="active",
         email_verified_at=now,
@@ -280,6 +294,8 @@ def complete_registration(
         session.commit()
     except IntegrityError as exc:
         session.rollback()
+        if session.scalar(select(HumanUser.id).where(HumanUser.username == username)) is not None:
+            raise HumanUsernameAlreadyRegisteredError(username) from exc
         raise EmailAlreadyRegisteredError from exc
     return user
 

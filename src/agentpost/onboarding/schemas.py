@@ -231,7 +231,13 @@ class PairingDecisionResponse(OnboardingModel):
 class OrbitConnector(PairingConnectorResponse):
     agent: PairingAgentResponse
     is_current: bool
-    connection_state: Literal["awaiting_agent", "connected", "historical"]
+    connection_state: Literal[
+        "awaiting_agent",
+        "connected",
+        "offline",
+        "connection_error",
+        "historical",
+    ]
 
 
 class OrbitConnectorList(OnboardingModel):

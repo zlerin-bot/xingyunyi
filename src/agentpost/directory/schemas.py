@@ -38,6 +38,7 @@ class RecipientCandidate(StrictModel):
     handle: str | None
     display_name: str
     owner_display_name: str | None = None
+    owner_username: str | None = None
     agent_type: str | None = None
     organization_name: str | None = None
     label: str

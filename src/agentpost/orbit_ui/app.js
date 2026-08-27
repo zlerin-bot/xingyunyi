@@ -62,6 +62,7 @@ const elements = {
   openRecovery: document.querySelector("#open-recovery"),
   accessResult: document.querySelector("#access-result"),
   connectionState: document.querySelector("#connection-state"),
+  brandSection: document.querySelector("#brand-section"),
   topHumanName: document.querySelector("#top-human-name"),
   topHumanAvatar: document.querySelector("#top-human-avatar"),
   refresh: document.querySelector("#refresh-dashboard"),
@@ -76,6 +77,7 @@ const elements = {
   approvalMobileCount: document.querySelector("#approval-mobile-count"),
   taskMobileCount: document.querySelector("#task-mobile-count"),
   profileName: document.querySelector("#profile-name"),
+  profileUsername: document.querySelector("#profile-username"),
   profileEmail: document.querySelector("#profile-email"),
   profileTimezone: document.querySelector("#profile-timezone"),
   primaryNavigation: document.querySelector("#primary-navigation"),
@@ -242,6 +244,7 @@ const elements = {
   registerCancel: document.querySelector("#register-cancel"),
   registerEmail: document.querySelector("#register-email"),
   registerCode: document.querySelector("#register-code"),
+  registerUsername: document.querySelector("#register-username"),
   registerName: document.querySelector("#register-name"),
   registerPassword: document.querySelector("#register-password"),
   registerSendCode: document.querySelector("#register-send-code"),
@@ -534,6 +537,7 @@ function activateRoute(module, section, { updateHistory = true, focusContent = f
   elements.contextEyebrow.textContent = definition.label;
   elements.contextTitle.textContent = definition.title;
   elements.contextCopy.textContent = definition.description;
+  elements.brandSection.textContent = `AgentPost · ${definition.label}`;
   document.title = `星云驿 · ${definition.label}`;
   updateThreadWorkspaceMode();
   updateAgentWorkspaceMode();
@@ -639,10 +643,16 @@ function errorMessage(payload, status) {
     if (fields.has("handle")) {
       return "短名称格式不正确：请使用 3–32 位字母、数字和单个连字符，并以字母开头。";
     }
+    if (fields.has("username")) {
+      return "用户名格式不正确：请使用 3–32 位小写字母、数字或单个连字符。";
+    }
     return "提交内容格式不正确。请检查页面中填写的 Agent 地址、名称和能力标签。";
   }
   if (status === 409 && Array.isArray(error?.details?.suggestions)) {
     return `这个短名称已被使用。可以试试：${error.details.suggestions.join("、")}。`;
+  }
+  if (status === 409 && String(error?.code || "").toUpperCase() === "USERNAME_ALREADY_REGISTERED") {
+    return "这个用户名已被使用，请换一个。";
   }
   if (error && typeof error.message === "string") {
     return `星轨请求失败（${status}）：${error.message}`;
@@ -819,7 +829,7 @@ function statusLabel(value, type = "status") {
     healthy: "健康",
     degraded: "降级",
     error: "故障",
-    connected: "已连接",
+    connected: "在线",
     disconnected: "未连接",
     offline: "离线",
     connection_error: "连接异常",
@@ -3357,9 +3367,13 @@ function renderThreadDetail(thread) {
   elements.threadDetailTopic.textContent = safeText(thread.topic, "无主题对话");
   elements.threadDetailParticipants.replaceChildren();
   elements.messageList.replaceChildren();
-  const messages = Array.isArray(thread.messages) ? thread.messages : [];
+  const chronologicalMessages = Array.isArray(thread.messages) ? thread.messages : [];
+  const messages = [...chronologicalMessages].sort((left, right) => {
+    const timeDifference = new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+    return timeDifference || String(right.message_id).localeCompare(String(left.message_id));
+  });
   elements.threadDetailCount.textContent = `完整对话 · ${messages.length} 条往来`;
-  const firstMessage = messages[0];
+  const firstMessage = chronologicalMessages[0];
   elements.threadDetailRoute.textContent = firstMessage
     ? `发送自：${agentConversationLabel(firstMessage.sender)}　　给：${agentConversationLabel(firstMessage.recipient, { currentAsMe: true })}`
     : "发送自：—　　给：—";
@@ -3593,6 +3607,7 @@ function renderDashboard(dashboard) {
   elements.topHumanName.textContent = safeText(user.display_name, "星轨用户");
   elements.topHumanAvatar.textContent = "我";
   elements.profileName.textContent = safeText(user.display_name, "未设置");
+  elements.profileUsername.textContent = safeText(user.username, "未设置");
   elements.profileEmail.textContent = safeText(user.email);
   elements.profileTimezone.textContent = safeText(
     Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -3631,13 +3646,13 @@ async function loadDashboard() {
     if (state.selectedThreadId) {
       await loadThreadDetail(state.selectedThreadId);
     } else {
-      setThreadDetailEmpty("选择一条协作对话", "选择一个对话后，这个话题下的全部往来会按时间显示在这里。");
+      setThreadDetailEmpty("选择一条协作对话", "选择一个对话后，这个话题下的全部往来会在这里显示，最新内容排在最上面。");
     }
     elements.welcomeView.hidden = true;
     elements.workspaceView.hidden = false;
     const connectedAgentCount = Number(dashboard.metrics?.connected_agent_count || 0);
     setConnection(
-      `${connectedAgentCount} 个 Agent 已连接`,
+      `${connectedAgentCount} 个 Agent 在线`,
       connectedAgentCount > 0 ? "success" : "",
       `${connectedAgentCount} 个 Agent`,
     );
@@ -3757,6 +3772,7 @@ async function loginHuman(event) {
 
 function closeRegisterDialog() {
   elements.registerCode.value = "";
+  elements.registerUsername.value = "";
   elements.registerPassword.value = "";
   elements.registerResult.textContent = "";
   state.registerChallengeId = "";
@@ -3828,6 +3844,7 @@ async function registerHuman(event) {
       body: JSON.stringify({
         challenge_id: state.registerChallengeId,
         code: elements.registerCode.value.trim(),
+        username: elements.registerUsername.value.trim().toLowerCase(),
         display_name: elements.registerName.value.trim(),
         password: elements.registerPassword.value,
       }),
@@ -4243,7 +4260,7 @@ elements.threadList.addEventListener("keydown", (event) => {
 });
 elements.threadMobileBack.addEventListener("click", () => clearThreadSelection());
 elements.threadLatest.addEventListener("click", () => {
-  elements.messageList.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "end" });
+  elements.messageList.firstElementChild?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 elements.agentSearchInput.addEventListener("input", () => {
   state.agentQuery = elements.agentSearchInput.value.trim();

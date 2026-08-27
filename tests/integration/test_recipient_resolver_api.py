@@ -56,6 +56,7 @@ def _relationship_scope(
     target_address: str,
     owner_name: str,
     owner_email: str,
+    owner_username: str | None = None,
     organization_slug: str,
     organization_name: str,
     connector_type: str = "codex",
@@ -86,6 +87,8 @@ def _relationship_scope(
                 display_name=owner_name,
                 status="active",
             )
+            if owner_username is not None:
+                target_owner.username = owner_username
             session.add(target_owner)
             session.flush()
         if session.get(AgentOwnership, target.id) is None:
@@ -136,6 +139,38 @@ def _relationship_scope(
                 )
             )
         session.commit()
+
+
+def test_unique_human_username_resolves_their_scoped_agent(
+    client: TestClient,
+    database: Database,
+) -> None:
+    caller = _register(client, "caller@agentpost.me", display_name="Caller")
+    target = _register(
+        client,
+        "codex-020@agentpost.me",
+        display_name="020 的工作 Codex",
+        handle="code-020",
+    )
+    _relationship_scope(
+        database,
+        caller_address=caller["agent"]["address"],
+        target_address=target["agent"]["address"],
+        owner_name="李华",
+        owner_username="020",
+        owner_email="human-020@example.com",
+        organization_slug="username-scope",
+        organization_name="用户名联调",
+    )
+
+    response = _resolve(client, caller, "把报告发给 020 的 Codex")
+
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["status"] == "resolved"
+    assert result["match"]["agent_id"] == target["agent"]["id"]
+    assert result["match"]["owner_username"] == "020"
+    assert result["match"]["match_kind"] == "human_agent"
 
 
 @pytest.mark.parametrize(

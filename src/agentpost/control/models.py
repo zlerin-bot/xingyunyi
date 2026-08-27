@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from agentpost.accounts.usernames import generated_human_username
 from agentpost.db import Base
 from agentpost.identity.models import utc_now
 
@@ -14,6 +15,7 @@ class HumanUser(Base):
     __tablename__ = "human_users"
     __table_args__ = (
         CheckConstraint("email = lower(email)", name="ck_human_users_email_lowercase"),
+        CheckConstraint("username = lower(username)", name="ck_human_users_username_lowercase"),
         CheckConstraint(
             "status IN ('active', 'disabled')",
             name="ck_human_users_status",
@@ -22,6 +24,9 @@ class HumanUser(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
+    username: Mapped[str] = mapped_column(
+        String(32), nullable=False, unique=True, default=generated_human_username
+    )
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(

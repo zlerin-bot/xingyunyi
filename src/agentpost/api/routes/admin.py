@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from agentpost.accounts.usernames import HumanUsernameAlreadyRegisteredError
 from agentpost.admin.service import (
     list_agents,
     list_audit_logs,
@@ -242,6 +243,14 @@ def admin_create_human(
             detail={
                 "code": "human_email_already_registered",
                 "message": "The canonical Human email is already registered",
+            },
+        ) from exc
+    except HumanUsernameAlreadyRegisteredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "human_username_already_registered",
+                "message": "The canonical Human username is already registered",
             },
         ) from exc
 

@@ -42,6 +42,7 @@ from agentpost.accounts.service import (
     rotate_human_key,
     security_overview,
 )
+from agentpost.accounts.usernames import HumanUsernameAlreadyRegisteredError
 from agentpost.api.dependencies import SessionDep, SettingsDep
 from agentpost.control.auth import CurrentHumanDep
 from agentpost.control.human_security import HumanCsrfDep
@@ -249,6 +250,14 @@ def register_human(
         raise HTTPException(
             status_code=409,
             detail={"code": "email_already_registered", "message": "Email is registered"},
+        ) from exc
+    except HumanUsernameAlreadyRegisteredError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "username_already_registered",
+                "message": "这个用户名已被使用，请换一个。",
+            },
         ) from exc
     except ValueError as exc:
         raise HTTPException(

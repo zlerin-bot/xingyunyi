@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import delete, desc, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
+from agentpost.accounts.usernames import (
+    HumanUsernameAlreadyRegisteredError,
+    available_human_username,
+)
 from agentpost.attachments.models import Attachment
 from agentpost.config import Settings
 from agentpost.control.api_keys import (
@@ -48,6 +52,7 @@ from agentpost.control.schemas import (
 )
 from agentpost.identity.models import Agent, utc_now
 from agentpost.messaging.models import AuditLog, Delivery, Message
+from agentpost.onboarding.connectivity import connector_connection_state
 
 
 class HumanEmailAlreadyRegisteredError(Exception):
@@ -92,6 +97,7 @@ def human_profile(user: HumanUser) -> HumanProfile:
     return HumanProfile(
         id=user.id,
         email=user.email,
+        username=user.username,
         display_name=user.display_name,
         status=user.status,
         created_at=user.created_at,
@@ -112,8 +118,14 @@ def provision_human(
 
     now = utc_now()
     raw_key = generate_human_key()
+    username = available_human_username(
+        session,
+        requested=payload.username,
+        email=payload.email,
+    )
     user = HumanUser(
         email=payload.email,
+        username=username,
         display_name=payload.display_name,
         status="active",
         created_at=now,
@@ -147,6 +159,8 @@ def provision_human(
         session.commit()
     except IntegrityError as exc:
         session.rollback()
+        if session.scalar(select(HumanUser.id).where(HumanUser.username == username)) is not None:
+            raise HumanUsernameAlreadyRegisteredError(username) from exc
         raise HumanEmailAlreadyRegisteredError(payload.email) from exc
 
     return HumanRegistrationResponse(
@@ -1116,26 +1130,12 @@ def _current_connectors_by_agent(session: Session, agent_ids: set[UUID]) -> dict
     }
 
 
-def _agent_connection_state(connector: object | None, now: datetime) -> str:
-    if connector is None:
-        return "disconnected"
-    if getattr(connector, "status", None) != "active":
-        return "connection_error"
-    if getattr(connector, "health_status", None) == "error" or getattr(
-        connector,
-        "last_error_code",
-        None,
-    ):
-        return "connection_error"
-    heartbeat = _as_utc(getattr(connector, "last_heartbeat_at", None))
-    if heartbeat is None:
-        return "awaiting_agent"
-    if now - heartbeat > timedelta(minutes=5):
-        return "offline"
-    return "connected"
-
-
-def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
+def build_orbit_dashboard(
+    session: Session,
+    user: HumanUser,
+    *,
+    heartbeat_interval_seconds: int = 30,
+) -> OrbitDashboard:
     from agentpost.control.approval_service import (
         list_human_approval_requests,
         pending_human_approval_count,
@@ -1219,7 +1219,11 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
                 ),
                 capabilities=list(entry.agent.capabilities),
                 last_seen_at=entry.agent.last_seen_at,
-                connection_state=_agent_connection_state(connector, now),
+                connection_state=connector_connection_state(
+                    connector,
+                    now=now,
+                    heartbeat_interval_seconds=heartbeat_interval_seconds,
+                ),
                 current_connector_type=getattr(connector, "connector_type", None),
                 current_connector_name=getattr(connector, "display_name", None),
                 current_connector_device=getattr(connector, "device_name", None),
@@ -1235,19 +1239,13 @@ def build_orbit_dashboard(session: Session, user: HumanUser) -> OrbitDashboard:
                 pending_task_count=pending_by_agent.get(entry.agent.id, 0),
             )
         )
-    online_recently = sum(
-        1
-        for entry in entries
-        if (seen := _as_utc(entry.agent.last_seen_at)) is not None
-        and now - seen <= timedelta(minutes=5)
-    )
     connected_agent_count = sum(agent.connection_state == "connected" for agent in agents)
     return OrbitDashboard(
         user=human_profile(user),
         metrics=OrbitMetrics(
             agent_count=len(entries),
             connected_agent_count=connected_agent_count,
-            online_recently_count=online_recently,
+            online_recently_count=connected_agent_count,
             unread_delivery_count=sum(unread_by_agent.values()),
             pending_task_count=pending_task_count,
             failed_task_count=failed_task_count,
