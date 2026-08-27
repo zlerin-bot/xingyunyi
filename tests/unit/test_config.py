@@ -136,8 +136,8 @@ def test_all_released_hosts_can_publish_all_desktop_platforms() -> None:
         manus_setup_platforms=platforms,
         openclaw_setup_platforms=platforms,
         hermes_setup_platforms=platforms,
-        connector_release_version="0.1.20",
-        connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.20-py3-none-any.whl"),
+        connector_release_version="0.1.21",
+        connector_wheel_url=("https://agentpost.me/downloads/agentpost-0.1.21-py3-none-any.whl"),
         connector_wheel_sha256="a" * 64,
     )
 
