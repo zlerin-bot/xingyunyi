@@ -3154,25 +3154,141 @@ function participantChip(agent) {
   return item;
 }
 
+function readableStructuredValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return "未提供";
+  }
+  if (["string", "number", "boolean"].includes(typeof value)) {
+    return String(value);
+  }
+  if (Array.isArray(value) && value.every((item) => ["string", "number", "boolean"].includes(typeof item))) {
+    return value.map(String).join("、");
+  }
+  return "包含更多结构化数据，可在下方展开查看";
+}
+
+function appendStructuredHumanSummary(message, body) {
+  const summary = document.createElement("section");
+  summary.className = "thread-structured-summary";
+  const heading = document.createElement("strong");
+  heading.textContent = "Agent 提供的结构化信息";
+  summary.append(heading);
+  const content = message.content_body;
+  if (!content || typeof content !== "object" || Array.isArray(content)) {
+    const note = document.createElement("p");
+    note.textContent = Array.isArray(content)
+      ? `这条消息包含 ${content.length} 项数据，可展开查看完整内容。`
+      : readableStructuredValue(content);
+    summary.append(note);
+    body.append(summary);
+    return;
+  }
+
+  const fieldLabels = {
+    title: "标题",
+    summary: "摘要",
+    conclusion: "结论",
+    message: "说明",
+    instruction: "任务",
+    result: "结果",
+    status: "状态",
+    next_step: "下一步",
+    next_steps: "下一步",
+  };
+  const fields = Object.keys(fieldLabels)
+    .filter((key) => Object.hasOwn(content, key))
+    .slice(0, 6);
+  if (!fields.length) {
+    const note = document.createElement("p");
+    note.textContent = `这条消息包含 ${Object.keys(content).length} 个结构化数据项，可展开查看完整内容。`;
+    summary.append(note);
+  } else {
+    const grid = document.createElement("dl");
+    grid.className = "thread-structured-grid";
+    fields.forEach((key) => {
+      const term = document.createElement("dt");
+      term.textContent = fieldLabels[key];
+      const detail = document.createElement("dd");
+      detail.textContent = key === "status"
+        ? statusLabel(content[key])
+        : readableStructuredValue(content[key]);
+      grid.append(term, detail);
+    });
+    summary.append(grid);
+  }
+  body.append(summary);
+}
+
+function appendAgentData(message, body) {
+  const details = document.createElement("details");
+  details.className = "thread-agent-data";
+  const summary = document.createElement("summary");
+  summary.textContent = message.content_format === "json"
+    ? "查看 Agent 数据与技术信息（JSON）"
+    : "查看 Agent 技术信息";
+  summary.tabIndex = 0;
+  summary.addEventListener("keydown", (event) => {
+    if (!["Enter", " "].includes(event.key)) {
+      return;
+    }
+    event.preventDefault();
+    details.open = !details.open;
+  });
+  const grid = document.createElement("dl");
+  grid.className = "thread-agent-data-grid";
+  [
+    ["消息格式", safeText(message.content_format, "text")],
+    ["消息类型", safeText(message.message_type, "message")],
+    ["消息编号", safeText(message.message_id)],
+    ["要求确认收到", message.requires_ack ? "是" : "否"],
+  ].forEach(([label, value]) => {
+    const term = document.createElement("dt");
+    term.textContent = label;
+    const detail = document.createElement("dd");
+    detail.textContent = value;
+    grid.append(term, detail);
+  });
+  details.append(summary, grid);
+  if (message.content_format === "json" && !message.content_redacted) {
+    const rawLabel = document.createElement("strong");
+    rawLabel.className = "thread-agent-data-label";
+    rawLabel.textContent = "原始 JSON";
+    const raw = document.createElement("pre");
+    raw.className = "thread-agent-data-json";
+    raw.textContent = safeText(message.content_body, "null");
+    details.append(rawLabel, raw);
+  }
+  const note = document.createElement("p");
+  note.className = "thread-agent-data-note";
+  note.textContent = "这些信息用于 Agent 协作和问题排查，不代表任务已经完成。";
+  details.append(note);
+  body.append(details);
+}
+
 function renderThreadMessageContent(message, body) {
-  const format = document.createElement("p");
-  format.className = "thread-content-format";
-  format.textContent = message.content_redacted
-    ? "审计角色 · 正文已隐藏"
-    : message.content_format === "markdown"
-    ? "Markdown · 当前以安全纯文本显示"
-    : message.content_format === "json"
-    ? "JSON · 安全原始视图"
-    : "纯文本";
-  const content = document.createElement("pre");
-  const contentFormat = ["markdown", "json"].includes(message.content_format)
-    ? message.content_format
-    : "text";
-  content.className = `thread-message-content thread-message-content-${contentFormat}`;
-  content.textContent = message.content_redacted
-    ? "正文因当前审计角色而隐藏。"
-    : safeText(message.content_body, "无正文");
-  body.append(format, content);
+  if (message.content_redacted) {
+    const content = document.createElement("p");
+    content.className = "thread-redacted-content";
+    content.textContent = "正文因当前审计角色而隐藏。";
+    body.append(content);
+    appendAgentData(message, body);
+    return;
+  }
+  if (message.content_format === "json") {
+    appendStructuredHumanSummary(message, body);
+  } else {
+    const heading = document.createElement("p");
+    heading.className = "thread-content-format";
+    heading.textContent = message.content_format === "markdown"
+      ? "消息内容 · 已按安全文本显示"
+      : "消息内容";
+    const content = document.createElement("pre");
+    const contentFormat = message.content_format === "markdown" ? "markdown" : "text";
+    content.className = `thread-message-content thread-message-content-${contentFormat}`;
+    content.textContent = safeText(message.content_body, "无正文");
+    body.append(heading, content);
+  }
+  appendAgentData(message, body);
 }
 
 function appendThreadTaskCard(message, body) {
@@ -3377,9 +3493,7 @@ function renderTimelineMessage(message, messagesById, repliedMessageIds) {
   trust.textContent = message.security_label === "external_agent_content"
     ? "由 Agent 提供 · 已按安全方式展示"
     : safeText(message.security_label);
-  const identifier = document.createElement("span");
-  identifier.textContent = safeText(message.message_id);
-  footer.append(trust, identifier);
+  footer.append(trust);
   body.append(footer);
   if (fromCurrentHuman) {
     card.append(body, agentAvatar(message.sender, "agent-timeline-avatar"));

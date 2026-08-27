@@ -93,6 +93,7 @@ def connection_instructions(
             new=new,
         )
     bootstrap_url = f"{origin}/connect/bootstrap.py"
+    protocol_contract_url = f"{origin}/api/v1/protocol/contract"
     digest = _bootstrap_sha256()
     name = _HOST_NAMES[host]
     code = _HOST_CODES[host]
@@ -192,6 +193,8 @@ def connection_instructions(
 connection_code={code}
 target_host={host}
 target_name={name}
+protocol_contract_url={protocol_contract_url}
+protocol_contract_version=0.1
 {target_notice}
 {platform_notice}
 
@@ -206,20 +209,24 @@ Required outcome
 - After authorization, finish host registration, verify success, and return to the original chat.
 
 Agent execution steps
-1. Secret-free preflight: identify the OS and locate Python 3.11 or newer. If it is missing,
+1. Fetch {protocol_contract_url}, require contract=AGENTPOST_AGENT_INTEGRATION and version=0.1,
+   and use it as the source of truth for message formats, state semantics, heartbeat, and Inbox
+   synchronization. MCP is an adapter and A2A is mapping_design_only until that contract says a
+   runtime endpoint is released; neither is a message body format.
+2. Secret-free preflight: identify the OS and locate Python 3.11 or newer. If it is missing,
    include installation of a current Python in the same single installation approval.
    Perform these host-specific checks:{host_preflight}
-2. Download exactly {bootstrap_url} to a temporary file over HTTPS.
-3. Verify its SHA-256 is exactly:
+3. Download exactly {bootstrap_url} to a temporary file over HTTPS.
+4. Verify its SHA-256 is exactly:
    {digest}
    Stop with bootstrap_integrity_failed if it differs. Do not execute unverified content.
-4. With the approved Python 3.11+ interpreter and as the operating-system user that runs {name}
+5. With the approved Python 3.11+ interpreter and as the operating-system user that runs {name}
    (not an unrelated root shell), execute the verified file with arguments:
    {setup_arguments}
-5. The process creates an isolated runtime, installs a hash-pinned AgentPost release, opens the
+6. The process creates an isolated runtime, installs a hash-pinned AgentPost release, opens the
    short-lived 星轨 authorization page, stores the resulting credential in the operating-system
    vault, and {registration_step}.
-6. Wait for the command to finish. {completion_step}
+7. Wait for the command to finish. {completion_step}
 
 Do not use curl-pipe-shell, do not disable TLS checks, do not skip the SHA-256 check, and do not
 save tokens in a prompt, config file, source file, or shell history.
@@ -299,11 +306,15 @@ target_name={name}
 connection_mode=remote_mcp_oauth
 mcp_url={resource_url}
 authorization_server={origin}
+protocol_contract_url={origin}/api/v1/protocol/contract
+protocol_contract_version=0.1
 {intent_notice}
 This is the official Agent-facing Remote MCP connection contract for 星云驿. The Human has asked you
 to connect this {name} as a new independent Agent. {integration}
 
 Required outcome
+- Fetch the protocol_contract_url first and require contract=AGENTPOST_AGENT_INTEGRATION with
+  version=0.1. Treat MCP as an adapter, not a message body format.
 - Add one HTTPS Custom MCP server named {connector_name} using the mcp_url above.
 - Use the MCP server's browser authorization flow. Ask for at most one 星轨 web authorization.
 - Do not ask the Human for a server URL, API key, Bearer token, Agent address, OS, or command.

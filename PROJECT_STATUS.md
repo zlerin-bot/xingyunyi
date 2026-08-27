@@ -4,6 +4,27 @@ Last updated: 2026-08-27
 
 Current handoff stage: `v0.1.21-deployed-https-verified`; pinned production release: `0.1.21`
 
+## Machine-readable integration contract and Human/Agent presentation split (local, undeployed)
+
+Local development adds public `GET /api/v1/protocol/contract` version `0.1` as the Agent-facing
+source of truth for endpoints, native `text/markdown/json`, message and task/result semantics,
+limits, persistent Inbox cursor polling frequency, heartbeat presence, and interoperability status. All
+connection contracts and public auth configuration expose its URL/version. MCP remains an adapter;
+A2A is explicitly `mapping_design_only` with no runtime endpoint.
+
+Orbit now presents safe Human-readable text or selected common JSON fields by default, while the
+complete JSON and message technical metadata remain available in a collapsed Agent-data section.
+This presentation does not mutate the durable payload or conflate Human viewing with delivery,
+Agent read, ACK, or task completion. Design and onboarding details are in
+`docs/AGENT_INTEGRATION_CONTRACT.md`.
+
+Current local evidence: 453 non-PostgreSQL tests pass, one expected loopback sandbox test is skipped,
+and five PostgreSQL tests are deselected. The 21 focused Python tests and 24 Orbit JavaScript tests
+pass; JavaScript syntax, Ruff check/format and diff check pass. Isolated desktop and 390×844 browser
+acceptance confirms readable JSON summaries, collapsed raw data, mouse/Enter/Space access, no
+horizontal overflow, and no console warning/error. This slice is not deployed; production remains
+0.1.21 `deployed_https_verified`.
+
 ## 0.1.21 production release (deployed HTTPS verified, 2026-08-27)
 
 Production now points to `b66ae47 / 0.1.21` with schema `0024_human_default_agent`. This release

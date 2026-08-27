@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     pairing_rate_window_seconds: int = Field(default=60 * 60, ge=60, le=24 * 60 * 60)
     domain_verification_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     connector_heartbeat_interval_seconds: int = Field(default=30, ge=10, le=5 * 60)
+    connector_inbox_poll_interval_seconds: int = Field(default=30, ge=5, le=5 * 60)
     oauth_access_token_ttl_seconds: int = Field(default=60 * 60, ge=5 * 60, le=24 * 60 * 60)
     oauth_refresh_token_ttl_seconds: int = Field(
         default=30 * 24 * 60 * 60, ge=24 * 60 * 60, le=180 * 24 * 60 * 60

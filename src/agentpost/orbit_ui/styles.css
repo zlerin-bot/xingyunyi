@@ -3112,6 +3112,95 @@ button.thread-participant-chip {
   font-size: 0.58rem;
 }
 
+.thread-redacted-content,
+.thread-structured-summary {
+  margin-top: 12px;
+}
+
+.thread-structured-summary {
+  display: grid;
+  gap: 9px;
+  border: 1px solid #d2e3fc;
+  border-radius: 12px;
+  background: #f8fafd;
+  padding: 13px;
+}
+
+.thread-structured-summary > strong {
+  color: #1967d2;
+  font-size: 0.72rem;
+}
+
+.thread-structured-summary p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.6;
+}
+
+.thread-structured-grid,
+.thread-agent-data-grid {
+  display: grid;
+  grid-template-columns: minmax(72px, auto) minmax(0, 1fr);
+  gap: 7px 12px;
+  margin: 0;
+}
+
+.thread-structured-grid dt,
+.thread-agent-data-grid dt {
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.thread-structured-grid dd,
+.thread-agent-data-grid dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.68rem;
+  line-height: 1.55;
+}
+
+.thread-agent-data {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+}
+
+.thread-agent-data > summary {
+  width: fit-content;
+  color: #1967d2;
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.thread-agent-data[open] > summary {
+  margin-bottom: 10px;
+}
+
+.thread-agent-data-label {
+  display: block;
+  margin-top: 12px;
+  font-size: 0.62rem;
+}
+
+.thread-agent-data pre.thread-agent-data-json {
+  max-height: 320px;
+  margin: 6px 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.64rem;
+}
+
+.thread-agent-data-note {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 0.58rem;
+  line-height: 1.5;
+}
+
 .thread-attachment-list {
   margin-top: 12px;
 }

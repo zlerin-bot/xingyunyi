@@ -165,8 +165,16 @@ test("Thread timeline keeps communication, work, replies, and system events dist
   assert.match(script, /message\.task_expected_output/);
   assert.match(script, /message\.requires_ack \? "是" : "否"/);
   assert.match(script, /由 Agent 提供 · 已按安全方式展示/);
-  assert.match(script, /thread-message-content-\$\{contentFormat\}/);
-  assert.match(stylesheet, /pre\.thread-message-content-json/);
+  assert.match(script, /Agent 提供的结构化信息/);
+  assert.match(script, /key === "status"/);
+  assert.match(script, /查看 Agent 数据与技术信息（JSON）/);
+  assert.match(script, /这些信息用于 Agent 协作和问题排查，不代表任务已经完成/);
+  assert.match(script, /raw\.textContent = safeText\(message\.content_body, "null"\)/);
+  assert.match(script, /summary\.addEventListener\("keydown"/);
+  assert.match(script, /details\.open = !details\.open/);
+  assert.match(script, /footer\.append\(trust\)/);
+  assert.match(stylesheet, /\.thread-structured-summary/);
+  assert.match(stylesheet, /\.thread-agent-data/);
 });
 
 test("conversation identity and attachments expose clear safe actions", () => {

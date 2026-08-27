@@ -215,7 +215,18 @@ def _seed(settings: Settings) -> None:
                 json={
                     "type": "result",
                     "subject": "报告目录检查完成",
-                    "content": {"format": "markdown", "body": "目录完整，建议补充一页风险边界。"},
+                    "content": {
+                        "format": "json",
+                        "body": {
+                            "summary": "目录完整，建议补充风险边界",
+                            "status": "completed",
+                            "next_steps": ["补充风险边界", "保留来源日期"],
+                            "evidence": {
+                                "checked_sections": ["结论", "证据", "风险"],
+                                "coverage": 1.0,
+                            },
+                        },
+                    },
                     "result": {"status": "completed", "summary": "目录完整，建议补充风险边界"},
                     "priority": "normal",
                 },

@@ -157,6 +157,10 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
         "wheel_url": "https://agentpost.me/downloads/agentpost-0.1.0-py3-none-any.whl",
         "wheel_sha256": "1fc3f42e8c1141ce65481778587544fc9bf441438c852c0332594ab24a75fdf7",
     }
+    assert auth_config.json()["protocol_contract_url"] == (
+        "http://127.0.0.1:8000/api/v1/protocol/contract"
+    )
+    assert auth_config.json()["protocol_contract_version"] == "0.1"
     combined = f"{orbit.text}\n{script.text}".casefold()
     assert "localstorage" not in combined
     assert "sessionstorage" not in combined
@@ -330,6 +334,10 @@ def test_agent_facing_connection_contract_is_public_pinned_and_host_specific(
         assert instructions.headers["X-AgentPost-Connection-Code"] == code
         assert f"target_host={host}" in instructions.text
         assert f"target_name={name}" in instructions.text
+        assert "protocol_contract_url=" in instructions.text
+        assert "protocol_contract_version=0.1" in instructions.text
+        assert "contract=AGENTPOST_AGENT_INTEGRATION" in instructions.text
+        assert "A2A is mapping_design_only" in instructions.text
         assert f"setup {host}" in instructions.text
         assert bootstrap.headers["X-AgentPost-Bootstrap-SHA256"] in instructions.text
         assert "at most one grouped system approval" in instructions.text
@@ -559,6 +567,7 @@ def test_auth_config_exposes_release_platforms_per_host(
         "wheel_url": "https://agentpost.me/downloads/agentpost-0.1.1-py3-none-any.whl",
         "wheel_sha256": "a" * 64,
     }
+    assert response.json()["protocol_contract_version"] == "0.1"
 
 
 def test_human_identity_uses_a_separate_one_time_key_and_admin_boundary(

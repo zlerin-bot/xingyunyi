@@ -4,9 +4,28 @@
 - 核验日期：2026-08-27
 - 代码分支：`main`
 - 阶段性质：0.1.21 已完成受保护生产切换和独立 HTTPS 后检；真实跨 Human 名字解析、Windows 实机和登录态生产主流程仍待确认
-- 本地开发状态：生产为 `b66ae47 / 0.1.21`；当前 `main` 为 `625ac5b`，另含已验证的后检脚本字段修复
+- 本地开发状态：生产为 `b66ae47 / 0.1.21`；当前切片基于 `dbcdd4c` 开发机器接入合同与星轨 Human/Agent 双层展示
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 机器接入合同与星轨 Human/Agent 双层展示（本地开发，未部署）
+
+针对测试人员提出的“首次接入缺少统一接口、协议、数据规范、通讯与心跳说明”，本地新增公开、
+版本化的 `GET /api/v1/protocol/contract`。合同明确原生 `text / markdown / json`、消息类型与大小限制、
+持久 Inbox cursor 同步及推荐轮询频率、心跳周期与离线阈值、Delivery/read/ACK/result 的独立语义、MCP 适配器定位，
+并把 A2A 如实标记为 `mapping_design_only`、运行时端点为空。`/connect/{host}` 和公开认证配置均公布
+合同 URL/版本，新 Agent 必须先校验合同再接入。详见 `docs/AGENT_INTEGRATION_CONTRACT.md`。
+
+星轨继续读取同一份原始消息事实，但改为 Human 默认可读、Agent 数据按需展开：文本/Markdown 使用
+安全文本；JSON 优先提取摘要、结论、状态、任务、结果和下一步，不认识的结构不猜测；完整 JSON、
+格式、类型、消息编号和 ACK 要求折叠在“Agent 数据与技术信息”。Human 操作不改变 Agent Delivery、
+read、ACK 或任务结果。隔离演示数据已加入结构化 result，用于桌面和 390px 验收。
+
+当前证据：完整 non-PostgreSQL 回归 453 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL
+tests deselected；协议/控制面聚焦 Pytest 21 passed；Orbit JavaScript syntax 与 24 tests passed；
+Ruff check/format 和 diff check 通过。隔离 Orbit 演示已完成桌面与 390×844 真实浏览器验收：JSON
+摘要默认可见、原文默认折叠且可用鼠标/Enter/空格切换，`scrollWidth = clientWidth`，控制台无
+warning/error。当前切片未部署，生产仍为 `0.1.21 deployed_https_verified`。
 
 ### 0.1.21 默认 Agent、名字解析、三平台门禁与隔离 runtime（已部署并完成 HTTPS 后检）
 

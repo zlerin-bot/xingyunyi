@@ -49,6 +49,7 @@ from agentpost.control.human_security import HumanCsrfDep
 from agentpost.control.schemas import HumanProfile
 from agentpost.control.service import human_profile
 from agentpost.control.sessions import HUMAN_SESSION_COOKIE, create_human_session
+from agentpost.protocol_contract import PROTOCOL_CONTRACT_VERSION
 from agentpost.security.rate_limit import (
     client_rate_limit_subject,
     enforce_http_rate_limit,
@@ -74,6 +75,8 @@ def human_auth_config(settings: SettingsDep) -> HumanAuthConfig:
             wheel_url=settings.connector_wheel_url,
             wheel_sha256=settings.connector_wheel_sha256,
         ),
+        protocol_contract_url=(f"{settings.public_base_url.rstrip('/')}/api/v1/protocol/contract"),
+        protocol_contract_version=PROTOCOL_CONTRACT_VERSION,
         managed_agent_domain=settings.managed_agent_domain,
     )
 

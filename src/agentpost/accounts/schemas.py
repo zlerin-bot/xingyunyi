@@ -155,6 +155,8 @@ class HumanAuthConfig(AccountModel):
         str, Literal["local_bootstrap", "remote_mcp_oauth", "unavailable"]
     ] = Field(default_factory=dict)
     connector_release: ConnectorReleaseInfo
+    protocol_contract_url: str
+    protocol_contract_version: str
     managed_agent_domain: str
     password_min_length: int = 12
     mfa_supported: bool = True
