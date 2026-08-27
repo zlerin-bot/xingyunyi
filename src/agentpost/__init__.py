@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 __all__ = ["AgentPost", "__version__"]
 
-__version__ = "0.1.19"
+__version__ = "0.1.20"
 
 
 def __getattr__(name: str) -> Any:
