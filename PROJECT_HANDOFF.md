@@ -1,14 +1,39 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.20-deployed-https-verified`
+- 交接阶段：`v0.1.21-deployed-https-verified`
 - 核验日期：2026-08-27
 - 代码分支：`main`
-- 阶段性质：0.1.20 已完成受保护生产切换和独立 HTTPS 后检；真实 Manus 新任务本地文件夹闭环、Windows 实机和登录态生产主流程仍待确认
-- 本地开发状态：生产为 `9a76d26 / 0.1.20`；当前 `main` 另含默认 Agent、陌生 Human 首次联系、不完整名字确认、Windows/多宿主 runtime 隔离和六类 Agent 三平台发布门禁纠正，尚未部署
+- 阶段性质：0.1.21 已完成受保护生产切换和独立 HTTPS 后检；真实跨 Human 名字解析、Windows 实机和登录态生产主流程仍待确认
+- 本地开发状态：生产为 `b66ae47 / 0.1.21`；当前 `main` 为 `625ac5b`，另含已验证的后检脚本字段修复
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 默认 Agent、陌生 Human 首次联系与不完整名字确认（本地开发，未部署）
+### 0.1.21 默认 Agent、名字解析、三平台门禁与隔离 runtime（已部署并完成 HTTPS 后检）
+
+生产已从 `9a76d26 / 0.1.20` 受保护切换到 `b66ae47 / 0.1.21`，schema 已升级为
+`0024_human_default_agent`。本次包含默认 Agent、陌生 Human 精确用户名首次联系、`lan → dylan`
+这类不完整名字候选确认、同一 Human 已联系范围继承、六类 Agent 在 macOS/Linux/Windows 的发布
+门禁纠正，以及按宿主和版本隔离 Connector runtime。
+
+发布物来自干净提交。源码、公开 wheel、Workbench 单上传包 SHA-256 分别为
+`80d15aed437cce65fc4325752d833b5c537d06f334ab034d8381641bd01cc365`、
+`180a5cea389decb4c6ae79c7c017282cd684baa06b2d3bef3221ecc0437ec881`、
+`ecd1128a5e847693449c467a11d3c233bcf9652902496656e84faf94091597d5`。Workbench 上传与 staging
+全部校验通过；受保护切换执行了生产备份、PostgreSQL `0023 → 0024 → 0023 → 0024` 演练、Nginx
+校验和原子切换，返回 `deploy_status=ok`。备份为
+`/opt/agentpost/backups/20260827-190638-b66ae47-pre-021/`。
+
+独立后检确认本机/公网 health、ready 均为 0.1.21，公开 wheel 哈希、未知下载 404、六类 Agent
+三平台配置、备份校验、schema 和数据量均通过，返回 `postflight_status=ok`。切换后为 57 Agents /
+147 Messages / 147 Deliveries / 16 Attachments / 15 Humans；AgentPost/Nginx/PostgreSQL PID 为
+`268379/245451/245492`，Nginx 与 PostgreSQL 未重启。
+
+首次后检暴露脚本误读公开配置顶层 `version`，实际合同为 `connector_release.version`；生产响应本身
+正确。修复与回归测试已提交为 `625ac5b`，7 项发布脚本测试通过，修正版后检随后完整通过。真实新用户
+输入 `020`、`lan` 的跨 Human 发送确认，Windows 豆包/其他宿主实机升级，以及登录态生产 Orbit
+主流程仍为 `待确认`；当前状态是 `deployed_https_verified`，不是 `production_accepted`。
+
+### 默认 Agent、陌生 Human 首次联系与不完整名字确认（0.1.21 已部署）
 
 Mars Lee Phone（`mars-lee-workbuddy-003@agentpost.me`）的真实反馈确认，旧解析器既不能让新用户
 通过 `020` 联系陌生 Human，也会因为 `020` 名下有多个 Agent 而要求用户理解内部 Agent 列表；
@@ -23,33 +48,33 @@ Mars Lee Phone（`mars-lee-workbuddy-003@agentpost.me`）的真实反馈确认�
 不完整名字采用“候选确认而不是自动发送”：`lan` 可返回 `dylan` 的默认 Agent，并且即便只有一个
 候选也保持 `needs_clarification`，要求用户确认后才能发送；最多展示五个 Human 的默认 Agent。
 同一 Human 名下 Agent 的历史联系关系继承、完整地址/准确 Agent 短名称解析、组织/ACL、not-found
-边界和收件方策略均保留。该切片尚未部署，生产仍是旧逻辑。
+边界和收件方策略均保留。该切片已随 0.1.21 部署；真实跨 Human 用户输入与确认后的发送闭环仍待验收。
 
 本地证据：完整 non-PostgreSQL 回归 451 passed、1 个预期 loopback sandbox skip、5 个
 PostgreSQL tests deselected；默认切换/删除回退、陌生 `020` 和 `lan → dylan` 聚焦回归通过；Orbit
 JavaScript 24 passed，JavaScript syntax 与 Ruff check 通过。隔离 Orbit 演示已真实切换默认 Agent；
 390×844 下 `scrollWidth = clientWidth = 390`，无横向溢出，控制台无 warning/error。PostgreSQL
-迁移 `0023 → 0024` 的真实数据库演练仍待部署前门禁。
+迁移 `0023 → 0024 → 0023 → 0024` 已在发布中完成真实 PostgreSQL 演练。
 
-### 六类 Agent 三平台发布门禁纠正（本地开发，未部署）
+### 六类 Agent 三平台发布门禁纠正（0.1.21 已部署）
 
 2026-08-27 现场反馈确认，Codex、WorkBuddy、OpenClaw、Hermes、豆包工作和
-Manus 的已发布接入适配器均应允许 macOS、Linux、Windows。生产 `0.1.20`
+Manus 的已发布接入适配器均应允许 macOS、Linux、Windows。发布前的生产 `0.1.20`
 公开 `/api/v1/auth/config` 却仍返回 Codex/WorkBuddy=`mac`、豆包工作/Manus=`mac,windows`、
 OpenClaw/Hermes=`mac,linux`，使其他 Agent 把已发布的平台误判为官方不支持并停止接入。
 根因是过去把“某一轮真实宿主验收记录未补齐”错误地固化为了安装发布门禁。
 
 当前本地已统一生产示例、安装 Skill、公开引导和部署脚本：六类 Agent 的
 `host_setup_platforms` 均为 `mac,linux,windows`。受保护切换将自动把六个平台键写入生产
-`agentpost.env`，postflight 会从公网重新读取 `/api/v1/auth/config` 并对六类×三平台做精确断言。
+`agentpost.env`；postflight 已从公网重新读取 `/api/v1/auth/config` 并对六类×三平台做精确断言。
 之后不再用验收缺口拒绝已发布平台；真实宿主的版本级验收仍作为独立证据记录，不与“可安装/可接入”混合。
 
-该纠正尚未切换生产，因此当前线上配置仍会误拦；不得在完成授权发布和公网 postflight 前写成已修复线上。
+该纠正已随 0.1.21 切换生产，公网 postflight 已精确核对六类 Agent 均返回 `mac,linux,windows`。
 本地证据：聚焦配置/Skill/发布脚本/Control Plane 回归 64 passed；完整
 non-PostgreSQL 回归 448 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected；
 Ruff check/format、Bash syntax 和 diff check 通过。
 
-### Windows 豆包运行时隔离与 Manus 0.1.20 回信（本地已验证，未部署）
+### Windows 豆包运行时隔离与 Manus 0.1.20 回信（0.1.21 已部署，实机复测待确认）
 
 张子良的 Windows 豆包工作真实接入反馈确认了三个问题：多个宿主共享
 `~/.agentpost/runtime` 时，既有心跳进程会锁定 `agentpost-connect.exe` 并让 pip 原地升级触发
@@ -63,8 +88,8 @@ Ruff check/format、Bash syntax 和 diff check 通过。
 在 `sys.argv[0]` 不含 `.exe` 时会确定性回退到同目录的 `.exe.json`，不需要复制第二份配置。
 
 聚焦 bootstrap/豆包测试 23 passed；完整 non-PostgreSQL 回归 445 passed、1 个预期 loopback
-sandbox skip、5 个 PostgreSQL tests deselected；Ruff check/format 与 diff check 通过。该切片尚未在
-真实 Windows 豆包工作复测，也未部署，不得写成已修复生产问题。轻量 Connector 独立分发仍是下一
+sandbox skip、5 个 PostgreSQL tests deselected；Ruff check/format 与 diff check 通过。该切片已随
+0.1.21 部署，但尚未在真实 Windows 豆包工作复测，不得写成已完成实机验收。轻量 Connector 独立分发仍是下一
 资源优化切片，本次只通过宿主/版本隔离和禁用 pip cache 降低冲突与临时占用。
 
 020 的 Manus 0.1.20 canary `msg_b9b4e5df684a41a6bc19b964c5ee23e9` 已在原 Thread 唯一回复固定

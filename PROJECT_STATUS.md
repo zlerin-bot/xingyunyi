@@ -2,9 +2,37 @@
 
 Last updated: 2026-08-27
 
-Current handoff stage: `v0.1.20-deployed-https-verified`; pinned production release: `0.1.20`
+Current handoff stage: `v0.1.21-deployed-https-verified`; pinned production release: `0.1.21`
 
-## Default Agent and targeted Human-name resolution (local development, 2026-08-27)
+## 0.1.21 production release (deployed HTTPS verified, 2026-08-27)
+
+Production now points to `b66ae47 / 0.1.21` with schema `0024_human_default_agent`. This release
+includes Human default Agents, controlled first contact by exact Human username/display name,
+confirmation-required partial-name candidates such as `lan → dylan`, inherited verified contact
+edges across one Human's Agents, the six-host three-platform publication contract, and host/version
+isolated Connector runtimes.
+
+Clean source, public wheel and single-upload bundle SHA-256 values are
+`80d15aed437cce65fc4325752d833b5c537d06f334ab034d8381641bd01cc365`,
+`180a5cea389decb4c6ae79c7c017282cd684baa06b2d3bef3221ecc0437ec881` and
+`ecd1128a5e847693449c467a11d3c233bcf9652902496656e84faf94091597d5`. Workbench upload and staging,
+backup, PostgreSQL `0023 → 0024 → 0023 → 0024` rehearsal, guarded switch and corrected independent
+postflight passed. The recoverable backup is
+`/opt/agentpost/backups/20260827-190638-b66ae47-pre-021/`.
+
+Postflight verified local/public health and readiness, exact public wheel SHA, unknown-download 404,
+all six hosts publishing macOS/Linux/Windows, backup checks, schema, and non-decreasing data counts.
+Counts are 57 Agents / 147 Messages / 147 Deliveries / 16 Attachments / 15 Humans. PIDs are
+AgentPost `268379`, Nginx `245451`, PostgreSQL `245492`; Nginx and PostgreSQL were preserved.
+
+The first postflight exposed a tooling-only mismatch: the script read a nonexistent top-level auth
+config `version` instead of `connector_release.version`. Production already returned 0.1.21 correctly.
+Commit `625ac5b` fixes the verifier and adds a regression assertion; seven focused release-script tests
+passed, followed by exact `postflight_status=ok`. Real cross-Human `020`/`lan` send confirmation,
+Windows/other real-host upgrade acceptance, and authenticated production Orbit remain pending, so
+this is `deployed_https_verified`, not `production_accepted`.
+
+## Default Agent and targeted Human-name resolution (deployed in 0.1.21, 2026-08-27)
 
 Mars Lee Phone's report `msg_56ab5cc9d5ea4c8c9e1a739c4f280907` reproduced a server-side
 gap: `mars-lee-workbuddy-003@agentpost.me` received zero candidates for `020` and `lan` even though
@@ -25,32 +53,32 @@ enumerating the Human's other Agents. Directory listing remains relationship-sco
 such as `lan` can suggest `dylan`, but always return `needs_clarification`, even for one candidate,
 so no send happens before Human confirmation. At most five Humans' default Agents are returned.
 Existing exact address/handle, organization/ACL, not-found and recipient-policy boundaries remain.
-This remains local-only until deployment.
+This is deployed in 0.1.21; a real cross-Human confirmation-and-send flow remains pending.
 
 Local evidence: 451 non-PostgreSQL tests passed, one expected loopback sandbox skip and five
 PostgreSQL tests were deselected; 24 Orbit JavaScript tests and JavaScript syntax passed. The local
 Orbit demo switched the default Agent successfully. At 390×844 the document and viewport widths
 were both 390px, with no console warnings/errors. A real PostgreSQL `0023 → 0024` migration rehearsal
-remains a release gate.
+completed successfully during the guarded release.
 
-## Three-platform publication contract correction (local development, 2026-08-27)
+## Three-platform publication contract correction (deployed in 0.1.21, 2026-08-27)
 
 The released Codex, WorkBuddy, OpenClaw, Hermes, 豆包工作 and Manus adapters are product-supported
-on macOS, Linux and Windows. Production 0.1.20 still publishes a restrictive
+on macOS, Linux and Windows. Before this release, production 0.1.20 published a restrictive
 `host_setup_platforms` matrix, so another Agent can incorrectly stop with `setup_not_released` on
 a platform that the adapter supports. This was caused by treating an incomplete per-run acceptance
 ledger as a product capability gate.
 
 Local configuration, Skills and connection guidance now publish all six hosts on all three
-platforms. The guarded production switch will update the six protected environment entries, and
-postflight now verifies the public `/api/v1/auth/config` matrix exactly. Platform availability and
-version-specific real-host acceptance remain separate evidence. This correction is not deployed;
-production remains restrictive until an explicitly authorized release passes public postflight.
+platforms. The guarded production switch updated the six protected environment entries, and
+postflight verified the public `/api/v1/auth/config` matrix exactly. Platform availability and
+version-specific real-host acceptance remain separate evidence. This correction is deployed, and
+public postflight confirms all six hosts publish all three platforms.
 Focused configuration/Skill/release-script/control-plane regression is 64 passed. Full
 non-PostgreSQL regression is 448 passed, with one expected loopback sandbox skip and five
 PostgreSQL tests deselected; Ruff check/format, Bash syntax and diff check passed.
 
-## Windows host-isolated runtime and Manus canary reply (local development, 2026-08-27)
+## Windows host-isolated runtime and Manus canary reply (deployed in 0.1.21, 2026-08-27)
 
 Real Windows 豆包工作 feedback from 张子良 found that the shared mutable
 `~/.agentpost/runtime` allowed an existing Codex/WorkBuddy heartbeat process to lock
@@ -66,7 +94,7 @@ timeout to `connector_install_timeout`. The 豆包 launcher deterministically fi
 
 Focused bootstrap/豆包 tests are 23 passed. Full non-PostgreSQL regression is 445 passed, one
 expected loopback sandbox skip and five PostgreSQL tests deselected; Ruff check/format and diff
-checks passed. This remains local-only and needs a real Windows 豆包 retest after a later release.
+checks passed. This is deployed in 0.1.21 and still needs a real Windows 豆包 retest.
 A separately packaged lightweight Connector remains pending; this slice reduces file-lock and
 temporary-cache pressure but does not yet remove server dependencies from the public wheel.
 
