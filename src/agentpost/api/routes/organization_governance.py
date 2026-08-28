@@ -38,6 +38,7 @@ from agentpost.organizations.schemas import (
     OrganizationDomainResponse,
     OrganizationInvitationAccept,
     OrganizationInvitationAccepted,
+    OrganizationInvitationCandidate,
     OrganizationInvitationCreate,
     OrganizationInvitationCreated,
     OrganizationInvitationInboxItem,
@@ -69,6 +70,7 @@ from agentpost.organizations.service import (
     create_invitation,
     create_owned_organization,
     list_domains,
+    list_invitation_candidates,
     list_invitations,
     list_members,
     list_pending_invitations,
@@ -440,6 +442,31 @@ def get_organization_invitations(
     try:
         return {
             "items": list_invitations(
+                session,
+                user=current_human,
+                organization_id=organization_id,
+                limit=limit,
+            )
+        }
+    except OrganizationSelfGovernanceNotFoundError as exc:
+        raise _not_found() from exc
+    except OrganizationAccessDeniedError as exc:
+        raise _forbidden() from exc
+
+
+@router.get(
+    "/organizations/{organization_id}/invitation-candidates",
+    response_model=dict[str, list[OrganizationInvitationCandidate]],
+)
+def get_organization_invitation_candidates(
+    organization_id: UUID,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    limit: Limit = 50,
+) -> dict[str, list[OrganizationInvitationCandidate]]:
+    try:
+        return {
+            "items": list_invitation_candidates(
                 session,
                 user=current_human,
                 organization_id=organization_id,

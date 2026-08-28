@@ -2,7 +2,25 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.28-deployed-https-verified`; pinned production release: `0.1.28`
+Current handoff stage: `v0.1.28-post-release-development`; pinned production release: `0.1.28`
+
+## Organization contact invitations and visible Agent eligibility (local, pending deployment, 2026-08-28)
+
+Organization managers can now choose from Humans with whom any of their owned Agents has a real
+sent or received message. Candidates are ordered by latest contact and exclude the manager, current
+members, and active pending invitations. This verified relationship list does not enumerate unrelated
+platform Humans, and the exact-username field remains available for first contact.
+
+The add-my-Agent control now keeps every active owned Agent visible. Available Agents remain
+selectable; an Agent already in the current organization or explicitly assigned elsewhere is disabled
+with a plain-language reason instead of silently disappearing. The one-explicit-organization rule and
+per-organization default-Agent participation remain unchanged.
+
+Evidence: focused organization tests 10 passed; the complete non-PostgreSQL suite reported 462
+passed, one expected loopback sandbox skip, and five PostgreSQL tests deselected. Ruff check/format,
+JavaScript syntax, and Orbit JavaScript 27 passed. Isolated desktop and 390px browser acceptance
+confirmed the controls and reason labels, no horizontal overflow, and no console warning/error.
+PostgreSQL-specific tests and production deployment remain pending.
 
 ## Human conversation archive and compact mobile actions (0.1.28 deployed HTTPS verified, 2026-08-28)
 

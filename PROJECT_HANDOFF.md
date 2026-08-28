@@ -1,12 +1,29 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.28-deployed-https-verified`
+- 交接阶段：`v0.1.28-post-release-development`
 - 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：历史组织 Thread 归组、Human 可恢复归档和移动端紧凑入口已部署，并完成 HTTPS 后检
-- 当前生产状态：`3f869b1 / 0.1.28`，schema 为 `0025_human_thread_archives`；状态为 `deployed_https_verified`
+- 阶段性质：0.1.28 已完成 HTTPS 后检；组织好友邀请和自有 Agent 候选解释正在本地迭代
+- 当前生产状态：`3f869b1 / 0.1.28`，schema 为 `0025_human_thread_archives`；新增组织交互尚未部署
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 组织好友邀请与自有 Agent 候选解释（本地完成，待提交/待部署）
+
+组织邀请新增“沟通过的好友”下拉框。候选只从当前 Human 名下 Agent 的真实发送或接收记录推导，
+按最近沟通时间排序，并排除本人、现有组织成员和仍有效的待接受邀请；未发生真实沟通的陌生 Human
+不会被枚举。选择好友后自动填写其全平台唯一用户名，同时保留手工输入准确用户名的首次邀请入口。
+
+“添加我的 Agent”此前只显示 `!agent.organization` 的自有活动 Agent，导致已经显式加入当前或其他
+组织的 Codex 等 Agent 被静默隐藏。现在列表展示全部自有活动 Agent：可加入项正常选择；已在本组织
+或已加入其他组织的项保留可见但禁用，并直接说明原因。底层仍保持一个 Agent 最多显式加入一个组织；
+按组织计算的默认 Agent 参与多个组织的规则未改变。
+
+聚焦后端 10 passed；Ruff check/format、JavaScript syntax 和 Orbit JavaScript 27 passed；完整
+non-PostgreSQL 回归 462 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected。
+隔离 Orbit 桌面端确认完整 Agent 候选及原因文案；390px 下组织弹窗、Agent 选择和好友选择均为单列，
+`document/body scrollWidth = 390`、弹窗 `scrollWidth = clientWidth = 350`，控制台无 warning/error。
+PostgreSQL 专属测试未在本地运行；生产仍为 `3f869b1 / 0.1.28`。
 
 ### 历史组织 Thread 归组与 Human 可恢复归档（0.1.28 已部署并完成 HTTPS 后检）
 

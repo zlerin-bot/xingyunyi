@@ -2499,7 +2499,7 @@ summary:focus-visible {
 
 .organization-invite-fields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 130px;
   gap: 12px;
 }
 

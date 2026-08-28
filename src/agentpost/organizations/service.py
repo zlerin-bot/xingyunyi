@@ -31,6 +31,7 @@ from agentpost.control.schemas import (
     OrganizationMembershipResponse,
 )
 from agentpost.identity.models import Agent, utc_now
+from agentpost.messaging.models import Delivery, Message
 from agentpost.organizations.models import OrganizationDomain, OrganizationInvitation
 from agentpost.organizations.schemas import (
     OrganizationCreateResponse,
@@ -38,6 +39,7 @@ from agentpost.organizations.schemas import (
     OrganizationDomainCreated,
     OrganizationDomainResponse,
     OrganizationInvitationAccepted,
+    OrganizationInvitationCandidate,
     OrganizationInvitationCreate,
     OrganizationInvitationCreated,
     OrganizationInvitationInboxItem,
@@ -579,6 +581,97 @@ def list_pending_invitations(
     if changed:
         session.commit()
     return items
+
+
+def list_invitation_candidates(
+    session: Session,
+    *,
+    user: HumanUser,
+    organization_id: UUID,
+    limit: int,
+) -> list[OrganizationInvitationCandidate]:
+    """List actionable Humans with a server-verified conversation relationship."""
+
+    context = _load_context(session, organization_id=organization_id, user=user)
+    _require_manager(context)
+    owned_agent_ids = list(
+        session.scalars(
+            select(AgentOwnership.agent_id).where(AgentOwnership.human_user_id == user.id)
+        )
+    )
+    if not owned_agent_ids:
+        return []
+
+    latest_by_agent: dict[UUID, datetime] = {}
+    outgoing = session.execute(
+        select(Delivery.recipient_agent_id, func.max(Message.created_at))
+        .join(Message, Message.id == Delivery.message_id)
+        .where(Message.sender_agent_id.in_(owned_agent_ids))
+        .group_by(Delivery.recipient_agent_id)
+    ).all()
+    incoming = session.execute(
+        select(Message.sender_agent_id, func.max(Message.created_at))
+        .join(Delivery, Delivery.message_id == Message.id)
+        .where(Delivery.recipient_agent_id.in_(owned_agent_ids))
+        .group_by(Message.sender_agent_id)
+    ).all()
+    owned_agent_id_set = set(owned_agent_ids)
+    for agent_id, contacted_at in [*outgoing, *incoming]:
+        if agent_id in owned_agent_id_set or contacted_at is None:
+            continue
+        current = latest_by_agent.get(agent_id)
+        if current is None or contacted_at > current:
+            latest_by_agent[agent_id] = contacted_at
+    if not latest_by_agent:
+        return []
+
+    existing_member_ids = set(
+        session.scalars(
+            select(OrganizationMembership.human_user_id).where(
+                OrganizationMembership.organization_id == organization_id
+            )
+        )
+    )
+    pending_emails = set(
+        session.scalars(
+            select(OrganizationInvitation.email).where(
+                OrganizationInvitation.organization_id == organization_id,
+                OrganizationInvitation.status == "pending",
+                OrganizationInvitation.expires_at > utc_now(),
+            )
+        )
+    )
+    latest_by_human: dict[UUID, tuple[HumanUser, datetime]] = {}
+    rows = session.execute(
+        select(AgentOwnership.agent_id, HumanUser)
+        .join(HumanUser, HumanUser.id == AgentOwnership.human_user_id)
+        .where(
+            AgentOwnership.agent_id.in_(latest_by_agent),
+            HumanUser.status == "active",
+            HumanUser.id != user.id,
+        )
+    ).all()
+    for agent_id, candidate in rows:
+        if candidate.id in existing_member_ids or candidate.email in pending_emails:
+            continue
+        contacted_at = latest_by_agent[agent_id]
+        current = latest_by_human.get(candidate.id)
+        if current is None or contacted_at > current[1]:
+            latest_by_human[candidate.id] = (candidate, contacted_at)
+
+    ordered = sorted(
+        latest_by_human.values(),
+        key=lambda item: (-_as_utc(item[1]).timestamp(), item[0].username),
+    )[:limit]
+    return [
+        OrganizationInvitationCandidate(
+            human_user_id=candidate.id,
+            username=candidate.username,
+            display_name=candidate.display_name,
+            last_contact_at=_as_utc(contacted_at),
+        )
+        for candidate, contacted_at in ordered
+    ]
 
 
 def accept_inbox_invitation(

@@ -339,6 +339,7 @@ const elements = {
   organizationAgentPassword: document.querySelector("#organization-agent-password"),
   organizationAgentAdd: document.querySelector("#organization-agent-add"),
   organizationInviteSection: document.querySelector("#organization-invite-section"),
+  organizationInviteContact: document.querySelector("#organization-invite-contact"),
   organizationInviteUsername: document.querySelector("#organization-invite-username"),
   organizationInviteRole: document.querySelector("#organization-invite-role"),
   organizationManageResult: document.querySelector("#organization-manage-result"),
@@ -999,28 +1000,33 @@ async function acceptPendingOrganizationInvitation(invitation, button) {
   }
 }
 
-function eligibleOwnedOrganizationAgents() {
-  return (state.dashboard?.agents || []).filter(
-    (agent) => agent.role === "owner" && !agent.organization && agent.status === "active",
-  );
-}
-
 function renderOrganizationAgents(organization) {
   const canManageOwnAgents = ["owner", "admin", "member"].includes(organization.membership_role);
   elements.organizationAgentActions.hidden = !canManageOwnAgents;
   elements.organizationAgentSelect.replaceChildren();
-  const eligible = eligibleOwnedOrganizationAgents();
+  const owned = (state.dashboard?.agents || []).filter(
+    (agent) => agent.role === "owner" && agent.status === "active",
+  );
+  const eligible = owned.filter((agent) => !agent.organization);
   const placeholder = document.createElement("option");
   placeholder.value = "";
   placeholder.textContent = eligible.length ? "请选择 Agent" : "没有可加入的自有 Agent";
   elements.organizationAgentSelect.append(placeholder);
-  eligible.forEach((agent) => {
+  owned.forEach((agent) => {
     const option = document.createElement("option");
     option.value = String(agent.id);
-    option.textContent = `${agentDisplayName(agent)} · ${statusLabel(agent.connection_state)}`;
+    const assignedHere = String(agent.organization?.id || "") === String(organization.id);
+    const assignedElsewhere = Boolean(agent.organization) && !assignedHere;
+    option.disabled = assignedHere || assignedElsewhere;
+    const assignment = assignedHere
+      ? " · 已在本组织"
+      : assignedElsewhere
+        ? ` · 已加入“${safeText(agent.organization?.name, agent.organization?.slug)}”，不能重复加入`
+        : "";
+    option.textContent = `${agentDisplayName(agent)} · ${statusLabel(agent.connection_state)}${assignment}`;
     elements.organizationAgentSelect.append(option);
   });
-  elements.organizationAgentSelect.disabled = !eligible.length;
+  elements.organizationAgentSelect.disabled = !owned.length;
   elements.organizationAgentAdd.disabled = !eligible.length;
 }
 
@@ -1126,6 +1132,7 @@ async function createOrganization(event) {
 function closeOrganizationManagement() {
   elements.organizationAgentPassword.value = "";
   elements.organizationAgentSelect.replaceChildren();
+  elements.organizationInviteContact.replaceChildren();
   elements.organizationInviteUsername.value = "";
   elements.organizationDomainName.value = "";
   elements.organizationOidcName.value = "";
@@ -1155,6 +1162,20 @@ function configureOrganizationInvitationRoles(actorRole) {
     option.value = role;
     option.textContent = statusLabel(role);
     elements.organizationInviteRole.append(option);
+  });
+}
+
+function renderOrganizationInvitationCandidates(candidates) {
+  elements.organizationInviteContact.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = candidates.length ? "请选择好友（可选）" : "暂无可邀请的沟通好友";
+  elements.organizationInviteContact.append(placeholder);
+  candidates.forEach((candidate) => {
+    const option = document.createElement("option");
+    option.value = safeText(candidate.username);
+    option.textContent = `${safeText(candidate.display_name, candidate.username)} · @${safeText(candidate.username)}`;
+    elements.organizationInviteContact.append(option);
   });
 }
 
@@ -1595,6 +1616,7 @@ async function loadOrganizationManagement() {
   const isManager = ["owner", "admin"].includes(organization.membership_role);
   renderOrganizationAgents(organization);
   elements.organizationInviteSection.hidden = !isManager;
+  elements.organizationInviteContact.disabled = !isManager;
   elements.organizationInviteUsername.disabled = !isManager;
   elements.organizationInviteRole.disabled = !isManager;
   configureOrganizationInvitationRoles(organization.membership_role);
@@ -1612,12 +1634,15 @@ async function loadOrganizationManagement() {
   renderOrganizationMembers(memberItems);
   configureOrganizationLeave(memberItems);
   if (isManager) {
-    const invitations = await requestJson(
-      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/invitations`,
-    );
+    const [invitations, candidates] = await Promise.all([
+      requestJson(`/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/invitations`),
+      requestJson(`/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/invitation-candidates`),
+    ]);
     renderOrganizationInvitations(Array.isArray(invitations.items) ? invitations.items : []);
+    renderOrganizationInvitationCandidates(Array.isArray(candidates.items) ? candidates.items : []);
   } else {
     elements.organizationInvitationList.replaceChildren();
+    renderOrganizationInvitationCandidates([]);
   }
   const domains = await requestJson(
     `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/domains`,
@@ -1669,6 +1694,7 @@ async function inviteOrganizationMember(event) {
       },
     );
     elements.organizationInviteUsername.value = "";
+    elements.organizationInviteContact.value = "";
     elements.organizationManageResult.textContent = "站内邀请已发出；对方登录星云驿后即可接受。";
     elements.organizationManageResult.className = "form-status success";
     await loadOrganizationManagement();
@@ -5054,6 +5080,16 @@ elements.organizationInvitationClose.addEventListener("click", closeOrganization
 elements.organizationInvitationCancel.addEventListener("click", closeOrganizationInvitationDialog);
 elements.organizationInvitationDialog.addEventListener("close", closeOrganizationInvitationDialog);
 elements.organizationInviteForm.addEventListener("submit", inviteOrganizationMember);
+elements.organizationInviteContact.addEventListener("change", () => {
+  if (elements.organizationInviteContact.value) {
+    elements.organizationInviteUsername.value = elements.organizationInviteContact.value;
+  }
+});
+elements.organizationInviteUsername.addEventListener("input", () => {
+  if (elements.organizationInviteUsername.value !== elements.organizationInviteContact.value) {
+    elements.organizationInviteContact.value = "";
+  }
+});
 elements.organizationAgentAdd.addEventListener("click", () => changeOwnedOrganizationAgent(null, "assign"));
 elements.organizationManageClose.addEventListener("click", closeOrganizationManagement);
 elements.organizationManageCancel.addEventListener("click", closeOrganizationManagement);

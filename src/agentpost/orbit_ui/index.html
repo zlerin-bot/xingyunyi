@@ -692,7 +692,8 @@
         <section id="organization-invite-section" class="organization-governance-section">
           <h3>邀请成员</h3>
           <div class="organization-invite-fields">
-            <div><label for="organization-invite-username">Human 用户名</label><input id="organization-invite-username" type="text" autocomplete="off" minlength="3" maxlength="32" placeholder="例如 020" required><small>对方登录星云驿后可直接接受，不会发送确认邮件。</small></div>
+            <div><label for="organization-invite-contact">沟通过的好友</label><select id="organization-invite-contact"><option value="">正在加载…</option></select><small>只显示你名下 Agent 有过真实沟通、且尚未加入本组织的人。</small></div>
+            <div><label for="organization-invite-username">或输入 Human 用户名</label><input id="organization-invite-username" type="text" autocomplete="off" minlength="3" maxlength="32" placeholder="例如 020" required><small>选择好友后会自动填写；也可以直接输入准确用户名。</small></div>
             <div><label for="organization-invite-role">角色</label><select id="organization-invite-role"></select></div>
           </div>
           <button type="submit" class="quiet-button">发出站内邀请</button>

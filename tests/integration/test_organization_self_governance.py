@@ -277,6 +277,72 @@ def test_username_invitation_is_accepted_inside_orbit_without_email_link(
         assert client.get("/api/v1/orbit/organization-invitations").json() == {"items": []}
 
 
+def test_invitation_candidates_include_only_humans_with_real_agent_conversations(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with TestClient(create_app(settings=_runtime(settings), database=database)) as client:
+        owner = _register(client, "candidate-owner@example.com", username="candidate-owner")
+        owner_agent = _create_agent(client, "candidate-owner-agent@agents.local")
+        _set_agent_owner(
+            client,
+            human_id=str(owner["user"]["id"]),
+            agent_id=str(owner_agent["agent"]["id"]),
+        )
+
+        friend = _register(client, "candidate-friend@example.com", username="candidate-friend")
+        friend_agent = _create_agent(client, "candidate-friend-agent@agents.local")
+        _set_agent_owner(
+            client,
+            human_id=str(friend["user"]["id"]),
+            agent_id=str(friend_agent["agent"]["id"]),
+        )
+        outsider = _register(
+            client, "candidate-outsider@example.com", username="candidate-outsider"
+        )
+        outsider_agent = _create_agent(client, "candidate-outsider-agent@agents.local")
+        _set_agent_owner(
+            client,
+            human_id=str(outsider["user"]["id"]),
+            agent_id=str(outsider_agent["agent"]["id"]),
+        )
+
+        sent = client.post(
+            "/api/v1/messages",
+            headers={
+                "Authorization": f"Bearer {owner_agent['api_key']}",
+                "Idempotency-Key": "organization-invitation-candidate",
+            },
+            json={
+                "to": [{"address": friend_agent["agent"]["address"]}],
+                "type": "message",
+                "subject": "建立真实沟通关系",
+                "content": {"format": "text", "body": "用于邀请好友候选测试。"},
+            },
+        )
+        assert sent.status_code == 201, sent.text
+
+        owner_login = _login(client, "candidate-owner@example.com")
+        organization = _create_organization(client, str(owner_login["csrf_token"]))
+        organization_id = str(organization["organization"]["id"])
+        candidates = client.get(
+            f"/api/v1/orbit/organizations/{organization_id}/invitation-candidates"
+        )
+        assert candidates.status_code == 200, candidates.text
+        assert [item["username"] for item in candidates.json()["items"]] == ["candidate-friend"]
+        assert candidates.json()["items"][0]["display_name"] == "candidate-friend"
+
+        invited = client.post(
+            f"/api/v1/orbit/organizations/{organization_id}/invitations",
+            headers={"X-CSRF-Token": owner_login["csrf_token"]},
+            json={"username": "candidate-friend", "role": "member"},
+        )
+        assert invited.status_code == 201, invited.text
+        assert client.get(
+            f"/api/v1/orbit/organizations/{organization_id}/invitation-candidates"
+        ).json() == {"items": []}
+
+
 def test_default_agents_make_a_new_organization_channel_immediately_usable(
     settings: Settings,
     database: Database,

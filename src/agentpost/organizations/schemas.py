@@ -105,6 +105,13 @@ class OrganizationInvitationInboxItem(OrganizationGovernanceModel):
     expires_at: datetime
 
 
+class OrganizationInvitationCandidate(OrganizationGovernanceModel):
+    human_user_id: UUID
+    username: str
+    display_name: str
+    last_contact_at: datetime
+
+
 class OrganizationMembershipUpdate(OrganizationGovernanceModel):
     role: Literal["owner", "admin", "member", "auditor"]
 

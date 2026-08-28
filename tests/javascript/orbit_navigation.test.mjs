@@ -350,8 +350,17 @@ test("organization management prioritizes organizations, members, and their Agen
   assert.match(html, /id="organization-pending-list"/);
   assert.match(html, /不需要再到邮箱确认/);
   assert.match(html, /id="organization-invite-username"/);
+  assert.match(html, /id="organization-invite-contact"/);
+  assert.match(html, /只显示你名下 Agent 有过真实沟通/);
   assert.match(script, /\/api\/v1\/orbit\/organization-invitations\/\$\{encodeURIComponent\(invitation\.invitation_id\)\}\/accept/);
   assert.match(script, /username: elements\.organizationInviteUsername\.value/);
+  assert.match(script, /\/invitation-candidates/);
+  assert.match(script, /renderOrganizationInvitationCandidates/);
+  assert.match(script, /organizationInviteUsername\.value = elements\.organizationInviteContact\.value/);
+  assert.match(script, /agent\.role === "owner" && agent\.status === "active"/);
+  assert.match(script, /已在本组织/);
+  assert.match(script, /不能重复加入/);
+  assert.doesNotMatch(script, /agent\.role === "owner" && !agent\.organization/);
   assert.doesNotMatch(html, /邀请邮箱/);
 });
 
