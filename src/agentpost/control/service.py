@@ -796,7 +796,12 @@ def list_orbit_messages(
 ) -> list[OrbitMessage]:
     entries = list_agent_access(session, user)
     role_map = {entry.agent.id: entry.role for entry in entries}
-    rows = _message_rows(session, agent_ids=set(role_map), limit=limit)
+    entries_by_agent = {entry.agent.id: entry for entry in entries}
+    rows = [
+        row
+        for row in _message_rows(session, agent_ids=set(role_map), limit=limit)
+        if _row_visible_after_access_grant(row, entries_by_agent)
+    ]
     task_ids = [row[0].id for row in rows if row[0].message_type == "task"]
     task_results = _responses_for_tasks(session, task_ids)
     connector_types = _connector_types_for_agents(session, set(role_map))
@@ -833,6 +838,35 @@ def _thread_organizations(
             membership_role=entry.organization_role,
         )
     return sorted(organizations.values(), key=lambda item: (item.name.casefold(), str(item.id)))
+
+
+def _row_visible_after_access_grant(
+    row: tuple[Message, Delivery, Agent, Agent],
+    entries_by_agent: dict[UUID, AccessEntry],
+) -> bool:
+    """Do not expose pre-assignment history through organization-derived access."""
+
+    return _message_visible_after_access_grant(
+        row[0],
+        recipient_agent_id=row[1].recipient_agent_id,
+        entries_by_agent=entries_by_agent,
+    )
+
+
+def _message_visible_after_access_grant(
+    message: Message,
+    *,
+    recipient_agent_id: UUID,
+    entries_by_agent: dict[UUID, AccessEntry],
+) -> bool:
+    created_at = _as_utc(message.created_at)
+    for participant_id in (message.sender_agent_id, recipient_agent_id):
+        entry = entries_by_agent.get(participant_id)
+        if entry is None:
+            continue
+        if entry.source != "organization" or created_at >= _as_utc(entry.granted_at):
+            return True
+    return False
 
 
 def _thread_rows_match_query(
@@ -879,8 +913,13 @@ def _orbit_thread_data(
 ]:
     entries = list_agent_access(session, user)
     role_map = {entry.agent.id: entry.role for entry in entries}
+    entries_by_agent = {entry.agent.id: entry for entry in entries}
     agent_ids = set(role_map)
-    rows = _message_rows(session, agent_ids=agent_ids, limit=None, thread_id=thread_id)
+    rows = [
+        row
+        for row in _message_rows(session, agent_ids=agent_ids, limit=None, thread_id=thread_id)
+        if _row_visible_after_access_grant(row, entries_by_agent)
+    ]
     grouped: dict[UUID, list[tuple[Message, Delivery, Agent, Agent]]] = {}
     for row in rows:
         grouped.setdefault(row[0].thread_id, []).append(row)
@@ -1130,11 +1169,12 @@ def get_orbit_attachment(
 
     entries = list_agent_access(session, user)
     role_map = {entry.agent.id: entry.role for entry in entries}
+    entries_by_agent = {entry.agent.id: entry for entry in entries}
     if not role_map:
         raise OrbitAttachmentNotFoundError(str(attachment_id))
 
     deliveries = session.execute(
-        select(Message.sender_agent_id, Delivery.recipient_agent_id)
+        select(Message, Delivery.recipient_agent_id)
         .join(Delivery, Delivery.message_id == Message.id)
         .where(
             Message.id == attachment.message_id,
@@ -1145,8 +1185,13 @@ def get_orbit_attachment(
         )
     ).all()
     if not any(
-        _content_allowed(role_map, sender_id, recipient_id)
-        for sender_id, recipient_id in deliveries
+        _content_allowed(role_map, message.sender_agent_id, recipient_id)
+        and _message_visible_after_access_grant(
+            message,
+            recipient_agent_id=recipient_id,
+            entries_by_agent=entries_by_agent,
+        )
+        for message, recipient_id in deliveries
     ):
         raise OrbitAttachmentNotFoundError(str(attachment_id))
     return attachment
@@ -1160,7 +1205,12 @@ def list_orbit_tasks(
 ) -> list[OrbitTask]:
     entries = list_agent_access(session, user)
     role_map = {entry.agent.id: entry.role for entry in entries}
-    rows = _task_rows(session, agent_ids=set(role_map), limit=limit)
+    entries_by_agent = {entry.agent.id: entry for entry in entries}
+    rows = [
+        row
+        for row in _task_rows(session, agent_ids=set(role_map), limit=limit)
+        if _row_visible_after_access_grant(row, entries_by_agent)
+    ]
     results = _responses_for_tasks(session, [row[0].id for row in rows])
     tasks: list[OrbitTask] = []
     for task, delivery, sender, recipient in rows:
@@ -1237,8 +1287,13 @@ def build_orbit_dashboard(
     ]
     agent_ids = {entry.agent.id for entry in entries}
     role_map = {entry.agent.id: entry.role for entry in entries}
+    entries_by_agent = {entry.agent.id: entry for entry in entries}
     tasks = list_orbit_tasks(session, user, limit=50)
-    recent_rows = _message_rows(session, agent_ids=agent_ids, limit=12)
+    recent_rows = [
+        row
+        for row in _message_rows(session, agent_ids=agent_ids, limit=12)
+        if _row_visible_after_access_grant(row, entries_by_agent)
+    ]
     recent_task_ids = [row[0].id for row in recent_rows if row[0].message_type == "task"]
     recent_task_results = _responses_for_tasks(session, recent_task_ids)
     connector_types = _connector_types_for_agents(session, agent_ids)
@@ -1259,20 +1314,25 @@ def build_orbit_dashboard(
     ]
 
     unread_by_agent: dict[UUID, int] = {}
-    if agent_ids:
-        unread_by_agent = dict(
-            session.execute(
-                select(Delivery.recipient_agent_id, func.count(Delivery.id))
-                .where(
-                    Delivery.recipient_agent_id.in_(agent_ids),
-                    Delivery.delivery_status == "delivered",
-                )
-                .group_by(Delivery.recipient_agent_id)
-            ).all()
+    for entry in entries:
+        unread_query = (
+            select(func.count(Delivery.id))
+            .join(Message, Message.id == Delivery.message_id)
+            .where(
+                Delivery.recipient_agent_id == entry.agent.id,
+                Delivery.delivery_status == "delivered",
+            )
         )
+        if entry.source == "organization":
+            unread_query = unread_query.where(Message.created_at >= entry.granted_at)
+        unread_by_agent[entry.agent.id] = int(session.scalar(unread_query) or 0)
 
     pending_by_agent: dict[UUID, int] = {agent_id: 0 for agent_id in agent_ids}
-    task_rows = _task_rows(session, agent_ids=agent_ids, limit=None)
+    task_rows = [
+        row
+        for row in _task_rows(session, agent_ids=agent_ids, limit=None)
+        if _row_visible_after_access_grant(row, entries_by_agent)
+    ]
     task_results = _responses_for_tasks(session, [row[0].id for row in task_rows])
     for task, delivery, _, _ in task_rows:
         if task.id not in task_results and delivery.recipient_agent_id in pending_by_agent:

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from agentpost.accounts.schemas import EmailChallengeStart
 from agentpost.control.schemas import OrganizationMembershipResponse, OrganizationResponse
@@ -67,6 +67,19 @@ class OrganizationInvitationAccepted(OrganizationGovernanceModel):
 
 class OrganizationMembershipUpdate(OrganizationGovernanceModel):
     role: Literal["owner", "admin", "member", "auditor"]
+
+
+class OrganizationAgentConfirmationCreate(OrganizationGovernanceModel):
+    intent: Literal["assign", "remove"]
+    password: SecretStr
+
+
+class OrganizationAgentConfirmationResponse(OrganizationGovernanceModel):
+    confirmation_token: str
+    intent: Literal["assign", "remove"]
+    organization_id: UUID
+    agent_id: UUID
+    expires_at: datetime
 
 
 class OrganizationDomainCreate(OrganizationGovernanceModel):

@@ -23,7 +23,7 @@ test("Orbit exposes exactly three named primary entrances", () => {
   assert.match(primaryNavigation, />星轨</);
   assert.match(primaryNavigation, />云驿</);
   assert.match(primaryNavigation, />设置</);
-  assert.match(primaryNavigation, /对话与协作/);
+  assert.match(primaryNavigation, /我的对话/);
   assert.match(primaryNavigation, /Agent 与连接/);
   assert.match(primaryNavigation, /账户与平台/);
 });

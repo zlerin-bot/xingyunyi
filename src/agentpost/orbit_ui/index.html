@@ -117,7 +117,7 @@
               <span class="primary-nav-icon orbit-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M3.5 12c2.4-5 7.5-7.6 12-5.7 4.6 1.9 5.8 6.9 2.3 10.3-3.6 3.5-9.5 3.1-12.6-.7"/><circle cx="18.7" cy="7.2" r="1.5"/></svg>
               </span>
-              <span><strong>星轨</strong><small>对话与协作</small></span>
+              <span><strong>星轨</strong><small>我的对话</small></span>
             </button>
             <button type="button" class="primary-nav-item" data-module="relay">
               <span class="primary-nav-icon relay-icon" aria-hidden="true">
@@ -152,7 +152,7 @@
         <aside class="context-sidebar" aria-label="当前模块目录">
           <div class="context-heading">
             <p id="context-eyebrow">星轨</p>
-            <h2 id="context-title">对话与协作</h2>
+            <h2 id="context-title">我的对话</h2>
             <p id="context-copy">按每个对话查看 Agent 之间的全部往来。</p>
           </div>
           <nav id="orbit-mobile-shortcuts" class="orbit-mobile-shortcuts" data-context-module="orbit" aria-label="星轨快捷筛选">
@@ -169,7 +169,7 @@
             <div data-context-module="orbit">
               <button id="thread-parent-toggle" type="button" class="context-nav-item thread-parent-toggle active" data-module="orbit" data-section="communications" aria-current="page" aria-expanded="true" aria-controls="thread-browser">
                 <span class="thread-parent-icon" aria-hidden="true"><i></i><i></i></span>
-                <span><strong>对话与协作</strong><small id="thread-parent-summary">已展开 · 0 个完整对话</small></span>
+                <span><strong>我的对话</strong><small id="thread-parent-summary">已展开 · 0 个完整对话</small></span>
                 <span class="thread-parent-meta">
                   <span id="thread-unread-count" class="thread-unread-count" hidden>0</span>
                   <span class="thread-parent-chevron" aria-hidden="true">⌄</span>
@@ -667,6 +667,18 @@
         <input id="organization-manage-id" type="hidden">
         <p id="organization-manage-summary" class="dialog-summary"></p>
         <div id="organization-role-boundary" class="organization-role-boundary" role="note"></div>
+        <section id="organization-agent-section" class="organization-governance-section">
+          <h3>组织中的 Agent</h3>
+          <p class="dialog-summary">组织成员可以查看这些 Agent 加入组织之后产生的协作对话；加入前的个人对话不会共享。</p>
+          <div id="organization-agent-list" class="governance-list"></div>
+          <div id="organization-agent-actions" class="organization-agent-actions">
+            <label for="organization-agent-select">添加我拥有的 Agent</label>
+            <select id="organization-agent-select"></select>
+            <label for="organization-agent-password">重新输入星轨密码</label>
+            <input id="organization-agent-password" type="password" autocomplete="current-password" minlength="12" placeholder="确认扩大组织可见范围">
+            <button id="organization-agent-add" type="button" class="quiet-button">加入组织</button>
+          </div>
+        </section>
         <section id="organization-invite-section" class="organization-governance-section">
           <h3>邀请成员</h3>
           <div class="organization-invite-fields">

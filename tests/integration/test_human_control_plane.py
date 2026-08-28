@@ -119,7 +119,7 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert 'data-module="orbit"' in orbit.text
     assert 'data-module="relay"' in orbit.text
     assert 'data-module="settings"' in orbit.text
-    assert "对话与协作" in orbit.text
+    assert "我的对话" in orbit.text
     assert "Agent 总览" in orbit.text
     assert "个人资料" in orbit.text
     assert orbit.headers["Cache-Control"] == "no-store"

@@ -322,6 +322,12 @@ const elements = {
   organizationManageId: document.querySelector("#organization-manage-id"),
   organizationManageSummary: document.querySelector("#organization-manage-summary"),
   organizationRoleBoundary: document.querySelector("#organization-role-boundary"),
+  organizationAgentSection: document.querySelector("#organization-agent-section"),
+  organizationAgentList: document.querySelector("#organization-agent-list"),
+  organizationAgentActions: document.querySelector("#organization-agent-actions"),
+  organizationAgentSelect: document.querySelector("#organization-agent-select"),
+  organizationAgentPassword: document.querySelector("#organization-agent-password"),
+  organizationAgentAdd: document.querySelector("#organization-agent-add"),
   organizationInviteSection: document.querySelector("#organization-invite-section"),
   organizationInviteEmail: document.querySelector("#organization-invite-email"),
   organizationInviteRole: document.querySelector("#organization-invite-role"),
@@ -345,7 +351,7 @@ const elements = {
 const MODULE_DEFINITIONS = Object.freeze({
   orbit: Object.freeze({
     label: "星轨",
-    title: "对话与协作",
+    title: "我的对话",
     description: "按每个对话查看 Agent 之间的全部往来。",
     defaultSection: "communications",
     sections: Object.freeze(["communications", "tasks", "approvals"]),
@@ -951,6 +957,123 @@ function renderOrganizations(organizations) {
   elements.organizationList.append(fragment);
 }
 
+function organizationAgents(organization) {
+  return (state.dashboard?.agents || []).filter(
+    (agent) => String(agent.organization?.id || "") === String(organization.id),
+  );
+}
+
+function eligibleOwnedOrganizationAgents() {
+  return (state.dashboard?.agents || []).filter(
+    (agent) => agent.role === "owner" && !agent.organization && agent.status === "active",
+  );
+}
+
+function renderOrganizationAgents(organization) {
+  const agents = organizationAgents(organization);
+  const isManager = ["owner", "admin"].includes(organization.membership_role);
+  elements.organizationAgentList.replaceChildren();
+  if (!agents.length) {
+    elements.organizationAgentList.append(emptyState(
+      "这个组织还没有 Agent。成员和权限已经建立，但暂时没有可供成员协作查看的 Agent。",
+    ));
+  } else {
+    agents.forEach((agent) => {
+      const item = document.createElement("article");
+      item.className = "governance-item organization-agent-item";
+      const content = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = agentDisplayName(agent);
+      const detail = document.createElement("span");
+      detail.textContent = agent.connection_state === "offline"
+        ? "暂未连接；消息仍可送达，Agent 恢复连接后处理"
+        : `${statusLabel(agent.connection_state)} · ${safeText(agent.display_name)}`;
+      content.append(name, detail);
+      item.append(content);
+      if (isManager && agent.role === "owner") {
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "quiet-button danger";
+        remove.textContent = "移出组织";
+        remove.addEventListener("click", () => changeOwnedOrganizationAgent(agent, "remove"));
+        item.append(remove);
+      }
+      elements.organizationAgentList.append(item);
+    });
+  }
+
+  elements.organizationAgentActions.hidden = !isManager;
+  elements.organizationAgentSelect.replaceChildren();
+  const eligible = eligibleOwnedOrganizationAgents();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = eligible.length ? "请选择 Agent" : "没有可加入的自有 Agent";
+  elements.organizationAgentSelect.append(placeholder);
+  eligible.forEach((agent) => {
+    const option = document.createElement("option");
+    option.value = String(agent.id);
+    option.textContent = `${agentDisplayName(agent)} · ${statusLabel(agent.connection_state)}`;
+    elements.organizationAgentSelect.append(option);
+  });
+  elements.organizationAgentSelect.disabled = !eligible.length;
+  elements.organizationAgentAdd.disabled = !eligible.length;
+}
+
+async function changeOwnedOrganizationAgent(agent, intent) {
+  const organization = state.managedOrganization;
+  const selectedAgent = agent || (state.dashboard?.agents || []).find(
+    (item) => String(item.id) === elements.organizationAgentSelect.value,
+  );
+  if (!organization || !selectedAgent) {
+    elements.organizationManageResult.textContent = "请先选择一个你拥有的 Agent。";
+    elements.organizationManageResult.className = "form-status error";
+    return;
+  }
+  if (elements.organizationAgentPassword.value.length < 12) {
+    elements.organizationManageResult.textContent = "请输入当前星轨密码后再确认。";
+    elements.organizationManageResult.className = "form-status error";
+    elements.organizationAgentPassword.focus();
+    return;
+  }
+  elements.organizationAgentAdd.disabled = true;
+  try {
+    const base = `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/agents/${encodeURIComponent(selectedAgent.id)}`;
+    const confirmed = await requestJson(`${base}/confirmation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+      body: JSON.stringify({ intent, password: elements.organizationAgentPassword.value }),
+    });
+    await requestJson(base, {
+      method: intent === "assign" ? "PUT" : "DELETE",
+      headers: {
+        "X-CSRF-Token": state.csrfToken,
+        "X-Human-Confirmation": confirmed.confirmation_token,
+      },
+    });
+    elements.organizationAgentPassword.value = "";
+    await loadDashboard();
+    state.managedOrganization = (state.dashboard?.organizations || []).find(
+      (item) => String(item.id) === String(organization.id),
+    ) || organization;
+    renderOrganizationAgents(state.managedOrganization);
+    elements.organizationManageResult.textContent = intent === "assign"
+      ? "Agent 已加入组织；组织只会共享它从现在开始产生的协作对话。"
+      : "Agent 已移出组织；组织派生的查看权限已撤销。";
+    elements.organizationManageResult.className = "form-status success";
+  } catch (error) {
+    const conflicts = {
+      agent_already_assigned_to_organization: "这个 Agent 已属于其他组织，不能自动迁移。",
+      human_reauthentication_failed: "密码不正确，或当前浏览器尚未完成双重验证登录。",
+      organization_agent_not_found: "只能管理你本人拥有且仍处于活动状态的 Agent。",
+    };
+    elements.organizationManageResult.textContent = conflicts[error.code] || error.message;
+    elements.organizationManageResult.className = "form-status error";
+  } finally {
+    elements.organizationAgentPassword.value = "";
+    renderOrganizationAgents(state.managedOrganization || organization);
+  }
+}
+
 function closeOrganizationCreateDialog() {
   elements.organizationName.value = "";
   elements.organizationSlug.value = "";
@@ -987,6 +1110,9 @@ async function createOrganization(event) {
 }
 
 function closeOrganizationManagement() {
+  elements.organizationAgentPassword.value = "";
+  elements.organizationAgentSelect.replaceChildren();
+  elements.organizationAgentList.replaceChildren();
   elements.organizationInviteEmail.value = "";
   elements.organizationDomainName.value = "";
   elements.organizationOidcName.value = "";
@@ -1375,6 +1501,7 @@ async function loadOrganizationManagement() {
   }
   const isManager = ["owner", "admin"].includes(organization.membership_role);
   renderOrganizationRoleBoundary(elements.organizationRoleBoundary, organization.membership_role);
+  renderOrganizationAgents(organization);
   elements.organizationInviteSection.hidden = !isManager;
   elements.organizationInviteEmail.disabled = !isManager;
   elements.organizationInviteRole.disabled = !isManager;
@@ -4566,6 +4693,7 @@ elements.organizationInvitationClose.addEventListener("click", closeOrganization
 elements.organizationInvitationCancel.addEventListener("click", closeOrganizationInvitationDialog);
 elements.organizationInvitationDialog.addEventListener("close", closeOrganizationInvitationDialog);
 elements.organizationInviteForm.addEventListener("submit", inviteOrganizationMember);
+elements.organizationAgentAdd.addEventListener("click", () => changeOwnedOrganizationAgent(null, "assign"));
 elements.organizationManageClose.addEventListener("click", closeOrganizationManagement);
 elements.organizationManageCancel.addEventListener("click", closeOrganizationManagement);
 elements.organizationManageDialog.addEventListener("close", closeOrganizationManagement);

@@ -2428,6 +2428,41 @@ summary:focus-visible {
   gap: 7px;
 }
 
+.organization-agent-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 7px 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.organization-agent-actions label:first-child {
+  grid-column: 1;
+}
+
+.organization-agent-actions select {
+  grid-column: 1;
+}
+
+.organization-agent-actions label[for="organization-agent-password"] {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.organization-agent-actions input {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.organization-agent-actions button {
+  grid-column: 3;
+  grid-row: 2;
+  white-space: nowrap;
+}
+
 .organization-domain-section {
   display: grid;
   gap: 9px;
@@ -4133,12 +4168,18 @@ footer {
   .pairing-chat-card,
   .organization-role-guide,
   .organization-invitation-summary,
+  .organization-agent-actions,
   .organization-invite-fields,
   .organization-domain-fields,
   .organization-oidc-fields,
   .connector-card dl,
   .connector-history-grid {
     grid-template-columns: 1fr;
+  }
+
+  .organization-agent-actions > * {
+    grid-column: 1 !important;
+    grid-row: auto !important;
   }
 
   .split-actions,

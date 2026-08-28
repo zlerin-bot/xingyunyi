@@ -10,6 +10,8 @@ from agentpost.organizations import service as organization_service
 from agentpost.organizations.models import OrganizationDomain, OrganizationInvitation
 
 PASSWORD = "correct horse battery staple"
+ADMIN_KEY = "admin-secret-admin-secret-admin-secret"
+REGISTRATION_TOKEN = "organization-agent-registration"
 
 
 def _runtime(settings: Settings) -> Settings:
@@ -25,11 +27,45 @@ def _runtime(settings: Settings) -> Settings:
         pairing_secret="test-pairing-secret",
         human_self_service_enabled=True,
         open_registration_enabled=True,
+        registration_token=REGISTRATION_TOKEN,
+        admin_token=ADMIN_KEY,
         email_delivery_mode="test",
         email_challenge_cooldown_seconds=10,
         public_base_url="https://agentpost.example",
         log_level="WARNING",
     )
+
+
+def _admin_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {ADMIN_KEY}"}
+
+
+def _create_agent(client: TestClient, address: str) -> dict[str, object]:
+    response = client.post(
+        "/api/v1/agents",
+        headers={"X-Registration-Token": REGISTRATION_TOKEN},
+        json={
+            "address": address,
+            "display_name": address.split("@", 1)[0],
+            "capabilities": ["organization-collaboration"],
+        },
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def _set_agent_owner(
+    client: TestClient,
+    *,
+    human_id: str,
+    agent_id: str,
+) -> None:
+    response = client.put(
+        f"/api/v1/admin/humans/{human_id}/agents/{agent_id}",
+        headers=_admin_headers(),
+        json={"role": "owner"},
+    )
+    assert response.status_code == 200, response.text
 
 
 def _register(client: TestClient, email: str) -> dict[str, object]:
@@ -176,6 +212,102 @@ def test_owner_creates_organization_and_invitation_is_email_bound_and_one_time(
         assert stored.status == "accepted"
         assert stored.token_digest != raw_token
         assert raw_token not in stored.token_digest
+
+
+def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with TestClient(create_app(settings=_runtime(settings), database=database)) as client:
+        owner = _register(client, "agent-owner@example.com")
+        organization = _create_organization(client, str(owner["csrf_token"]))
+        organization_id = str(organization["organization"]["id"])
+        sender = _create_agent(client, "organization-sender@agents.local")
+        recipient = _create_agent(client, "organization-recipient@agents.local")
+        _set_agent_owner(
+            client,
+            human_id=str(owner["user"]["id"]),
+            agent_id=str(sender["agent"]["id"]),
+        )
+
+        pre_assignment = client.post(
+            "/api/v1/messages",
+            headers={
+                "Authorization": f"Bearer {sender['api_key']}",
+                "Idempotency-Key": "organization-pre-assignment",
+            },
+            json={
+                "to": [{"address": recipient["agent"]["address"]}],
+                "type": "message",
+                "subject": "加入组织前的私人消息",
+                "content": {"format": "text", "body": "pre-assignment-private-body"},
+            },
+        )
+        assert pre_assignment.status_code == 201, pre_assignment.text
+
+        wrong_password = client.post(
+            f"/api/v1/orbit/organizations/{organization_id}/agents/{sender['agent']['id']}/confirmation",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+            json={"intent": "assign", "password": "incorrect password"},
+        )
+        assert wrong_password.status_code == 403
+        confirmation = client.post(
+            f"/api/v1/orbit/organizations/{organization_id}/agents/{sender['agent']['id']}/confirmation",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+            json={"intent": "assign", "password": PASSWORD},
+        )
+        assert confirmation.status_code == 200, confirmation.text
+        missing_confirmation = client.put(
+            f"/api/v1/orbit/organizations/{organization_id}/agents/{sender['agent']['id']}",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+        )
+        assert missing_confirmation.status_code == 403
+        assigned = client.put(
+            f"/api/v1/orbit/organizations/{organization_id}/agents/{sender['agent']['id']}",
+            headers={
+                "X-CSRF-Token": owner["csrf_token"],
+                "X-Human-Confirmation": confirmation.json()["confirmation_token"],
+            },
+        )
+        assert assigned.status_code == 200, assigned.text
+        replay = client.put(
+            f"/api/v1/orbit/organizations/{organization_id}/agents/{sender['agent']['id']}",
+            headers={
+                "X-CSRF-Token": owner["csrf_token"],
+                "X-Human-Confirmation": confirmation.json()["confirmation_token"],
+            },
+        )
+        assert replay.status_code == 403
+
+        member = _register(client, "organization-reader@example.com")
+        set_member = client.put(
+            f"/api/v1/admin/organizations/{organization_id}/members/{member['user']['id']}",
+            headers=_admin_headers(),
+            json={"role": "member"},
+        )
+        assert set_member.status_code == 200, set_member.text
+        member_dashboard = client.get("/api/v1/orbit/dashboard")
+        assert member_dashboard.status_code == 200
+        assert "pre-assignment-private-body" not in member_dashboard.text
+
+        post_assignment = client.post(
+            "/api/v1/messages",
+            headers={
+                "Authorization": f"Bearer {sender['api_key']}",
+                "Idempotency-Key": "organization-post-assignment",
+            },
+            json={
+                "to": [{"address": recipient["agent"]["address"]}],
+                "type": "message",
+                "subject": "加入组织后的协作消息",
+                "content": {"format": "text", "body": "post-assignment-shared-body"},
+            },
+        )
+        assert post_assignment.status_code == 201, post_assignment.text
+        refreshed = client.get("/api/v1/orbit/dashboard")
+        assert refreshed.status_code == 200
+        assert "post-assignment-shared-body" in refreshed.text
+        assert "pre-assignment-private-body" not in refreshed.text
 
 
 def test_manager_roles_last_owner_and_self_exit_are_enforced(

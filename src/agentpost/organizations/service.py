@@ -15,16 +15,22 @@ from agentpost.accounts.mailer import deliver_organization_invitation
 from agentpost.config import Settings
 from agentpost.control.human_security import add_human_action_audit
 from agentpost.control.models import (
+    AgentOwnership,
     HumanUser,
     Organization,
+    OrganizationAgent,
     OrganizationMembership,
 )
 from agentpost.control.organization_service import (
     list_organization_memberships,
     organization_response,
 )
-from agentpost.control.schemas import OrganizationCreate, OrganizationMembershipResponse
-from agentpost.identity.models import utc_now
+from agentpost.control.schemas import (
+    OrganizationAgentResponse,
+    OrganizationCreate,
+    OrganizationMembershipResponse,
+)
+from agentpost.identity.models import Agent, utc_now
 from agentpost.organizations.models import OrganizationDomain, OrganizationInvitation
 from agentpost.organizations.schemas import (
     OrganizationCreateResponse,
@@ -76,6 +82,18 @@ class OrganizationDomainNotVerifiedError(Exception):
 
 
 class OrganizationDomainLookupError(Exception):
+    pass
+
+
+class OrganizationAgentOwnershipRequiredError(Exception):
+    pass
+
+
+class OrganizationAgentAlreadyAssignedError(Exception):
+    pass
+
+
+class OrganizationAgentAssignmentNotFoundError(Exception):
     pass
 
 
@@ -161,6 +179,110 @@ def _require_manager(context: OrganizationContext) -> None:
 def _require_owner(context: OrganizationContext) -> None:
     if context.membership.role != "owner":
         raise OrganizationAccessDeniedError
+
+
+def authorize_owned_agent_management(
+    session: Session,
+    *,
+    user: HumanUser,
+    organization_id: UUID,
+    agent_id: UUID,
+) -> tuple[OrganizationContext, Agent]:
+    context = _load_context(session, organization_id=organization_id, user=user)
+    _require_manager(context)
+    agent = session.scalar(
+        select(Agent)
+        .join(AgentOwnership, AgentOwnership.agent_id == Agent.id)
+        .where(
+            Agent.id == agent_id,
+            AgentOwnership.human_user_id == user.id,
+            Agent.status == "active",
+        )
+    )
+    if agent is None:
+        raise OrganizationAgentOwnershipRequiredError
+    return context, agent
+
+
+def assign_owned_agent(
+    session: Session,
+    *,
+    user: HumanUser,
+    organization_id: UUID,
+    agent_id: UUID,
+    human_session_id: UUID | None,
+    request_id: str,
+) -> OrganizationAgentResponse:
+    context, agent = authorize_owned_agent_management(
+        session,
+        user=user,
+        organization_id=organization_id,
+        agent_id=agent_id,
+    )
+    assignment = session.get(OrganizationAgent, agent.id)
+    if assignment is not None and assignment.organization_id != context.organization.id:
+        raise OrganizationAgentAlreadyAssignedError
+    if assignment is None:
+        assignment = OrganizationAgent(
+            agent_id=agent.id,
+            organization_id=context.organization.id,
+            assigned_at=utc_now(),
+        )
+        session.add(assignment)
+        add_human_action_audit(
+            session,
+            human_user_id=user.id,
+            human_session_id=human_session_id,
+            action="control.organization_owned_agent_assigned",
+            target_type="agent",
+            target_id=str(agent.id),
+            outcome="success",
+            request_id=request_id,
+            audit_metadata={
+                "organization_id": str(context.organization.id),
+                "visibility": "messages_created_after_assignment",
+            },
+        )
+        session.commit()
+    return OrganizationAgentResponse(
+        organization_id=context.organization.id,
+        agent_id=agent.id,
+        agent_address=agent.address,
+        assigned_at=assignment.assigned_at,
+    )
+
+
+def remove_owned_agent(
+    session: Session,
+    *,
+    user: HumanUser,
+    organization_id: UUID,
+    agent_id: UUID,
+    human_session_id: UUID | None,
+    request_id: str,
+) -> None:
+    context, agent = authorize_owned_agent_management(
+        session,
+        user=user,
+        organization_id=organization_id,
+        agent_id=agent_id,
+    )
+    assignment = session.get(OrganizationAgent, agent.id)
+    if assignment is None or assignment.organization_id != context.organization.id:
+        raise OrganizationAgentAssignmentNotFoundError
+    session.delete(assignment)
+    add_human_action_audit(
+        session,
+        human_user_id=user.id,
+        human_session_id=human_session_id,
+        action="control.organization_owned_agent_removed",
+        target_type="agent",
+        target_id=str(agent.id),
+        outcome="success",
+        request_id=request_id,
+        audit_metadata={"organization_id": str(context.organization.id)},
+    )
+    session.commit()
 
 
 def _domain_response(domain: OrganizationDomain) -> OrganizationDomainResponse:
