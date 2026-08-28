@@ -341,6 +341,18 @@ def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
             headers={"X-CSRF-Token": member["csrf_token"]},
         )
         assert member_assigned.status_code == 200, member_assigned.text
+        members = client.get(f"/api/v1/orbit/organizations/{organization_id}/members")
+        assert members.status_code == 200, members.text
+        member_entry = next(
+            item
+            for item in members.json()["items"]
+            if item["human_user_id"] == member["user"]["id"]
+        )
+        assert member_entry["human_username"] == member["user"]["username"]
+        assert member_entry["human_display_name"] == member["user"]["display_name"]
+        assert [agent["agent_id"] for agent in member_entry["agents"]] == [
+            member_agent["agent"]["id"]
+        ]
         member_dashboard = client.get("/api/v1/orbit/dashboard")
         assert member_dashboard.status_code == 200
         assert "pre-assignment-private-body" not in member_dashboard.text

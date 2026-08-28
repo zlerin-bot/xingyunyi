@@ -311,16 +311,19 @@ test("unavailable settings are explanatory, not fake controls", () => {
   }
 });
 
-test("organization governance explains all roles and requires explicit invitation consent", () => {
+test("organization management prioritizes organizations, members, and their Agents", () => {
   const organizationsStart = html.indexOf('id="organizations"');
   const organizationsEnd = html.indexOf("</section>", organizationsStart);
   const organizationsPanel = html.slice(organizationsStart, organizationsEnd);
-  for (const role of ["Owner", "Admin", "Member", "Auditor"]) {
-    assert.match(organizationsPanel, new RegExp(`>${role}<`));
-  }
-  assert.match(organizationsPanel, /不会自动拥有或冒充组织 Agent/);
-  assert.match(organizationsPanel, /可查看组织协作，并把自己拥有的 Agent 加入或移出组织/);
-  assert.match(organizationsPanel, /正文、附件内容、审批理由和参数保持隐藏/);
+  assert.match(organizationsPanel, /查看你加入的组织、组织成员和每位成员带入协作的 Agent/);
+  assert.doesNotMatch(organizationsPanel, /治理组织|管理日常成员|参与组织协作|仅查看元数据/);
+  assert.doesNotMatch(html, /class="organization-role-guide"/);
+  assert.match(html, /成员与 Agent/);
+  assert.match(html, /每位成员下方只显示由他本人拥有、并已加入这个组织的 Agent/);
+  assert.match(script, /member\.human_display_name/);
+  assert.match(script, /const memberAgents = Array\.isArray\(member\.agents\)/);
+  assert.match(script, /待确认归属的 Agent/);
+  assert.match(script, /manage\.textContent = "查看组织"/);
 
   assert.match(html, /id="organization-invitation-dialog"/);
   assert.match(html, /加入前请确认组织、角色和权限范围/);
@@ -351,7 +354,7 @@ test("organization role controls mirror the server authorization boundary", () =
 });
 
 test("organization collaboration separates shared context from requested replies", () => {
-  assert.match(html, /明确发到“组织协作”/);
+  assert.match(html, /加入后，它可以读取这个组织里的协作内容/);
   assert.match(script, /thread\.channel_scope === "organization"/);
   assert.match(script, /全部组织 Agent 可读/);
   assert.match(script, /requested_responder_addresses/);

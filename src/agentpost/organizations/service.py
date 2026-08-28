@@ -122,6 +122,8 @@ def _membership_response(
         organization_id=membership.organization_id,
         human_user_id=user.id,
         human_email=user.email,
+        human_username=user.username,
+        human_display_name=user.display_name,
         role=membership.role,
         created_at=_as_utc(membership.created_at),
         updated_at=_as_utc(membership.updated_at),

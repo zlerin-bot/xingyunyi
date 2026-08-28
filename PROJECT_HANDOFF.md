@@ -4,9 +4,26 @@
 - 核验日期：2026-08-28
 - 代码分支：`main`
 - 阶段性质：0.1.24 已从干净提交完成阿里云受保护切换、独立后检和登录态生产 Orbit 复核
-- 本地开发状态：生产仍为 `9c69eb5 / 0.1.24`，schema 为 `0024_human_default_agent`；组织站内邀请与成员自有 Agent 权限优化正在本地验证，尚未部署
+- 本地开发状态：生产仍为 `9c69eb5 / 0.1.24`，schema 为 `0024_human_default_agent`；组织站内邀请已提交，成员与 Agent 信息架构优化正在本地验证，均尚未部署
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 组织成员与 Agent 信息架构（本地开发，尚未部署）
+
+组织首页已删除 Owner/Admin/Member/Auditor 四张角色说明卡，不再出现“治理组织、管理日常成员、
+只读参与协作、仅查看元数据”等内部化标题。首页只保留待确认邀请、已有组织、成员数、Agent 数和
+统一的“查看组织”入口。
+
+组织详情改为成员优先：成员接口返回 Human 显示名称、唯一用户名，以及该成员本人拥有且已加入组织的
+Agent；页面在每个成员卡片中嵌套展示 Agent 简称、显示名称和准确连接状态。已加入组织但尚未关联明确
+Human 所有者的 Agent 单独显示为“待确认归属的 Agent”，避免从页面消失或被错误归到某位成员。
+“添加我的 Agent”作为独立操作区保留；点击“移出组织”时会自动展开密码确认，不再让用户自己寻找输入处。
+
+本地证据：Ruff check/format、JavaScript syntax、Orbit JavaScript 26 passed；完整 non-PostgreSQL
+回归 459 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected。隔离 Orbit
+桌面端已确认首页无角色说明卡、成员内嵌 Agent、待确认归属分组和移出密码自动展开。390×844 下
+body/document 为 390px、弹窗 `scrollWidth = clientWidth = 350`，成员卡 2 组且控制台无
+warning/error。本地实现与验证完成，生产尚未部署。
 
 ### 组织站内邀请与成员自有 Agent 管理（本地开发，尚未部署）
 

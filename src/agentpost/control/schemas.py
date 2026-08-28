@@ -116,11 +116,21 @@ class OrganizationMembershipCreate(ControlModel):
     role: Literal["owner", "admin", "member", "auditor"]
 
 
+class OrganizationMemberAgentResponse(ControlModel):
+    agent_id: UUID
+    address: str
+    handle: str | None
+    display_name: str
+
+
 class OrganizationMembershipResponse(ControlModel):
     organization_id: UUID
     human_user_id: UUID
     human_email: str
+    human_username: str
+    human_display_name: str
     role: Literal["owner", "admin", "member", "auditor"]
+    agents: list[OrganizationMemberAgentResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

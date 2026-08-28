@@ -323,9 +323,7 @@ const elements = {
   organizationManageCancel: document.querySelector("#organization-manage-cancel"),
   organizationManageId: document.querySelector("#organization-manage-id"),
   organizationManageSummary: document.querySelector("#organization-manage-summary"),
-  organizationRoleBoundary: document.querySelector("#organization-role-boundary"),
   organizationAgentSection: document.querySelector("#organization-agent-section"),
-  organizationAgentList: document.querySelector("#organization-agent-list"),
   organizationAgentActions: document.querySelector("#organization-agent-actions"),
   organizationAgentSelect: document.querySelector("#organization-agent-select"),
   organizationAgentPassword: document.querySelector("#organization-agent-password"),
@@ -861,24 +859,24 @@ function chip(value, type = "status") {
 
 const ORGANIZATION_ROLE_EXPERIENCE = Object.freeze({
   owner: Object.freeze({
-    capability: "Owner · 组织治理与完整协作视图",
+    capability: "你可以管理成员、邀请和组织设置。",
     visibility: "可查看明确发到组织协作频道的完整内容，并处理组织 Agent 的审批。个人对话保持私密。",
     actions: "可管理组织、成员和全部角色；不会因此自动拥有、连接或冒充组织 Agent。",
   }),
   admin: Object.freeze({
-    capability: "Admin · 日常治理与完整协作视图",
+    capability: "你可以邀请成员并管理日常设置。",
     visibility: "可查看明确发到组织协作频道的完整内容，并处理组织 Agent 的审批。个人对话保持私密。",
     actions: "可邀请和管理 Member/Auditor；不能处置 Owner 或其他受保护管理关系。",
   }),
   member: Object.freeze({
-    capability: "Member · 参与组织协作",
+    capability: "你可以查看组织协作，并管理自己的 Agent。",
     visibility: "可查看组织 Agent 和组织协作频道内容；个人对话不会因加入组织而共享。",
     actions: "可把自己拥有的 Agent 加入或移出组织；不能管理其他成员或其他人的 Agent。",
   }),
   auditor: Object.freeze({
-    capability: "Auditor · 仅元数据审计视图",
+    capability: "你可以查看成员、Agent 和协作记录摘要。",
     visibility: "只显示 Agent、消息、任务和审批元数据；正文、附件内容、理由和参数保持隐藏。",
-    actions: "不能审批、治理组织或管理 Agent。",
+    actions: "不能更改成员、组织设置或 Agent。",
   }),
 });
 
@@ -888,17 +886,6 @@ function organizationRoleExperience(role) {
     visibility: "只显示你当前获准查看的内容。",
     actions: "界面不会根据未知角色开放治理或 Agent 管理操作。",
   });
-}
-
-function renderOrganizationRoleBoundary(container, role) {
-  const experience = organizationRoleExperience(role);
-  const capability = document.createElement("strong");
-  capability.textContent = experience.capability;
-  const visibility = document.createElement("p");
-  visibility.textContent = experience.visibility;
-  const actions = document.createElement("p");
-  actions.textContent = experience.actions;
-  container.replaceChildren(capability, visibility, actions);
 }
 
 function renderOrganizations(organizations) {
@@ -921,14 +908,10 @@ function renderOrganizations(organizations) {
     const slug = document.createElement("span");
     slug.textContent = safeText(organization.slug);
     identity.append(name, slug);
-    header.append(identity, chip(organization.membership_role, "role"));
+    header.append(identity);
 
     const description = document.createElement("p");
     description.textContent = safeText(organization.description, "该组织暂未填写说明。");
-
-    const roleSummary = document.createElement("div");
-    roleSummary.className = "organization-role-summary";
-    renderOrganizationRoleBoundary(roleSummary, organization.membership_role);
 
     const stats = document.createElement("dl");
     [["成员", organization.member_count], ["Agent", organization.agent_count]].forEach(([label, value]) => {
@@ -940,16 +923,14 @@ function renderOrganizations(organizations) {
       cell.append(term, detail);
       stats.append(cell);
     });
-    card.append(header, description, roleSummary, stats);
+    card.append(header, description, stats);
     if (["owner", "admin", "member", "auditor"].includes(organization.membership_role)) {
       const actions = document.createElement("div");
       actions.className = "organization-card-actions";
       const manage = document.createElement("button");
       manage.type = "button";
       manage.className = "quiet-button";
-      manage.textContent = ["owner", "admin"].includes(organization.membership_role)
-        ? "治理组织"
-        : "查看成员";
+      manage.textContent = "查看组织";
       manage.addEventListener("click", () => openOrganizationManagement(organization));
       actions.append(manage);
       card.append(actions);
@@ -1000,12 +981,6 @@ async function acceptPendingOrganizationInvitation(invitation, button) {
   }
 }
 
-function organizationAgents(organization) {
-  return (state.dashboard?.agents || []).filter(
-    (agent) => String(agent.organization?.id || "") === String(organization.id),
-  );
-}
-
 function eligibleOwnedOrganizationAgents() {
   return (state.dashboard?.agents || []).filter(
     (agent) => agent.role === "owner" && !agent.organization && agent.status === "active",
@@ -1013,38 +988,7 @@ function eligibleOwnedOrganizationAgents() {
 }
 
 function renderOrganizationAgents(organization) {
-  const agents = organizationAgents(organization);
   const canManageOwnAgents = ["owner", "admin", "member"].includes(organization.membership_role);
-  elements.organizationAgentList.replaceChildren();
-  if (!agents.length) {
-    elements.organizationAgentList.append(emptyState(
-      "这个组织还没有 Agent。成员和权限已经建立，但暂时没有可供成员协作查看的 Agent。",
-    ));
-  } else {
-    agents.forEach((agent) => {
-      const item = document.createElement("article");
-      item.className = "governance-item organization-agent-item";
-      const content = document.createElement("div");
-      const name = document.createElement("strong");
-      name.textContent = agentDisplayName(agent);
-      const detail = document.createElement("span");
-      detail.textContent = agent.connection_state === "offline"
-        ? "暂未连接；消息仍可送达，Agent 恢复连接后处理"
-        : `${statusLabel(agent.connection_state)} · ${safeText(agent.display_name)}`;
-      content.append(name, detail);
-      item.append(content);
-      if (canManageOwnAgents && agent.role === "owner") {
-        const remove = document.createElement("button");
-        remove.type = "button";
-        remove.className = "quiet-button danger";
-        remove.textContent = "移出组织";
-        remove.addEventListener("click", () => changeOwnedOrganizationAgent(agent, "remove"));
-        item.append(remove);
-      }
-      elements.organizationAgentList.append(item);
-    });
-  }
-
   elements.organizationAgentActions.hidden = !canManageOwnAgents;
   elements.organizationAgentSelect.replaceChildren();
   const eligible = eligibleOwnedOrganizationAgents();
@@ -1075,6 +1019,10 @@ async function changeOwnedOrganizationAgent(agent, intent) {
   if (intent === "remove" && elements.organizationAgentPassword.value.length < 12) {
     elements.organizationManageResult.textContent = "请输入当前星轨密码后再确认。";
     elements.organizationManageResult.className = "form-status error";
+    const passwordDetails = elements.organizationAgentPassword.closest("details");
+    if (passwordDetails) {
+      passwordDetails.open = true;
+    }
     elements.organizationAgentPassword.focus();
     return;
   }
@@ -1160,7 +1108,6 @@ async function createOrganization(event) {
 function closeOrganizationManagement() {
   elements.organizationAgentPassword.value = "";
   elements.organizationAgentSelect.replaceChildren();
-  elements.organizationAgentList.replaceChildren();
   elements.organizationInviteUsername.value = "";
   elements.organizationDomainName.value = "";
   elements.organizationOidcName.value = "";
@@ -1172,7 +1119,6 @@ function closeOrganizationManagement() {
   elements.organizationInvitationList.replaceChildren();
   elements.organizationDomainList.replaceChildren();
   elements.organizationOidcList.replaceChildren();
-  elements.organizationRoleBoundary.replaceChildren();
   elements.organizationInviteRole.replaceChildren();
   elements.organizationLeave.disabled = false;
   elements.organizationLeave.textContent = "退出组织";
@@ -1270,7 +1216,20 @@ function renderOrganizationMembers(members) {
     return;
   }
   members.forEach((member) => {
-    const { row, actions } = governanceRow(member.human_email, statusLabel(member.role));
+    const card = document.createElement("article");
+    card.className = "organization-member-card";
+    const heading = document.createElement("div");
+    heading.className = "organization-member-heading";
+    const identity = document.createElement("div");
+    const name = document.createElement("strong");
+    name.textContent = safeText(member.human_display_name, member.human_username);
+    const identityDetail = document.createElement("span");
+    identityDetail.textContent = `@${safeText(member.human_username)}`;
+    identity.append(name, identityDetail);
+    const actions = document.createElement("div");
+    actions.className = "governance-row-actions";
+    actions.append(chip(member.role, "role"));
+    heading.append(identity, actions);
     const isSelf = String(member.human_user_id) === currentUserId;
     const canManage = actorRole === "owner"
       || (actorRole === "admin" && ["member", "auditor"].includes(member.role));
@@ -1299,8 +1258,70 @@ function renderOrganizationMembers(members) {
       remove.addEventListener("click", () => removeOrganizationMember(member.human_user_id));
       actions.append(roleSelect, save, remove);
     }
-    elements.organizationMemberList.append(row);
+    const agentSection = document.createElement("div");
+    agentSection.className = "organization-member-agents";
+    const memberAgents = Array.isArray(member.agents) ? member.agents : [];
+    const agentCount = document.createElement("span");
+    agentCount.className = "organization-member-agent-count";
+    agentCount.textContent = memberAgents.length ? `${memberAgents.length} 个 Agent` : "尚未加入 Agent";
+    agentSection.append(agentCount);
+    memberAgents.forEach((memberAgent) => {
+      const item = document.createElement("div");
+      item.className = "organization-member-agent";
+      const agentIdentity = document.createElement("div");
+      const agentName = document.createElement("strong");
+      agentName.textContent = safeText(memberAgent.handle, memberAgent.display_name);
+      const dashboardAgent = (state.dashboard?.agents || []).find(
+        (agent) => String(agent.id) === String(memberAgent.agent_id),
+      );
+      const agentDetail = document.createElement("span");
+      agentDetail.textContent = dashboardAgent
+        ? `${statusLabel(dashboardAgent.connection_state)} · ${safeText(memberAgent.display_name)}`
+        : safeText(memberAgent.display_name);
+      agentIdentity.append(agentName, agentDetail);
+      item.append(agentIdentity);
+      if (isSelf && dashboardAgent?.role === "owner" && ["owner", "admin", "member"].includes(actorRole)) {
+        const removeAgent = document.createElement("button");
+        removeAgent.type = "button";
+        removeAgent.className = "quiet-button danger";
+        removeAgent.textContent = "移出组织";
+        removeAgent.addEventListener("click", () => changeOwnedOrganizationAgent(dashboardAgent, "remove"));
+        item.append(removeAgent);
+      }
+      agentSection.append(item);
+    });
+    card.append(heading, agentSection);
+    elements.organizationMemberList.append(card);
   });
+  const groupedAgentIds = new Set(
+    members.flatMap((member) => (member.agents || []).map((agent) => String(agent.agent_id))),
+  );
+  const ungroupedAgents = (state.dashboard?.agents || []).filter(
+    (agent) => String(agent.organization?.id || "") === String(organization?.id)
+      && !groupedAgentIds.has(String(agent.id)),
+  );
+  if (ungroupedAgents.length) {
+    const ungroupedCard = document.createElement("article");
+    ungroupedCard.className = "organization-member-card organization-ungrouped-agents";
+    const title = document.createElement("strong");
+    title.textContent = "待确认归属的 Agent";
+    const note = document.createElement("span");
+    note.textContent = "这些 Agent 已在组织中，但还没有关联到具体成员。";
+    ungroupedCard.append(title, note);
+    ungroupedAgents.forEach((agent) => {
+      const item = document.createElement("div");
+      item.className = "organization-member-agent";
+      const identity = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = agentDisplayName(agent);
+      const detail = document.createElement("span");
+      detail.textContent = `${statusLabel(agent.connection_state)} · ${safeText(agent.display_name)}`;
+      identity.append(name, detail);
+      item.append(identity);
+      ungroupedCard.append(item);
+    });
+    elements.organizationMemberList.append(ungroupedCard);
+  }
 }
 
 async function revokeOrganizationInvitation(invitationId) {
@@ -1548,7 +1569,6 @@ async function loadOrganizationManagement() {
     return;
   }
   const isManager = ["owner", "admin"].includes(organization.membership_role);
-  renderOrganizationRoleBoundary(elements.organizationRoleBoundary, organization.membership_role);
   renderOrganizationAgents(organization);
   elements.organizationInviteSection.hidden = !isManager;
   elements.organizationInviteUsername.disabled = !isManager;
@@ -1592,9 +1612,9 @@ async function loadOrganizationManagement() {
 async function openOrganizationManagement(organization) {
   state.managedOrganization = organization;
   elements.organizationManageId.value = organization.id;
-  elements.organizationManageTitle.textContent = `${organization.name} · 组织治理`;
-  elements.organizationManageSummary.textContent = `${organization.slug} · 你的角色：${statusLabel(organization.membership_role)}`;
-  elements.organizationManageResult.textContent = "组织角色决定治理权限；最后一位 Owner 不能退出或降级。";
+  elements.organizationManageTitle.textContent = safeText(organization.name, organization.slug);
+  elements.organizationManageSummary.textContent = `${organization.slug} · ${organizationRoleExperience(organization.membership_role).capability}`;
+  elements.organizationManageResult.textContent = "成员管理和组织设置会根据你的权限自动显示。";
   elements.organizationManageDialog.showModal();
   try {
     await loadOrganizationManagement();

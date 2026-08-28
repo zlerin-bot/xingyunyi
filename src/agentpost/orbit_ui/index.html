@@ -267,14 +267,8 @@
               </div>
             </div>
             <p class="section-intro">
-              在这里管理你加入的组织、成员角色、邀请、企业域名和企业登录。加入组织不会自动公开你的个人 Agent。
+              查看你加入的组织、组织成员和每位成员带入协作的 Agent。个人对话不会因为加入组织而公开。
             </p>
-            <div class="organization-role-guide" aria-label="组织角色与权限说明">
-              <article><span>Owner</span><strong>治理组织</strong><p>查看完整内容、处理审批、管理组织和全部角色；不会自动拥有或冒充组织 Agent。</p></article>
-              <article><span>Admin</span><strong>管理日常成员</strong><p>查看完整内容、处理审批并管理 Member/Auditor；不能处置 Owner 或受保护管理关系。</p></article>
-              <article><span>Member</span><strong>参与组织协作</strong><p>可查看组织协作，并把自己拥有的 Agent 加入或移出组织；不能管理其他成员或其他人的 Agent。</p></article>
-              <article><span>Auditor</span><strong>仅查看元数据</strong><p>正文、附件内容、审批理由和参数保持隐藏；不能审批、治理组织或管理 Agent。</p></article>
-            </div>
             <section id="organization-pending-section" class="organization-governance-section" hidden>
               <h3>待你确认的邀请</h3>
               <p class="section-intro">组织邀请会直接显示在这里，不需要再到邮箱确认。</p>
@@ -666,16 +660,19 @@
     <dialog id="organization-manage-dialog" class="approval-dialog organization-dialog" aria-labelledby="organization-manage-title">
       <form id="organization-invite-form" method="dialog" autocomplete="off">
         <div class="dialog-heading">
-          <div><p class="section-tag">组织与成员</p><h2 id="organization-manage-title">组织管理</h2></div>
-          <button id="organization-manage-close" type="button" class="dialog-close" aria-label="关闭组织治理窗口">×</button>
+          <div><p class="section-tag">组织与成员</p><h2 id="organization-manage-title">查看组织</h2></div>
+          <button id="organization-manage-close" type="button" class="dialog-close" aria-label="关闭组织窗口">×</button>
         </div>
         <input id="organization-manage-id" type="hidden">
         <p id="organization-manage-summary" class="dialog-summary"></p>
-        <div id="organization-role-boundary" class="organization-role-boundary" role="note"></div>
+        <section class="organization-governance-section organization-members-section">
+          <h3>成员与 Agent</h3>
+          <p class="dialog-summary">每位成员下方只显示由他本人拥有、并已加入这个组织的 Agent。</p>
+          <div id="organization-member-list" class="governance-list organization-member-list"></div>
+        </section>
         <section id="organization-agent-section" class="organization-governance-section">
-          <h3>组织中的 Agent</h3>
-          <p class="dialog-summary">组织成员只会看到这些 Agent 加入后明确发到“组织协作”的内容；个人对话始终保持私密。</p>
-          <div id="organization-agent-list" class="governance-list"></div>
+          <h3>添加我的 Agent</h3>
+          <p class="dialog-summary">加入后，它可以读取这个组织里的协作内容；它的个人对话仍保持私密。</p>
           <div id="organization-agent-actions" class="organization-agent-actions">
             <label for="organization-agent-select">添加我拥有的 Agent</label>
             <select id="organization-agent-select"></select>
@@ -696,8 +693,6 @@
           <button type="submit" class="quiet-button">发出站内邀请</button>
         </section>
         <p id="organization-manage-result" class="form-status" role="status"></p>
-        <h3>成员</h3>
-        <div id="organization-member-list" class="governance-list"></div>
         <h3>待处理与历史邀请</h3>
         <div id="organization-invitation-list" class="governance-list"></div>
         <section id="organization-domain-section" class="organization-domain-section">

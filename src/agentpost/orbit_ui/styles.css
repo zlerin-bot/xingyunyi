@@ -1804,6 +1804,65 @@ summary:focus-visible {
   padding-inline: 12px;
 }
 
+.organization-member-list {
+  gap: 12px;
+}
+
+.organization-member-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.organization-member-heading,
+.organization-member-agent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.organization-member-heading > div:first-child,
+.organization-member-agent > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.organization-member-heading span,
+.organization-member-agent span,
+.organization-member-agent-count {
+  color: var(--muted);
+  font-size: 0.66rem;
+  overflow-wrap: anywhere;
+}
+
+.organization-member-agents {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.organization-member-agent {
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: rgba(86, 144, 255, 0.07);
+}
+
+.organization-member-agent strong {
+  overflow-wrap: anywhere;
+}
+
+.organization-ungrouped-agents > span {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
 .organization-heading span:not(.data-chip) {
   color: var(--muted);
   font: 0.64rem ui-monospace, monospace;
@@ -4186,6 +4245,15 @@ footer {
   .organization-agent-actions > * {
     grid-column: 1 !important;
     grid-row: auto !important;
+  }
+
+  .organization-member-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .organization-member-heading .governance-row-actions {
+    justify-content: flex-start;
   }
 
   .split-actions,

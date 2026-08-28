@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from agentpost.control.models import (
+    AgentOwnership,
     HumanUser,
     Organization,
     OrganizationAgent,
@@ -18,6 +19,7 @@ from agentpost.control.schemas import (
     OrbitOrganization,
     OrganizationAgentResponse,
     OrganizationCreate,
+    OrganizationMemberAgentResponse,
     OrganizationMembershipResponse,
     OrganizationResponse,
 )
@@ -150,12 +152,32 @@ def list_organization_memberships(
         .order_by(HumanUser.email)
         .limit(limit)
     ).all()
+    agent_rows = session.execute(
+        select(AgentOwnership.human_user_id, Agent)
+        .join(OrganizationAgent, OrganizationAgent.agent_id == AgentOwnership.agent_id)
+        .join(Agent, Agent.id == AgentOwnership.agent_id)
+        .where(OrganizationAgent.organization_id == organization.id)
+        .order_by(Agent.handle, Agent.address)
+    ).all()
+    agents_by_human: dict[UUID, list[OrganizationMemberAgentResponse]] = {}
+    for human_user_id, agent in agent_rows:
+        agents_by_human.setdefault(human_user_id, []).append(
+            OrganizationMemberAgentResponse(
+                agent_id=agent.id,
+                address=agent.address,
+                handle=agent.handle,
+                display_name=agent.display_name,
+            )
+        )
     return [
         OrganizationMembershipResponse(
             organization_id=organization.id,
             human_user_id=user.id,
             human_email=user.email,
+            human_username=user.username,
+            human_display_name=user.display_name,
             role=membership.role,
+            agents=agents_by_human.get(user.id, []),
             created_at=_as_utc(membership.created_at),
             updated_at=_as_utc(membership.updated_at),
         )
@@ -256,6 +278,8 @@ def set_organization_membership(
         organization_id=organization.id,
         human_user_id=user.id,
         human_email=user.email,
+        human_username=user.username,
+        human_display_name=user.display_name,
         role=membership.role,
         created_at=_as_utc(membership.created_at),
         updated_at=_as_utc(membership.updated_at),
