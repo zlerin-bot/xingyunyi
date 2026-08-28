@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.30-username-edit-local`
+- 交接阶段：`v0.1.30-deployed-https-verified`
 - 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：个人资料用户名修改已完成本地实现与验收，尚未发布；生产仍为 0.1.29
-- 当前生产状态：`26ee7c7 / 0.1.29`，schema 为 `0025_human_thread_archives`；功能提交为 `0b46da7`
+- 阶段性质：个人资料用户名修改已发布并完成 HTTPS 后检；登录态生产实操仍待确认
+- 当前生产状态：`b4d3217 / 0.1.30`，schema 为 `0025_human_thread_archives`；功能提交为 `85f3643`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 个人资料用户名修改（本地完成，待发布）
+### 个人资料用户名修改（0.1.30 已部署并完成 HTTPS 后检）
 
 “设置 → 个人资料”已从用户名只读展示改为可直接编辑和保存。用户名继续遵守 3–32 位小写字母、
 数字或名称中间单个连字符的规则，并由服务端和数据库共同保证全平台唯一；已占用和格式错误都会给出
@@ -19,7 +19,24 @@
 skip、5 个 PostgreSQL tests deselected；Ruff check/format、JavaScript syntax 和 Orbit JavaScript
 27 passed。隔离 Orbit 桌面端完成真实修改并即时显示成功结果；Chrome 390×844 下完成登录、修改和
 保存，`body/document scrollWidth = innerWidth = 390`，输入框、按钮和表单均位于 47–343px，控制台
-无 warning/error。PostgreSQL 专属测试未在本地运行，尚未部署。
+无 warning/error。PostgreSQL 专属测试未在本地运行。
+
+发布提交为 `b4d3217 / 0.1.30`。干净归档生成的源码、公开 wheel、Workbench 单上传包 SHA-256
+分别为 `57733f784ce483b3c06d4c9aa2ce645dbfe22782012473e569b5130df57c06ac`、
+`b7203307d36aa8d793ea5b4e25afd831019b70b25dcb20b328da93c13d270e3a`、
+`7fe76f50e4a7fdfd04fd625e4ee1587175568fd70de56d08fb5aba50bad3f749`。Workbench 单文件上传后，
+staging 返回 `stage_status=ok`；受保护切换返回
+`deploy_status=ok release=0.1.30 commit=b4d3217`，耗时 38 秒，备份为
+`/opt/agentpost/backups/20260828-223027-b4d3217-pre-030/`。
+
+独立 postflight 返回 `postflight_status=ok`，schema 保持 `0025_human_thread_archives`；后检为
+59 Agents / 220 Messages / 220 Deliveries / 27 Attachments / 15 Humans。发布前为 59 / 215 /
+215 / 27 / 15，部署期间新增的 5 条消息和 Delivery 是持续业务写入，不是数据丢失。AgentPost、
+Nginx、PostgreSQL PID 为 `300439/245451/245492`，确认 Nginx 与 PostgreSQL 未重启。开发机公网
+health/ready 均返回 0.1.30，公开 wheel 哈希精确一致，未知下载返回 404；六类已发布宿主的
+macOS/Linux/Windows 配置保持一致。生产登录页可正常渲染，但当前浏览器没有生产登录态，因此
+登录后的用户名修改与真实跨 Human 新用户名寻址仍为 `待确认`。当前状态是
+`deployed_https_verified`，不是 `production_accepted`。
 
 ### 组织好友邀请与自有 Agent 候选解释（0.1.29 已部署并完成 HTTPS 后检）
 

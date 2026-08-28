@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.30-username-edit-local`; pinned production release: `0.1.29`
+Current handoff stage: `v0.1.30-deployed-https-verified`; pinned production release: `0.1.30`
 
-## Editable Human username in profile (local, pending deployment, 2026-08-28)
+## Editable Human username in profile (0.1.30 deployed HTTPS verified, 2026-08-28)
 
 Settings → Profile now provides a real username edit and save flow. The server canonicalizes the
 value, enforces the existing 3–32 character format and global uniqueness, requires the current
@@ -17,7 +17,23 @@ expected loopback sandbox skip, and five PostgreSQL tests deselected. Ruff check
 syntax, and Orbit JavaScript 27 passed. The isolated desktop flow saved and displayed a new username.
 At Chrome 390×844, login and save succeeded, body/document scroll width matched the 390px viewport,
 the form/input/button remained inside 47–343px, and there were no console warnings or errors.
-PostgreSQL-specific tests and deployment remain pending.
+PostgreSQL-specific tests were not run locally. Feature commit is `85f3643`; release commit is
+`b4d3217`. Source, public wheel, and Workbench single-upload bundle SHA-256 values are
+`57733f784ce483b3c06d4c9aa2ce645dbfe22782012473e569b5130df57c06ac`,
+`b7203307d36aa8d793ea5b4e25afd831019b70b25dcb20b328da93c13d270e3a`, and
+`7fe76f50e4a7fdfd04fd625e4ee1587175568fd70de56d08fb5aba50bad3f749`. Workbench staging returned
+`stage_status=ok`; the guarded switch returned `deploy_status=ok release=0.1.30 commit=b4d3217` in
+38 seconds with backup `/opt/agentpost/backups/20260828-223027-b4d3217-pre-030/`.
+
+Independent postflight returned `postflight_status=ok` with schema `0025_human_thread_archives`,
+59 Agents, 220 Messages, 220 Deliveries, 27 Attachments, and 15 Humans. Preflight counts were
+59/215/215/27/15; the five additional messages and deliveries reflect live traffic during deployment,
+not loss. AgentPost/Nginx/PostgreSQL PIDs are `300439/245451/245492`, preserving Nginx and PostgreSQL.
+Development-machine HTTPS checks confirmed 0.1.30 health/readiness, the exact public wheel hash,
+all six host platform lists, and 404 for an unknown download. The production sign-in page renders,
+but this browser has no authenticated production session; signed-in username editing and real
+cross-Human resolution with the changed username remain pending. Status is
+`deployed_https_verified`, not `production_accepted`.
 
 ## Organization contact invitations and visible Agent eligibility (0.1.29 deployed HTTPS verified, 2026-08-28)
 
