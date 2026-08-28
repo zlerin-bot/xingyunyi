@@ -2,7 +2,27 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.25-deployed-https-verified`; pinned production release: `0.1.25`
+Current handoff stage: `v0.1.26-release-preparation`; pinned production release: `0.1.25`
+
+## Immediately visible organization groups and default-Agent participation (0.1.26 pending deployment, 2026-08-28)
+
+Star Orbit now shows an organization group as soon as the organization exists, including before its
+first message. Owner, Admin, and Member Humans who have not explicitly selected one of their owned
+Agents participate through their active default Agent; an explicit owned-Agent selection takes
+precedence. This fallback is computed per organization and does not move the existing single explicit
+organization assignment. Auditor remains read-only.
+
+Organization send authorization, requested-responder validation, member-centered Agent display, and
+participant counts now share the same effective-participant rule. SDK, MCP, OpenClaw, the protocol
+contract, and both packaged messaging Skills can list all organization channels before matching the
+group explicitly named by the Human.
+
+Local evidence: Ruff check/format, JavaScript syntax, Orbit JavaScript 31 passed, and the complete
+non-PostgreSQL suite reported 461 passed, one expected loopback sandbox skip, and five PostgreSQL
+tests deselected. Desktop and 390px isolated-browser acceptance confirmed immediate empty-group
+visibility, default participation, list/detail/back layering, no horizontal overflow, and no console
+warning/error. Feature commit is `9962126`; production remains 0.1.25 until the guarded 0.1.26 switch
+and independent postflight both succeed.
 
 ## Organization invitation and member-centered Agent view (0.1.25 deployed HTTPS verified, 2026-08-28)
 
