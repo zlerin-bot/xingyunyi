@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.22-deployed-https-verified`; pinned production release: `0.1.22`
+Current handoff stage: `v0.1.23-release-preparation`; pinned production release: `0.1.22`
 
-## New-Agent naming and simplified confirmation (local, not deployed, 2026-08-28)
+## New-Agent naming and simplified confirmation (0.1.23 pending deployment, 2026-08-28)
 
 The connection approval now suggests the plain host name (`codex`, `workbuddy`, `doubao`,
 `openclaw`, `hermes`, or `manus`) without a Human-name prefix, adding `-2`, `-3`, and so on when
