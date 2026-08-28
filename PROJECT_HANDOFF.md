@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.28-release-candidate`
+- 交接阶段：`v0.1.28-deployed-https-verified`
 - 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：历史组织 Thread 归组、Human 可恢复归档和移动端紧凑入口已完成本地验收，0.1.28 版本一致性已准备，待构建和部署
-- 当前生产状态：仍为 `b297d13 / 0.1.27`，schema 为 `0024_human_default_agent`；目标功能提交为 `3ff84fb`
+- 阶段性质：历史组织 Thread 归组、Human 可恢复归档和移动端紧凑入口已部署，并完成 HTTPS 后检
+- 当前生产状态：`3f869b1 / 0.1.28`，schema 为 `0025_human_thread_archives`；状态为 `deployed_https_verified`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 历史组织 Thread 归组与 Human 可恢复归档（本地完成，待提交/待部署）
+### 历史组织 Thread 归组与 Human 可恢复归档（0.1.28 已部署并完成 HTTPS 后检）
 
 生产截图确认历史“拉格朗日”Thread 的首条组织消息带有组织频道元数据，但较新的普通回复可能没有
 重复携带该字段。0.1.27 列表错误地只看最后一条消息，导致整个 Thread 被投影成私聊并留在组织群
@@ -30,7 +30,22 @@ Alembic 单一 head 为 `0025_human_thread_archives`。隔离 Orbit 桌面端确
 非服务器删除说明和直接可见的归档库；390px 下确认三个快捷入口同排、列表不再出现删除按钮、
 详情页删除按钮可见，以及
 `document/body scrollWidth = 390`，控制台无 warning/error。PostgreSQL 专属测试未在本地运行，
-生产数据迁移、发布和生产登录态验收均为 `待确认`；当前生产仍是 `b297d13 / 0.1.27`。
+但生产切换脚本已完成 PostgreSQL `0024 → 0025 → 0024 → 0025` 演练和正式迁移。
+
+发布提交为 `3f869b1 / 0.1.28`。干净归档生成的源码、公开 wheel、Workbench 单上传包 SHA-256
+分别为 `ffc0c613bfba009b99293b1fa3c7c3a7bc94aaddc0032ec2da87f1485f3719b3`、
+`b4d3aeccecc4c0f36b603e6b80330c53ee81f75948fda123054b88207590db95`、
+`dc16cfc4e6eb9459435d466510244efe918dde6d326bbdf3319334866de92f8e`。Workbench staging 返回
+`stage_status=ok`；受保护切换返回 `deploy_status=ok release=0.1.28 commit=3f869b1`，耗时 38 秒，
+备份为 `/opt/agentpost/backups/20260828-180208-3f869b1-pre-028/`。
+
+独立 postflight 返回 `postflight_status=ok`，schema 为 `0025_human_thread_archives`；切换后为
+58 Agents / 197 Messages / 197 Deliveries / 25 Attachments / 15 Humans。AgentPost、Nginx、
+PostgreSQL PID 为 `293869/245451/245492`，确认 Nginx 与 PostgreSQL 未重启。开发机公网复核
+health/ready 均为 0.1.28，公开 wheel 哈希精确一致，未知下载返回 404；六类已发布宿主的
+macOS/Linux/Windows 配置保持一致。生产登录页可正常渲染，但当前浏览器没有生产登录态，因此登录后的
+历史拉格朗日归组、归档/恢复和 390px 真实数据验收仍为 `待确认`。当前状态是
+`deployed_https_verified`，不是 `production_accepted`。
 
 ### 星轨组织群父子对话与回复者名称（0.1.27 已部署并完成 HTTPS 后检）
 

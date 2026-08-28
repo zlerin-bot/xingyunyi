@@ -2,7 +2,36 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.27-deployed-https-verified`; pinned production release: `0.1.27`
+Current handoff stage: `v0.1.28-deployed-https-verified`; pinned production release: `0.1.28`
+
+## Human conversation archive and compact mobile actions (0.1.28 deployed HTTPS verified, 2026-08-28)
+
+Historical organization Threads are now grouped from any durable organization message in the full
+Thread, so older Lagrange test conversations can appear under the organization parent even when a
+later ordinary reply did not repeat channel metadata. Orbit also provides a per-Human, reversible
+archive for complete Threads. Archiving never deletes server messages or changes delivery, Agent
+read, ACK, task, or another Human's view. Delete/restore remains in the opened detail header; mobile
+keeps `待处理 / 任务 / 已归档` on one compact row.
+
+Local evidence: Ruff check/format, JavaScript syntax, Orbit JavaScript 27 passed, and the complete
+non-PostgreSQL suite reported 461 passed, one expected loopback sandbox skip, and five PostgreSQL
+tests deselected. Desktop and 390px isolated-browser acceptance confirmed detail-only archive
+controls, direct archive access, no list-card space penalty, no horizontal overflow, and no console
+warning/error. Feature commits are `89f9837` and `3ff84fb`; release commit is `3f869b1`.
+
+Source, public wheel, and Workbench single-upload bundle SHA-256 values are
+`ffc0c613bfba009b99293b1fa3c7c3a7bc94aaddc0032ec2da87f1485f3719b3`,
+`b4d3aeccecc4c0f36b603e6b80330c53ee81f75948fda123054b88207590db95`, and
+`dc16cfc4e6eb9459435d466510244efe918dde6d326bbdf3319334866de92f8e`. Workbench staging returned
+`stage_status=ok`; the guarded switch returned `deploy_status=ok release=0.1.28 commit=3f869b1` in
+38 seconds with backup `/opt/agentpost/backups/20260828-180208-3f869b1-pre-028/`. Independent
+postflight returned `postflight_status=ok` with schema `0025_human_thread_archives`, 58 Agents,
+197 Messages, 197 Deliveries, 25 Attachments, and 15 Humans. AgentPost/Nginx/PostgreSQL PIDs are
+`293869/245451/245492`, so Nginx and PostgreSQL remained continuous. Development-machine HTTPS
+checks confirmed 0.1.28 health/readiness, the exact public wheel hash, all six host platform lists,
+and 404 for an unknown download. The production sign-in page renders, but this browser has no
+authenticated production session; signed-in Lagrange grouping, archive/restore, and 390px real-data
+acceptance remain pending. Status is `deployed_https_verified`, not `production_accepted`.
 
 ## Organization conversation grouping and Human-friendly responders (0.1.27 deployed HTTPS verified, 2026-08-28)
 
