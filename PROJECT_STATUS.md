@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.25-release-preparation`; pinned production release: `0.1.24`
+Current handoff stage: `v0.1.25-deployed-https-verified`; pinned production release: `0.1.25`
 
-## Organization invitation and member-centered Agent view (0.1.25 pending deployment, 2026-08-28)
+## Organization invitation and member-centered Agent view (0.1.25 deployed HTTPS verified, 2026-08-28)
 
 Organization invitations now use the unique Human username and are accepted inside the signed-in
 site. Owner, Admin, and Member Humans can add their own active Agent without re-entering the Orbit
@@ -18,8 +18,21 @@ pending ownership rather than silently omitted.
 Local evidence: Ruff check/format, JavaScript syntax, Orbit JavaScript 26 passed, and the complete
 non-PostgreSQL suite reported 459 passed, one expected loopback sandbox skip, and five PostgreSQL
 tests deselected. Desktop and 390px isolated-browser acceptance passed without overflow or console
-warning/error. Feature commits are `7a83cea` and `8039297`; production remains 0.1.24 until the
-guarded 0.1.25 switch and independent postflight both succeed.
+warning/error. Feature commits are `7a83cea` and `8039297`.
+
+The clean release commit is `964e6a7 / 0.1.25`. Source, public wheel, and Workbench single-upload
+bundle SHA-256 values are `b0ebed95cd45df753cf88623fa234b99eac8a36460788e72e38a31e087760b9c`,
+`1ecc4562ac3885de0a8aaa91e4fd9fff84c3bd080f6ecc47aa3596861356ccc7`, and
+`a6422244b9bd8c2b3c643742d85b416b8cf18631d2279a516b1ea1c90d55052d`. The guarded switch returned
+`deploy_status=ok` in 38 seconds with backup
+`/opt/agentpost/backups/20260828-143954-964e6a7-pre-025/`; independent postflight returned
+`postflight_status=ok` with schema `0024_human_default_agent`. Counts are 58 Agents, 182 Messages,
+182 Deliveries, 25 Attachments, and 15 Humans. AgentPost/Nginx/PostgreSQL PIDs are
+`285741/245451/245492`; Nginx and PostgreSQL did not restart. Public health/readiness and wheel hash
+were rechecked from the development machine, and unknown downloads return 404. A new authenticated
+production Orbit tab showed the simplified organization landing page and member-centered detail;
+390px reported no horizontal overflow. Cross-Human invitation acceptance and real Member add/remove
+operations remain pending, so this is `deployed_https_verified`, not `production_accepted`.
 
 ## Organization governance and collaboration channel (0.1.24 deployed HTTPS verified, 2026-08-28)
 

@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.25-release-preparation`
+- 交接阶段：`v0.1.25-deployed-https-verified`
 - 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：生产 0.1.24 保持不变；组织站内邀请和成员内嵌 Agent 信息架构正在准备 0.1.25 干净发布提交
-- 本地开发状态：生产仍为 `9c69eb5 / 0.1.24`，schema 为 `0024_human_default_agent`；待发布功能提交为 `7a83cea + 8039297`
+- 阶段性质：0.1.25 已从干净提交完成阿里云受保护切换、独立后检和登录态生产 Orbit 复核
+- 本地开发状态：生产为 `964e6a7 / 0.1.25`，schema 为 `0024_human_default_agent`；功能提交为 `7a83cea + 8039297`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 组织成员与 Agent 信息架构（0.1.25 待部署）
+### 组织成员与 Agent 信息架构（0.1.25 已部署并完成 HTTPS 后检）
 
 组织首页已删除 Owner/Admin/Member/Auditor 四张角色说明卡，不再出现“治理组织、管理日常成员、
 只读参与协作、仅查看元数据”等内部化标题。首页只保留待确认邀请、已有组织、成员数、Agent 数和
@@ -23,9 +23,9 @@ Human 所有者的 Agent 单独显示为“待确认归属的 Agent”，避免�
 回归 459 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected。隔离 Orbit
 桌面端已确认首页无角色说明卡、成员内嵌 Agent、待确认归属分组和移出密码自动展开。390×844 下
 body/document 为 390px、弹窗 `scrollWidth = clientWidth = 350`，成员卡 2 组且控制台无
-warning/error。本地实现与验证完成，生产尚未部署。
+warning/error。本地实现与验证完成，并已随 0.1.25 部署。
 
-### 组织站内邀请与成员自有 Agent 管理（0.1.25 待部署）
+### 组织站内邀请与成员自有 Agent 管理（0.1.25 已部署并完成 HTTPS 后检）
 
 组织邀请的普通用户主流程已从“邀请邮箱 → 邮件链接”调整为“输入全平台唯一 Human 用户名 →
 受邀者在星云驿网站确认”。登录后的“组织与成员”顶部会集中显示待接受邀请，接受动作由当前 Human
@@ -40,9 +40,23 @@ warning/error。本地实现与验证完成，生产尚未部署。
 27 passed；完整 non-PostgreSQL 回归 459 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL
 tests deselected。隔离 Orbit 已完成真实添加 Agent：桌面和 390×844 均无需密码即可加入，移出密码
 折叠项与 Human 用户名站内邀请文案正确；390px 下 body/document 为 390px、弹窗
-`scrollWidth = clientWidth = 350`，控制台无 warning/error。本地功能已提交；生产仍是 0.1.24，
-本切片未部署，
-不是 `deployed_https_verified`，也不是 `production_accepted`。
+`scrollWidth = clientWidth = 350`，控制台无 warning/error。
+
+发布提交为 `964e6a7 / 0.1.25`。干净归档生成的源码、公开 wheel、Workbench 单上传包 SHA-256
+分别为 `b0ebed95cd45df753cf88623fa234b99eac8a36460788e72e38a31e087760b9c`、
+`1ecc4562ac3885de0a8aaa91e4fd9fff84c3bd080f6ecc47aa3596861356ccc7`、
+`a6422244b9bd8c2b3c643742d85b416b8cf18631d2279a516b1ea1c90d55052d`。Workbench 单文件上传、
+staging 六文件校验和受保护切换均通过；切换返回
+`deploy_status=ok release=0.1.25 commit=964e6a7`，耗时 38 秒，备份为
+`/opt/agentpost/backups/20260828-143954-964e6a7-pre-025/`。
+
+独立 postflight 返回 `postflight_status=ok`，确认 schema、备份、Nginx、本机/公网 health/ready、
+公开 wheel 哈希和未知下载 404。切换后为 58 Agents / 182 Messages / 182 Deliveries / 25 Attachments /
+15 Humans；AgentPost、Nginx、PostgreSQL PID 为 `285741/245451/245492`，Nginx 与 PostgreSQL
+未重启。开发机公网复核一致；登录态生产组织页正常显示简化首页、4 位成员和各自 Agent 区域，
+390px 下 `body/document scrollWidth = innerWidth = 390`。真实受邀者接受邀请、Member 添加和移出
+本人 Agent 的跨 Human 生产操作仍为 `待确认`；当前状态是 `deployed_https_verified`，不是
+`production_accepted`。
 
 ### 组织 Agent 治理与组织协作频道（0.1.24 已部署并完成 HTTPS 后检）
 
