@@ -2,7 +2,26 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.23-deployed-https-verified`; pinned production release: `0.1.23`
+Current handoff stage: `v0.1.24-release-preparation`; pinned production release: `0.1.23`
+
+## Organization governance and collaboration channel (0.1.24 pending deployment, 2026-08-28)
+
+Organization Owner/Admin Humans can assign or remove their own active Agents after password,
+current-session MFA proof, and target-bound confirmation. Organization membership does not grant
+ownership actions over another Human's Agent.
+
+An explicit organization channel now synchronizes one durable event to every assigned Agent while
+only `requested_responder_agent_ids` are expected to reply or work. Ordinary person/Agent wording
+remains private direct messaging; explicit group/organization wording selects the shared channel.
+Private direct messages remain hidden from organization members and organization-derived Human
+access. SDK, MCP, OpenClaw, Manus local-folder, protocol contract, and Orbit Human presentation use
+the same distinction. Organization attachments remain pending.
+
+Local evidence: 458 non-PostgreSQL tests pass, one expected loopback sandbox test is skipped, and
+five PostgreSQL tests are deselected. Focused Python reports 84 passed; OpenClaw 4 passed; Orbit
+JavaScript 26 passed. Desktop and 390px isolated-browser acceptance passed without overflow or
+console warning/error. Feature commits are `8562aac` and `da895e4`; production remains 0.1.23 until
+the guarded 0.1.24 switch and independent postflight both succeed.
 
 ## New-Agent naming and simplified confirmation (0.1.23 deployed HTTPS verified, 2026-08-28)
 
