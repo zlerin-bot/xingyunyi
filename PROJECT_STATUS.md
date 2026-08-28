@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.29-release-candidate`; pinned production release: `0.1.28`
+Current handoff stage: `v0.1.29-deployed-https-verified`; pinned production release: `0.1.29`
 
-## Organization contact invitations and visible Agent eligibility (local, pending deployment, 2026-08-28)
+## Organization contact invitations and visible Agent eligibility (0.1.29 deployed HTTPS verified, 2026-08-28)
 
 Organization managers can now choose from Humans with whom any of their owned Agents has a real
 sent or received message. Candidates are ordered by latest contact and exclude the manager, current
@@ -20,7 +20,21 @@ Evidence: focused organization tests 10 passed; the complete non-PostgreSQL suit
 passed, one expected loopback sandbox skip, and five PostgreSQL tests deselected. Ruff check/format,
 JavaScript syntax, and Orbit JavaScript 27 passed. Isolated desktop and 390px browser acceptance
 confirmed the controls and reason labels, no horizontal overflow, and no console warning/error.
-PostgreSQL-specific tests and production deployment remain pending.
+PostgreSQL-specific tests were not run locally. Feature commit is `0b46da7`; release commit is
+`26ee7c7`. Source, public wheel, and Workbench single-upload bundle SHA-256 values are
+`3c0b100ef976e98a7ab93dd3d4e8265f1ba7c4d52c9cc0dc98d3bec35347be5a`,
+`ac7615ee4014520631b46cb7da45d9ba6c1008dd5d7a2fedb3c86362098eb135`, and
+`5a7a4c55ec45bac05130a36d403aa6d943eebe7b0c7c2fe205f271fc339a065f`. Workbench staging returned
+`stage_status=ok`; the guarded switch returned `deploy_status=ok release=0.1.29 commit=26ee7c7` in
+39 seconds with backup `/opt/agentpost/backups/20260828-215859-26ee7c7-pre-029/`. Independent
+postflight returned `postflight_status=ok` with schema `0025_human_thread_archives`, 59 Agents,
+214 Messages, 214 Deliveries, 27 Attachments, and 15 Humans; all counts matched the preflight.
+AgentPost/Nginx/PostgreSQL PIDs are `297650/245451/245492`, so Nginx and PostgreSQL remained
+continuous. Development-machine HTTPS checks confirmed 0.1.29 health/readiness, the exact public
+wheel hash, all six host platform lists, and 404 for an unknown download. The production sign-in
+page renders, but this browser has no authenticated production session; signed-in invitation-candidate
+and Agent-eligibility acceptance remains pending. Status is `deployed_https_verified`, not
+`production_accepted`.
 
 ## Human conversation archive and compact mobile actions (0.1.28 deployed HTTPS verified, 2026-08-28)
 

@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.29-release-candidate`
+- 交接阶段：`v0.1.29-deployed-https-verified`
 - 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：组织好友邀请和自有 Agent 候选解释已完成本地验收，0.1.29 版本一致性已准备，待构建和部署
-- 当前生产状态：仍为 `3f869b1 / 0.1.28`，schema 为 `0025_human_thread_archives`；目标功能提交为 `0b46da7`
+- 阶段性质：组织好友邀请和自有 Agent 候选解释已部署并完成 HTTPS 后检；登录后真实数据验收待确认
+- 当前生产状态：`26ee7c7 / 0.1.29`，schema 为 `0025_human_thread_archives`；功能提交为 `0b46da7`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 组织好友邀请与自有 Agent 候选解释（本地完成，待提交/待部署）
+### 组织好友邀请与自有 Agent 候选解释（0.1.29 已部署并完成 HTTPS 后检）
 
 组织邀请新增“沟通过的好友”下拉框。候选只从当前 Human 名下 Agent 的真实发送或接收记录推导，
 按最近沟通时间排序，并排除本人、现有组织成员和仍有效的待接受邀请；未发生真实沟通的陌生 Human
@@ -23,7 +23,21 @@
 non-PostgreSQL 回归 462 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected。
 隔离 Orbit 桌面端确认完整 Agent 候选及原因文案；390px 下组织弹窗、Agent 选择和好友选择均为单列，
 `document/body scrollWidth = 390`、弹窗 `scrollWidth = clientWidth = 350`，控制台无 warning/error。
-PostgreSQL 专属测试未在本地运行；生产仍为 `3f869b1 / 0.1.28`。
+PostgreSQL 专属测试未在本地运行。发布提交为 `26ee7c7 / 0.1.29`。干净归档生成的源码、公开 wheel、
+Workbench 单上传包 SHA-256 分别为
+`3c0b100ef976e98a7ab93dd3d4e8265f1ba7c4d52c9cc0dc98d3bec35347be5a`、
+`ac7615ee4014520631b46cb7da45d9ba6c1008dd5d7a2fedb3c86362098eb135`、
+`5a7a4c55ec45bac05130a36d403aa6d943eebe7b0c7c2fe205f271fc339a065f`。Workbench staging 返回
+`stage_status=ok`；受保护切换返回 `deploy_status=ok release=0.1.29 commit=26ee7c7`，耗时 39 秒，
+备份为 `/opt/agentpost/backups/20260828-215859-26ee7c7-pre-029/`。
+
+独立 postflight 返回 `postflight_status=ok`，schema 保持 `0025_human_thread_archives`；切换后为
+59 Agents / 214 Messages / 214 Deliveries / 27 Attachments / 15 Humans，关键数据量与切换前一致。
+AgentPost、Nginx、PostgreSQL PID 为 `297650/245451/245492`，确认 Nginx 与 PostgreSQL 未重启。
+开发机公网复核 health/ready 均为 0.1.29，公开 wheel 哈希精确一致，未知下载返回 404；六类已发布
+宿主的 macOS/Linux/Windows 配置保持一致。生产登录页可正常渲染，但当前浏览器没有生产登录态，
+因此登录后的好友邀请下拉框、自有 Agent 完整候选及原因文案仍为 `待确认`。当前状态是
+`deployed_https_verified`，不是 `production_accepted`。
 
 ### 历史组织 Thread 归组与 Human 可恢复归档（0.1.28 已部署并完成 HTTPS 后检）
 
