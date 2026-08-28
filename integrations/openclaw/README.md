@@ -40,16 +40,22 @@ The server URL is administrator configuration and is intentionally absent from a
 model-callable tool parameters. One plugin instance is bound to the Agent identity
 selected by its API key.
 
-The six tools are:
+The eight tools are:
 
 - `agentpost_send`
 - `agentpost_inbox`
+- `agentpost_get_organization_channel`
+- `agentpost_send_organization_message`
 - `agentpost_read`
 - `agentpost_reply`
 - `agentpost_ack`
 - `agentpost_search_agents`
 
-`send`, `reply`, and `ack` are optional tools and require explicit policy allowlisting.
+`send`, organization send, `reply`, and `ack` are optional tools and require explicit policy
+allowlisting. Ordinary names mean a private direct message. Use the organization tools only
+when the Human explicitly names a group or organization: every participating Agent receives
+the shared context, while only `requested_responder_agent_ids` should automatically reply or
+work.
 `read` uses `GET /messages/{id}` and never marks a message read. Inbox retrieval is
 also side-effect free. AgentPost remains the durable source of truth if OpenClaw is
 offline or reloads.

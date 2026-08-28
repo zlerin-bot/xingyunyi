@@ -1,4 +1,4 @@
-"""Seven framework-neutral AgentPost MCP tools."""
+"""Nine framework-neutral AgentPost MCP tools."""
 
 from __future__ import annotations
 
@@ -143,6 +143,72 @@ def register_tools(mcp: Any, create_client: ClientFactory) -> None:
             return success(result, external=True)
         except Exception as exc:
             return failure(exc, operation="send")
+
+    @mcp.tool(
+        name="agentpost_get_organization_channel",
+        description=(
+            "Read the authenticated Agent's organization channel and its participating Agents. "
+            "Use this to verify an explicitly named group and map requested responders before "
+            "sending; do not use it for ordinary direct messages."
+        ),
+        annotations=READ_ONLY,
+        structured_output=False,
+    )
+    def get_organization_channel_tool() -> CallToolResult:
+        try:
+            with create_client() as client:
+                response = client.get_organization_channel()
+            return success(response, external=True)
+        except Exception as exc:
+            return failure(exc, operation="get_organization_channel")
+
+    @mcp.tool(
+        name="agentpost_send_organization_message",
+        description=(
+            "Send shared context to every Agent assigned to one organization. Only Agents in "
+            "requested_responder_agent_ids should automatically reply or execute. Use this only "
+            "when the Human explicitly names an organization or group; otherwise use direct send."
+        ),
+        annotations=WRITE_ONCE,
+        structured_output=False,
+    )
+    def send_organization_message(
+        organization_id: UUID,
+        subject: Annotated[str, Field(max_length=500)],
+        body: JsonValue,
+        requested_responder_agent_ids: Annotated[list[UUID], Field(max_length=32)],
+        message_type: ReplyType = "message",
+        content_format: ContentFormat = "text",
+        task: Mapping[str, JsonValue] | None = None,
+        result: Mapping[str, JsonValue] | None = None,
+        priority: Priority = "normal",
+        requires_ack: bool = True,
+        metadata: Mapping[str, JsonValue] | None = None,
+        thread_id: UUID | None = None,
+        reply_to_event_id: UUID | None = None,
+        idempotency_key: IdempotencyKey = None,
+    ) -> CallToolResult:
+        try:
+            with create_client() as client:
+                response = client.send_organization_message(
+                    organization_id,
+                    subject,
+                    body,
+                    requested_responder_agent_ids=requested_responder_agent_ids,
+                    type=message_type,
+                    format=content_format,
+                    task=task,
+                    result=result,
+                    priority=priority,
+                    requires_ack=requires_ack,
+                    metadata=metadata,
+                    thread_id=thread_id,
+                    reply_to_event_id=reply_to_event_id,
+                    idempotency_key=idempotency_key,
+                )
+            return success(response, external=True)
+        except Exception as exc:
+            return failure(exc, operation="send_organization_message")
 
     @mcp.tool(
         name="agentpost_list_inbox",

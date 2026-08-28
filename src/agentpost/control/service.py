@@ -567,9 +567,9 @@ def _message_rows(
     )
     if thread_id is not None:
         statement = statement.where(Message.thread_id == thread_id)
-    if limit is not None:
-        statement = statement.limit(limit)
-    return list(session.execute(statement).all())
+    rows = list(session.execute(statement).all())
+    rows = _deduplicate_channel_rows(rows)
+    return rows[:limit] if limit is not None else rows
 
 
 def _task_rows(
@@ -596,9 +596,24 @@ def _task_rows(
         )
         .order_by(desc(Message.created_at), desc(Message.id))
     )
-    if limit is not None:
-        statement = statement.limit(limit)
-    return list(session.execute(statement).all())
+    rows = list(session.execute(statement).all())
+    rows = _deduplicate_channel_rows(rows)
+    return rows[:limit] if limit is not None else rows
+
+
+def _deduplicate_channel_rows(
+    rows: list[tuple[Message, Delivery, Agent, Agent]],
+) -> list[tuple[Message, Delivery, Agent, Agent]]:
+    result: list[tuple[Message, Delivery, Agent, Agent]] = []
+    seen_events: set[str] = set()
+    for row in rows:
+        event_id = (row[0].message_metadata or {}).get("organization_event_id")
+        if event_id:
+            if str(event_id) in seen_events:
+                continue
+            seen_events.add(str(event_id))
+        result.append(row)
+    return result
 
 
 def _responses_for_tasks(session: Session, task_ids: list[str]) -> dict[str, Message]:
@@ -728,6 +743,7 @@ def _orbit_message(
     )
     task_payload = message.task_payload or {}
     result_payload = message.result_payload or {}
+    metadata = message.message_metadata or {}
     return OrbitMessage(
         message_id=message.id,
         sender=_orbit_message_agent(
@@ -784,6 +800,21 @@ def _orbit_message(
         ),
         communication_state=delivery.delivery_status,
         work_state=_work_state_for(message, task_results),
+        channel_scope=(
+            "organization" if metadata.get("channel_scope") == "organization" else "direct"
+        ),
+        organization_id=(
+            UUID(str(metadata["organization_id"]))
+            if metadata.get("channel_scope") == "organization" and metadata.get("organization_id")
+            else None
+        ),
+        organization_name=(
+            str(metadata["organization_name"]) if metadata.get("organization_name") else None
+        ),
+        requested_responder_addresses=[
+            str(address) for address in metadata.get("requested_responder_addresses", [])
+        ],
+        organization_recipient_count=int(metadata.get("organization_recipient_count") or 0),
         created_at=message.created_at,
     )
 
@@ -864,7 +895,16 @@ def _message_visible_after_access_grant(
         entry = entries_by_agent.get(participant_id)
         if entry is None:
             continue
-        if entry.source != "organization" or created_at >= _as_utc(entry.granted_at):
+        if entry.source != "organization":
+            return True
+        organization = entry.organization
+        metadata = message.message_metadata or {}
+        if (
+            organization is not None
+            and created_at >= _as_utc(entry.granted_at)
+            and metadata.get("channel_scope") == "organization"
+            and metadata.get("organization_id") == str(organization.id)
+        ):
             return True
     return False
 
@@ -972,7 +1012,15 @@ def list_orbit_threads(
         participant_ids = set(participant_agents)
         if agent_id is not None and agent_id not in participant_ids:
             continue
-        organizations = _thread_organizations(entries_by_agent, participant_ids)
+        is_organization_channel = any(
+            (message.message_metadata or {}).get("channel_scope") == "organization"
+            for message, _, _, _ in rows
+        )
+        organizations = (
+            _thread_organizations(entries_by_agent, participant_ids)
+            if is_organization_channel
+            else []
+        )
         if not _thread_rows_match_query(
             rows,
             role_map=role_map,
@@ -1040,6 +1088,12 @@ def list_orbit_threads(
                     )
                 ],
                 organizations=organizations,
+                channel_scope=(
+                    "organization"
+                    if (latest_message.message_metadata or {}).get("channel_scope")
+                    == "organization"
+                    else "direct"
+                ),
                 latest_message_id=latest_message.id,
                 latest_message_type=latest_message.message_type,
                 latest_message_summary=(latest_message.content_body if latest_allowed else None),
@@ -1103,7 +1157,14 @@ def get_orbit_thread(
                 key=lambda item: (item.display_name.casefold(), item.address),
             )
         ],
-        organizations=_thread_organizations(entries_by_agent, set(participant_agents)),
+        organizations=(
+            _thread_organizations(entries_by_agent, set(participant_agents))
+            if any(
+                (message.message_metadata or {}).get("channel_scope") == "organization"
+                for message, _, _, _ in rows
+            )
+            else []
+        ),
         messages=[
             _orbit_message(
                 row,

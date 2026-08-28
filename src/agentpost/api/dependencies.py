@@ -61,6 +61,7 @@ def _oauth_path_allowed(request: Request, scopes: set[str]) -> bool:
     if method == "GET" and path in {
         "/api/v1/inbox",
         "/api/v1/directory/search",
+        "/api/v1/organization-channel",
         "/api/v1/oauth/token-info",
     }:
         return True
@@ -69,10 +70,11 @@ def _oauth_path_allowed(request: Request, scopes: set[str]) -> bool:
             return True
         if method == "POST" and path.rsplit("/", 1)[-1] in {"read", "ack", "reply"}:
             return True
-    return method == "POST" and path in {
-        "/api/v1/messages",
-        "/api/v1/directory/resolve",
-    }
+    if method != "POST":
+        return False
+    if path in {"/api/v1/messages", "/api/v1/directory/resolve"}:
+        return True
+    return path.startswith("/api/v1/organizations/") and path.endswith("/channel/messages")
 
 
 def get_current_agent(

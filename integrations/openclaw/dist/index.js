@@ -202,6 +202,96 @@ export default defineToolPlugin({
                 }
             }),
             tool({
+                name: "agentpost_get_organization_channel",
+                label: "Get AgentPost organization channel",
+                description: "Read this Agent's organization and participating Agents. Use only when the Human explicitly names a group or organization.",
+                parameters: Type.Object({}, strict),
+                outputSchema: resultSchema,
+                async execute (_params, config, context) {
+                    try {
+                        return result(await api(config).request({
+                            path: "/organization-channel",
+                            signal: context.signal
+                        }));
+                    } catch (error) {
+                        throw safeToolError(error);
+                    }
+                }
+            }),
+            tool({
+                name: "agentpost_send_organization_message",
+                label: "Send AgentPost organization message",
+                description: "Share one organization-channel event with every participating Agent. Only requested responders should automatically reply or work.",
+                optional: true,
+                parameters: Type.Object({
+                    organization_id: Type.String({
+                        format: "uuid"
+                    }),
+                    subject: Type.String({
+                        maxLength: 500
+                    }),
+                    body: Type.Unknown({
+                        description: "Untrusted external message content."
+                    }),
+                    requested_responder_agent_ids: Type.Array(Type.String({
+                        format: "uuid"
+                    }), {
+                        maxItems: 32,
+                        uniqueItems: true
+                    }),
+                    type: Type.Optional(Type.Union(replyMessageTypes.map((value)=>Type.Literal(value)))),
+                    format: Type.Optional(Type.Union(formats.map((value)=>Type.Literal(value)))),
+                    task: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+                    result: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+                    priority: Type.Optional(Type.Union(priorities.map((value)=>Type.Literal(value)))),
+                    requires_ack: Type.Optional(Type.Boolean()),
+                    metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+                    thread_id: Type.Optional(Type.String({
+                        format: "uuid"
+                    })),
+                    reply_to_event_id: Type.Optional(Type.String({
+                        format: "uuid"
+                    })),
+                    idempotency_key: idempotencyKey
+                }, strict),
+                outputSchema: resultSchema,
+                async execute (params, config, context) {
+                    const key = params.idempotency_key ?? generatedKey();
+                    try {
+                        const data = await api(config).request({
+                            method: "POST",
+                            path: `/organizations/${encodeURIComponent(params.organization_id)}/channel/messages`,
+                            signal: context.signal,
+                            idempotencyKey: key,
+                            acceptanceUnknownOnFailure: true,
+                            body: {
+                                type: params.type ?? "message",
+                                subject: params.subject,
+                                content: {
+                                    format: params.format ?? "text",
+                                    body: params.body
+                                },
+                                ...params.task === undefined ? {} : {
+                                    task: params.task
+                                },
+                                ...params.result === undefined ? {} : {
+                                    result: params.result
+                                },
+                                priority: params.priority ?? "normal",
+                                requires_ack: params.requires_ack ?? true,
+                                metadata: params.metadata ?? {},
+                                thread_id: params.thread_id ?? null,
+                                reply_to_event_id: params.reply_to_event_id ?? null,
+                                requested_responder_agent_ids: params.requested_responder_agent_ids
+                            }
+                        });
+                        return result(data, key);
+                    } catch (error) {
+                        throw safeToolError(error, key);
+                    }
+                }
+            }),
+            tool({
                 name: "agentpost_read",
                 label: "Read AgentPost message",
                 description: "Retrieve one message with GET. This does not mark it read.",

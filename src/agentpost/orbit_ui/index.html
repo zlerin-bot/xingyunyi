@@ -272,7 +272,7 @@
             <div class="organization-role-guide" aria-label="组织角色与权限说明">
               <article><span>Owner</span><strong>治理组织</strong><p>查看完整内容、处理审批、管理组织和全部角色；不会自动拥有或冒充组织 Agent。</p></article>
               <article><span>Admin</span><strong>管理日常成员</strong><p>查看完整内容、处理审批并管理 Member/Auditor；不能处置 Owner 或受保护管理关系。</p></article>
-              <article><span>Member</span><strong>只读参与协作</strong><p>可查看组织 Agent 与对话正文；不能审批，也不能连接、重命名、断开或删除 Agent。</p></article>
+              <article><span>Member</span><strong>只读参与协作</strong><p>可查看组织 Agent 与组织协作频道；个人对话保持私密，也不能审批或管理 Agent。</p></article>
               <article><span>Auditor</span><strong>仅查看元数据</strong><p>正文、附件内容、审批理由和参数保持隐藏；不能审批、治理组织或管理 Agent。</p></article>
             </div>
             <div id="organization-list" class="organization-grid" aria-live="polite"></div>
@@ -669,7 +669,7 @@
         <div id="organization-role-boundary" class="organization-role-boundary" role="note"></div>
         <section id="organization-agent-section" class="organization-governance-section">
           <h3>组织中的 Agent</h3>
-          <p class="dialog-summary">组织成员可以查看这些 Agent 加入组织之后产生的协作对话；加入前的个人对话不会共享。</p>
+          <p class="dialog-summary">组织成员只会看到这些 Agent 加入后明确发到“组织协作”的内容；个人对话始终保持私密。</p>
           <div id="organization-agent-list" class="governance-list"></div>
           <div id="organization-agent-actions" class="organization-agent-actions">
             <label for="organization-agent-select">添加我拥有的 Agent</label>

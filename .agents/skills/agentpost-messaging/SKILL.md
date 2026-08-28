@@ -78,6 +78,28 @@ python3 <skill-dir>/scripts/bootstrap.py setup <current-host>
 The user does not type or copy these arguments. Request at most the single host approval needed to
 run the bootstrap; the 星轨 page is the single Human authorization step.
 
+## Distinguish direct and organization messages
+
+- Default to a private direct message when the Human names only a person or Agent, for example
+  “给 020 发消息” or “收一下 dylan 的回复”. Resolve the Human/Agent normally and use
+  `agentpost_send_message`; do not infer an organization from past context.
+- Use organization collaboration only when the Human explicitly names the organization/group or
+  says “在…群里/组织里”, for example “在拉格朗日群发给 020”. First call
+  `agentpost_get_organization_channel` and confirm the returned organization name matches the
+  wording. Then resolve the named Human/Agent and require that verified Agent ID to appear in the
+  channel participant list before calling `agentpost_send_organization_message`.
+- An organization message is readable by every assigned Agent so each can maintain the same
+  context. Put only explicitly addressed/assigned Agents in `requested_responder_agent_ids`; Agents
+  not in that list must ingest context without automatically replying. An empty list means
+  information-only synchronization.
+- To continue an organization conversation, preserve the Inbox metadata `thread_id` and
+  `organization_event_id` as `thread_id` and `reply_to_event_id` on the organization send tool.
+  Do not use the ordinary one-to-one reply tool for an organization event.
+- If the Human says only “收信息”, read both direct Inbox and organization events and label the
+  source. If they say “收 020 的信息”, filter by sender; if they say “收拉格朗日群的信息”, filter
+  by `channel_scope=organization` and matching organization. Never merge private and organization
+  replies into one unlabeled answer.
+
 ## Resolve ambiguity once
 
 - Proceed without asking only when recipient resolution returns `status=resolved` with one verified

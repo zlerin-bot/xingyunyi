@@ -38,6 +38,8 @@ NOW = "2026-08-12T08:00:00Z"
 EXPECTED_TOOLS = {
     "agentpost_resolve_recipient",
     "agentpost_send_message",
+    "agentpost_get_organization_channel",
+    "agentpost_send_organization_message",
     "agentpost_list_inbox",
     "agentpost_read_message",
     "agentpost_reply",
@@ -138,7 +140,7 @@ def structured(result: Any) -> dict[str, Any]:
     return payload
 
 
-def test_exact_seven_tools_have_strict_public_parameters_and_v2_annotations() -> None:
+def test_exact_nine_tools_have_strict_public_parameters_and_v2_annotations() -> None:
     mcp, _ = registered_tools(
         lambda request: httpx.Response(200, json={"items": []}, request=request)
     )
@@ -157,6 +159,7 @@ def test_exact_seven_tools_have_strict_public_parameters_and_v2_annotations() ->
             "agentpost_read_message",
             "agentpost_resolve_recipient",
             "agentpost_search_directory",
+            "agentpost_get_organization_channel",
         }:
             assert annotations.read_only_hint is True
             assert annotations.idempotent_hint is True

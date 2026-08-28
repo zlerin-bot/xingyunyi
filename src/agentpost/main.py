@@ -21,6 +21,7 @@ from agentpost.api.routes.messages import router as messages_router
 from agentpost.api.routes.oauth import router as oauth_router
 from agentpost.api.routes.onboarding import router as onboarding_router
 from agentpost.api.routes.orbit import router as orbit_router
+from agentpost.api.routes.organization_channels import router as organization_channels_router
 from agentpost.api.routes.organization_governance import router as organization_governance_router
 from agentpost.api.routes.protocol import router as protocol_router
 from agentpost.api.routes.system import router as system_router
@@ -59,6 +60,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(human_auth_router)
     app.include_router(enterprise_oidc_router)
     app.include_router(organization_governance_router)
+    app.include_router(organization_channels_router)
     app.include_router(approvals_router)
     app.include_router(onboarding_router)
     app.include_router(agents_router)

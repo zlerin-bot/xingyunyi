@@ -531,14 +531,27 @@ def _visible_thread_ids(session: Session, agent_id: UUID) -> list[UUID]:
     )
 
 
-def _thread_messages(session: Session, thread_id: UUID) -> list[Message]:
-    return list(
+def _thread_messages(session: Session, thread_id: UUID, *, agent_id: UUID) -> list[Message]:
+    messages = list(
         session.scalars(
             _message_query()
             .where(Message.thread_id == thread_id)
             .order_by(Message.created_at.asc(), Message.id.asc())
         ).unique()
     )
+    deduplicated: list[Message] = []
+    channel_events: dict[str, Message] = {}
+    for message in messages:
+        event_id = (message.message_metadata or {}).get("organization_event_id")
+        if not event_id:
+            deduplicated.append(message)
+            continue
+        current = channel_events.get(str(event_id))
+        if current is None or message.delivery.recipient_agent_id == agent_id:
+            channel_events[str(event_id)] = message
+    deduplicated.extend(channel_events.values())
+    deduplicated.sort(key=lambda item: (item.created_at, item.id))
+    return deduplicated
 
 
 def _thread_participants(messages: list[Message]) -> list[AgentReference]:
@@ -559,7 +572,7 @@ def _thread_participants(messages: list[Message]) -> list[AgentReference]:
 def list_threads(session: Session, *, agent: Agent) -> ThreadListResponse:
     summaries: list[ThreadSummary] = []
     for thread_id in _visible_thread_ids(session, agent.id):
-        messages = _thread_messages(session, thread_id)
+        messages = _thread_messages(session, thread_id, agent_id=agent.id)
         if not messages:
             continue
         last = messages[-1]
@@ -590,7 +603,7 @@ def list_threads(session: Session, *, agent: Agent) -> ThreadListResponse:
 def get_thread(session: Session, *, agent: Agent, thread_id: UUID) -> ThreadResponse:
     if thread_id not in set(_visible_thread_ids(session, agent.id)):
         raise MessageNotFoundError(str(thread_id))
-    messages = _thread_messages(session, thread_id)
+    messages = _thread_messages(session, thread_id, agent_id=agent.id)
     if not messages:
         raise MessageNotFoundError(str(thread_id))
     return ThreadResponse(

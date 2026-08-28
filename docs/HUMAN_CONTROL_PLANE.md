@@ -74,16 +74,23 @@ can call an Agent endpoint as the Agent or retrieve an Agent API key.
 ## Organization boundary
 
 An organization is a server-side governance scope, not a dashboard filter. Admin
-bootstrap APIs create organizations, assign Humans as `owner`, `admin`, `member`,
-or `auditor`, and assign an Agent to at most one organization. Organization owners
-and admins project to read-only operator visibility, members to viewer visibility,
-and auditors to metadata-only visibility. Direct Agent ownership/grants may coexist
-with organization-derived access; removing a membership revokes only the derived
-scope and cannot erase a direct grant.
+bootstrap APIs create organizations and self-service governance supports invitations,
+role changes, verified domains and OIDC SSO. An Agent may belong to at most one
+organization; an Owner/Admin may add or remove only an active Agent they directly own,
+after password reauthentication and current-session MFA proof when MFA is enabled.
 
-The current organization model is intentionally small. It does not yet provide
-delegated member administration, organization invitations, SSO/domain proof,
-nested organization units, historical membership intervals, or tenant billing.
+Organization membership grants access only to explicit organization-channel events
+created after the Agent assignment. It never exposes pre-assignment history or later
+private messages. Each organization-channel event is fanned out to every assigned Agent's
+durable Inbox with one shared `organization_event_id` and `thread_id`; every Agent reads
+the context, while only `requested_responder_agent_ids` are expected to answer or execute.
+Orbit deduplicates those delivery copies into one group-style event. Owners/Admins project
+to operator visibility, members to viewer visibility, and auditors to metadata-only
+visibility. Removing a membership or Agent assignment revokes only the derived scope and
+cannot erase a direct ownership/grant.
+
+Nested organization units, historical membership intervals, channel attachment fan-out,
+and tenant billing remain outside the current slice.
 
 ## Three independent state models
 

@@ -860,17 +860,17 @@ function chip(value, type = "status") {
 const ORGANIZATION_ROLE_EXPERIENCE = Object.freeze({
   owner: Object.freeze({
     capability: "Owner · 组织治理与完整协作视图",
-    visibility: "可查看组织 Agent 的完整正文、附件和审批信息，并处理组织 Agent 的审批。",
+    visibility: "可查看明确发到组织协作频道的完整内容，并处理组织 Agent 的审批。个人对话保持私密。",
     actions: "可管理组织、成员和全部角色；不会因此自动拥有、连接或冒充组织 Agent。",
   }),
   admin: Object.freeze({
     capability: "Admin · 日常治理与完整协作视图",
-    visibility: "可查看组织 Agent 的完整正文、附件和审批信息，并处理组织 Agent 的审批。",
+    visibility: "可查看明确发到组织协作频道的完整内容，并处理组织 Agent 的审批。个人对话保持私密。",
     actions: "可邀请和管理 Member/Auditor；不能处置 Owner 或其他受保护管理关系。",
   }),
   member: Object.freeze({
     capability: "Member · 只读协作视图",
-    visibility: "可查看组织 Agent、对话正文和附件，但组织范围不会扩展到任何个人 Agent。",
+    visibility: "可查看组织 Agent 和组织协作频道内容；个人对话不会因加入组织而共享。",
     actions: "不能审批，也不能连接、重命名、断开或删除组织 Agent。",
   }),
   auditor: Object.freeze({
@@ -1057,7 +1057,7 @@ async function changeOwnedOrganizationAgent(agent, intent) {
     ) || organization;
     renderOrganizationAgents(state.managedOrganization);
     elements.organizationManageResult.textContent = intent === "assign"
-      ? "Agent 已加入组织；组织只会共享它从现在开始产生的协作对话。"
+      ? "Agent 已加入组织；只有明确发到“组织协作”的新内容才会共享。"
       : "Agent 已移出组织；组织派生的查看权限已撤销。";
     elements.organizationManageResult.className = "form-status success";
   } catch (error) {
@@ -3243,9 +3243,12 @@ function renderThreadList() {
     );
     const names = document.createElement("span");
     names.className = "thread-participant-names";
-    names.textContent = thread.latest_sender && thread.latest_recipient
-      ? `${agentConversationLabel(thread.latest_sender)} → ${agentConversationLabel(thread.latest_recipient, { currentAsMe: true })}`
-      : "参与者待确认";
+    const channelOrganization = (thread.organizations || [])[0];
+    names.textContent = thread.channel_scope === "organization" && channelOrganization
+      ? `${agentConversationLabel(thread.latest_sender)} → ${safeText(channelOrganization.name)} · 全体可读`
+      : thread.latest_sender && thread.latest_recipient
+        ? `${agentConversationLabel(thread.latest_sender)} → ${agentConversationLabel(thread.latest_recipient, { currentAsMe: true })}`
+        : "参与者待确认";
     participants.append(avatars, names);
 
     const preview = document.createElement("span");
@@ -3263,6 +3266,9 @@ function renderThreadList() {
     ]);
     if (thread.attachment_count) markerValues.push([`附件 ${thread.attachment_count}`, ""]);
     if (thread.exception_count) markerValues.push([`异常 ${thread.exception_count}`, "exception"]);
+    if (thread.channel_scope === "organization") {
+      markerValues.push(["组织协作", "organization"]);
+    }
     (thread.organizations || []).forEach((organization) => {
       markerValues.push([safeText(organization.name), "organization"]);
     });
@@ -3609,7 +3615,9 @@ function renderTimelineMessage(message, messagesById, repliedMessageIds) {
   identity.append(sender, type, time);
   const route = document.createElement("div");
   route.className = "thread-message-route";
-  route.textContent = `发送给：${agentConversationLabel(message.recipient, { currentAsMe: true })} · ${agentTypeLabel(message.recipient)}`;
+  route.textContent = message.channel_scope === "organization"
+    ? `发送到：${safeText(message.organization_name, "组织协作")} · 全部组织 Agent 可读${message.requested_responder_addresses?.length ? ` · 请 ${message.requested_responder_addresses.join("、")} 回复` : " · 无指定回复人"}`
+    : `发送给：${agentConversationLabel(message.recipient, { currentAsMe: true })} · ${agentTypeLabel(message.recipient)}`;
   const subject = document.createElement("strong");
   subject.className = "thread-message-subject";
   subject.textContent = safeText(message.subject, "无主题消息");
@@ -3619,7 +3627,16 @@ function renderTimelineMessage(message, messagesById, repliedMessageIds) {
   states.className = "thread-message-states";
   const communication = document.createElement("span");
   communication.className = "thread-state-group";
-  communication.append(document.createTextNode("送达情况"), chip(message.communication_state));
+  const communicationChip = chip(
+    message.channel_scope === "organization" ? "organization_shared" : message.communication_state,
+  );
+  if (message.channel_scope === "organization") {
+    communicationChip.textContent = `已同步给 ${Number(message.organization_recipient_count || 0)} 个 Agent`;
+  }
+  communication.append(
+    document.createTextNode(message.channel_scope === "organization" ? "协作范围" : "送达情况"),
+    communicationChip,
+  );
   states.append(communication);
   if (repliedMessageIds.has(message.message_id)) {
     const replied = document.createElement("span");
@@ -3690,7 +3707,9 @@ function renderThreadDetail(thread) {
   elements.threadDetailCount.textContent = `完整对话 · ${messages.length} 条往来`;
   const firstMessage = chronologicalMessages[0];
   elements.threadDetailRoute.textContent = firstMessage
-    ? `发送自：${agentConversationLabel(firstMessage.sender)}　　给：${agentConversationLabel(firstMessage.recipient, { currentAsMe: true })}`
+    ? firstMessage.channel_scope === "organization"
+      ? `发送自：${agentConversationLabel(firstMessage.sender)}　　发送到：${safeText(firstMessage.organization_name, "组织协作")}（全部组织 Agent 可读）`
+      : `发送自：${agentConversationLabel(firstMessage.sender)}　　给：${agentConversationLabel(firstMessage.recipient, { currentAsMe: true })}`
     : "发送自：—　　给：—";
   const failed = messages.some((message) => message.work_state === "failed" || message.message_type === "error");
   const completed = messages.some((message) => message.work_state === "completed");

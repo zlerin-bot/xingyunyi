@@ -7,6 +7,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 import httpx
 import pytest
@@ -29,6 +30,8 @@ RECIPIENT_ID = "20000000-0000-0000-0000-000000000002"
 DELIVERY_ID = "30000000-0000-0000-0000-000000000003"
 THREAD_ID = "40000000-0000-0000-0000-000000000004"
 ATTACHMENT_ID = "50000000-0000-0000-0000-000000000005"
+ORGANIZATION_ID = "60000000-0000-0000-0000-000000000006"
+ORGANIZATION_EVENT_ID = "70000000-0000-0000-0000-000000000007"
 NOW = "2026-08-12T08:00:00Z"
 
 
@@ -133,6 +136,43 @@ def recipient_resolution_json(**extra: Any) -> dict[str, Any]:
         "total_candidates": 1,
         "reason": "unique_match",
         "security_label": "external_agent_content",
+    }
+    payload.update(extra)
+    return payload
+
+
+def organization_channel_json(**extra: Any) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "event_id": ORGANIZATION_EVENT_ID,
+        "organization_id": ORGANIZATION_ID,
+        "organization_slug": "research",
+        "thread_id": THREAD_ID,
+        "reply_to_event_id": None,
+        "sender_agent_id": AGENT_ID,
+        "recipient_agent_ids": [RECIPIENT_ID],
+        "requested_responder_agent_ids": [RECIPIENT_ID],
+        "reply_policy": "addressed_agents_reply",
+        "message_ids": ["msg_group_copy"],
+        "created_at": NOW,
+        "replayed": False,
+    }
+    payload.update(extra)
+    return payload
+
+
+def organization_channel_summary_json(**extra: Any) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "organization_id": ORGANIZATION_ID,
+        "organization_slug": "research",
+        "organization_name": "Research",
+        "agents": [
+            {
+                "agent_id": RECIPIENT_ID,
+                "address": "bob@agents.local",
+                "handle": "bob",
+                "display_name": "Bob",
+            }
+        ],
     }
     payload.update(extra)
     return payload
@@ -261,6 +301,50 @@ def test_send_builds_wire_envelope_and_task_convenience() -> None:
     }
     assert message.message_id == "msg_accepted"
     assert message.message_type == "task"
+
+
+def test_send_organization_message_separates_context_from_requested_responder() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return json_response(request, 201, organization_channel_json())
+
+    with make_client(handler) as client:
+        event = client.send_organization_message(
+            ORGANIZATION_ID,
+            "Research coordination",
+            "Shared context for everyone",
+            requested_responder_agent_ids=[RECIPIENT_ID],
+            type="task",
+            task={"instruction": "Reply with the conclusion"},
+            idempotency_key="sdk-organization-message",
+        )
+
+    request = requests[0]
+    assert request.url.path == f"/base/api/v1/organizations/{ORGANIZATION_ID}/channel/messages"
+    assert request.headers["Idempotency-Key"] == "sdk-organization-message"
+    payload = json.loads(request.content)
+    assert payload["requested_responder_agent_ids"] == [RECIPIENT_ID]
+    assert payload["task"] == {"instruction": "Reply with the conclusion"}
+    assert "to" not in payload
+    assert event.event_id == UUID(ORGANIZATION_EVENT_ID)
+
+
+def test_get_organization_channel_returns_current_group_and_agents() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return json_response(request, 200, organization_channel_summary_json())
+
+    with make_client(handler) as client:
+        channel = client.get_organization_channel()
+
+    assert requests[0].method == "GET"
+    assert requests[0].url.path == "/base/api/v1/organization-channel"
+    assert channel.organization_name == "Research"
+    assert channel.agents[0].handle == "bob"
 
 
 def test_task_send_infers_instruction_and_rejects_invalid_type_combinations() -> None:

@@ -94,6 +94,16 @@ class HumanPresentationContract(ContractModel):
     )
 
 
+class OrganizationCollaborationContract(ContractModel):
+    send_endpoint_template: str
+    context_visible_to_all_assigned_agents: Literal[True] = True
+    reply_policy: Literal["addressed_agents_reply"] = "addressed_agents_reply"
+    private_threads_remain_private: Literal[True] = True
+    requested_responder_field: Literal["requested_responder_agent_ids"] = (
+        "requested_responder_agent_ids"
+    )
+
+
 class OnboardingStep(ContractModel):
     order: int
     action: str
@@ -112,6 +122,7 @@ class AgentIntegrationContract(ContractModel):
     synchronization: SynchronizationContract
     interoperability: InteroperabilityContract
     human_presentation: HumanPresentationContract
+    organization_collaboration: OrganizationCollaborationContract
     onboarding: list[OnboardingStep]
 
 
@@ -143,6 +154,22 @@ def build_agent_integration_contract(settings: Settings) -> AgentIntegrationCont
                 path="/api/v1/messages/{message_id}/ack",
                 purpose="confirm receipt without claiming task completion",
                 changes_state=True,
+            ),
+            EndpointContract(
+                method="POST",
+                path="/api/v1/organizations/{organization_id}/channel/messages",
+                purpose=(
+                    "post organization context to every assigned Agent while naming the Agents "
+                    "expected to reply"
+                ),
+                changes_state=True,
+                required_headers=["Idempotency-Key"],
+            ),
+            EndpointContract(
+                method="GET",
+                path="/api/v1/organization-channel",
+                purpose="read the current Agent's organization and channel participants",
+                changes_state=False,
             ),
             EndpointContract(
                 method="POST",
@@ -185,6 +212,9 @@ def build_agent_integration_contract(settings: Settings) -> AgentIntegrationCont
         ),
         interoperability=InteroperabilityContract(),
         human_presentation=HumanPresentationContract(),
+        organization_collaboration=OrganizationCollaborationContract(
+            send_endpoint_template=("/api/v1/organizations/{organization_id}/channel/messages")
+        ),
         onboarding=[
             OnboardingStep(
                 order=1,

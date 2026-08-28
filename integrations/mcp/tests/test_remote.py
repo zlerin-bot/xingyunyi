@@ -20,6 +20,8 @@ from starlette.testclient import TestClient
 EXPECTED_TOOLS = {
     "agentpost_resolve_recipient",
     "agentpost_send_message",
+    "agentpost_get_organization_channel",
+    "agentpost_send_organization_message",
     "agentpost_list_inbox",
     "agentpost_read_message",
     "agentpost_reply",
@@ -120,7 +122,7 @@ def test_remote_client_factory_binds_oauth_context_without_exposing_token() -> N
         remote_client_factory(settings())()
 
 
-def test_remote_server_has_seven_tools_and_requires_bearer_auth() -> None:
+def test_remote_server_has_nine_tools_and_requires_bearer_auth() -> None:
     class RejectAll:
         async def verify_token(self, token: str) -> AccessToken | None:
             del token

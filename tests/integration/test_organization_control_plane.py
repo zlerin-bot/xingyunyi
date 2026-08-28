@@ -172,7 +172,7 @@ def test_admin_bootstrap_enforces_organization_invariants(
     } <= actions
 
 
-def test_organization_membership_scopes_agents_and_redacts_auditors(
+def test_organization_membership_scopes_agents_without_exposing_private_messages(
     settings: Settings,
     database: Database,
 ) -> None:
@@ -244,14 +244,12 @@ def test_organization_membership_scopes_agents_and_redacts_auditors(
     assert dashboard["agents"][0]["role"] == "viewer"
     assert dashboard["agents"][0]["access_source"] == "organization"
     assert dashboard["agents"][0]["organization"]["slug"] == "fipay-research"
-    assert "organization-body-canary" in member_dashboard.text
+    assert "organization-body-canary" not in member_dashboard.text
     assert member_organizations.status_code == 200
     assert member_organizations.json()[0]["slug"] == "fipay-research"
 
     assert auditor_messages.status_code == 200
-    assert auditor_messages.json()[0]["subject"] == "组织研究进度"
-    assert auditor_messages.json()[0]["content_body"] is None
-    assert auditor_messages.json()[0]["content_redacted"] is True
+    assert auditor_messages.json() == []
     assert "organization-body-canary" not in auditor_messages.text
 
     assert outsider_dashboard.json()["organizations"] == []

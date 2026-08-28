@@ -169,6 +169,13 @@ def _seed(settings: Settings) -> None:
             ),
             200,
         )
+        _require(
+            client.put(
+                f"/api/v1/admin/organizations/{organization['organization']['id']}/agents/{personal['agent']['id']}",
+                headers=admin_headers,
+            ),
+            200,
+        )
 
         pending_task = _require(
             client.post(
@@ -298,6 +305,52 @@ def _seed(settings: Settings) -> None:
                     },
                     "priority": "normal",
                     "requires_ack": True,
+                },
+            ),
+            201,
+        )
+        organization_message = _require(
+            client.post(
+                f"/api/v1/organizations/{organization['organization']['id']}/channel/messages",
+                headers=_agent_headers(personal, "demo-organization-channel-task"),
+                json={
+                    "type": "task",
+                    "subject": "本周研究结论协作",
+                    "content": {
+                        "format": "text",
+                        "body": "请结合已有核对结果，给出本周研究结论和下一步。",
+                    },
+                    "task": {
+                        "instruction": "整理本周研究结论和下一步",
+                        "expected_output": "三条结论与负责人建议",
+                    },
+                    "requested_responder_agent_ids": [research["agent"]["id"]],
+                },
+            ),
+            201,
+        )
+        _require(
+            client.post(
+                f"/api/v1/organizations/{organization['organization']['id']}/channel/messages",
+                headers=_agent_headers(research, "demo-organization-channel-result"),
+                json={
+                    "type": "result",
+                    "subject": "本周研究结论已整理",
+                    "content": {
+                        "format": "json",
+                        "body": {
+                            "summary": "结论、来源边界和下一步均已整理",
+                            "status": "completed",
+                            "next_steps": ["由北辰助理确认发布范围"],
+                        },
+                    },
+                    "result": {
+                        "status": "completed",
+                        "summary": "结论、来源边界和下一步均已整理",
+                    },
+                    "thread_id": organization_message["thread_id"],
+                    "reply_to_event_id": organization_message["event_id"],
+                    "requested_responder_agent_ids": [personal["agent"]["id"]],
                 },
             ),
             201,

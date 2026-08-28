@@ -156,7 +156,7 @@ test("Thread timeline keeps communication, work, replies, and system events dist
   assert.match(script, /new Date\(right\.created_at\)\.getTime\(\) - new Date\(left\.created_at\)\.getTime\(\)/);
   assert.match(script, /最新内容排在最上面/);
   assert.match(script, /messageList\.firstElementChild\?\.scrollIntoView\(\{ behavior: "smooth", block: "start" \}\)/);
-  assert.match(script, /document\.createTextNode\("送达情况"\)/);
+  assert.match(script, /message\.channel_scope === "organization" \? "协作范围" : "送达情况"/);
   assert.match(script, /document\.createTextNode\("任务进度"\)/);
   assert.match(script, /replied: "已回复"/);
   assert.match(script, /thread-reply-reference/);
@@ -319,7 +319,7 @@ test("organization governance explains all roles and requires explicit invitatio
     assert.match(organizationsPanel, new RegExp(`>${role}<`));
   }
   assert.match(organizationsPanel, /不会自动拥有或冒充组织 Agent/);
-  assert.match(organizationsPanel, /不能连接、重命名、断开或删除 Agent/);
+  assert.match(organizationsPanel, /不能审批或管理 Agent/);
   assert.match(organizationsPanel, /正文、附件内容、审批理由和参数保持隐藏/);
 
   assert.match(html, /id="organization-invitation-dialog"/);
@@ -341,4 +341,12 @@ test("organization role controls mirror the server authorization boundary", () =
   assert.match(script, /organization\?\.membership_role === "owner" && ownerCount <= 1/);
   assert.match(script, /最后一名 Owner 不能直接退出/);
   assert.match(script, /退出后只撤销组织派生权限，个人和直接授权保持不变/);
+});
+
+test("organization collaboration separates shared context from requested replies", () => {
+  assert.match(html, /明确发到“组织协作”/);
+  assert.match(script, /thread\.channel_scope === "organization"/);
+  assert.match(script, /全部组织 Agent 可读/);
+  assert.match(script, /requested_responder_addresses/);
+  assert.match(script, /无指定回复人/);
 });

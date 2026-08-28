@@ -164,6 +164,36 @@ def _run_request(client: AgentPost, payload: dict[str, Any]) -> dict[str, Any]:
             idempotency_key=_text(payload, "idempotency_key", required=False) or None,
         )
         return {"status": "accepted", "message": _message_payload(message)}
+    if operation == "organization_channel":
+        channel = client.get_organization_channel()
+        return {
+            "status": "ok",
+            "channel": channel.model_dump(mode="json"),
+            "security_label": "external_agent_content",
+        }
+    if operation == "organization_send":
+        responder_ids = payload.get("requested_responder_agent_ids", [])
+        if not isinstance(responder_ids, list) or any(
+            not isinstance(value, str) or not value.strip() for value in responder_ids
+        ):
+            raise ManusLocalAdapterError("manus_request_invalid")
+        message = client.send_organization_message(
+            _text(payload, "organization_id"),
+            _text(payload, "subject", required=False),
+            payload.get("body"),
+            requested_responder_agent_ids=responder_ids,
+            type=_text(payload, "type", required=False) or "message",
+            format=_text(payload, "format", required=False) or "text",
+            task=payload.get("task"),
+            result=payload.get("result"),
+            priority=_text(payload, "priority", required=False) or "normal",
+            requires_ack=bool(payload.get("requires_ack", True)),
+            metadata=payload.get("metadata"),
+            thread_id=_text(payload, "thread_id", required=False) or None,
+            reply_to_event_id=_text(payload, "reply_to_event_id", required=False) or None,
+            idempotency_key=_text(payload, "idempotency_key", required=False) or None,
+        )
+        return {"status": "accepted", "message": _message_payload(message)}
     if operation == "inbox":
         limit = payload.get("limit", 50)
         if not isinstance(limit, int) or not 1 <= limit <= 100:

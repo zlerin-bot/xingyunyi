@@ -21,6 +21,15 @@ from agentpost.identity.addressing import canonicalize_agent_address
 MAX_CONTENT_BYTES = 1024 * 1024
 MAX_METADATA_BYTES = 64 * 1024
 MAX_JSON_DEPTH = 16
+RESERVED_METADATA_KEYS = frozenset(
+    {
+        "channel_scope",
+        "organization_id",
+        "organization_event_id",
+        "requested_responder_agent_ids",
+        "reply_policy",
+    }
+)
 
 
 class MessageType(StrEnum):
@@ -81,6 +90,13 @@ def _validate_json_limits(value: JsonValue, *, max_bytes: int, label: str) -> Js
     return value
 
 
+def validate_message_metadata(value: dict[str, JsonValue]) -> dict[str, JsonValue]:
+    _validate_json_limits(value, max_bytes=MAX_METADATA_BYTES, label="metadata")
+    if RESERVED_METADATA_KEYS.intersection(value):
+        raise ValueError("metadata contains server-reserved organization channel fields")
+    return value
+
+
 class RecipientCreate(StrictModel):
     address: str = Field(min_length=3, max_length=320)
 
@@ -128,8 +144,7 @@ class MessageCreate(StrictModel):
     @field_validator("metadata")
     @classmethod
     def validate_metadata(cls, value: dict[str, JsonValue]) -> dict[str, JsonValue]:
-        _validate_json_limits(value, max_bytes=MAX_METADATA_BYTES, label="metadata")
-        return value
+        return validate_message_metadata(value)
 
     @field_validator("attachments")
     @classmethod
@@ -166,8 +181,7 @@ class MessageReply(StrictModel):
     @field_validator("metadata")
     @classmethod
     def validate_metadata(cls, value: dict[str, JsonValue]) -> dict[str, JsonValue]:
-        _validate_json_limits(value, max_bytes=MAX_METADATA_BYTES, label="metadata")
-        return value
+        return validate_message_metadata(value)
 
     @field_validator("attachments")
     @classmethod

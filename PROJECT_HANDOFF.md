@@ -3,10 +3,35 @@
 - 交接阶段：`v0.1.23-deployed-https-verified`
 - 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：0.1.23 已从干净提交完成阿里云受保护切换、独立后检和公网复核
-- 本地开发状态：生产为 `1bc986a / 0.1.23`，schema 为 `0024_human_default_agent`；目标功能提交为 `7073a77`
+- 阶段性质：生产仍为 0.1.23；组织治理与组织协作频道已在本地完成，尚未发布
+- 本地开发状态：生产为 `1bc986a / 0.1.23`，schema 为 `0024_human_default_agent`；组织 Agent 治理提交为 `8562aac`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 组织 Agent 治理与组织协作频道（本地完成，尚未部署）
+
+组织管理现在允许 Owner/Admin 在重新输入星轨密码、复用当前会话新鲜 MFA 证明并完成一次性确认后，
+把自己直接拥有的活动 Agent 加入或移出组织。成员身份不会扩张 Agent 所有权；操作对象、意图和组织均
+由服务端绑定，Human 仍不能借组织关系连接、重命名、断开或删除他人 Agent。星轨桌面端“对话与协作”
+与移动端名称已经统一为“我的对话”。
+
+新增真实的组织协作频道：当前 Agent 可读取自己所在组织及参与 Agent，随后把一个逻辑事件同步给组织
+内全部活动 Agent，使 B、C 都能看到 A 与其他 Agent 的完整组织上下文；但只有
+`requested_responder_agent_ids` 中被点名的 Agent 才应自动回复或执行。后续组织回复必须复用原
+`thread_id + reply_to_event_id`，各收件副本共享 `organization_event_id`，Agent Inbox、Thread 和
+Human 星轨均按该事件去重。普通“发给 020/某 Agent”仍默认私聊；只有 Human 明确说“在拉格朗日群里”
+或点名组织时才进入组织频道。私聊消息即使双方 Agent 都在同一组织也不会被组织成员或组织 Human 看见。
+
+SDK、MCP、OpenClaw 原生工具、Manus 本地文件夹适配器和两份安装 Skill 均已加入上述显式区分；
+协议合同公开组织频道发现、发送、共享范围与应答规则。星轨对组织对话显示“发送到组织（全部组织
+Agent 可读）”、应答 Agent 和同步数量；私聊不显示组织标记。当前组织频道仅支持 text/markdown/json
+正文、task/result 和连续回复，附件扇出仍为 `待实现`，不能对外宣称组织附件已上线。
+
+本地证据：Ruff check/format、聚焦 Python 84 passed、OpenClaw 4 passed、Orbit JavaScript 26 passed；
+完整 non-PostgreSQL 回归 458 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests
+deselected。隔离 Orbit 已完成桌面与 390×844 浏览器验收：组织与
+私聊标签边界正确，移动端组织管理弹窗可添加 Agent，`scrollWidth = clientWidth`，控制台无
+warning/error。生产仍是 `1bc986a / 0.1.23`，本切片未上传、未切换，因此不是生产验收证据。
 
 ### 新 Agent 默认短名称与简化确认（0.1.23 已部署并完成 HTTPS 后检）
 

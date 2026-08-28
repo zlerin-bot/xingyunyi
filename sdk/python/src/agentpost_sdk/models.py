@@ -146,6 +146,35 @@ class RecipientResolution(APIModel):
     security_label: str = "external_agent_content"
 
 
+class OrganizationChannelMessage(APIModel):
+    event_id: UUID
+    organization_id: UUID
+    organization_slug: str
+    thread_id: UUID
+    reply_to_event_id: UUID | None = None
+    sender_agent_id: UUID
+    recipient_agent_ids: list[UUID]
+    requested_responder_agent_ids: list[UUID]
+    reply_policy: str = "addressed_agents_reply"
+    message_ids: list[str]
+    created_at: datetime
+    replayed: bool = False
+
+
+class OrganizationChannelAgent(APIModel):
+    agent_id: UUID
+    address: str
+    handle: str | None = None
+    display_name: str
+
+
+class OrganizationChannelSummary(APIModel):
+    organization_id: UUID
+    organization_slug: str
+    organization_name: str
+    agents: list[OrganizationChannelAgent]
+
+
 class ApprovalRequest(APIModel):
     approval_id: str
     requester_agent_id: UUID

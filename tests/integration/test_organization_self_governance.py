@@ -68,6 +68,19 @@ def _set_agent_owner(
     assert response.status_code == 200, response.text
 
 
+def _assign_agent_to_organization(
+    client: TestClient,
+    *,
+    organization_id: str,
+    agent_id: str,
+) -> None:
+    response = client.put(
+        f"/api/v1/admin/organizations/{organization_id}/agents/{agent_id}",
+        headers=_admin_headers(),
+    )
+    assert response.status_code == 200, response.text
+
+
 def _register(client: TestClient, email: str) -> dict[str, object]:
     challenge = client.post(
         "/api/v1/auth/email/challenges",
@@ -224,6 +237,7 @@ def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
         organization_id = str(organization["organization"]["id"])
         sender = _create_agent(client, "organization-sender@agents.local")
         recipient = _create_agent(client, "organization-recipient@agents.local")
+        observer = _create_agent(client, "organization-observer@agents.local")
         _set_agent_owner(
             client,
             human_id=str(owner["user"]["id"]),
@@ -270,6 +284,16 @@ def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
             },
         )
         assert assigned.status_code == 200, assigned.text
+        _assign_agent_to_organization(
+            client,
+            organization_id=organization_id,
+            agent_id=str(recipient["agent"]["id"]),
+        )
+        _assign_agent_to_organization(
+            client,
+            organization_id=organization_id,
+            agent_id=str(observer["agent"]["id"]),
+        )
         replay = client.put(
             f"/api/v1/orbit/organizations/{organization_id}/agents/{sender['agent']['id']}",
             headers={
@@ -290,7 +314,7 @@ def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
         assert member_dashboard.status_code == 200
         assert "pre-assignment-private-body" not in member_dashboard.text
 
-        post_assignment = client.post(
+        private_post_assignment = client.post(
             "/api/v1/messages",
             headers={
                 "Authorization": f"Bearer {sender['api_key']}",
@@ -300,13 +324,111 @@ def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
                 "to": [{"address": recipient["agent"]["address"]}],
                 "type": "message",
                 "subject": "加入组织后的协作消息",
-                "content": {"format": "text", "body": "post-assignment-shared-body"},
+                "content": {"format": "text", "body": "post-assignment-private-body"},
             },
         )
-        assert post_assignment.status_code == 201, post_assignment.text
+        assert private_post_assignment.status_code == 201, private_post_assignment.text
+        channel_summary = client.get(
+            "/api/v1/organization-channel",
+            headers={"Authorization": f"Bearer {sender['api_key']}"},
+        )
+        assert channel_summary.status_code == 200
+        assert channel_summary.json()["organization_name"] == "北辰组织"
+        assert {agent["agent_id"] for agent in channel_summary.json()["agents"]} == {
+            sender["agent"]["id"],
+            recipient["agent"]["id"],
+            observer["agent"]["id"],
+        }
+        channel_message = client.post(
+            f"/api/v1/organizations/{organization_id}/channel/messages",
+            headers={
+                "Authorization": f"Bearer {sender['api_key']}",
+                "Idempotency-Key": "organization-channel-after-assignment",
+            },
+            json={
+                "type": "message",
+                "subject": "组织协作",
+                "content": {"format": "text", "body": "post-assignment-channel-body"},
+                "requested_responder_agent_ids": [recipient["agent"]["id"]],
+            },
+        )
+        assert channel_message.status_code == 201, channel_message.text
+        assert set(channel_message.json()["recipient_agent_ids"]) == {
+            recipient["agent"]["id"],
+            observer["agent"]["id"],
+        }
+        assert channel_message.json()["reply_policy"] == "addressed_agents_reply"
+        replayed_channel_message = client.post(
+            f"/api/v1/organizations/{organization_id}/channel/messages",
+            headers={
+                "Authorization": f"Bearer {sender['api_key']}",
+                "Idempotency-Key": "organization-channel-after-assignment",
+            },
+            json={
+                "type": "message",
+                "subject": "组织协作",
+                "content": {"format": "text", "body": "post-assignment-channel-body"},
+                "requested_responder_agent_ids": [recipient["agent"]["id"]],
+            },
+        )
+        assert replayed_channel_message.status_code == 200
+        assert replayed_channel_message.headers["Idempotency-Replayed"] == "true"
+        recipient_inbox = client.get(
+            "/api/v1/inbox",
+            headers={"Authorization": f"Bearer {recipient['api_key']}"},
+        )
+        assert recipient_inbox.status_code == 200
+        channel_inbox_item = recipient_inbox.json()["items"][-1]
+        assert channel_inbox_item["metadata"]["context_visible_to_all_assigned_agents"] is True
+        assert channel_inbox_item["metadata"]["requested_responder_agent_ids"] == [
+            recipient["agent"]["id"]
+        ]
+        observer_inbox = client.get(
+            "/api/v1/inbox",
+            headers={"Authorization": f"Bearer {observer['api_key']}"},
+        )
+        assert observer_inbox.status_code == 200
+        observer_item = observer_inbox.json()["items"][-1]
+        assert observer_item["content"]["body"] == "post-assignment-channel-body"
+        assert observer_item["metadata"]["requested_responder_agent_ids"] == [
+            recipient["agent"]["id"]
+        ]
+        observer_threads = client.get(
+            "/api/v1/threads",
+            headers={"Authorization": f"Bearer {observer['api_key']}"},
+        )
+        assert observer_threads.status_code == 200
+        channel_thread = next(
+            item
+            for item in observer_threads.json()["items"]
+            if item["thread_id"] == channel_message.json()["thread_id"]
+        )
+        assert channel_thread["message_count"] == 1
+        observer_thread = client.get(
+            f"/api/v1/threads/{channel_message.json()['thread_id']}",
+            headers={"Authorization": f"Bearer {observer['api_key']}"},
+        )
+        assert observer_thread.status_code == 200
+        assert len(observer_thread.json()["messages"]) == 1
+        spoofed_channel = client.post(
+            "/api/v1/messages",
+            headers={
+                "Authorization": f"Bearer {sender['api_key']}",
+                "Idempotency-Key": "reserved-channel-metadata",
+            },
+            json={
+                "to": [{"address": recipient["agent"]["address"]}],
+                "type": "message",
+                "subject": "不能伪造组织频道",
+                "content": {"format": "text", "body": "reserved-metadata"},
+                "metadata": {"channel_scope": "organization"},
+            },
+        )
+        assert spoofed_channel.status_code == 422
         refreshed = client.get("/api/v1/orbit/dashboard")
         assert refreshed.status_code == 200
-        assert "post-assignment-shared-body" in refreshed.text
+        assert "post-assignment-private-body" not in refreshed.text
+        assert "post-assignment-channel-body" in refreshed.text
         assert "pre-assignment-private-body" not in refreshed.text
 
 

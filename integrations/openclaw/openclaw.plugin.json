@@ -10,6 +10,8 @@
     "tools": [
       "agentpost_send",
       "agentpost_inbox",
+      "agentpost_get_organization_channel",
+      "agentpost_send_organization_message",
       "agentpost_read",
       "agentpost_reply",
       "agentpost_ack",
@@ -19,6 +21,8 @@
   "toolMetadata": {
     "agentpost_send": { "optional": true, "replaySafe": false },
     "agentpost_inbox": { "replaySafe": true },
+    "agentpost_get_organization_channel": { "replaySafe": true },
+    "agentpost_send_organization_message": { "optional": true, "replaySafe": false },
     "agentpost_read": { "replaySafe": true },
     "agentpost_reply": { "optional": true, "replaySafe": false },
     "agentpost_ack": { "optional": true, "replaySafe": true },

@@ -16,6 +16,11 @@ class FakeMessage:
         return {"message_id": "msg_test", "delivery": {"status": "accepted"}}
 
 
+class FakeChannel:
+    def model_dump(self, **_kwargs):
+        return {"organization_id": "11111111-1111-4111-8111-111111111111", "agents": []}
+
+
 class FakeStore:
     def __init__(self, credential: ConnectorCredential | None) -> None:
         self.credential = credential
@@ -33,6 +38,7 @@ class FakeClient:
         assert server == "https://agentpost.me"
         assert api_key == "vault-secret"
         self.sent: list[tuple[tuple[object, ...], dict[str, object]]] = []
+        self.organization_sent: list[tuple[tuple[object, ...], dict[str, object]]] = []
         self.connector = SimpleNamespace(heartbeat=self._heartbeat)
         self.inbox = SimpleNamespace()
         self.messages = SimpleNamespace()
@@ -47,6 +53,13 @@ class FakeClient:
 
     def send(self, *args, **kwargs):
         self.sent.append((args, kwargs))
+        return FakeMessage()
+
+    def get_organization_channel(self):
+        return FakeChannel()
+
+    def send_organization_message(self, *args, **kwargs):
+        self.organization_sent.append((args, kwargs))
         return FakeMessage()
 
     def close(self) -> None:
@@ -136,3 +149,39 @@ def test_missing_vault_profile_fails_closed(tmp_path: Path) -> None:
             credential_store=FakeStore(None),
             client_factory=FakeClient,
         )
+
+
+def test_organization_channel_and_send_use_explicit_operations(tmp_path: Path) -> None:
+    FakeClient.instances.clear()
+    adapter = _adapter(tmp_path)
+    channel_result = run(
+        adapter,
+        ["request-stdin"],
+        stdin=io.BytesIO(json.dumps({"operation": "organization_channel"}).encode()),
+        credential_store=FakeStore(_credential()),
+        client_factory=FakeClient,
+    )
+    assert channel_result["channel"]["agents"] == []
+
+    request = {
+        "operation": "organization_send",
+        "organization_id": "11111111-1111-4111-8111-111111111111",
+        "subject": "群内协作",
+        "body": "请 020 回复，其他 Agent 了解背景。",
+        "requested_responder_agent_ids": ["22222222-2222-4222-8222-222222222222"],
+    }
+    result = run(
+        adapter,
+        ["request-stdin"],
+        stdin=io.BytesIO(json.dumps(request).encode()),
+        credential_store=FakeStore(_credential()),
+        client_factory=FakeClient,
+    )
+    assert result["status"] == "accepted"
+    args, kwargs = FakeClient.instances[-1].organization_sent[-1]
+    assert args[:3] == (
+        "11111111-1111-4111-8111-111111111111",
+        "群内协作",
+        "请 020 回复，其他 Agent 了解背景。",
+    )
+    assert kwargs["requested_responder_agent_ids"] == ["22222222-2222-4222-8222-222222222222"]

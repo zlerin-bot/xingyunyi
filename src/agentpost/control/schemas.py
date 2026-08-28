@@ -245,6 +245,11 @@ class OrbitMessage(ControlModel):
     attachments: list[OrbitMessageAttachment] = Field(default_factory=list)
     communication_state: str
     work_state: str | None
+    channel_scope: Literal["direct", "organization"] = "direct"
+    organization_id: UUID | None = None
+    organization_name: str | None = None
+    requested_responder_addresses: list[str] = Field(default_factory=list)
+    organization_recipient_count: int = 0
     created_at: datetime
 
 
@@ -253,6 +258,7 @@ class OrbitThreadSummary(ControlModel):
     topic: str
     participants: list[OrbitMessageAgent]
     organizations: list[OrbitOrganizationReference] = Field(default_factory=list)
+    channel_scope: Literal["direct", "organization"] = "direct"
     latest_message_id: str
     latest_message_type: str
     latest_message_summary: JsonValue | None

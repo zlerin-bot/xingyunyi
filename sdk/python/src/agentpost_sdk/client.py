@@ -32,6 +32,8 @@ from agentpost_sdk.models import (
     DownloadedFile,
     InboxPage,
     Message,
+    OrganizationChannelMessage,
+    OrganizationChannelSummary,
     RecipientResolution,
 )
 
@@ -534,6 +536,79 @@ class AgentPost:
             "POST", "/messages", json=payload, idempotency_key=idem
         )
         return self._message(data, idempotency_replayed=replayed)
+
+    def send_organization_message(
+        self,
+        organization_id: UUID | str,
+        subject: str,
+        body: Any,
+        *,
+        requested_responder_agent_ids: list[UUID | str] | None = None,
+        type: str = "message",
+        format: str = "text",
+        task: Mapping[str, Any] | None = None,
+        result: Mapping[str, Any] | None = None,
+        priority: str = "normal",
+        requires_ack: bool = True,
+        metadata: Mapping[str, Any] | None = None,
+        thread_id: UUID | str | None = None,
+        reply_to_event_id: UUID | str | None = None,
+        idempotency_key: str | None = None,
+    ) -> OrganizationChannelMessage:
+        """Post shared organization context and name only the Agents expected to reply."""
+        if format not in _BODY_FORMATS:
+            raise ConfigurationError("format must be text, markdown, or json")
+        if type == "task" and task is None:
+            if not isinstance(body, str) or not body:
+                raise ConfigurationError("task messages require a non-empty string body")
+            task = {"instruction": body}
+        if type != "task" and task is not None:
+            raise ConfigurationError("task payload is only valid for task messages")
+        if type == "result" and result is None:
+            raise ConfigurationError("result messages require a result payload")
+        if type != "result" and result is not None:
+            raise ConfigurationError("result payload is only valid for result messages")
+        if (thread_id is None) != (reply_to_event_id is None):
+            raise ConfigurationError("thread_id and reply_to_event_id must be supplied together")
+        payload: dict[str, Any] = {
+            "type": type,
+            "subject": subject,
+            "content": {"format": format, "body": body},
+            "priority": priority,
+            "requires_ack": requires_ack,
+            "metadata": dict(metadata or {}),
+            "thread_id": str(thread_id) if thread_id is not None else None,
+            "reply_to_event_id": (
+                str(reply_to_event_id) if reply_to_event_id is not None else None
+            ),
+            "requested_responder_agent_ids": [
+                str(agent_id) for agent_id in requested_responder_agent_ids or []
+            ],
+        }
+        if task is not None:
+            payload["task"] = dict(task)
+        if result is not None:
+            payload["result"] = dict(result)
+        data, replayed = self._idempotent_request(
+            "POST",
+            f"/organizations/{organization_id}/channel/messages",
+            json=payload,
+            idempotency_key=idempotency_key or _idempotency_key(),
+        )
+        try:
+            channel_message = OrganizationChannelMessage.model_validate(data)
+        except PydanticValidationError as exc:
+            raise self._protocol_error("Malformed organization channel response", exc) from exc
+        channel_message.replayed = replayed
+        return channel_message
+
+    def get_organization_channel(self) -> OrganizationChannelSummary:
+        """Return the authenticated Agent's organization channel and visible participants."""
+        data = self._request("GET", "/organization-channel")
+        try:
+            return OrganizationChannelSummary.model_validate(data)
+        except PydanticValidationError as exc:
+            raise self._protocol_error("Malformed organization channel summary", exc) from exc
 
     def search_agents(
         self,
