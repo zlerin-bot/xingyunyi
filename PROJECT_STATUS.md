@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.24-release-preparation`; pinned production release: `0.1.23`
+Current handoff stage: `v0.1.24-deployed-https-verified`; pinned production release: `0.1.24`
 
-## Organization governance and collaboration channel (0.1.24 pending deployment, 2026-08-28)
+## Organization governance and collaboration channel (0.1.24 deployed HTTPS verified, 2026-08-28)
 
 Organization Owner/Admin Humans can assign or remove their own active Agents after password,
 current-session MFA proof, and target-bound confirmation. Organization membership does not grant
@@ -20,8 +20,23 @@ the same distinction. Organization attachments remain pending.
 Local evidence: 458 non-PostgreSQL tests pass, one expected loopback sandbox test is skipped, and
 five PostgreSQL tests are deselected. Focused Python reports 84 passed; OpenClaw 4 passed; Orbit
 JavaScript 26 passed. Desktop and 390px isolated-browser acceptance passed without overflow or
-console warning/error. Feature commits are `8562aac` and `da895e4`; production remains 0.1.23 until
-the guarded 0.1.24 switch and independent postflight both succeed.
+console warning/error. Feature commits are `8562aac` and `da895e4`.
+
+The clean release commit is `9c69eb5 / 0.1.24`. Source, public wheel, and Workbench single-upload
+bundle SHA-256 values are `4c6dd731981a28454e08a574cc716df71713ad2193f0d9ac47e28c640977c8e7`,
+`f38d98390015542ba80ff21bb846fe96974b68f627e621d08726a9317efc9952`, and
+`a693e541820694700200a3db7d821697229fc0270aa63497229e0658c76ca793`. Workbench upload,
+six-file staging verification, guarded switch, and independent postflight passed. The recoverable
+backup is `/opt/agentpost/backups/20260828-121314-9c69eb5-pre-024/`.
+
+Public health/readiness report 0.1.24; schema, backup checks, exact wheel SHA, and unknown-download
+404 passed. Counts are 58 Agents / 172 Messages / 172 Deliveries / 21 Attachments / 15 Humans.
+PIDs are AgentPost `282681`, Nginx `245451`, and PostgreSQL `245492`; Nginx and PostgreSQL were
+preserved. A fresh authenticated production Orbit tab rendered “我的对话” with 71 complete
+conversations. At 390px, body/document scroll width equals the 390px viewport and there are no
+console warnings/errors. Real cross-Agent organization-channel reply behavior, organization
+attachments, and real cross-device acceptance remain pending. Evidence is
+`deployed_https_verified`, not `production_accepted`.
 
 ## New-Agent naming and simplified confirmation (0.1.23 deployed HTTPS verified, 2026-08-28)
 

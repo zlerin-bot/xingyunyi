@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.24-release-preparation`
+- 交接阶段：`v0.1.24-deployed-https-verified`
 - 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：生产 0.1.23 保持不变；组织治理与组织协作频道正在准备 0.1.24 干净发布提交
-- 本地开发状态：生产为 `1bc986a / 0.1.23`，schema 为 `0024_human_default_agent`；功能提交为 `8562aac + da895e4`
+- 阶段性质：0.1.24 已从干净提交完成阿里云受保护切换、独立后检和登录态生产 Orbit 复核
+- 本地开发状态：生产为 `9c69eb5 / 0.1.24`，schema 为 `0024_human_default_agent`；功能提交为 `8562aac + da895e4`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 组织 Agent 治理与组织协作频道（0.1.24 待部署）
+### 组织 Agent 治理与组织协作频道（0.1.24 已部署并完成 HTTPS 后检）
 
 组织管理现在允许 Owner/Admin 在重新输入星轨密码、复用当前会话新鲜 MFA 证明并完成一次性确认后，
 把自己直接拥有的活动 Agent 加入或移出组织。成员身份不会扩张 Agent 所有权；操作对象、意图和组织均
@@ -31,7 +31,23 @@ Agent 可读）”、应答 Agent 和同步数量；私聊不显示组织标记�
 完整 non-PostgreSQL 回归 458 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests
 deselected。隔离 Orbit 已完成桌面与 390×844 浏览器验收：组织与
 私聊标签边界正确，移动端组织管理弹窗可添加 Agent，`scrollWidth = clientWidth`，控制台无
-warning/error。生产仍是 `1bc986a / 0.1.23`，本切片未上传、未切换，因此不是生产验收证据。
+warning/error。
+
+发布提交为 `9c69eb5 / 0.1.24`。干净归档生成的源码、公开 wheel、Workbench 单上传包 SHA-256
+分别为 `4c6dd731981a28454e08a574cc716df71713ad2193f0d9ac47e28c640977c8e7`、
+`f38d98390015542ba80ff21bb846fe96974b68f627e621d08726a9317efc9952`、
+`a693e541820694700200a3db7d821697229fc0270aa63497229e0658c76ca793`。Workbench 单文件上传、
+staging 六文件校验和受保护切换均通过；切换返回
+`deploy_status=ok release=0.1.24 commit=9c69eb5`，耗时 39 秒，备份为
+`/opt/agentpost/backups/20260828-121314-9c69eb5-pre-024/`。
+
+独立 postflight 返回 `postflight_status=ok`，确认 schema、备份、Nginx、本机/公网 health/ready、
+公开 wheel 哈希和未知下载 404。切换后为 58 Agents / 172 Messages / 172 Deliveries / 21 Attachments /
+15 Humans；AgentPost、Nginx、PostgreSQL PID 为 `282681/245451/245492`，Nginx 与 PostgreSQL
+未重启。开发机公网复核一致；登录态生产星轨正常渲染“我的对话”和 71 个完整对话，390px 下
+`body/document scrollWidth = innerWidth = 390`，控制台无 warning/error。真实跨 Agent 组织频道
+发送与被点名 Agent 自动应答、组织附件和真实跨设备验收仍为 `待确认`；当前状态是
+`deployed_https_verified`，不是 `production_accepted`。
 
 ### 新 Agent 默认短名称与简化确认（0.1.23 已部署并完成 HTTPS 后检）
 
