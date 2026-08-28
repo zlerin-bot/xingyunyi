@@ -600,6 +600,14 @@ function initializeWorkspaceNavigation() {
         && isMobileWorkspace()
         && state.activeModule === "orbit"
         && state.activeSection === item.dataset.section;
+      if (item.classList.contains("orbit-mobile-shortcut") && isMobileWorkspace()) {
+        state.threadFilter = "all";
+        elements.threadFilters.forEach((filter) => {
+          const active = (filter.dataset.threadFilter || "all") === "all";
+          filter.classList.toggle("active", active);
+          filter.setAttribute("aria-pressed", String(active));
+        });
+      }
       activateRoute(
         item.dataset.module,
         mobileShortcutIsActive ? "communications" : item.dataset.section,
@@ -3319,7 +3327,7 @@ function threadOrganization(thread) {
   } : null);
 }
 
-function createOrganizationThreadGroup(organization, threadEntries, threads) {
+function createOrganizationThreadGroup(organization, threadButtons, threads) {
   const group = document.createElement("details");
   group.className = "organization-thread-group";
   group.open = true;
@@ -3335,8 +3343,8 @@ function createOrganizationThreadGroup(organization, threadEntries, threads) {
   const title = document.createElement("strong");
   title.textContent = safeText(organization?.name, organization?.slug || "组织群聊");
   const subtitle = document.createElement("small");
-  subtitle.textContent = threadEntries.length
-    ? `${threadEntries.length} 个对话 · 全部组织 Agent 可读`
+  subtitle.textContent = threadButtons.length
+    ? `${threadButtons.length} 个对话 · 全部组织 Agent 可读`
     : "群聊已建立 · 暂无对话";
   copy.append(title, subtitle);
   identity.append(icon, copy);
@@ -3360,8 +3368,8 @@ function createOrganizationThreadGroup(organization, threadEntries, threads) {
   summary.append(identity, status);
   const children = document.createElement("div");
   children.className = "organization-thread-children";
-  if (threadEntries.length) {
-    threadEntries.forEach((entry) => children.append(entry));
+  if (threadButtons.length) {
+    threadButtons.forEach((button) => children.append(button));
   } else {
     children.append(emptyState("群里还没有对话。通过这个组织发送的消息会集中显示在这里。"));
   }
@@ -3404,7 +3412,7 @@ function renderThreadList() {
     if (organization && !organizationGroups.has(String(organization.id))) {
       organizationGroups.set(String(organization.id), {
         organization,
-        entries: [],
+        buttons: [],
         threads: [],
       });
     }
@@ -3492,35 +3500,16 @@ function renderThreadList() {
     });
     button.append(top, participants, preview, markers);
     button.addEventListener("click", () => selectThread(String(thread.thread_id)));
-    const entry = document.createElement("div");
-    entry.className = "thread-list-entry";
-    const archiveAction = document.createElement("button");
-    archiveAction.type = "button";
-    archiveAction.className = "thread-list-archive-action";
-    archiveAction.textContent = state.threadFilter === "archived" ? "恢复" : "删除";
-    archiveAction.setAttribute(
-      "aria-label",
-      `${state.threadFilter === "archived" ? "恢复" : "从我的对话删除"}：${safeText(thread.topic, "无主题对话")}`,
-    );
-    archiveAction.addEventListener("click", async () => {
-      if (state.threadFilter === "archived") {
-        await restoreThread(String(thread.thread_id));
-      } else {
-        openThreadArchiveDialog(thread);
-      }
-    });
-    entry.append(button, archiveAction);
     if (organization) {
       button.classList.add("organization-thread-child");
-      entry.classList.add("organization-thread-child-entry");
-      organizationGroups.get(String(organization.id)).entries.push(entry);
+      organizationGroups.get(String(organization.id)).buttons.push(button);
     } else {
-      fragment.append(entry);
+      fragment.append(button);
     }
   });
   const groupedFragment = document.createDocumentFragment();
-  organizationGroups.forEach(({ organization, entries, threads: groupThreads }) => {
-    groupedFragment.append(createOrganizationThreadGroup(organization, entries, groupThreads));
+  organizationGroups.forEach(({ organization, buttons, threads: groupThreads }) => {
+    groupedFragment.append(createOrganizationThreadGroup(organization, buttons, groupThreads));
   });
   groupedFragment.append(fragment);
   elements.threadList.append(groupedFragment);
@@ -4868,7 +4857,7 @@ elements.threadFilters.forEach((button) => {
       ? "all"
       : requestedFilter;
     elements.threadFilters.forEach((item) => {
-      const active = item === button;
+      const active = (item.dataset.threadFilter || "all") === state.threadFilter;
       item.classList.toggle("active", active);
       if (item.getAttribute("aria-disabled") !== "true") {
         item.setAttribute("aria-pressed", String(active));
@@ -4883,6 +4872,9 @@ elements.threadFilters.forEach((button) => {
         : "当前列表已按所选范围筛选。",
     );
     updateThreadWorkspaceMode();
+    if (requestedFilter === "archived" && isMobileWorkspace()) {
+      activateRoute("orbit", "communications", { focusContent: true });
+    }
     try {
       await loadThreads({ loadSelection: false });
     } catch (_error) {

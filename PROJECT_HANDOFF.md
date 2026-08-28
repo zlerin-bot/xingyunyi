@@ -17,14 +17,18 @@
 无需伪造迁移或删除服务器数据。
 
 “我的对话”每张完整对话卡和详情头部新增“删除”入口，语义为当前 Human 的可恢复归档，不是服务器
-删除。新增 `human_thread_archives`，按 `human_user_id + thread_id` 独立保存；默认列表排除归档，列表
-上方直接提供“已归档对话”，进入后可逐条恢复。归档不会拆散回复链，也不会影响其他 Human 视图、
+删除。经 390px 实机布局复核后，列表卡片上的删除入口已移除，删除/恢复只在打开完整对话后的详情页
+提供，避免每张卡片为操作按钮预留高度。新增 `human_thread_archives`，按
+`human_user_id + thread_id` 独立保存；默认列表排除归档。桌面端在列表工具区提供“已归档对话”，
+移动端把“待处理 / 任务 / 已归档”压缩为同一行三个轻量入口，进入归档列表后打开详情即可恢复。
+归档不会拆散回复链，也不会影响其他 Human 视图、
 Delivery、Agent read、ACK 或任务状态；新消息也不会擅自自动恢复。无权 Thread 仍统一返回 404。
 
 本地证据：Ruff check/format 全通过；JavaScript syntax 和 Orbit JavaScript 27 passed；完整
 non-PostgreSQL 回归 461 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected；
-Alembic 单一 head 为 `0025_human_thread_archives`。隔离 Orbit 桌面端确认每张卡片的删除入口、明确的
-非服务器删除说明和直接可见的归档库；390px 下确认归档库进入/返回、删除按钮布局和
+Alembic 单一 head 为 `0025_human_thread_archives`。隔离 Orbit 桌面端确认详情页删除入口、明确的
+非服务器删除说明和直接可见的归档库；390px 下确认三个快捷入口同排、列表不再出现删除按钮、
+详情页删除按钮可见，以及
 `document/body scrollWidth = 390`，控制台无 warning/error。PostgreSQL 专属测试未在本地运行，
 生产数据迁移、发布和生产登录态验收均为 `待确认`；当前生产仍是 `b297d13 / 0.1.27`。
 

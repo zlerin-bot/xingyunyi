@@ -854,33 +854,6 @@ footer {
   color: var(--cyan);
 }
 
-.thread-list-entry {
-  position: relative;
-  min-width: 0;
-}
-
-.thread-list-archive-action {
-  position: absolute;
-  z-index: 1;
-  right: 12px;
-  bottom: 12px;
-  min-height: 28px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--muted);
-  padding: 4px 10px;
-  font: inherit;
-  font-size: 0.61rem;
-  cursor: pointer;
-}
-
-.thread-list-archive-action:hover,
-.thread-list-archive-action:focus-visible {
-  border-color: var(--cyan);
-  color: var(--cyan);
-}
-
 .thread-list-item {
   display: grid;
   width: 100%;
@@ -4687,29 +4660,13 @@ footer {
   background: #fff;
 }
 
-.thread-list-entry.organization-thread-child-entry {
-  min-width: 0;
-}
-
 .thread-list-item {
   position: relative;
   gap: 10px;
   min-height: 132px;
   border-color: #e3e7ed;
   background: #fff;
-  padding: 15px 16px 48px;
-}
-
-.thread-list-archive-action {
-  border-color: #dadce0;
-  background: #fff;
-  color: #5f6368;
-}
-
-.thread-list-archive-action:hover,
-.thread-list-archive-action:focus-visible {
-  border-color: #8ab4f8;
-  color: #185abc;
+  padding: 15px 16px;
 }
 
 .thread-list-item:hover {
@@ -4864,15 +4821,15 @@ footer {
 
   .orbit-mobile-shortcuts:not([hidden]) {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    padding: 0 10px 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 0 10px 8px;
   }
 
   .orbit-mobile-shortcut {
     display: grid;
     width: 100%;
-    min-height: 66px;
+    min-height: 44px;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px;
@@ -4880,7 +4837,7 @@ footer {
     border-radius: 14px;
     background: #fff;
     color: #202124;
-    padding: 10px 11px;
+    padding: 7px 8px;
     text-align: left;
   }
 
@@ -4891,7 +4848,7 @@ footer {
   }
 
   .orbit-mobile-shortcut strong {
-    font-size: 0.78rem;
+    font-size: 0.7rem;
   }
 
   .orbit-mobile-shortcut small {
@@ -4919,6 +4876,10 @@ footer {
     color: #185abc;
     padding-inline: 6px;
     font-size: 0.62rem;
+  }
+
+  .thread-archive-library {
+    display: none;
   }
 
   .orbit-mobile-shortcut > span.orbit-mobile-shortcut-count.alert:not(:empty) {

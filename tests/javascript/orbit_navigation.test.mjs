@@ -76,13 +76,14 @@ test("mobile navigation remains a three-entry bottom bar", () => {
   assert.match(script, /window\.scrollTo\(\{ top: 0, left: 0, behavior: "auto" \}\)/);
 });
 
-test("mobile Star Orbit uses two lightweight shortcuts instead of a second tab bar", () => {
+test("mobile Star Orbit keeps processing, tasks, and archives in one compact row", () => {
   assert.match(html, /id="orbit-mobile-shortcuts"/);
   assert.match(html, /class="context-nav-item orbit-mobile-shortcut"[^>]*data-section="approvals"/);
   assert.match(html, /class="context-nav-item orbit-mobile-shortcut"[^>]*data-section="tasks"/);
   assert.match(script, /mobileShortcutIsActive/);
   assert.match(script, /mobileShortcutIsActive \? "communications" : item\.dataset\.section/);
-  assert.match(stylesheet, /\.orbit-mobile-shortcuts:not\(\[hidden\]\) \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(html, /class="orbit-mobile-shortcut"[^>]*data-thread-filter="archived"/);
+  assert.match(stylesheet, /\.orbit-mobile-shortcuts:not\(\[hidden\]\) \{[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(stylesheet, /\.context-navigation > div\[data-context-module="orbit"\] \{\s*display: none;/);
   assert.match(stylesheet, /\.orbit-mobile-shortcut > span\.orbit-mobile-shortcut-count \{[\s\S]*?display: inline-grid;/);
   assert.match(stylesheet, /\.thread-list-item \{[\s\S]*?min-width: 0;/);
@@ -197,8 +198,8 @@ test("conversations can be hidden per Human and restored without deleting server
   assert.match(script, /parameters\.set\("archived", "true"\)/);
   assert.match(script, /method: "PUT"/);
   assert.match(script, /method: "DELETE"/);
-  assert.match(script, /openThreadArchiveDialog\(thread\)/);
-  assert.match(stylesheet, /\.thread-list-archive-action \{/);
+  assert.match(script, /openThreadArchiveDialog\(state\.selectedThread\)/);
+  assert.doesNotMatch(script, /thread-list-archive-action/);
 });
 
 test("mobile Thread list and detail are separate layers", () => {

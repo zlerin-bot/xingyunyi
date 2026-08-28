@@ -157,12 +157,15 @@
           </div>
           <nav id="orbit-mobile-shortcuts" class="orbit-mobile-shortcuts" data-context-module="orbit" aria-label="星轨快捷筛选">
             <button type="button" class="context-nav-item orbit-mobile-shortcut" data-module="orbit" data-section="approvals" aria-pressed="false">
-              <span><strong>待我处理</strong><small>需要回复或确认</small></span>
+              <span><strong>待处理</strong></span>
               <span id="approval-mobile-count" class="orbit-mobile-shortcut-count alert">0</span>
             </button>
             <button type="button" class="context-nav-item orbit-mobile-shortcut" data-module="orbit" data-section="tasks" aria-pressed="false">
-              <span><strong>任务进展</strong><small>查看最新进度</small></span>
+              <span><strong>任务</strong></span>
               <span id="task-mobile-count" class="orbit-mobile-shortcut-count">0</span>
+            </button>
+            <button type="button" class="orbit-mobile-shortcut" data-thread-filter="archived" aria-pressed="false">
+              <span><strong>已归档</strong></span>
             </button>
           </nav>
           <nav id="context-navigation" class="context-navigation" aria-label="当前模块页面">
