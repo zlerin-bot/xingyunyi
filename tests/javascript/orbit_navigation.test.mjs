@@ -360,6 +360,10 @@ test("organization collaboration separates shared context from requested replies
   assert.match(html, /加入后，它可以读取这个组织里的协作内容/);
   assert.match(script, /thread\.channel_scope === "organization"/);
   assert.match(script, /全部组织 Agent 可读/);
-  assert.match(script, /requested_responder_addresses/);
+  assert.match(script, /message\.requested_responders/);
+  assert.match(script, /agent\?\.owner_username/);
+  assert.match(script, /createOrganizationThreadGroup/);
+  assert.match(script, /organization-thread-child/);
+  assert.match(stylesheet, /\.organization-thread-group-summary/);
   assert.match(script, /无指定回复人/);
 });

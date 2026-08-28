@@ -4525,6 +4525,120 @@ footer {
   gap: 11px;
 }
 
+.organization-thread-group {
+  overflow: hidden;
+  border: 1px solid #c6dafc;
+  border-radius: 16px;
+  background: #f7faff;
+}
+
+.organization-thread-group-summary {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 15px;
+  color: #202124;
+  cursor: pointer;
+  list-style: none;
+}
+
+.organization-thread-group-summary::-webkit-details-marker {
+  display: none;
+}
+
+.organization-thread-group-summary:focus-visible {
+  outline: 3px solid rgba(26, 115, 232, 0.28);
+  outline-offset: -3px;
+}
+
+.organization-thread-group-identity,
+.organization-thread-group-status {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.organization-thread-group-identity {
+  gap: 11px;
+}
+
+.organization-thread-group-identity > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.organization-thread-group-identity strong,
+.organization-thread-group-identity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.organization-thread-group-identity strong {
+  font-size: 0.82rem;
+}
+
+.organization-thread-group-identity small {
+  color: #5f6368;
+  font-size: 0.62rem;
+}
+
+.organization-thread-group-icon {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #e8f0fe;
+  color: #1967d2;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.organization-thread-group-status {
+  flex: 0 0 auto;
+  gap: 9px;
+}
+
+.organization-thread-group-unread {
+  display: inline-flex;
+  min-width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #d93025;
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+.organization-thread-group-chevron {
+  color: #1967d2;
+  font-size: 1rem;
+  transition: transform 160ms ease;
+}
+
+.organization-thread-group:not([open]) .organization-thread-group-chevron {
+  transform: rotate(-90deg);
+}
+
+.organization-thread-children {
+  display: grid;
+  gap: 9px;
+  padding: 0 10px 10px 26px;
+}
+
+.thread-list-item.organization-thread-child {
+  min-height: 120px;
+  background: #fff;
+}
+
 .thread-list-item {
   position: relative;
   gap: 10px;
@@ -4808,6 +4922,19 @@ footer {
 
   .thread-list-item {
     min-height: 126px;
+  }
+
+  .organization-thread-group-summary {
+    min-height: 66px;
+    padding: 11px 12px;
+  }
+
+  .organization-thread-children {
+    padding: 0 7px 8px 14px;
+  }
+
+  .thread-list-item.organization-thread-child {
+    min-height: 118px;
   }
 
   .thread-detail-route {

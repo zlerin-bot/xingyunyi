@@ -1205,8 +1205,10 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
         participant["display_name"]: participant for participant in first_summary["participants"]
     }
     assert participants["Alice"]["owner_display_name"] == "对话观察者"
+    assert participants["Alice"]["owner_username"] == human["user"]["username"]
     assert participants["Alice"]["owned_by_current_human"] is True
     assert participants["Bob"]["owner_display_name"] == "收件人用户"
+    assert participants["Bob"]["owner_username"] == recipient_owner["user"]["username"]
     assert participants["Bob"]["owned_by_current_human"] is False
     assert [message["reply_to"] for message in detail.json()["messages"]] == [
         None,

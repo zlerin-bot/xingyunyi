@@ -701,8 +701,36 @@ def _orbit_message_agent(
         display_name=agent.display_name,
         agent_type=connector_types.get(agent.id),
         owner_display_name=owner.display_name if owner is not None else None,
+        owner_username=owner.username if owner is not None else None,
         owned_by_current_human=owner is not None and owner.id == current_human_id,
     )
+
+
+def _requested_responder_agents(
+    metadata: dict[str, object],
+    agents_by_id: dict[UUID, Agent],
+    connector_types: dict[UUID, str],
+    owner_humans: dict[UUID, HumanUser],
+    current_human_id: UUID,
+) -> list[OrbitMessageAgent]:
+    responders: list[OrbitMessageAgent] = []
+    for raw_agent_id in metadata.get("requested_responder_agent_ids", []):
+        try:
+            agent_id = UUID(str(raw_agent_id))
+        except (TypeError, ValueError):
+            continue
+        agent = agents_by_id.get(agent_id)
+        if agent is None:
+            continue
+        responders.append(
+            _orbit_message_agent(
+                agent,
+                connector_types,
+                owner_humans,
+                current_human_id,
+            )
+        )
+    return responders
 
 
 def _as_utc(value: datetime | None) -> datetime | None:
@@ -733,6 +761,7 @@ def _orbit_message(
     task_results: dict[str, Message],
     connector_types: dict[UUID, str],
     owner_humans: dict[UUID, HumanUser],
+    agents_by_id: dict[UUID, Agent],
     current_human_id: UUID,
 ) -> OrbitMessage:
     message, delivery, sender, recipient = row
@@ -814,6 +843,13 @@ def _orbit_message(
         requested_responder_addresses=[
             str(address) for address in metadata.get("requested_responder_addresses", [])
         ],
+        requested_responders=_requested_responder_agents(
+            metadata,
+            agents_by_id,
+            connector_types,
+            owner_humans,
+            current_human_id,
+        ),
         organization_recipient_count=int(metadata.get("organization_recipient_count") or 0),
         created_at=message.created_at,
     )
@@ -828,6 +864,7 @@ def list_orbit_messages(
     entries = list_agent_access(session, user)
     role_map = {entry.agent.id: entry.role for entry in entries}
     entries_by_agent = {entry.agent.id: entry for entry in entries}
+    agents_by_id = {entry.agent.id: entry.agent for entry in entries}
     rows = [
         row
         for row in _message_rows(session, agent_ids=set(role_map), limit=limit)
@@ -838,7 +875,7 @@ def list_orbit_messages(
     connector_types = _connector_types_for_agents(session, set(role_map))
     owner_humans = _owner_humans_for_agents(
         session,
-        {agent.id for row in rows for agent in row[2:]},
+        set(role_map) | {agent.id for row in rows for agent in row[2:]},
     )
     return [
         _orbit_message(
@@ -847,6 +884,7 @@ def list_orbit_messages(
             task_results=task_results,
             connector_types=connector_types,
             owner_humans=owner_humans,
+            agents_by_id=agents_by_id,
             current_human_id=user.id,
         )
         for row in rows
@@ -975,7 +1013,7 @@ def _orbit_thread_data(
         _connector_types_for_agents(session, agent_ids),
         _owner_humans_for_agents(
             session,
-            {agent.id for row in rows for agent in row[2:]},
+            agent_ids | {agent.id for row in rows for agent in row[2:]},
         ),
         grouped,
         task_results,
@@ -1094,6 +1132,18 @@ def list_orbit_threads(
                     == "organization"
                     else "direct"
                 ),
+                organization_id=(
+                    UUID(str((latest_message.message_metadata or {})["organization_id"]))
+                    if (latest_message.message_metadata or {}).get("channel_scope")
+                    == "organization"
+                    and (latest_message.message_metadata or {}).get("organization_id")
+                    else None
+                ),
+                organization_name=(
+                    str((latest_message.message_metadata or {})["organization_name"])
+                    if (latest_message.message_metadata or {}).get("organization_name")
+                    else None
+                ),
                 latest_message_id=latest_message.id,
                 latest_message_type=latest_message.message_type,
                 latest_message_summary=(latest_message.content_body if latest_allowed else None),
@@ -1140,6 +1190,7 @@ def get_orbit_thread(
         participant_agents[sender.id] = sender
         participant_agents[recipient.id] = recipient
     entries_by_agent = {entry.agent.id: entry for entry in entries}
+    agents_by_id = {entry.agent.id: entry.agent for entry in entries}
     thread_view = session.get(HumanThreadView, (user.id, thread_id))
     latest_message = rows[-1][0]
     return OrbitThreadDetail(
@@ -1172,6 +1223,7 @@ def get_orbit_thread(
                 task_results=task_results,
                 connector_types=connector_types,
                 owner_humans=owner_humans,
+                agents_by_id=agents_by_id,
                 current_human_id=user.id,
             )
             for row in rows
@@ -1360,8 +1412,9 @@ def build_orbit_dashboard(
     connector_types = _connector_types_for_agents(session, agent_ids)
     owner_humans = _owner_humans_for_agents(
         session,
-        {agent.id for row in recent_rows for agent in row[2:]},
+        agent_ids | {agent.id for row in recent_rows for agent in row[2:]},
     )
+    agents_by_id = {entry.agent.id: entry.agent for entry in entries}
     recent_messages = [
         _orbit_message(
             row,
@@ -1369,6 +1422,7 @@ def build_orbit_dashboard(
             task_results=recent_task_results,
             connector_types=connector_types,
             owner_humans=owner_humans,
+            agents_by_id=agents_by_id,
             current_human_id=user.id,
         )
         for row in recent_rows

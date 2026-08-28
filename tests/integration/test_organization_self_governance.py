@@ -81,7 +81,12 @@ def _assign_agent_to_organization(
     assert response.status_code == 200, response.text
 
 
-def _register(client: TestClient, email: str) -> dict[str, object]:
+def _register(
+    client: TestClient,
+    email: str,
+    *,
+    username: str | None = None,
+) -> dict[str, object]:
     challenge = client.post(
         "/api/v1/auth/email/challenges",
         json={"email": email, "purpose": "register"},
@@ -95,6 +100,7 @@ def _register(client: TestClient, email: str) -> dict[str, object]:
             "code": payload["test_verification_code"],
             "display_name": email.split("@", 1)[0],
             "password": PASSWORD,
+            **({"username": username} if username is not None else {}),
         },
     )
     assert registered.status_code == 201, registered.text
@@ -293,13 +299,19 @@ def test_default_agents_make_a_new_organization_channel_immediately_usable(
         assert owner_channel.status_code == 200, owner_channel.text
         assert owner_channel.json()["organization_id"] == organization_id
 
-        member = _register(client, "default-member@example.com")
+        member = _register(client, "default-member@example.com", username="020")
         member_agent = _create_agent(client, "default-member-agent@agents.local")
         _set_agent_owner(
             client,
             human_id=str(member["user"]["id"]),
             agent_id=str(member_agent["agent"]["id"]),
         )
+        handle = client.patch(
+            f"/api/v1/orbit/agents/{member_agent['agent']['id']}/handle",
+            headers={"X-CSRF-Token": member["csrf_token"]},
+            json={"handle": "pa020"},
+        )
+        assert handle.status_code == 200, handle.text
         set_member = client.put(
             f"/api/v1/admin/organizations/{organization_id}/members/{member['user']['id']}",
             headers=_admin_headers(),
@@ -335,6 +347,20 @@ def test_default_agents_make_a_new_organization_channel_immediately_usable(
         )
         assert member_inbox.status_code == 200, member_inbox.text
         assert member_inbox.json()["items"][-1]["content"]["body"] == "请 020 的默认 Agent 回复。"
+        orbit_threads = client.get("/api/v1/orbit/threads")
+        assert orbit_threads.status_code == 200, orbit_threads.text
+        orbit_summary = next(
+            item
+            for item in orbit_threads.json()
+            if item["thread_id"] == channel_message.json()["thread_id"]
+        )
+        assert orbit_summary["organization_id"] == organization_id
+        assert orbit_summary["organization_name"] == "北辰组织"
+        orbit_thread = client.get(f"/api/v1/orbit/threads/{channel_message.json()['thread_id']}")
+        assert orbit_thread.status_code == 200, orbit_thread.text
+        requested = orbit_thread.json()["messages"][0]["requested_responders"]
+        assert requested[0]["owner_username"] == "020"
+        assert requested[0]["handle"] == "pa020"
 
 
 def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(

@@ -1,12 +1,32 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.26-deployed-https-verified`
+- 交接阶段：`organization-thread-grouping-local-verified`
 - 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：“组织群立即可见 + 默认 Agent 自动参与”已随 0.1.26 部署并完成独立 HTTPS 后检
-- 当前生产状态：`2c143c6 / 0.1.26`，schema 为 `0024_human_default_agent`；功能提交为 `9962126`
+- 阶段性质：星轨组织群父子对话与点名回复者友好名称已完成本地实现和验收，尚未部署
+- 当前生产状态：仍为 `2c143c6 / 0.1.26`，schema 为 `0024_human_default_agent`；本地新切片待提交
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 星轨组织群父子对话与回复者名称（本地已验证，待部署）
+
+生产 0.1.26 的组织消息数据本身已正确带有 `channel_scope=organization`、组织 ID 和独立持久化
+`thread_id`，但星轨中栏仍把每个组织 Thread 与私聊并列，只把组织名显示成标签，因此用户会误以为
+消息发在群外。当前本地切片保持“一项完整话题一个 Thread”的事实模型，在中栏新增“组织群父节点 →
+完整话题子对话”投影；群父节点汇总话题数和 Human 未读数，支持折叠/展开，空群仍立即可见。移动端
+沿用同一父子结构并保持“列表 → 详情 → 返回列表”，没有新增一级页签。
+
+组织消息的点名回复者不再从 `requested_responder_addresses` 直接渲染完整技术地址。Orbit 返回受
+当前 Human 权限约束的结构化 `requested_responders`，包含 Human 唯一用户名和 Agent 短名称；主界面
+统一显示为“Human 用户名 · Agent 短名称”，例如 `020 · pa020`。原始地址字段只保留协议兼容，不再
+进入 Human 主展示。Thread 摘要同时显式返回组织 ID 和名称，避免同一参与者加入多个组织时凭关系
+列表猜错父节点。
+
+本地证据：Ruff check/format、JavaScript syntax、Orbit JavaScript 26 passed；完整
+non-PostgreSQL 回归 461 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected。
+隔离 Orbit 在桌面端确认组织父节点、子对话、未读汇总和折叠交互；390px 下确认列表/详情分层，
+`document/body scrollWidth = 390`，控制台无 warning/error。PostgreSQL 专属测试未运行，生产尚未
+上传或切换，当前生产仍为 0.1.26。
 
 ### 组织群立即可见与默认 Agent 自动参与（0.1.26 已部署并完成 HTTPS 后检）
 

@@ -3129,7 +3129,7 @@ function agentOwnerLabel(agent, { currentAsMe = false } = {}) {
   if (currentAsMe && agent?.owned_by_current_human) {
     return "我";
   }
-  return safeText(agent?.owner_display_name, "归属人待确认");
+  return safeText(agent?.owner_username, agent?.owner_display_name || "归属人待确认");
 }
 
 function agentConversationLabel(agent, options = {}) {
@@ -3225,9 +3225,10 @@ function renderThreadOrganizationOptions() {
 
 function visibleThreadSummaries() {
   const organizationsWithThreads = new Set(
-    state.threads.flatMap((thread) => (thread.organizations || []).map(
-      (organization) => String(organization.id),
-    )),
+    state.threads
+      .filter((thread) => thread.channel_scope === "organization")
+      .map((thread) => String(thread.organization_id || (thread.organizations || [])[0]?.id || ""))
+      .filter(Boolean),
   );
   const organizationChannels = (state.dashboard?.organizations || [])
     .filter((organization) => !organizationsWithThreads.has(String(organization.id)))
@@ -3245,6 +3246,8 @@ function visibleThreadSummaries() {
       exception_count: 0,
       conversation_state: "updated",
       channel_scope: "organization",
+      organization_id: organization.id,
+      organization_name: safeText(organization.name, organization.slug),
       organizations: [organization],
       virtual_organization_channel: true,
     }));
@@ -3281,7 +3284,9 @@ function conversationStateLabel(value) {
 }
 
 function renderThreadParentSummary() {
-  const total = visibleThreadSummaries().length;
+  const total = visibleThreadSummaries().filter(
+    (thread) => !thread.virtual_organization_channel,
+  ).length;
   const unread = visibleThreadSummaries().filter(
     (thread) => thread.human_view_state === "unread",
   ).length;
@@ -3291,10 +3296,74 @@ function renderThreadParentSummary() {
   elements.threadUnreadCount.hidden = unread === 0;
 }
 
+function threadOrganization(thread) {
+  if (thread.channel_scope !== "organization") {
+    return null;
+  }
+  return (thread.organizations || []).find(
+    (organization) => String(organization.id) === String(thread.organization_id),
+  ) || (thread.organizations || [])[0] || (thread.organization_id ? {
+    id: thread.organization_id,
+    name: thread.organization_name || "组织协作",
+  } : null);
+}
+
+function createOrganizationThreadGroup(organization, threadButtons, threads) {
+  const group = document.createElement("details");
+  group.className = "organization-thread-group";
+  group.open = true;
+  const summary = document.createElement("summary");
+  summary.className = "organization-thread-group-summary";
+  const identity = document.createElement("span");
+  identity.className = "organization-thread-group-identity";
+  const icon = document.createElement("span");
+  icon.className = "organization-thread-group-icon";
+  icon.textContent = "群";
+  icon.setAttribute("aria-hidden", "true");
+  const copy = document.createElement("span");
+  const title = document.createElement("strong");
+  title.textContent = safeText(organization?.name, organization?.slug || "组织群聊");
+  const subtitle = document.createElement("small");
+  subtitle.textContent = threadButtons.length
+    ? `${threadButtons.length} 个对话 · 全部组织 Agent 可读`
+    : "群聊已建立 · 暂无对话";
+  copy.append(title, subtitle);
+  identity.append(icon, copy);
+  const status = document.createElement("span");
+  status.className = "organization-thread-group-status";
+  const unreadCount = threads.filter(
+    (thread) => !thread.virtual_organization_channel && thread.human_view_state === "unread",
+  ).length;
+  if (unreadCount) {
+    const unread = document.createElement("span");
+    unread.className = "organization-thread-group-unread";
+    unread.textContent = String(unreadCount);
+    unread.setAttribute("aria-label", `${unreadCount} 个对话尚未查看`);
+    status.append(unread);
+  }
+  const chevron = document.createElement("span");
+  chevron.className = "organization-thread-group-chevron";
+  chevron.textContent = "⌄";
+  chevron.setAttribute("aria-hidden", "true");
+  status.append(chevron);
+  summary.append(identity, status);
+  const children = document.createElement("div");
+  children.className = "organization-thread-children";
+  if (threadButtons.length) {
+    threadButtons.forEach((button) => children.append(button));
+  } else {
+    children.append(emptyState("群里还没有对话。通过这个组织发送的消息会集中显示在这里。"));
+  }
+  group.append(summary, children);
+  return group;
+}
+
 function renderThreadList() {
   elements.threadList.replaceChildren();
   const threads = visibleThreadSummaries();
-  elements.threadCount.textContent = `${threads.length} 个`;
+  const realThreadCount = threads.filter((thread) => !thread.virtual_organization_channel).length;
+  const organizationGroups = new Map();
+  elements.threadCount.textContent = `${realThreadCount} 个对话`;
   renderThreadParentSummary();
   if (!threads.length) {
     const hasAgents = Array.isArray(state.dashboard?.agents) && state.dashboard.agents.length > 0;
@@ -3315,6 +3384,20 @@ function renderThreadList() {
   }
   const fragment = document.createDocumentFragment();
   threads.forEach((thread) => {
+    const organization = threadOrganization(thread);
+    if (organization && !organizationGroups.has(String(organization.id))) {
+      organizationGroups.set(String(organization.id), {
+        organization,
+        buttons: [],
+        threads: [],
+      });
+    }
+    if (organization) {
+      organizationGroups.get(String(organization.id)).threads.push(thread);
+    }
+    if (thread.virtual_organization_channel) {
+      return;
+    }
     const button = document.createElement("button");
     button.type = "button";
     button.className = "thread-list-item";
@@ -3355,7 +3438,7 @@ function renderThreadList() {
     );
     const names = document.createElement("span");
     names.className = "thread-participant-names";
-    const channelOrganization = (thread.organizations || [])[0];
+    const channelOrganization = threadOrganization(thread);
     names.textContent = thread.virtual_organization_channel && channelOrganization
       ? `${Number(channelOrganization.member_count || 0)} 位成员 · ${Number(channelOrganization.agent_count || 0)} 个参与 Agent`
       : thread.channel_scope === "organization" && channelOrganization
@@ -3385,12 +3468,6 @@ function renderThreadList() {
     }
     if (thread.attachment_count) markerValues.push([`附件 ${thread.attachment_count}`, ""]);
     if (thread.exception_count) markerValues.push([`异常 ${thread.exception_count}`, "exception"]);
-    if (thread.channel_scope === "organization") {
-      markerValues.push(["组织协作", "organization"]);
-    }
-    (thread.organizations || []).forEach((organization) => {
-      markerValues.push([safeText(organization.name), "organization"]);
-    });
     markerValues.forEach(([label, className]) => {
       const marker = document.createElement("span");
       marker.className = `thread-marker ${className}`.trim();
@@ -3399,9 +3476,19 @@ function renderThreadList() {
     });
     button.append(top, participants, preview, markers);
     button.addEventListener("click", () => selectThread(String(thread.thread_id)));
-    fragment.append(button);
+    if (organization) {
+      button.classList.add("organization-thread-child");
+      organizationGroups.get(String(organization.id)).buttons.push(button);
+    } else {
+      fragment.append(button);
+    }
   });
-  elements.threadList.append(fragment);
+  const groupedFragment = document.createDocumentFragment();
+  organizationGroups.forEach(({ organization, buttons, threads: groupThreads }) => {
+    groupedFragment.append(createOrganizationThreadGroup(organization, buttons, groupThreads));
+  });
+  groupedFragment.append(fragment);
+  elements.threadList.append(groupedFragment);
 }
 
 function setThreadDetailEmpty(title, copy) {
@@ -3734,8 +3821,11 @@ function renderTimelineMessage(message, messagesById, repliedMessageIds) {
   identity.append(sender, type, time);
   const route = document.createElement("div");
   route.className = "thread-message-route";
+  const requestedResponderLabels = (message.requested_responders || []).map(
+    (agent) => agentConversationLabel(agent),
+  );
   route.textContent = message.channel_scope === "organization"
-    ? `发送到：${safeText(message.organization_name, "组织协作")} · 全部组织 Agent 可读${message.requested_responder_addresses?.length ? ` · 请 ${message.requested_responder_addresses.join("、")} 回复` : " · 无指定回复人"}`
+    ? `发送到：${safeText(message.organization_name, "组织协作")} · 全部组织 Agent 可读${requestedResponderLabels.length ? ` · 请 ${requestedResponderLabels.join("、")} 回复` : " · 无指定回复人"}`
     : `发送给：${agentConversationLabel(message.recipient, { currentAsMe: true })} · ${agentTypeLabel(message.recipient)}`;
   const subject = document.createElement("strong");
   subject.className = "thread-message-subject";

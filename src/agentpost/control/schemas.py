@@ -223,6 +223,7 @@ class OrbitMessageAgent(ControlModel):
     display_name: str
     agent_type: str | None = None
     owner_display_name: str | None = None
+    owner_username: str | None = None
     owned_by_current_human: bool = False
 
 
@@ -260,6 +261,7 @@ class OrbitMessage(ControlModel):
     organization_id: UUID | None = None
     organization_name: str | None = None
     requested_responder_addresses: list[str] = Field(default_factory=list)
+    requested_responders: list[OrbitMessageAgent] = Field(default_factory=list)
     organization_recipient_count: int = 0
     created_at: datetime
 
@@ -270,6 +272,8 @@ class OrbitThreadSummary(ControlModel):
     participants: list[OrbitMessageAgent]
     organizations: list[OrbitOrganizationReference] = Field(default_factory=list)
     channel_scope: Literal["direct", "organization"] = "direct"
+    organization_id: UUID | None = None
+    organization_name: str | None = None
     latest_message_id: str
     latest_message_type: str
     latest_message_summary: JsonValue | None
