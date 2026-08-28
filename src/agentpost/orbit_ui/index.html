@@ -216,6 +216,7 @@
           </nav>
           <section id="thread-browser" class="thread-browser" hidden aria-label="对话列表">
             <span id="thread-count" class="visually-hidden">0 个</span>
+            <button id="thread-archive-library" type="button" class="thread-archive-library" data-thread-filter="archived" aria-pressed="false">已归档对话</button>
             <details class="thread-tools">
               <summary>搜索与筛选</summary>
               <div class="thread-tools-body">
@@ -416,6 +417,7 @@
                 </div>
                 <div class="thread-detail-actions">
                   <span id="thread-detail-state" class="conversation-state-pill">对话进行中</span>
+                  <button id="thread-archive" type="button" class="quiet-button">从我的对话删除</button>
                   <button id="thread-latest" type="button" class="quiet-button">回到最新</button>
                 </div>
               </div>
@@ -1007,6 +1009,28 @@
         <div class="dialog-actions">
           <button id="delete-agent-cancel" type="button" class="quiet-button">返回</button>
           <button id="delete-agent-submit" type="submit" class="approval-submit danger-submit">确认删除</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="thread-archive-dialog" class="approval-dialog" aria-labelledby="thread-archive-dialog-title">
+      <form id="thread-archive-form" method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <p class="section-tag">整理我的对话</p>
+            <h2 id="thread-archive-dialog-title">删除这条对话</h2>
+          </div>
+          <button id="thread-archive-close" type="button" class="dialog-close" aria-label="关闭窗口">×</button>
+        </div>
+        <p id="thread-archive-summary" class="dialog-summary"></p>
+        <input id="thread-archive-id" type="hidden">
+        <div class="trust-banner">
+          这只会让当前完整对话从你的“我的对话”中隐藏。服务器消息、其他 Human 的界面，以及 Agent 的送达、已读和任务状态都不会改变；之后可在“已归档对话”中恢复。
+        </div>
+        <p id="thread-archive-result" class="form-status" role="status"></p>
+        <div class="dialog-actions">
+          <button id="thread-archive-cancel" type="button" class="quiet-button">取消</button>
+          <button id="thread-archive-submit" type="submit" class="approval-submit">确认删除</button>
         </div>
       </form>
     </dialog>

@@ -347,6 +347,20 @@ def test_default_agents_make_a_new_organization_channel_immediately_usable(
         )
         assert member_inbox.status_code == 200, member_inbox.text
         assert member_inbox.json()["items"][-1]["content"]["body"] == "请 020 的默认 Agent 回复。"
+        channel_message_id = member_inbox.json()["items"][-1]["message_id"]
+        reply = client.post(
+            f"/api/v1/messages/{channel_message_id}/reply",
+            headers={
+                "Authorization": f"Bearer {member_agent['api_key']}",
+                "Idempotency-Key": "default-participant-channel-reply",
+            },
+            json={
+                "type": "response",
+                "subject": "已收到组织协作",
+                "content": {"format": "text", "body": "收到，我来处理。"},
+            },
+        )
+        assert reply.status_code == 201, reply.text
         orbit_threads = client.get("/api/v1/orbit/threads")
         assert orbit_threads.status_code == 200, orbit_threads.text
         orbit_summary = next(

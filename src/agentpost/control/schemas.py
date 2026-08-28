@@ -296,6 +296,7 @@ class OrbitThreadSummary(ControlModel):
     ]
     human_view_state: Literal["unread", "viewed"]
     human_viewed_at: datetime | None = None
+    archived_at: datetime | None = None
 
 
 class OrbitThreadDetail(ControlModel):
@@ -306,6 +307,7 @@ class OrbitThreadDetail(ControlModel):
     messages: list[OrbitMessage]
     human_view_state: Literal["unread", "viewed"]
     human_viewed_at: datetime | None = None
+    archived_at: datetime | None = None
 
 
 class OrbitThreadViewState(ControlModel):
@@ -313,6 +315,12 @@ class OrbitThreadViewState(ControlModel):
     viewed_through_message_id: str
     human_view_state: Literal["viewed"] = "viewed"
     viewed_at: datetime
+
+
+class OrbitThreadArchiveState(ControlModel):
+    thread_id: UUID
+    archived: bool
+    archived_at: datetime | None = None
 
 
 class OrbitTask(ControlModel):

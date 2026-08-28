@@ -33,6 +33,7 @@
 - 组织协作与个人对话必须明确分流：未明确说出组织或频道时默认发送个人对话；明确发送到组织时，同一组织内已加入的 Agent 都能读取完整上下文，但只有 `requested_responder_agent_ids` 指定的 Agent 需要自动回复或执行任务。未被指定的 Agent 只同步上下文，不得自动抢答。组织视图只能读取 Agent 加入组织后、且由服务端写入匹配 `organization_id` 的组织频道消息；加入前历史和加入后的个人对话始终保持私密。Human 在星轨以类似群聊的方式监控组织频道，但不得冒充 Agent 发送消息。
 - 读取星轨页面、搜索或打开 Thread 不得改变 Delivery、`read`、ACK 或 Agent 工作状态。
 - Human 是否查看某个 Thread 由 `human_thread_views` 按 `human_user_id + thread_id` 独立保存；只有明确打开完整对话并成功写入最新消息游标后才能清除红点，新消息到达后必须重新显示未读。该状态不得反写或推导 Agent 的 Delivery、`read`、ACK 与任务完成状态。
+- Human 在“我的对话”中删除记录时，只能按完整 `thread_id` 写入当前 Human 自己的可恢复归档；不得删除服务器消息、拆散回复链，或影响其他 Human 的视图以及 Agent 的 Delivery、`read`、ACK 和任务状态。归档对话必须集中可查并支持恢复，新消息到达也不得擅自替 Human 自动恢复。
 - `delivered`、`read`、ACK、任务完成和 Human 审批是不同事实，展示和测试中不得互相替代。
 - Codex、WorkBuddy、豆包工作、OpenClaw、Hermes 和 Manus 的已发布接入适配器均对 macOS、Linux、Windows 开放。公开 `host_setup_platforms`、生产环境和安装引导必须保持一致，不得因某一轮真实宿主验收记录尚未补齐而拒绝已发布的平台。“适配器可安装/可接入”与“当前版本在该真实宿主完成验收”是两个事实：前者决定发布门禁，后者只能作为验收证据单独记录。
 - 本机 Connector bootstrap 默认按“宿主类型 + 固定发行版本”创建独立 runtime，不得让 Codex、

@@ -104,6 +104,7 @@ const elements = {
   threadSearchInput: document.querySelector("#thread-search-input"),
   threadOrganizationFilter: document.querySelector("#thread-organization-filter"),
   threadFilters: Array.from(document.querySelectorAll("[data-thread-filter]")),
+  threadArchiveLibrary: document.querySelector("#thread-archive-library"),
   threadList: document.querySelector("#thread-list"),
   threadMobileBack: document.querySelector("#thread-mobile-back"),
   threadDetailEmpty: document.querySelector("#thread-detail-empty"),
@@ -113,7 +114,16 @@ const elements = {
   threadDetailRoute: document.querySelector("#thread-detail-route"),
   threadDetailState: document.querySelector("#thread-detail-state"),
   threadDetailParticipants: document.querySelector("#thread-detail-participants"),
+  threadArchive: document.querySelector("#thread-archive"),
   threadLatest: document.querySelector("#thread-latest"),
+  threadArchiveDialog: document.querySelector("#thread-archive-dialog"),
+  threadArchiveForm: document.querySelector("#thread-archive-form"),
+  threadArchiveClose: document.querySelector("#thread-archive-close"),
+  threadArchiveCancel: document.querySelector("#thread-archive-cancel"),
+  threadArchiveSummary: document.querySelector("#thread-archive-summary"),
+  threadArchiveId: document.querySelector("#thread-archive-id"),
+  threadArchiveResult: document.querySelector("#thread-archive-result"),
+  threadArchiveSubmit: document.querySelector("#thread-archive-submit"),
   agentBrowser: document.querySelector("#agent-browser"),
   agentBrowserCount: document.querySelector("#agent-browser-count"),
   agentSearchInput: document.querySelector("#agent-search-input"),
@@ -3230,7 +3240,7 @@ function visibleThreadSummaries() {
       .map((thread) => String(thread.organization_id || (thread.organizations || [])[0]?.id || ""))
       .filter(Boolean),
   );
-  const organizationChannels = (state.dashboard?.organizations || [])
+  const organizationChannels = state.threadFilter === "archived" ? [] : (state.dashboard?.organizations || [])
     .filter((organization) => !organizationsWithThreads.has(String(organization.id)))
     .map((organization) => ({
       thread_id: `organization:${organization.id}`,
@@ -3291,7 +3301,8 @@ function renderThreadParentSummary() {
     (thread) => thread.human_view_state === "unread",
   ).length;
   const stateLabel = state.threadBrowserExpanded ? "已展开" : "已折叠";
-  elements.threadParentSummary.textContent = `${stateLabel} · ${total} 个完整对话`;
+  const scopeLabel = state.threadFilter === "archived" ? "已归档" : stateLabel;
+  elements.threadParentSummary.textContent = `${scopeLabel} · ${total} 个完整对话`;
   elements.threadUnreadCount.textContent = String(unread);
   elements.threadUnreadCount.hidden = unread === 0;
 }
@@ -3308,7 +3319,7 @@ function threadOrganization(thread) {
   } : null);
 }
 
-function createOrganizationThreadGroup(organization, threadButtons, threads) {
+function createOrganizationThreadGroup(organization, threadEntries, threads) {
   const group = document.createElement("details");
   group.className = "organization-thread-group";
   group.open = true;
@@ -3324,8 +3335,8 @@ function createOrganizationThreadGroup(organization, threadButtons, threads) {
   const title = document.createElement("strong");
   title.textContent = safeText(organization?.name, organization?.slug || "组织群聊");
   const subtitle = document.createElement("small");
-  subtitle.textContent = threadButtons.length
-    ? `${threadButtons.length} 个对话 · 全部组织 Agent 可读`
+  subtitle.textContent = threadEntries.length
+    ? `${threadEntries.length} 个对话 · 全部组织 Agent 可读`
     : "群聊已建立 · 暂无对话";
   copy.append(title, subtitle);
   identity.append(icon, copy);
@@ -3349,8 +3360,8 @@ function createOrganizationThreadGroup(organization, threadButtons, threads) {
   summary.append(identity, status);
   const children = document.createElement("div");
   children.className = "organization-thread-children";
-  if (threadButtons.length) {
-    threadButtons.forEach((button) => children.append(button));
+  if (threadEntries.length) {
+    threadEntries.forEach((entry) => children.append(entry));
   } else {
     children.append(emptyState("群里还没有对话。通过这个组织发送的消息会集中显示在这里。"));
   }
@@ -3360,6 +3371,9 @@ function createOrganizationThreadGroup(organization, threadButtons, threads) {
 
 function renderThreadList() {
   elements.threadList.replaceChildren();
+  elements.threadArchiveLibrary.textContent = state.threadFilter === "archived"
+    ? "‹ 返回我的对话"
+    : "已归档对话";
   const threads = visibleThreadSummaries();
   const realThreadCount = threads.filter((thread) => !thread.virtual_organization_channel).length;
   const organizationGroups = new Map();
@@ -3369,6 +3383,8 @@ function renderThreadList() {
     const hasAgents = Array.isArray(state.dashboard?.agents) && state.dashboard.agents.length > 0;
     if (state.threadQuery) {
       elements.threadList.append(emptyState("没有找到你有权查看且符合搜索条件的对话。"));
+    } else if (state.threadFilter === "archived") {
+      elements.threadList.append(emptyState("已归档对话会集中显示在这里，恢复后会回到“我的对话”。"));
     } else if (state.threadFilter === "exception") {
       elements.threadList.append(emptyState("当前授权范围内没有异常对话。"));
     } else if (hasAgents) {
@@ -3388,7 +3404,7 @@ function renderThreadList() {
     if (organization && !organizationGroups.has(String(organization.id))) {
       organizationGroups.set(String(organization.id), {
         organization,
-        buttons: [],
+        entries: [],
         threads: [],
       });
     }
@@ -3476,16 +3492,35 @@ function renderThreadList() {
     });
     button.append(top, participants, preview, markers);
     button.addEventListener("click", () => selectThread(String(thread.thread_id)));
+    const entry = document.createElement("div");
+    entry.className = "thread-list-entry";
+    const archiveAction = document.createElement("button");
+    archiveAction.type = "button";
+    archiveAction.className = "thread-list-archive-action";
+    archiveAction.textContent = state.threadFilter === "archived" ? "恢复" : "删除";
+    archiveAction.setAttribute(
+      "aria-label",
+      `${state.threadFilter === "archived" ? "恢复" : "从我的对话删除"}：${safeText(thread.topic, "无主题对话")}`,
+    );
+    archiveAction.addEventListener("click", async () => {
+      if (state.threadFilter === "archived") {
+        await restoreThread(String(thread.thread_id));
+      } else {
+        openThreadArchiveDialog(thread);
+      }
+    });
+    entry.append(button, archiveAction);
     if (organization) {
       button.classList.add("organization-thread-child");
-      organizationGroups.get(String(organization.id)).buttons.push(button);
+      entry.classList.add("organization-thread-child-entry");
+      organizationGroups.get(String(organization.id)).entries.push(entry);
     } else {
-      fragment.append(button);
+      fragment.append(entry);
     }
   });
   const groupedFragment = document.createDocumentFragment();
-  organizationGroups.forEach(({ organization, buttons, threads: groupThreads }) => {
-    groupedFragment.append(createOrganizationThreadGroup(organization, buttons, groupThreads));
+  organizationGroups.forEach(({ organization, entries, threads: groupThreads }) => {
+    groupedFragment.append(createOrganizationThreadGroup(organization, entries, groupThreads));
   });
   groupedFragment.append(fragment);
   elements.threadList.append(groupedFragment);
@@ -3932,6 +3967,8 @@ function renderThreadDetail(thread) {
     : pending
     ? "正在协作"
     : "对话进行中";
+  const archived = Boolean(thread.archived_at) || state.threadFilter === "archived";
+  elements.threadArchive.textContent = archived ? "恢复到我的对话" : "从我的对话删除";
   const messagesById = new Map(messages.map((message) => [message.message_id, message]));
   const repliedMessageIds = new Set(messages.map((message) => message.reply_to).filter(Boolean));
   let lastDate = "";
@@ -4055,7 +4092,45 @@ function threadListEndpoint() {
   if (state.threadQuery) {
     parameters.set("query", state.threadQuery);
   }
+  if (state.threadFilter === "archived") {
+    parameters.set("archived", "true");
+  }
   return `/api/v1/orbit/threads?${parameters.toString()}`;
+}
+
+function openThreadArchiveDialog(thread) {
+  elements.threadArchiveId.value = String(thread.thread_id);
+  elements.threadArchiveSummary.textContent = `“${safeText(thread.topic, "无主题对话")}”将从你的“我的对话”中隐藏。服务器消息不会删除。`;
+  elements.threadArchiveResult.textContent = "";
+  elements.threadArchiveDialog.showModal();
+}
+
+function closeThreadArchiveDialog() {
+  elements.threadArchiveDialog.close();
+  elements.threadArchiveForm.reset();
+  elements.threadArchiveResult.textContent = "";
+}
+
+async function archiveThread(threadId) {
+  await requestJson(`/api/v1/orbit/threads/${encodeURIComponent(threadId)}/archive`, {
+    method: "PUT",
+    headers: { "X-CSRF-Token": state.csrfToken },
+  });
+  if (state.selectedThreadId === String(threadId)) {
+    clearThreadSelection({ updateHistory: true });
+  }
+  await loadThreads({ loadSelection: false });
+}
+
+async function restoreThread(threadId) {
+  await requestJson(`/api/v1/orbit/threads/${encodeURIComponent(threadId)}/archive`, {
+    method: "DELETE",
+    headers: { "X-CSRF-Token": state.csrfToken },
+  });
+  if (state.selectedThreadId === String(threadId)) {
+    clearThreadSelection({ updateHistory: true });
+  }
+  await loadThreads({ loadSelection: false });
 }
 
 async function loadThreads({ loadSelection = true } = {}) {
@@ -4784,11 +4859,14 @@ elements.threadOrganizationFilter.addEventListener("change", () => {
   );
 });
 elements.threadFilters.forEach((button) => {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", async () => {
     if (button.getAttribute("aria-disabled") === "true") {
       return;
     }
-    state.threadFilter = button.dataset.threadFilter || "all";
+    const requestedFilter = button.dataset.threadFilter || "all";
+    state.threadFilter = requestedFilter === "archived" && state.threadFilter === "archived"
+      ? "all"
+      : requestedFilter;
     elements.threadFilters.forEach((item) => {
       const active = item === button;
       item.classList.toggle("active", active);
@@ -4796,15 +4874,20 @@ elements.threadFilters.forEach((button) => {
         item.setAttribute("aria-pressed", String(active));
       }
     });
-    if (!visibleThreadSummaries().some(
-      (thread) => String(thread.thread_id) === state.selectedThreadId,
-    )) {
-      state.selectedThreadId = "";
-      state.selectedThread = null;
-      setThreadDetailEmpty("选择一条协作对话", "当前列表已按真实异常状态筛选。");
-    }
+    state.selectedThreadId = "";
+    state.selectedThread = null;
+    setThreadDetailEmpty(
+      "选择一条协作对话",
+      state.threadFilter === "archived"
+        ? "这里集中保存你从“我的对话”移出的完整对话，可随时恢复。"
+        : "当前列表已按所选范围筛选。",
+    );
     updateThreadWorkspaceMode();
-    renderThreadList();
+    try {
+      await loadThreads({ loadSelection: false });
+    } catch (_error) {
+      elements.threadList.replaceChildren(emptyState("对话列表读取失败，请稍后重试。"));
+    }
     history.replaceState(
       { module: "orbit", section: "communications", thread: state.selectedThreadId || null },
       "",
@@ -4826,6 +4909,40 @@ elements.threadList.addEventListener("keydown", (event) => {
   items[(index + direction + items.length) % items.length].focus();
 });
 elements.threadMobileBack.addEventListener("click", () => clearThreadSelection());
+elements.threadArchive.addEventListener("click", async () => {
+  if (!state.selectedThreadId || !state.selectedThread) {
+    return;
+  }
+  if (Boolean(state.selectedThread.archived_at) || state.threadFilter === "archived") {
+    try {
+      await restoreThread(state.selectedThreadId);
+    } catch (_error) {
+      setThreadDetailEmpty("暂时无法恢复", "请稍后重试，这条对话仍保留在已归档对话中。");
+    }
+    return;
+  }
+  openThreadArchiveDialog(state.selectedThread);
+});
+elements.threadArchiveForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const threadId = elements.threadArchiveId.value;
+  if (!threadId) {
+    return;
+  }
+  elements.threadArchiveSubmit.disabled = true;
+  elements.threadArchiveResult.textContent = "正在整理…";
+  try {
+    await archiveThread(threadId);
+    closeThreadArchiveDialog();
+  } catch (_error) {
+    elements.threadArchiveResult.textContent = "暂时无法移出，请稍后重试。";
+  } finally {
+    elements.threadArchiveSubmit.disabled = false;
+  }
+});
+[elements.threadArchiveClose, elements.threadArchiveCancel].forEach((button) => {
+  button.addEventListener("click", () => closeThreadArchiveDialog());
+});
 elements.threadLatest.addEventListener("click", () => {
   elements.messageList.firstElementChild?.scrollIntoView({ behavior: "smooth", block: "start" });
 });

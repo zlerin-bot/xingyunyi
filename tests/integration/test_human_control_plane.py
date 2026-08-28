@@ -12,6 +12,7 @@ from agentpost.control.models import (
     HumanAccessKey,
     HumanActionAudit,
     HumanSession,
+    HumanThreadArchive,
     HumanThreadView,
     HumanUser,
 )
@@ -1261,6 +1262,54 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
         )
         assert refreshed_summary["human_view_state"] == "unread"
 
+        archived = client.put(
+            f"/api/v1/orbit/threads/{first.json()['thread_id']}/archive",
+            headers=headers,
+        )
+        active_after_archive = client.get("/api/v1/orbit/threads", headers=headers)
+        archived_threads = client.get(
+            "/api/v1/orbit/threads",
+            params={"archived": "true"},
+            headers=headers,
+        )
+        still_readable = client.get(
+            f"/api/v1/orbit/threads/{first.json()['thread_id']}",
+            headers=headers,
+        )
+        denied_archive = client.put(
+            f"/api/v1/orbit/threads/{first.json()['thread_id']}/archive",
+            headers={"Authorization": f"Bearer {outsider['access_key']}"},
+        )
+        assert archived.status_code == 200
+        assert archived.json()["archived"] is True
+        assert all(
+            item["thread_id"] != first.json()["thread_id"] for item in active_after_archive.json()
+        )
+        archived_summary = next(
+            item
+            for item in archived_threads.json()
+            if item["thread_id"] == first.json()["thread_id"]
+        )
+        assert archived_summary["archived_at"] is not None
+        assert still_readable.status_code == 200
+        assert still_readable.json()["archived_at"] is not None
+        assert denied_archive.status_code == 404
+
+        restored = client.delete(
+            f"/api/v1/orbit/threads/{first.json()['thread_id']}/archive",
+            headers=headers,
+        )
+        active_after_restore = client.get("/api/v1/orbit/threads", headers=headers)
+        assert restored.status_code == 200
+        assert restored.json() == {
+            "thread_id": first.json()["thread_id"],
+            "archived": False,
+            "archived_at": None,
+        }
+        assert any(
+            item["thread_id"] == first.json()["thread_id"] for item in active_after_restore.json()
+        )
+
     with database.session_factory() as session:
         stored_view = session.get(
             HumanThreadView,
@@ -1268,6 +1317,13 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
         )
         assert stored_view is not None
         assert stored_view.viewed_through_message_id == reply.json()["message_id"]
+        assert (
+            session.get(
+                HumanThreadArchive,
+                (UUID(human["user"]["id"]), UUID(first.json()["thread_id"])),
+            )
+            is None
+        )
 
 
 def test_human_attachment_open_and_html_preview_are_authorized_and_read_only(

@@ -833,6 +833,54 @@ footer {
   gap: 7px;
 }
 
+.thread-archive-library {
+  width: 100%;
+  min-height: 38px;
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.65rem;
+  cursor: pointer;
+}
+
+.thread-archive-library:hover,
+.thread-archive-library:focus-visible,
+.thread-archive-library.active {
+  border-color: rgba(103, 216, 212, 0.42);
+  background: var(--cyan-soft);
+  color: var(--cyan);
+}
+
+.thread-list-entry {
+  position: relative;
+  min-width: 0;
+}
+
+.thread-list-archive-action {
+  position: absolute;
+  z-index: 1;
+  right: 12px;
+  bottom: 12px;
+  min-height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.61rem;
+  cursor: pointer;
+}
+
+.thread-list-archive-action:hover,
+.thread-list-archive-action:focus-visible {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
 .thread-list-item {
   display: grid;
   width: 100%;
@@ -4639,13 +4687,29 @@ footer {
   background: #fff;
 }
 
+.thread-list-entry.organization-thread-child-entry {
+  min-width: 0;
+}
+
 .thread-list-item {
   position: relative;
   gap: 10px;
   min-height: 132px;
   border-color: #e3e7ed;
   background: #fff;
-  padding: 15px 16px;
+  padding: 15px 16px 48px;
+}
+
+.thread-list-archive-action {
+  border-color: #dadce0;
+  background: #fff;
+  color: #5f6368;
+}
+
+.thread-list-archive-action:hover,
+.thread-list-archive-action:focus-visible {
+  border-color: #8ab4f8;
+  color: #185abc;
 }
 
 .thread-list-item:hover {

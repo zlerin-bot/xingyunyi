@@ -190,6 +190,17 @@ test("conversation identity and attachments expose clear safe actions", () => {
   assert.match(stylesheet, /\.thread-attachment-action/);
 });
 
+test("conversations can be hidden per Human and restored without deleting server messages", () => {
+  assert.match(html, /id="thread-archive-library"[^>]*data-thread-filter="archived"[^>]*>已归档对话</);
+  assert.match(html, /id="thread-archive"[^>]*>从我的对话删除</);
+  assert.match(html, /服务器消息、其他 Human 的界面，以及 Agent 的送达、已读和任务状态都不会改变/);
+  assert.match(script, /parameters\.set\("archived", "true"\)/);
+  assert.match(script, /method: "PUT"/);
+  assert.match(script, /method: "DELETE"/);
+  assert.match(script, /openThreadArchiveDialog\(thread\)/);
+  assert.match(stylesheet, /\.thread-list-archive-action \{/);
+});
+
 test("mobile Thread list and detail are separate layers", () => {
   assert.match(stylesheet, /thread-workspace-mode:not\(\.thread-detail-open\).*?\.workspace-content/s);
   assert.match(stylesheet, /thread-workspace-mode\.thread-detail-open \.context-sidebar/);

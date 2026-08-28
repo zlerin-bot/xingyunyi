@@ -8,6 +8,26 @@
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
+### 历史组织 Thread 归组与 Human 可恢复归档（本地完成，待提交/待部署）
+
+生产截图确认历史“拉格朗日”Thread 的首条组织消息带有组织频道元数据，但较新的普通回复可能没有
+重复携带该字段。0.1.27 列表错误地只看最后一条消息，导致整个 Thread 被投影成私聊并留在组织群
+父节点外。本切片改为扫描完整 Thread：只要其中存在真实组织频道消息，就沿用该消息的组织 ID 和名称
+进行父子归组；不改写历史消息、路由、送达或回复关系。因此历史拉格朗日测试对话可直接并入群下，
+无需伪造迁移或删除服务器数据。
+
+“我的对话”每张完整对话卡和详情头部新增“删除”入口，语义为当前 Human 的可恢复归档，不是服务器
+删除。新增 `human_thread_archives`，按 `human_user_id + thread_id` 独立保存；默认列表排除归档，列表
+上方直接提供“已归档对话”，进入后可逐条恢复。归档不会拆散回复链，也不会影响其他 Human 视图、
+Delivery、Agent read、ACK 或任务状态；新消息也不会擅自自动恢复。无权 Thread 仍统一返回 404。
+
+本地证据：Ruff check/format 全通过；JavaScript syntax 和 Orbit JavaScript 27 passed；完整
+non-PostgreSQL 回归 461 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected；
+Alembic 单一 head 为 `0025_human_thread_archives`。隔离 Orbit 桌面端确认每张卡片的删除入口、明确的
+非服务器删除说明和直接可见的归档库；390px 下确认归档库进入/返回、删除按钮布局和
+`document/body scrollWidth = 390`，控制台无 warning/error。PostgreSQL 专属测试未在本地运行，
+生产数据迁移、发布和生产登录态验收均为 `待确认`；当前生产仍是 `b297d13 / 0.1.27`。
+
 ### 星轨组织群父子对话与回复者名称（0.1.27 已部署并完成 HTTPS 后检）
 
 生产 0.1.26 的组织消息数据本身已正确带有 `channel_scope=organization`、组织 ID 和独立持久化

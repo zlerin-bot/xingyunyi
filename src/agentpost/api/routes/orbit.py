@@ -29,6 +29,7 @@ from agentpost.control.schemas import (
     OrbitMessage,
     OrbitOrganization,
     OrbitTask,
+    OrbitThreadArchiveState,
     OrbitThreadDetail,
     OrbitThreadSummary,
     OrbitThreadViewState,
@@ -37,6 +38,7 @@ from agentpost.control.service import (
     AgentOwnerActionDeniedError,
     OrbitAttachmentNotFoundError,
     OrbitThreadNotFoundError,
+    archive_orbit_thread,
     build_orbit_dashboard,
     disable_owned_agent,
     get_orbit_attachment,
@@ -46,6 +48,7 @@ from agentpost.control.service import (
     list_orbit_tasks,
     list_orbit_threads,
     mark_orbit_thread_viewed,
+    restore_orbit_thread,
     set_human_default_agent,
 )
 from agentpost.control.sessions import (
@@ -449,6 +452,7 @@ def orbit_threads(
     limit: Limit = 100,
     query: Search = None,
     agent_id: UUID | None = None,
+    archived: bool = False,
 ) -> list[OrbitThreadSummary]:
     return list_orbit_threads(
         session,
@@ -456,6 +460,7 @@ def orbit_threads(
         limit=limit,
         query=query,
         agent_id=agent_id,
+        archived=archived,
     )
 
 
@@ -487,6 +492,46 @@ def orbit_thread_viewed(
     _ = csrf
     try:
         return mark_orbit_thread_viewed(session, current_human, thread_id=thread_id)
+    except OrbitThreadNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "thread_not_found", "message": "Thread was not found"},
+        ) from exc
+
+
+@router.put(
+    "/api/v1/orbit/threads/{thread_id}/archive",
+    response_model=OrbitThreadArchiveState,
+)
+def orbit_thread_archive(
+    thread_id: UUID,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    csrf: HumanCsrfDep,
+) -> OrbitThreadArchiveState:
+    _ = csrf
+    try:
+        return archive_orbit_thread(session, current_human, thread_id=thread_id)
+    except OrbitThreadNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "thread_not_found", "message": "Thread was not found"},
+        ) from exc
+
+
+@router.delete(
+    "/api/v1/orbit/threads/{thread_id}/archive",
+    response_model=OrbitThreadArchiveState,
+)
+def orbit_thread_restore(
+    thread_id: UUID,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    csrf: HumanCsrfDep,
+) -> OrbitThreadArchiveState:
+    _ = csrf
+    try:
+        return restore_orbit_thread(session, current_human, thread_id=thread_id)
     except OrbitThreadNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

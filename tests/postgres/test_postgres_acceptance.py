@@ -153,6 +153,7 @@ def test_alembic_upgrade_reaches_single_head_and_creates_expected_schema(
         "agent_connector_bindings",
         "rate_limit_buckets",
         "human_thread_views",
+        "human_thread_archives",
     } <= table_names
 
 

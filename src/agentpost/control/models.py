@@ -142,6 +142,20 @@ class HumanThreadView(Base):
     )
 
 
+class HumanThreadArchive(Base):
+    __tablename__ = "human_thread_archives"
+
+    human_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("human_users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    thread_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    archived_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now, index=True
+    )
+
+
 class HumanActionConfirmation(Base):
     __tablename__ = "human_action_confirmations"
 

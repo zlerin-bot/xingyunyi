@@ -25,6 +25,7 @@ from agentpost.control.models import (
     HumanAccessKey,
     HumanActionAudit,
     HumanAgentGrant,
+    HumanThreadArchive,
     HumanThreadView,
     HumanUser,
     Organization,
@@ -46,6 +47,7 @@ from agentpost.control.schemas import (
     OrbitMetrics,
     OrbitOrganizationReference,
     OrbitTask,
+    OrbitThreadArchiveState,
     OrbitThreadDetail,
     OrbitThreadSummary,
     OrbitThreadViewState,
@@ -1027,6 +1029,7 @@ def list_orbit_threads(
     limit: int,
     query: str | None,
     agent_id: UUID | None = None,
+    archived: bool = False,
 ) -> list[OrbitThreadSummary]:
     entries, role_map, connector_types, owner_humans, grouped, task_results = _orbit_thread_data(
         session,
@@ -1041,8 +1044,17 @@ def list_orbit_threads(
             select(HumanThreadView).where(HumanThreadView.human_user_id == user.id)
         ).all()
     }
+    thread_archives = {
+        archive.thread_id: archive
+        for archive in session.scalars(
+            select(HumanThreadArchive).where(HumanThreadArchive.human_user_id == user.id)
+        ).all()
+    }
     summaries: list[OrbitThreadSummary] = []
     for thread_id, rows in grouped.items():
+        thread_archive = thread_archives.get(thread_id)
+        if archived != (thread_archive is not None):
+            continue
         participant_agents: dict[UUID, Agent] = {}
         for _, _, sender, recipient in rows:
             participant_agents[sender.id] = sender
@@ -1050,9 +1062,17 @@ def list_orbit_threads(
         participant_ids = set(participant_agents)
         if agent_id is not None and agent_id not in participant_ids:
             continue
-        is_organization_channel = any(
-            (message.message_metadata or {}).get("channel_scope") == "organization"
-            for message, _, _, _ in rows
+        organization_message = next(
+            (
+                message
+                for message, _, _, _ in rows
+                if (message.message_metadata or {}).get("channel_scope") == "organization"
+            ),
+            None,
+        )
+        is_organization_channel = organization_message is not None
+        organization_metadata = (
+            organization_message.message_metadata or {} if organization_message is not None else {}
         )
         organizations = (
             _thread_organizations(entries_by_agent, participant_ids)
@@ -1126,22 +1146,15 @@ def list_orbit_threads(
                     )
                 ],
                 organizations=organizations,
-                channel_scope=(
-                    "organization"
-                    if (latest_message.message_metadata or {}).get("channel_scope")
-                    == "organization"
-                    else "direct"
-                ),
+                channel_scope=("organization" if is_organization_channel else "direct"),
                 organization_id=(
-                    UUID(str((latest_message.message_metadata or {})["organization_id"]))
-                    if (latest_message.message_metadata or {}).get("channel_scope")
-                    == "organization"
-                    and (latest_message.message_metadata or {}).get("organization_id")
+                    UUID(str(organization_metadata["organization_id"]))
+                    if organization_metadata.get("organization_id")
                     else None
                 ),
                 organization_name=(
-                    str((latest_message.message_metadata or {})["organization_name"])
-                    if (latest_message.message_metadata or {}).get("organization_name")
+                    str(organization_metadata["organization_name"])
+                    if organization_metadata.get("organization_name")
                     else None
                 ),
                 latest_message_id=latest_message.id,
@@ -1162,6 +1175,7 @@ def list_orbit_threads(
                 conversation_state=conversation_state,
                 human_view_state=human_view_state,
                 human_viewed_at=thread_view.viewed_at if thread_view is not None else None,
+                archived_at=thread_archive.archived_at if thread_archive is not None else None,
             )
         )
     summaries.sort(
@@ -1192,6 +1206,7 @@ def get_orbit_thread(
     entries_by_agent = {entry.agent.id: entry for entry in entries}
     agents_by_id = {entry.agent.id: entry.agent for entry in entries}
     thread_view = session.get(HumanThreadView, (user.id, thread_id))
+    thread_archive = session.get(HumanThreadArchive, (user.id, thread_id))
     latest_message = rows[-1][0]
     return OrbitThreadDetail(
         thread_id=thread_id,
@@ -1235,6 +1250,7 @@ def get_orbit_thread(
             else "unread"
         ),
         human_viewed_at=thread_view.viewed_at if thread_view is not None else None,
+        archived_at=thread_archive.archived_at if thread_archive is not None else None,
     )
 
 
@@ -1268,6 +1284,50 @@ def mark_orbit_thread_viewed(
         viewed_through_message_id=latest_message.id,
         viewed_at=viewed_at,
     )
+
+
+def archive_orbit_thread(
+    session: Session,
+    user: HumanUser,
+    *,
+    thread_id: UUID,
+) -> OrbitThreadArchiveState:
+    _, _, _, _, grouped, _ = _orbit_thread_data(session, user, thread_id=thread_id)
+    if not grouped.get(thread_id):
+        raise OrbitThreadNotFoundError(str(thread_id))
+    archived_at = utc_now()
+    thread_archive = session.get(HumanThreadArchive, (user.id, thread_id))
+    if thread_archive is None:
+        thread_archive = HumanThreadArchive(
+            human_user_id=user.id,
+            thread_id=thread_id,
+            archived_at=archived_at,
+        )
+        session.add(thread_archive)
+    else:
+        archived_at = thread_archive.archived_at
+    session.commit()
+    return OrbitThreadArchiveState(
+        thread_id=thread_id,
+        archived=True,
+        archived_at=archived_at,
+    )
+
+
+def restore_orbit_thread(
+    session: Session,
+    user: HumanUser,
+    *,
+    thread_id: UUID,
+) -> OrbitThreadArchiveState:
+    _, _, _, _, grouped, _ = _orbit_thread_data(session, user, thread_id=thread_id)
+    if not grouped.get(thread_id):
+        raise OrbitThreadNotFoundError(str(thread_id))
+    thread_archive = session.get(HumanThreadArchive, (user.id, thread_id))
+    if thread_archive is not None:
+        session.delete(thread_archive)
+        session.commit()
+    return OrbitThreadArchiveState(thread_id=thread_id, archived=False)
 
 
 def get_orbit_attachment(
