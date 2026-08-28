@@ -2,7 +2,24 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.24-deployed-https-verified`; pinned production release: `0.1.24`
+Current handoff stage: `v0.1.25-release-preparation`; pinned production release: `0.1.24`
+
+## Organization invitation and member-centered Agent view (0.1.25 pending deployment, 2026-08-28)
+
+Organization invitations now use the unique Human username and are accepted inside the signed-in
+site. Owner, Admin, and Member Humans can add their own active Agent without re-entering the Orbit
+password; Auditor remains read-only, while removing an Agent still requires password confirmation.
+
+The organization landing page removes internal role-description cards and presents only invitations,
+organizations, member counts, Agent counts, and the organization entry. Organization details group
+each Human's assigned Agents inside that member's card, with unowned assignments kept separately as
+pending ownership rather than silently omitted.
+
+Local evidence: Ruff check/format, JavaScript syntax, Orbit JavaScript 26 passed, and the complete
+non-PostgreSQL suite reported 459 passed, one expected loopback sandbox skip, and five PostgreSQL
+tests deselected. Desktop and 390px isolated-browser acceptance passed without overflow or console
+warning/error. Feature commits are `7a83cea` and `8039297`; production remains 0.1.24 until the
+guarded 0.1.25 switch and independent postflight both succeed.
 
 ## Organization governance and collaboration channel (0.1.24 deployed HTTPS verified, 2026-08-28)
 
