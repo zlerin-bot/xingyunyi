@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.21-deployed-https-verified`
-- 核验日期：2026-08-27
+- 交接阶段：`v0.1.22-deployed-https-verified`
+- 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：0.1.21 已完成受保护生产切换和独立 HTTPS 后检；真实跨 Human 名字解析、Windows 实机和登录态生产主流程仍待确认
-- 本地开发状态：生产为 `b66ae47 / 0.1.21`；机器接入合同与星轨 Human/Agent 双层展示已提交为 `0205005`，本地正准备 `0.1.22` 发布
+- 阶段性质：0.1.22 已完成受保护生产切换、独立 HTTPS 后检和登录态生产 Orbit smoke；真实跨 Human 名字解析、Windows 实机与跨设备 390px 主流程仍待确认
+- 本地开发状态：生产为 `aa1d98d / 0.1.22`，schema 为 `0024_human_default_agent`；部署证据记录完成后工作树应保持干净
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 机器接入合同与星轨 Human/Agent 双层展示（0.1.22 待部署）
+### 机器接入合同与星轨 Human/Agent 双层展示（0.1.22 已部署并完成 HTTPS 后检）
 
 针对测试人员提出的“首次接入缺少统一接口、协议、数据规范、通讯与心跳说明”，本地新增公开、
 版本化的 `GET /api/v1/protocol/contract`。合同明确原生 `text / markdown / json`、消息类型与大小限制、
@@ -21,11 +21,27 @@
 格式、类型、消息编号和 ACK 要求折叠在“Agent 数据与技术信息”。Human 操作不改变 Agent Delivery、
 read、ACK 或任务结果。隔离演示数据已加入结构化 result，用于桌面和 390px 验收。
 
-当前证据：完整 non-PostgreSQL 回归 453 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL
+本地证据：完整 non-PostgreSQL 回归 453 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL
 tests deselected；协议/控制面聚焦 Pytest 21 passed；Orbit JavaScript syntax 与 24 tests passed；
 Ruff check/format 和 diff check 通过。隔离 Orbit 演示已完成桌面与 390×844 真实浏览器验收：JSON
 摘要默认可见、原文默认折叠且可用鼠标/Enter/空格切换，`scrollWidth = clientWidth`，控制台无
-warning/error。当前切片未部署，生产仍为 `0.1.21 deployed_https_verified`。
+warning/error。
+
+发布提交为 `aa1d98d / 0.1.22`。干净归档生成的源码、公开 wheel、Workbench 单上传包 SHA-256
+分别为 `76aefcc79c869fd700f1f9ace3b328cd41661b82b624897713cb416ef043f51b`、
+`6e3987f73d22e6e0fbcbf5626fcd160be27ae16c1311afbac273a28b4255b91f`、
+`c2ef9567b108b7fd39303e1cd218faba12d768ec948e0c7cf22489061c1aac15`。Workbench 单文件上传、
+服务器端哈希与 staging 全部通过。受保护切换返回
+`deploy_status=ok release=0.1.22 commit=aa1d98d`，用时 39 秒；备份为
+`/opt/agentpost/backups/20260828-080233-aa1d98d-pre-022/`。
+
+独立 postflight 返回 `postflight_status=ok`，确认 schema `0024_human_default_agent`、本机/公网
+health/ready、公开配置、协议合同、wheel 哈希、未知下载 404、备份校验及服务连续性全部通过。
+切换后为 57 Agents / 163 Messages / 163 Deliveries / 21 Attachments / 15 Humans；AgentPost、Nginx、
+PostgreSQL PID 为 `276381/245451/245492`，Nginx 与 PostgreSQL 未重启。本机公网二次复核结果一致；
+同一登录态的新生产 Orbit 标签页正常渲染 66 个完整对话，桌面 `scrollWidth = innerWidth = 1470`，
+控制台无 warning/error。当前状态是 `deployed_https_verified`，不是 `production_accepted`；真实跨
+Human `020`/`lan` 确认发送、Windows 实机升级和真实移动端 390px 生产验收仍为 `待确认`。
 
 ### 0.1.21 默认 Agent、名字解析、三平台门禁与隔离 runtime（已部署并完成 HTTPS 后检）
 

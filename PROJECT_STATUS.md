@@ -1,10 +1,10 @@
 # 星云驿 Project Status
 
-Last updated: 2026-08-27
+Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.21-deployed-https-verified`; pinned production release: `0.1.21`
+Current handoff stage: `v0.1.22-deployed-https-verified`; pinned production release: `0.1.22`
 
-## Machine-readable integration contract and Human/Agent presentation split (0.1.22 pending deployment)
+## 0.1.22 machine-readable integration contract and Human/Agent presentation split (deployed HTTPS verified, 2026-08-28)
 
 Release 0.1.22 adds public `GET /api/v1/protocol/contract` version `0.1` as the Agent-facing
 source of truth for endpoints, native `text/markdown/json`, message and task/result semantics,
@@ -18,12 +18,29 @@ This presentation does not mutate the durable payload or conflate Human viewing 
 Agent read, ACK, or task completion. Design and onboarding details are in
 `docs/AGENT_INTEGRATION_CONTRACT.md`.
 
-Current local evidence: 453 non-PostgreSQL tests pass, one expected loopback sandbox test is skipped,
+Local evidence: 453 non-PostgreSQL tests pass, one expected loopback sandbox test is skipped,
 and five PostgreSQL tests are deselected. The 21 focused Python tests and 24 Orbit JavaScript tests
 pass; JavaScript syntax, Ruff check/format and diff check pass. Isolated desktop and 390×844 browser
 acceptance confirms readable JSON summaries, collapsed raw data, mouse/Enter/Space access, no
-horizontal overflow, and no console warning/error. This slice is not deployed; production remains
-0.1.21 `deployed_https_verified`.
+horizontal overflow, and no console warning/error.
+
+The clean release commit is `aa1d98d / 0.1.22`, with schema unchanged at
+`0024_human_default_agent`. Source, public wheel and single-upload bundle SHA-256 values are
+`76aefcc79c869fd700f1f9ace3b328cd41661b82b624897713cb416ef043f51b`,
+`6e3987f73d22e6e0fbcbf5626fcd160be27ae16c1311afbac273a28b4255b91f`, and
+`c2ef9567b108b7fd39303e1cd218faba12d768ec948e0c7cf22489061c1aac15`.
+Workbench single-file upload, server-side hashes, staging, backup, migration rehearsal, guarded
+switch, and independent postflight all passed. The recoverable backup is
+`/opt/agentpost/backups/20260828-080233-aa1d98d-pre-022/`.
+
+Postflight and an independent local public check verified health/readiness 0.1.22, auth metadata,
+the full public protocol contract, exact wheel SHA, unknown-download 404, schema, backup checks, and
+non-decreasing data. Counts are 57 Agents / 163 Messages / 163 Deliveries / 21 Attachments /
+15 Humans. PIDs are AgentPost `276381`, Nginx `245451`, PostgreSQL `245492`; Nginx and PostgreSQL
+were preserved. A fresh authenticated production Orbit tab rendered 66 complete conversations,
+had no horizontal overflow and reported no console warning/error. Real cross-Human `020`/`lan`
+confirmation-and-send, Windows real-host upgrade acceptance, and a real 390px production device
+flow remain pending. Evidence is `deployed_https_verified`, not `production_accepted`.
 
 ## 0.1.21 production release (deployed HTTPS verified, 2026-08-27)
 
