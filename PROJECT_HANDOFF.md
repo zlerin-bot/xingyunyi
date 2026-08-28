@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.26-release-preparation`
+- 交接阶段：`v0.1.26-deployed-https-verified`
 - 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：生产 0.1.25 保持不变；“组织群立即可见 + 默认 Agent 自动参与”正在准备 0.1.26 干净发布提交
-- 本地开发状态：生产仍为 `964e6a7 / 0.1.25`，schema 为 `0024_human_default_agent`；待发布功能提交为 `9962126`
+- 阶段性质：“组织群立即可见 + 默认 Agent 自动参与”已随 0.1.26 部署并完成独立 HTTPS 后检
+- 当前生产状态：`2c143c6 / 0.1.26`，schema 为 `0024_human_default_agent`；功能提交为 `9962126`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 组织群立即可见与默认 Agent 自动参与（0.1.26 待部署）
+### 组织群立即可见与默认 Agent 自动参与（0.1.26 已部署并完成 HTTPS 后检）
 
 组织创建后，星轨不再等待第一条组织消息：会立即生成一个 Human 可见的“组织名 群聊”入口，显示
 成员数、当前有效参与 Agent 数和“暂无消息”。点击后桌面端右栏、移动端详情层会说明群聊已建立；
@@ -28,7 +28,20 @@ Agent 作为有效参与者；一旦该 Human 已手动加入至少一个自有 
 Orbit JavaScript 31 passed、JavaScript syntax 和
 diff check 均通过。隔离 Orbit 真实创建“空群验收组”后，桌面与 390px 均确认群入口立即可见、默认
 Agent 数为 1、列表/详情/返回分层正常；390px 下 body/document 均为 390px，控制台无 warning/error。
-PostgreSQL 专属测试和生产部署均未运行，当前不是 `deployed_https_verified`。
+PostgreSQL 专属测试未在本地运行。发布提交为 `2c143c6 / 0.1.26`；干净归档生成的源码、公开 wheel、
+Workbench 单上传包 SHA-256 分别为
+`db1a5f267476b4afbea621acbca0681705cbfceb226bd423b5c3cdc4f1ae10d6`、
+`5fc73121ec6cca641649194ca2a040a033c9da80d59b62e0fbc9a607b68ed6a9`、
+`559963f4530af26f6e322d6f111d56bd6d1b54c18288dbb7ffbdc351f850cba8`。Workbench 单文件上传和
+staging 六文件校验通过；受保护切换返回 `deploy_status=ok release=0.1.26 commit=2c143c6`，耗时
+38 秒，备份为 `/opt/agentpost/backups/20260828-155246-2c143c6-pre-026/`。
+
+独立 postflight 返回 `postflight_status=ok`，schema 仍为 `0024_human_default_agent`；切换后为
+58 Agents / 185 Messages / 185 Deliveries / 25 Attachments / 15 Humans，AgentPost、Nginx、
+PostgreSQL PID 为 `288622/245451/245492`，确认 Nginx 与 PostgreSQL 未重启。开发机公网复核
+health/ready 均为 0.1.26，公开 wheel 哈希精确一致，未知下载返回 404。未登录生产 Orbit 能正常
+打开登录页；当前浏览器没有生产登录态，因此组织空群、默认 Agent 自动参与和 390px 登录后生产主流程
+仍为 `待确认`。当前状态是 `deployed_https_verified`，不是 `production_accepted`。
 
 ### 组织成员与 Agent 信息架构（0.1.25 已部署并完成 HTTPS 后检）
 

@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.26-release-preparation`; pinned production release: `0.1.25`
+Current handoff stage: `v0.1.26-deployed-https-verified`; pinned production release: `0.1.26`
 
-## Immediately visible organization groups and default-Agent participation (0.1.26 pending deployment, 2026-08-28)
+## Immediately visible organization groups and default-Agent participation (0.1.26 deployed HTTPS verified, 2026-08-28)
 
 Star Orbit now shows an organization group as soon as the organization exists, including before its
 first message. Owner, Admin, and Member Humans who have not explicitly selected one of their owned
@@ -21,8 +21,21 @@ Local evidence: Ruff check/format, JavaScript syntax, Orbit JavaScript 31 passed
 non-PostgreSQL suite reported 461 passed, one expected loopback sandbox skip, and five PostgreSQL
 tests deselected. Desktop and 390px isolated-browser acceptance confirmed immediate empty-group
 visibility, default participation, list/detail/back layering, no horizontal overflow, and no console
-warning/error. Feature commit is `9962126`; production remains 0.1.25 until the guarded 0.1.26 switch
-and independent postflight both succeed.
+warning/error. Feature commit is `9962126`; release commit is `2c143c6`.
+
+The clean release produced source, public wheel, and Workbench single-upload SHA-256 values
+`db1a5f267476b4afbea621acbca0681705cbfceb226bd423b5c3cdc4f1ae10d6`,
+`5fc73121ec6cca641649194ca2a040a033c9da80d59b62e0fbc9a607b68ed6a9`, and
+`559963f4530af26f6e322d6f111d56bd6d1b54c18288dbb7ffbdc351f850cba8`. Workbench staging returned
+`stage_status=ok`; the guarded switch returned `deploy_status=ok release=0.1.26 commit=2c143c6` in
+38 seconds with backup `/opt/agentpost/backups/20260828-155246-2c143c6-pre-026/`. Independent
+postflight returned `postflight_status=ok` with schema `0024_human_default_agent`, 58 Agents,
+185 Messages, 185 Deliveries, 25 Attachments, and 15 Humans. AgentPost/Nginx/PostgreSQL PIDs are
+`288622/245451/245492`, so Nginx and PostgreSQL remained continuous. Development-machine HTTPS
+checks confirmed 0.1.26 health/readiness, the exact public wheel hash, and 404 for an unknown download.
+The production sign-in page renders, but this browser has no authenticated production session; the
+signed-in group flow and 390px production acceptance remain pending. Status is
+`deployed_https_verified`, not `production_accepted`.
 
 ## Organization invitation and member-centered Agent view (0.1.25 deployed HTTPS verified, 2026-08-28)
 
