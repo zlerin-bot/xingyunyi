@@ -1280,6 +1280,18 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
             f"/api/v1/orbit/threads/{first.json()['thread_id']}/archive",
             headers={"Authorization": f"Bearer {outsider['access_key']}"},
         )
+        owner_agent_threads = client.get(
+            "/api/v1/threads",
+            headers={"Authorization": f"Bearer {alice['api_key']}"},
+        )
+        owner_agent_message = client.get(
+            f"/api/v1/messages/{first.json()['message_id']}",
+            headers={"Authorization": f"Bearer {alice['api_key']}"},
+        )
+        other_agent_threads = client.get(
+            "/api/v1/threads",
+            headers={"Authorization": f"Bearer {bob['api_key']}"},
+        )
         assert archived.status_code == 200
         assert archived.json()["archived"] is True
         assert all(
@@ -1294,6 +1306,13 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
         assert still_readable.status_code == 200
         assert still_readable.json()["archived_at"] is not None
         assert denied_archive.status_code == 404
+        assert first.json()["thread_id"] not in {
+            item["thread_id"] for item in owner_agent_threads.json()["items"]
+        }
+        assert owner_agent_message.status_code == 404
+        assert first.json()["thread_id"] in {
+            item["thread_id"] for item in other_agent_threads.json()["items"]
+        }
 
         restored = client.delete(
             f"/api/v1/orbit/threads/{first.json()['thread_id']}/archive",
@@ -1309,6 +1328,47 @@ def test_human_threads_keep_topics_separate_search_authorized_content_and_do_not
         assert any(
             item["thread_id"] == first.json()["thread_id"] for item in active_after_restore.json()
         )
+        restored_owner_agent_threads = client.get(
+            "/api/v1/threads",
+            headers={"Authorization": f"Bearer {alice['api_key']}"},
+        )
+        assert first.json()["thread_id"] in {
+            item["thread_id"] for item in restored_owner_agent_threads.json()["items"]
+        }
+
+        recipient_owner_headers = {"Authorization": f"Bearer {recipient_owner['access_key']}"}
+        recipient_archive = client.put(
+            f"/api/v1/orbit/threads/{first.json()['thread_id']}/archive",
+            headers=recipient_owner_headers,
+        )
+        recipient_agent_inbox = client.get(
+            "/api/v1/inbox",
+            headers={"Authorization": f"Bearer {bob['api_key']}"},
+        )
+        recipient_agent_message = client.get(
+            f"/api/v1/messages/{first.json()['message_id']}",
+            headers={"Authorization": f"Bearer {bob['api_key']}"},
+        )
+        other_owner_agent_threads = client.get(
+            "/api/v1/threads",
+            headers={"Authorization": f"Bearer {alice['api_key']}"},
+        )
+        assert recipient_archive.status_code == 200
+        assert first.json()["message_id"] not in {
+            item["message_id"] for item in recipient_agent_inbox.json()["items"]
+        }
+        assert second.json()["message_id"] in {
+            item["message_id"] for item in recipient_agent_inbox.json()["items"]
+        }
+        assert recipient_agent_message.status_code == 404
+        assert first.json()["thread_id"] in {
+            item["thread_id"] for item in other_owner_agent_threads.json()["items"]
+        }
+        recipient_restore = client.delete(
+            f"/api/v1/orbit/threads/{first.json()['thread_id']}/archive",
+            headers=recipient_owner_headers,
+        )
+        assert recipient_restore.status_code == 200
 
     with database.session_factory() as session:
         stored_view = session.get(

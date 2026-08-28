@@ -164,9 +164,6 @@
               <span><strong>任务</strong></span>
               <span id="task-mobile-count" class="orbit-mobile-shortcut-count">0</span>
             </button>
-            <button type="button" class="orbit-mobile-shortcut" data-thread-filter="archived" aria-pressed="false">
-              <span><strong>已归档</strong></span>
-            </button>
           </nav>
           <nav id="context-navigation" class="context-navigation" aria-label="当前模块页面">
             <div data-context-module="orbit">
@@ -203,6 +200,9 @@
               <button type="button" class="context-nav-item" data-module="settings" data-section="organizations">
                 <span><strong>组织与成员</strong><small>成员、邀请与企业登录</small></span><span aria-hidden="true">›</span>
               </button>
+              <button type="button" class="context-nav-item" data-module="settings" data-section="archives">
+                <span><strong>已归档对话</strong><small>查看和恢复隐藏的对话</small></span><span aria-hidden="true">›</span>
+              </button>
               <button type="button" class="context-nav-item" data-module="settings" data-section="notifications">
                 <span><strong>通知</strong><small>真实能力待后续接入</small></span><span aria-hidden="true">›</span>
               </button>
@@ -219,7 +219,6 @@
           </nav>
           <section id="thread-browser" class="thread-browser" hidden aria-label="对话列表">
             <span id="thread-count" class="visually-hidden">0 个</span>
-            <button id="thread-archive-library" type="button" class="thread-archive-library" data-thread-filter="archived" aria-pressed="false">已归档对话</button>
             <details class="thread-tools">
               <summary>搜索与筛选</summary>
               <div class="thread-tools-body">
@@ -496,6 +495,19 @@
                 <button id="open-sso-link" type="button" class="quiet-button">绑定单位工作账号</button>
               </article>
             </div>
+          </section>
+
+          <section id="archives" class="content-section module-view" data-module="settings" data-section="archives" hidden>
+            <div class="section-heading">
+              <div>
+                <p class="section-tag">设置 · 已归档对话</p>
+                <h2>已归档对话</h2>
+              </div>
+            </div>
+            <p class="section-intro">
+              归档后的对话不会出现在“我的对话”中，你名下的 Agent 也不会再从星云驿读取它们。服务器仍保留原始记录，打开后可以恢复。
+            </p>
+            <div id="settings-archive-list" class="settings-archive-list" aria-live="polite"></div>
           </section>
 
           <section id="notifications" class="content-section module-view" data-module="settings" data-section="notifications" hidden>
@@ -1040,7 +1052,7 @@
         <p id="thread-archive-summary" class="dialog-summary"></p>
         <input id="thread-archive-id" type="hidden">
         <div class="trust-banner">
-          这只会让当前完整对话从你的“我的对话”中隐藏。服务器消息、其他 Human 的界面，以及 Agent 的送达、已读和任务状态都不会改变；之后可在“已归档对话”中恢复。
+          归档后，你和你名下的 Agent 都不会再从星云驿看到这条完整对话。服务器不会删除原始消息，其他参与者的界面和既有送达、已读、任务状态不受影响；之后可在“设置 → 已归档对话”中恢复。
         </div>
         <p id="thread-archive-result" class="form-status" role="status"></p>
         <div class="dialog-actions">

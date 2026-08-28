@@ -21,6 +21,7 @@ from agentpost.attachments.service import (
     attachment_metadata,
     bind_attachments,
 )
+from agentpost.control.models import AgentOwnership, HumanThreadArchive
 from agentpost.identity.models import Agent, utc_now
 from agentpost.messaging.cursors import (
     InboxCursor,
@@ -425,6 +426,7 @@ def get_visible_message(session: Session, *, agent_id: UUID, message_id: str) ->
         .where(
             Message.id == message_id,
             or_(Message.sender_agent_id == agent_id, Delivery.recipient_agent_id == agent_id),
+            Message.thread_id.not_in(_archived_thread_ids_for_agent(agent_id)),
         )
     )
     if message is None:
@@ -444,6 +446,8 @@ def transition_delivery(
 
     if transition not in {"read", "ack"}:
         raise ValueError("unsupported delivery transition")
+
+    get_visible_message(session, agent_id=recipient.id, message_id=message_id)
 
     now = utc_now()
     if transition == "read":
@@ -515,6 +519,17 @@ def transition_delivery(
     return message
 
 
+def _archived_thread_ids_for_agent(agent_id: UUID):
+    return (
+        select(HumanThreadArchive.thread_id)
+        .join(
+            AgentOwnership,
+            AgentOwnership.human_user_id == HumanThreadArchive.human_user_id,
+        )
+        .where(AgentOwnership.agent_id == agent_id)
+    )
+
+
 def _visible_thread_ids(session: Session, agent_id: UUID) -> list[UUID]:
     return list(
         session.scalars(
@@ -524,7 +539,8 @@ def _visible_thread_ids(session: Session, agent_id: UUID) -> list[UUID]:
                 or_(
                     Message.sender_agent_id == agent_id,
                     Delivery.recipient_agent_id == agent_id,
-                )
+                ),
+                Message.thread_id.not_in(_archived_thread_ids_for_agent(agent_id)),
             )
             .distinct()
         )
@@ -638,6 +654,7 @@ def list_inbox(
         .where(
             Delivery.recipient_agent_id == recipient.id,
             Delivery.inbox_seq > after_seq,
+            Message.thread_id.not_in(_archived_thread_ids_for_agent(recipient.id)),
         )
         .order_by(Delivery.inbox_seq.asc())
         .limit(limit + 1)

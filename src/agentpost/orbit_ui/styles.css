@@ -833,27 +833,6 @@ footer {
   gap: 7px;
 }
 
-.thread-archive-library {
-  width: 100%;
-  min-height: 38px;
-  margin-bottom: 8px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.65rem;
-  cursor: pointer;
-}
-
-.thread-archive-library:hover,
-.thread-archive-library:focus-visible,
-.thread-archive-library.active {
-  border-color: rgba(103, 216, 212, 0.42);
-  background: var(--cyan-soft);
-  color: var(--cyan);
-}
-
 .thread-list-item {
   display: grid;
   width: 100%;
@@ -1537,6 +1516,53 @@ footer {
   font-size: 0.86rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.settings-archive-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.settings-archive-item {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(9, 19, 36, 0.48);
+  color: var(--text);
+  padding: 15px 17px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-archive-item:hover,
+.settings-archive-item:focus-visible {
+  border-color: rgba(103, 216, 212, 0.42);
+  background: var(--cyan-soft);
+}
+
+.settings-archive-item > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.settings-archive-item strong,
+.settings-archive-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-archive-item small,
+.settings-archive-item > span:last-child {
+  color: var(--muted);
+  font-size: 0.66rem;
 }
 
 .profile-username-card {
@@ -4850,7 +4876,7 @@ footer {
 
   .orbit-mobile-shortcuts:not([hidden]) {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     padding: 0 10px 8px;
   }
@@ -4905,10 +4931,6 @@ footer {
     color: #185abc;
     padding-inline: 6px;
     font-size: 0.62rem;
-  }
-
-  .thread-archive-library {
-    display: none;
   }
 
   .orbit-mobile-shortcut > span.orbit-mobile-shortcut-count.alert:not(:empty) {

@@ -33,6 +33,7 @@ const state = {
   pairingSuggestedHandle: "",
   connectors: [],
   threads: [],
+  archivedThreads: [],
   selectedThread: null,
   selectedThreadId: "",
   threadFilter: "all",
@@ -107,8 +108,8 @@ const elements = {
   threadSearchInput: document.querySelector("#thread-search-input"),
   threadOrganizationFilter: document.querySelector("#thread-organization-filter"),
   threadFilters: Array.from(document.querySelectorAll("[data-thread-filter]")),
-  threadArchiveLibrary: document.querySelector("#thread-archive-library"),
   threadList: document.querySelector("#thread-list"),
+  settingsArchiveList: document.querySelector("#settings-archive-list"),
   threadMobileBack: document.querySelector("#thread-mobile-back"),
   threadDetailEmpty: document.querySelector("#thread-detail-empty"),
   threadDetail: document.querySelector("#thread-detail"),
@@ -386,6 +387,7 @@ const MODULE_DEFINITIONS = Object.freeze({
       "profile",
       "security",
       "organizations",
+      "archives",
       "notifications",
       "privacy",
       "preferences",
@@ -421,7 +423,9 @@ function currentRouteUrlWithoutWorkflowParameters() {
 }
 
 function applyThreadRouteParameters(parameters) {
-  state.threadFilter = parameters.get("filter") === "exception" ? "exception" : "all";
+  state.threadFilter = ["exception", "archived"].includes(parameters.get("filter"))
+    ? parameters.get("filter")
+    : "all";
   state.threadQuery = parameters.get("q") || "";
   state.threadOrganization = parameters.get("organization") || "";
   state.selectedThreadId = parameters.get("thread") || "";
@@ -587,17 +591,26 @@ function initializeWorkspaceNavigation() {
   activateRoute(route.module, route.section, { updateHistory: false });
 
   elements.primaryNavigationItems.forEach((item) => {
-    item.addEventListener("click", () => {
+    item.addEventListener("click", async () => {
       const module = item.dataset.module;
+      if (module === "orbit") {
+        await returnToAllConversations();
+        return;
+      }
       activateRoute(module, state.lastSectionByModule[module] || MODULE_DEFINITIONS[module].defaultSection, {
         focusContent: true,
       });
     });
   });
   elements.contextNavigationItems.forEach((item) => {
-    item.addEventListener("click", () => {
+    item.addEventListener("click", async () => {
       if (item === elements.threadParentToggle) {
         const alreadyActive = state.activeModule === "orbit" && state.activeSection === "communications";
+        if (!alreadyActive) {
+          state.threadBrowserExpanded = true;
+          await returnToAllConversations();
+          return;
+        }
         state.threadBrowserExpanded = alreadyActive ? !state.threadBrowserExpanded : true;
       }
       const mobileShortcutIsActive = item.classList.contains("orbit-mobile-shortcut")
@@ -620,6 +633,17 @@ function initializeWorkspaceNavigation() {
       updateThreadWorkspaceMode();
       renderThreadParentSummary();
     });
+  });
+  document.addEventListener("click", async (event) => {
+    if (state.activeModule !== "orbit" || !["tasks", "approvals"].includes(state.activeSection)) {
+      return;
+    }
+    if (event.target.closest(
+      "button, a, input, select, textarea, details, dialog, .task-item, .approval-card, .section-heading",
+    )) {
+      return;
+    }
+    await returnToAllConversations();
   });
   [elements.primaryNavigation, elements.contextNavigation, elements.orbitMobileShortcuts].forEach((navigation) => {
     navigation.addEventListener("keydown", (event) => {
@@ -3408,9 +3432,6 @@ function createOrganizationThreadGroup(organization, threadButtons, threads) {
 
 function renderThreadList() {
   elements.threadList.replaceChildren();
-  elements.threadArchiveLibrary.textContent = state.threadFilter === "archived"
-    ? "‹ 返回我的对话"
-    : "已归档对话";
   const threads = visibleThreadSummaries();
   const realThreadCount = threads.filter((thread) => !thread.virtual_organization_channel).length;
   const organizationGroups = new Map();
@@ -3542,6 +3563,66 @@ function renderThreadList() {
   });
   groupedFragment.append(fragment);
   elements.threadList.append(groupedFragment);
+}
+
+function syncThreadFilterControls() {
+  elements.threadFilters.forEach((filter) => {
+    const active = (filter.dataset.threadFilter || "all") === state.threadFilter;
+    filter.classList.toggle("active", active);
+    if (filter.getAttribute("aria-disabled") !== "true") {
+      filter.setAttribute("aria-pressed", String(active));
+    }
+  });
+}
+
+async function returnToAllConversations() {
+  state.threadFilter = "all";
+  state.selectedThreadId = "";
+  state.selectedThread = null;
+  state.threadBrowserExpanded = true;
+  syncThreadFilterControls();
+  activateRoute("orbit", "communications", { updateHistory: false, focusContent: true });
+  await loadThreads({ loadSelection: false });
+  history.pushState({ module: "orbit", section: "communications" }, "", threadRouteUrl());
+}
+
+function renderSettingsArchiveList() {
+  elements.settingsArchiveList.replaceChildren();
+  if (!state.archivedThreads.length) {
+    elements.settingsArchiveList.append(emptyState("目前没有已归档对话。"));
+    return;
+  }
+  state.archivedThreads.forEach((thread) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "settings-archive-item";
+    const copy = document.createElement("span");
+    const title = document.createElement("strong");
+    title.textContent = safeText(thread.topic, "无主题对话");
+    const summary = document.createElement("small");
+    summary.textContent = `${Number(thread.message_count || 0)} 条往来 · ${safeText(thread.latest_message_summary, "打开查看完整内容")}`;
+    copy.append(title, summary);
+    const action = document.createElement("span");
+    action.textContent = "打开并选择是否恢复 ›";
+    button.append(copy, action);
+    button.addEventListener("click", async () => {
+      state.threadFilter = "archived";
+      state.threadQuery = "";
+      state.threadOrganization = "";
+      state.selectedThreadId = String(thread.thread_id);
+      state.selectedThread = null;
+      elements.threadSearchInput.value = "";
+      syncThreadFilterControls();
+      activateRoute("orbit", "communications", { updateHistory: false, focusContent: true });
+      await loadThreads({ loadSelection: true });
+      history.pushState(
+        { module: "orbit", section: "communications", thread: state.selectedThreadId },
+        "",
+        threadRouteUrl(),
+      );
+    });
+    elements.settingsArchiveList.append(button);
+  });
 }
 
 function setThreadDetailEmpty(title, copy) {
@@ -4118,7 +4199,7 @@ function threadListEndpoint() {
 
 function openThreadArchiveDialog(thread) {
   elements.threadArchiveId.value = String(thread.thread_id);
-  elements.threadArchiveSummary.textContent = `“${safeText(thread.topic, "无主题对话")}”将从你的“我的对话”中隐藏。服务器消息不会删除。`;
+  elements.threadArchiveSummary.textContent = `“${safeText(thread.topic, "无主题对话")}”将从你和你名下 Agent 的星云驿视图中隐藏。服务器消息不会删除。`;
   elements.threadArchiveResult.textContent = "";
   elements.threadArchiveDialog.showModal();
 }
@@ -4138,6 +4219,7 @@ async function archiveThread(threadId) {
     clearThreadSelection({ updateHistory: true });
   }
   await loadThreads({ loadSelection: false });
+  await loadArchivedThreadsForSettings();
 }
 
 async function restoreThread(threadId) {
@@ -4149,6 +4231,13 @@ async function restoreThread(threadId) {
     clearThreadSelection({ updateHistory: true });
   }
   await loadThreads({ loadSelection: false });
+  await loadArchivedThreadsForSettings();
+}
+
+async function loadArchivedThreadsForSettings() {
+  const threads = await requestJson("/api/v1/orbit/threads?limit=200&archived=true");
+  state.archivedThreads = Array.isArray(threads) ? threads : [];
+  renderSettingsArchiveList();
 }
 
 async function loadThreads({ loadSelection = true } = {}) {
@@ -4320,21 +4409,24 @@ async function loadDashboard() {
   elements.refresh.disabled = true;
   setConnection("正在同步数据", "loading", "同步中");
   try {
-    const [dashboard, connectors, security, threads, invitations] = await Promise.all([
+    const [dashboard, connectors, security, threads, archivedThreads, invitations] = await Promise.all([
       requestJson("/api/v1/orbit/dashboard"),
       requestJson("/api/v1/orbit/connectors"),
       requestJson("/api/v1/orbit/security"),
       requestJson(threadListEndpoint()),
+      requestJson("/api/v1/orbit/threads?limit=200&archived=true"),
       requestJson("/api/v1/orbit/organization-invitations"),
     ]);
     state.connectors = Array.isArray(connectors.items) ? connectors.items : [];
     state.threads = Array.isArray(threads) ? threads : [];
+    state.archivedThreads = Array.isArray(archivedThreads) ? archivedThreads : [];
     renderDashboard(dashboard);
     renderPendingOrganizationInvitations(Array.isArray(invitations.items) ? invitations.items : []);
     renderConnectors(state.connectors);
     renderSecurity(security);
     renderThreadOrganizationOptions();
     renderThreadList();
+    renderSettingsArchiveList();
     if (state.selectedThreadId) {
       await loadThreadDetail(state.selectedThreadId);
     } else {
@@ -4918,13 +5010,7 @@ elements.threadFilters.forEach((button) => {
     state.threadFilter = requestedFilter === "archived" && state.threadFilter === "archived"
       ? "all"
       : requestedFilter;
-    elements.threadFilters.forEach((item) => {
-      const active = (item.dataset.threadFilter || "all") === state.threadFilter;
-      item.classList.toggle("active", active);
-      if (item.getAttribute("aria-disabled") !== "true") {
-        item.setAttribute("aria-pressed", String(active));
-      }
-    });
+    syncThreadFilterControls();
     state.selectedThreadId = "";
     state.selectedThread = null;
     setThreadDetailEmpty(
@@ -5161,6 +5247,8 @@ elements.ssoLinkDialog.addEventListener("close", closeSsoLinkDialog);
 window.addEventListener("popstate", () => {
   const parameters = new URLSearchParams(window.location.search);
   const previousQuery = state.threadQuery;
+  const previousFilter = state.threadFilter;
+  const previousOrganization = state.threadOrganization;
   applyThreadRouteParameters(parameters);
   applyAgentRouteParameters(parameters);
   activateRoute(parameters.get("module") || "orbit", parameters.get("view") || "", {
@@ -5168,7 +5256,11 @@ window.addEventListener("popstate", () => {
   });
   renderThreadList();
   if (state.activeModule === "orbit" && state.activeSection === "communications") {
-    if (previousQuery !== state.threadQuery) {
+    if (
+      previousQuery !== state.threadQuery
+      || previousFilter !== state.threadFilter
+      || previousOrganization !== state.threadOrganization
+    ) {
       void loadThreads();
     } else if (state.selectedThreadId) {
       void loadThreadDetail(state.selectedThreadId);

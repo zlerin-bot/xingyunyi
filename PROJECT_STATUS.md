@@ -1,8 +1,30 @@
 # 星云驿 Project Status
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 
-Current handoff stage: `v0.1.30-deployed-https-verified`; pinned production release: `0.1.30`
+Current handoff stage: `v0.1.31-archive-navigation-local`; pinned production release: `0.1.30`
+
+## Archive navigation, owned-Agent visibility, and Orbit return behavior (local, 2026-08-29)
+
+Star Orbit now keeps only `待我处理` and `任务进展` as desktop/mobile shortcuts. The archive library
+moves to Settings, where a Human can list archived Threads, open the complete conversation, and
+restore it. Archiving still preserves server messages, other Humans' views, Delivery, Agent read,
+ACK, and task facts. It now also excludes that Thread from the archiving Human's directly owned
+Agents across Inbox, direct message reads, and Thread list/detail APIs until the Human restores it.
+This controls future server reads and cannot erase content an Agent cached before archival.
+
+The Orbit primary entry, the `我的对话` parent, and non-interactive page whitespace now all return
+from Tasks or Approvals to the complete conversation list. Task cards, approval cards, buttons, and
+form controls do not trigger the blank-space behavior. Browser history reloads the correct active,
+exception, or archived collection instead of reusing stale Thread data.
+
+Evidence: Ruff check passed and all 255 files pass Ruff format; Orbit JavaScript reports 28 passed.
+The complete non-PostgreSQL suite reports 463 passed, one expected loopback sandbox skip, and five
+PostgreSQL tests deselected. Isolated desktop browser acceptance covered both return paths and the
+Settings archive/open/restore flow. At 390×844, only two shortcuts share one row, body/document
+scroll width equals the 390px viewport, the bottom Star Orbit entry returns from Tasks, and the
+console is empty. PostgreSQL-specific tests and deployment remain pending; production stays on
+`b4d3217 / 0.1.30`.
 
 ## Editable Human username in profile (0.1.30 deployed HTTPS verified, 2026-08-28)
 
