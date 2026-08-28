@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.28-post-release-development`; pinned production release: `0.1.28`
+Current handoff stage: `v0.1.29-release-candidate`; pinned production release: `0.1.28`
 
 ## Organization contact invitations and visible Agent eligibility (local, pending deployment, 2026-08-28)
 
