@@ -272,9 +272,14 @@
             <div class="organization-role-guide" aria-label="组织角色与权限说明">
               <article><span>Owner</span><strong>治理组织</strong><p>查看完整内容、处理审批、管理组织和全部角色；不会自动拥有或冒充组织 Agent。</p></article>
               <article><span>Admin</span><strong>管理日常成员</strong><p>查看完整内容、处理审批并管理 Member/Auditor；不能处置 Owner 或受保护管理关系。</p></article>
-              <article><span>Member</span><strong>只读参与协作</strong><p>可查看组织 Agent 与组织协作频道；个人对话保持私密，也不能审批或管理 Agent。</p></article>
+              <article><span>Member</span><strong>参与组织协作</strong><p>可查看组织协作，并把自己拥有的 Agent 加入或移出组织；不能管理其他成员或其他人的 Agent。</p></article>
               <article><span>Auditor</span><strong>仅查看元数据</strong><p>正文、附件内容、审批理由和参数保持隐藏；不能审批、治理组织或管理 Agent。</p></article>
             </div>
+            <section id="organization-pending-section" class="organization-governance-section" hidden>
+              <h3>待你确认的邀请</h3>
+              <p class="section-intro">组织邀请会直接显示在这里，不需要再到邮箱确认。</p>
+              <div id="organization-pending-list" class="organization-grid" aria-live="polite"></div>
+            </section>
             <div id="organization-list" class="organization-grid" aria-live="polite"></div>
           </section>
 
@@ -674,18 +679,21 @@
           <div id="organization-agent-actions" class="organization-agent-actions">
             <label for="organization-agent-select">添加我拥有的 Agent</label>
             <select id="organization-agent-select"></select>
-            <label for="organization-agent-password">重新输入星轨密码</label>
-            <input id="organization-agent-password" type="password" autocomplete="current-password" minlength="12" placeholder="确认扩大组织可见范围">
             <button id="organization-agent-add" type="button" class="quiet-button">加入组织</button>
+            <details class="organization-agent-remove-confirmation">
+              <summary>移出 Agent 时的安全确认</summary>
+              <label for="organization-agent-password">当前星轨密码</label>
+              <input id="organization-agent-password" type="password" autocomplete="current-password" minlength="12" placeholder="仅在移出 Agent 时填写">
+            </details>
           </div>
         </section>
         <section id="organization-invite-section" class="organization-governance-section">
           <h3>邀请成员</h3>
           <div class="organization-invite-fields">
-            <div><label for="organization-invite-email">邀请邮箱</label><input id="organization-invite-email" type="email" autocomplete="email" required></div>
+            <div><label for="organization-invite-username">Human 用户名</label><input id="organization-invite-username" type="text" autocomplete="off" minlength="3" maxlength="32" placeholder="例如 020" required><small>对方登录星云驿后可直接接受，不会发送确认邮件。</small></div>
             <div><label for="organization-invite-role">角色</label><select id="organization-invite-role"></select></div>
           </div>
-          <button type="submit" class="quiet-button">发送邀请</button>
+          <button type="submit" class="quiet-button">发出站内邀请</button>
         </section>
         <p id="organization-manage-result" class="form-status" role="status"></p>
         <h3>成员</h3>

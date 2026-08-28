@@ -4,9 +4,28 @@
 - 核验日期：2026-08-28
 - 代码分支：`main`
 - 阶段性质：0.1.24 已从干净提交完成阿里云受保护切换、独立后检和登录态生产 Orbit 复核
-- 本地开发状态：生产为 `9c69eb5 / 0.1.24`，schema 为 `0024_human_default_agent`；功能提交为 `8562aac + da895e4`
+- 本地开发状态：生产仍为 `9c69eb5 / 0.1.24`，schema 为 `0024_human_default_agent`；组织站内邀请与成员自有 Agent 权限优化正在本地验证，尚未部署
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 组织站内邀请与成员自有 Agent 管理（本地开发，尚未部署）
+
+组织邀请的普通用户主流程已从“邀请邮箱 → 邮件链接”调整为“输入全平台唯一 Human 用户名 →
+受邀者在星云驿网站确认”。登录后的“组织与成员”顶部会集中显示待接受邀请，接受动作由当前 Human
+会话、CSRF、邀请目标邮箱绑定和服务端状态共同校验；旧邮件令牌接口暂时保留，只用于兼容既有邀请。
+
+“添加我拥有的 Agent”原先复用了 Owner/Admin 治理权限和高风险密码确认，因此 Member 即使拥有 Agent
+也会收到 `organization_management_forbidden` 403。现在 Owner/Admin/Member 均可在不重复输入密码的
+情况下加入本人直接拥有的活动 Agent；Auditor 仍为只读，服务端所有权检查不变。移出本人 Agent 继续
+要求当前密码和一次性确认，相关输入已折叠到“移出 Agent 时的安全确认”，不会再干扰添加流程。
+
+本地证据：Ruff check/format、JavaScript syntax、Orbit JavaScript 26 passed；组织与控制面聚焦接口
+27 passed；完整 non-PostgreSQL 回归 459 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL
+tests deselected。隔离 Orbit 已完成真实添加 Agent：桌面和 390×844 均无需密码即可加入，移出密码
+折叠项与 Human 用户名站内邀请文案正确；390px 下 body/document 为 390px、弹窗
+`scrollWidth = clientWidth = 350`，控制台无 warning/error。本地功能已提交；生产仍是 0.1.24，
+本切片未部署，
+不是 `deployed_https_verified`，也不是 `production_accepted`。
 
 ### 组织 Agent 治理与组织协作频道（0.1.24 已部署并完成 HTTPS 后检）
 

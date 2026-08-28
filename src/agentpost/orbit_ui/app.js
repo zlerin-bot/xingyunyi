@@ -152,6 +152,8 @@ const elements = {
   agentDelete: document.querySelector("#agent-delete"),
   organizationCount: document.querySelector("#organization-count"),
   organizationList: document.querySelector("#organization-list"),
+  organizationPendingSection: document.querySelector("#organization-pending-section"),
+  organizationPendingList: document.querySelector("#organization-pending-list"),
   openOrganizationCreate: document.querySelector("#open-organization-create"),
   taskList: document.querySelector("#task-list"),
   approvalList: document.querySelector("#approval-list"),
@@ -329,7 +331,7 @@ const elements = {
   organizationAgentPassword: document.querySelector("#organization-agent-password"),
   organizationAgentAdd: document.querySelector("#organization-agent-add"),
   organizationInviteSection: document.querySelector("#organization-invite-section"),
-  organizationInviteEmail: document.querySelector("#organization-invite-email"),
+  organizationInviteUsername: document.querySelector("#organization-invite-username"),
   organizationInviteRole: document.querySelector("#organization-invite-role"),
   organizationManageResult: document.querySelector("#organization-manage-result"),
   organizationMemberList: document.querySelector("#organization-member-list"),
@@ -869,9 +871,9 @@ const ORGANIZATION_ROLE_EXPERIENCE = Object.freeze({
     actions: "可邀请和管理 Member/Auditor；不能处置 Owner 或其他受保护管理关系。",
   }),
   member: Object.freeze({
-    capability: "Member · 只读协作视图",
+    capability: "Member · 参与组织协作",
     visibility: "可查看组织 Agent 和组织协作频道内容；个人对话不会因加入组织而共享。",
-    actions: "不能审批，也不能连接、重命名、断开或删除组织 Agent。",
+    actions: "可把自己拥有的 Agent 加入或移出组织；不能管理其他成员或其他人的 Agent。",
   }),
   auditor: Object.freeze({
     capability: "Auditor · 仅元数据审计视图",
@@ -957,6 +959,47 @@ function renderOrganizations(organizations) {
   elements.organizationList.append(fragment);
 }
 
+function renderPendingOrganizationInvitations(invitations) {
+  elements.organizationPendingList.replaceChildren();
+  elements.organizationPendingSection.hidden = invitations.length === 0;
+  invitations.forEach((invitation) => {
+    const card = document.createElement("article");
+    card.className = "organization-card";
+    const name = document.createElement("strong");
+    name.textContent = safeText(invitation.organization_name, invitation.organization_slug);
+    const detail = document.createElement("p");
+    detail.textContent = `${statusLabel(invitation.role)} · 有效至 ${dateText(invitation.expires_at)}`;
+    const description = document.createElement("p");
+    description.textContent = safeText(invitation.organization_description, "邀请你加入该组织。加入前不会共享你的个人对话。");
+    const actions = document.createElement("div");
+    actions.className = "organization-card-actions";
+    const accept = document.createElement("button");
+    accept.type = "button";
+    accept.className = "primary-action";
+    accept.textContent = "接受邀请";
+    accept.addEventListener("click", () => acceptPendingOrganizationInvitation(invitation, accept));
+    actions.append(accept);
+    card.append(name, detail, description, actions);
+    elements.organizationPendingList.append(card);
+  });
+}
+
+async function acceptPendingOrganizationInvitation(invitation, button) {
+  button.disabled = true;
+  try {
+    await requestJson(
+      `/api/v1/orbit/organization-invitations/${encodeURIComponent(invitation.invitation_id)}/accept`,
+      { method: "POST", headers: { "X-CSRF-Token": state.csrfToken } },
+    );
+    await loadDashboard();
+    activateRoute("settings", "organizations", { updateHistory: true });
+    setConnection("组织邀请已接受", "success");
+  } catch (error) {
+    setConnection(error.message, "error");
+    button.disabled = false;
+  }
+}
+
 function organizationAgents(organization) {
   return (state.dashboard?.agents || []).filter(
     (agent) => String(agent.organization?.id || "") === String(organization.id),
@@ -971,7 +1014,7 @@ function eligibleOwnedOrganizationAgents() {
 
 function renderOrganizationAgents(organization) {
   const agents = organizationAgents(organization);
-  const isManager = ["owner", "admin"].includes(organization.membership_role);
+  const canManageOwnAgents = ["owner", "admin", "member"].includes(organization.membership_role);
   elements.organizationAgentList.replaceChildren();
   if (!agents.length) {
     elements.organizationAgentList.append(emptyState(
@@ -990,7 +1033,7 @@ function renderOrganizationAgents(organization) {
         : `${statusLabel(agent.connection_state)} · ${safeText(agent.display_name)}`;
       content.append(name, detail);
       item.append(content);
-      if (isManager && agent.role === "owner") {
+      if (canManageOwnAgents && agent.role === "owner") {
         const remove = document.createElement("button");
         remove.type = "button";
         remove.className = "quiet-button danger";
@@ -1002,7 +1045,7 @@ function renderOrganizationAgents(organization) {
     });
   }
 
-  elements.organizationAgentActions.hidden = !isManager;
+  elements.organizationAgentActions.hidden = !canManageOwnAgents;
   elements.organizationAgentSelect.replaceChildren();
   const eligible = eligibleOwnedOrganizationAgents();
   const placeholder = document.createElement("option");
@@ -1029,7 +1072,7 @@ async function changeOwnedOrganizationAgent(agent, intent) {
     elements.organizationManageResult.className = "form-status error";
     return;
   }
-  if (elements.organizationAgentPassword.value.length < 12) {
+  if (intent === "remove" && elements.organizationAgentPassword.value.length < 12) {
     elements.organizationManageResult.textContent = "请输入当前星轨密码后再确认。";
     elements.organizationManageResult.className = "form-status error";
     elements.organizationAgentPassword.focus();
@@ -1038,16 +1081,20 @@ async function changeOwnedOrganizationAgent(agent, intent) {
   elements.organizationAgentAdd.disabled = true;
   try {
     const base = `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/agents/${encodeURIComponent(selectedAgent.id)}`;
-    const confirmed = await requestJson(`${base}/confirmation`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
-      body: JSON.stringify({ intent, password: elements.organizationAgentPassword.value }),
-    });
+    let confirmationToken = "";
+    if (intent === "remove") {
+      const confirmed = await requestJson(`${base}/confirmation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+        body: JSON.stringify({ intent, password: elements.organizationAgentPassword.value }),
+      });
+      confirmationToken = confirmed.confirmation_token;
+    }
     await requestJson(base, {
       method: intent === "assign" ? "PUT" : "DELETE",
       headers: {
         "X-CSRF-Token": state.csrfToken,
-        "X-Human-Confirmation": confirmed.confirmation_token,
+        ...(confirmationToken ? { "X-Human-Confirmation": confirmationToken } : {}),
       },
     });
     elements.organizationAgentPassword.value = "";
@@ -1065,6 +1112,7 @@ async function changeOwnedOrganizationAgent(agent, intent) {
       agent_already_assigned_to_organization: "这个 Agent 已属于其他组织，不能自动迁移。",
       human_reauthentication_failed: "密码不正确，或当前浏览器尚未完成双重验证登录。",
       organization_agent_not_found: "只能管理你本人拥有且仍处于活动状态的 Agent。",
+      organization_management_forbidden: "你当前是只读审计角色，不能把 Agent 加入或移出组织。请联系组织管理员调整角色。",
     };
     elements.organizationManageResult.textContent = conflicts[error.code] || error.message;
     elements.organizationManageResult.className = "form-status error";
@@ -1113,7 +1161,7 @@ function closeOrganizationManagement() {
   elements.organizationAgentPassword.value = "";
   elements.organizationAgentSelect.replaceChildren();
   elements.organizationAgentList.replaceChildren();
-  elements.organizationInviteEmail.value = "";
+  elements.organizationInviteUsername.value = "";
   elements.organizationDomainName.value = "";
   elements.organizationOidcName.value = "";
   elements.organizationOidcIssuer.value = "";
@@ -1280,7 +1328,7 @@ function renderOrganizationInvitations(invitations) {
   }
   invitations.forEach((invitation) => {
     const { row, actions } = governanceRow(
-      invitation.email,
+      invitation.username || invitation.email || "目标用户",
       `${statusLabel(invitation.role)} · ${statusLabel(invitation.status)} · ${dateText(invitation.expires_at)}`,
     );
     if (invitation.status === "pending") {
@@ -1503,7 +1551,7 @@ async function loadOrganizationManagement() {
   renderOrganizationRoleBoundary(elements.organizationRoleBoundary, organization.membership_role);
   renderOrganizationAgents(organization);
   elements.organizationInviteSection.hidden = !isManager;
-  elements.organizationInviteEmail.disabled = !isManager;
+  elements.organizationInviteUsername.disabled = !isManager;
   elements.organizationInviteRole.disabled = !isManager;
   configureOrganizationInvitationRoles(organization.membership_role);
   elements.organizationInvitationList.hidden = !isManager;
@@ -1571,17 +1619,22 @@ async function inviteOrganizationMember(event) {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
         body: JSON.stringify({
-          email: elements.organizationInviteEmail.value.trim(),
+          username: elements.organizationInviteUsername.value.trim().toLowerCase(),
           role: elements.organizationInviteRole.value,
         }),
       },
     );
-    elements.organizationInviteEmail.value = "";
-    elements.organizationManageResult.textContent = "邀请已发送；令牌只通过目标邮箱交付。";
+    elements.organizationInviteUsername.value = "";
+    elements.organizationManageResult.textContent = "站内邀请已发出；对方登录星云驿后即可接受。";
     elements.organizationManageResult.className = "form-status success";
     await loadOrganizationManagement();
   } catch (error) {
-    elements.organizationManageResult.textContent = error.message;
+    const messages = {
+      organization_invitee_not_found: "没有找到这个 Human 用户名。请核对对方在星云驿中的用户名后再试。",
+      organization_already_member: "这位 Human 已经是组织成员。",
+      organization_invitation_already_pending: "已经向这位 Human 发出过待接受邀请，无需重复邀请。",
+    };
+    elements.organizationManageResult.textContent = messages[error.code] || error.message;
     elements.organizationManageResult.className = "form-status error";
   } finally {
     submit.disabled = false;
@@ -3964,15 +4017,17 @@ async function loadDashboard() {
   elements.refresh.disabled = true;
   setConnection("正在同步数据", "loading", "同步中");
   try {
-    const [dashboard, connectors, security, threads] = await Promise.all([
+    const [dashboard, connectors, security, threads, invitations] = await Promise.all([
       requestJson("/api/v1/orbit/dashboard"),
       requestJson("/api/v1/orbit/connectors"),
       requestJson("/api/v1/orbit/security"),
       requestJson(threadListEndpoint()),
+      requestJson("/api/v1/orbit/organization-invitations"),
     ]);
     state.connectors = Array.isArray(connectors.items) ? connectors.items : [];
     state.threads = Array.isArray(threads) ? threads : [];
     renderDashboard(dashboard);
+    renderPendingOrganizationInvitations(Array.isArray(invitations.items) ? invitations.items : []);
     renderConnectors(state.connectors);
     renderSecurity(security);
     renderThreadOrganizationOptions();

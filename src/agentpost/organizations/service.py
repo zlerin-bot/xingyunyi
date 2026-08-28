@@ -40,6 +40,7 @@ from agentpost.organizations.schemas import (
     OrganizationInvitationAccepted,
     OrganizationInvitationCreate,
     OrganizationInvitationCreated,
+    OrganizationInvitationInboxItem,
     OrganizationInvitationPreview,
     OrganizationInvitationResponse,
 )
@@ -62,6 +63,10 @@ class OrganizationInvitationAlreadyPendingError(Exception):
 
 
 class OrganizationInvitationInvalidError(Exception):
+    pass
+
+
+class OrganizationInviteeNotFoundError(Exception):
     pass
 
 
@@ -123,11 +128,16 @@ def _membership_response(
     )
 
 
-def _invitation_response(invitation: OrganizationInvitation) -> OrganizationInvitationResponse:
+def _invitation_response(
+    session: Session,
+    invitation: OrganizationInvitation,
+) -> OrganizationInvitationResponse:
+    invitee = session.scalar(select(HumanUser).where(HumanUser.email == invitation.email))
     return OrganizationInvitationResponse(
         invitation_id=invitation.id,
         organization_id=invitation.organization_id,
-        email=invitation.email,
+        email=invitation.email if invitee is None else None,
+        username=invitee.username if invitee is not None else None,
         role=invitation.role,
         status=invitation.status,
         token_prefix=invitation.token_prefix,
@@ -176,6 +186,11 @@ def _require_manager(context: OrganizationContext) -> None:
         raise OrganizationAccessDeniedError
 
 
+def _require_agent_participant(context: OrganizationContext) -> None:
+    if context.membership.role not in {"owner", "admin", "member"}:
+        raise OrganizationAccessDeniedError
+
+
 def _require_owner(context: OrganizationContext) -> None:
     if context.membership.role != "owner":
         raise OrganizationAccessDeniedError
@@ -189,7 +204,7 @@ def authorize_owned_agent_management(
     agent_id: UUID,
 ) -> tuple[OrganizationContext, Agent]:
     context = _load_context(session, organization_id=organization_id, user=user)
-    _require_manager(context)
+    _require_agent_participant(context)
     agent = session.scalar(
         select(Agent)
         .join(AgentOwnership, AgentOwnership.agent_id == Agent.id)
@@ -398,6 +413,21 @@ def create_invitation(
     _require_manager(context)
     if context.membership.role == "admin" and payload.role == "admin":
         raise OrganizationAccessDeniedError
+    invitee = None
+    if payload.username is not None:
+        invitee = session.scalar(
+            select(HumanUser).where(
+                HumanUser.username == payload.username,
+                HumanUser.status == "active",
+            )
+        )
+        if invitee is None:
+            raise OrganizationInviteeNotFoundError
+        invitee_email = invitee.email
+    else:
+        invitee_email = payload.email
+    if invitee_email is None:
+        raise OrganizationInviteeNotFoundError
     existing_member = session.scalar(
         select(HumanUser.id)
         .join(
@@ -406,7 +436,7 @@ def create_invitation(
         )
         .where(
             OrganizationMembership.organization_id == organization_id,
-            HumanUser.email == payload.email,
+            HumanUser.email == invitee_email,
         )
     )
     if existing_member is not None:
@@ -414,7 +444,7 @@ def create_invitation(
     pending = session.scalar(
         select(OrganizationInvitation).where(
             OrganizationInvitation.organization_id == organization_id,
-            OrganizationInvitation.email == payload.email,
+            OrganizationInvitation.email == invitee_email,
             OrganizationInvitation.status == "pending",
         )
     )
@@ -427,7 +457,7 @@ def create_invitation(
     now = utc_now()
     invitation = OrganizationInvitation(
         organization_id=organization_id,
-        email=payload.email,
+        email=invitee_email,
         role=payload.role,
         token_digest=_invitation_digest(raw_token, settings),
         token_prefix=raw_token[:16],
@@ -442,13 +472,15 @@ def create_invitation(
     except IntegrityError as exc:
         session.rollback()
         raise OrganizationInvitationAlreadyPendingError from exc
-    verification_uri = f"{settings.public_base_url}/orbit#organization-invitation={raw_token}"
-    deliver_organization_invitation(
-        settings,
-        email=payload.email,
-        organization_name=context.organization.name,
-        verification_uri=verification_uri,
-    )
+    verification_uri = None
+    if payload.email is not None:
+        verification_uri = f"{settings.public_base_url}/orbit#organization-invitation={raw_token}"
+        deliver_organization_invitation(
+            settings,
+            email=invitee_email,
+            organization_name=context.organization.name,
+            verification_uri=verification_uri,
+        )
     add_human_action_audit(
         session,
         human_user_id=user.id,
@@ -458,13 +490,25 @@ def create_invitation(
         target_id=str(invitation.id),
         outcome="success",
         request_id=request_id,
-        audit_metadata={"organization_id": str(organization_id), "role": payload.role},
+        audit_metadata={
+            "organization_id": str(organization_id),
+            "role": payload.role,
+            "delivery": "site" if payload.username is not None else "email",
+        },
     )
     session.commit()
     return OrganizationInvitationCreated(
-        invitation=_invitation_response(invitation),
-        verification_uri=(verification_uri if settings.email_delivery_mode == "test" else None),
-        test_acceptance_token=(raw_token if settings.email_delivery_mode == "test" else None),
+        invitation=_invitation_response(session, invitation),
+        verification_uri=(
+            verification_uri
+            if payload.email is not None and settings.email_delivery_mode == "test"
+            else None
+        ),
+        test_acceptance_token=(
+            raw_token
+            if payload.email is not None and settings.email_delivery_mode == "test"
+            else None
+        ),
     )
 
 
@@ -491,7 +535,120 @@ def list_invitations(
             changed = True
     if changed:
         session.commit()
-    return [_invitation_response(item) for item in invitations]
+    return [_invitation_response(session, item) for item in invitations]
+
+
+def list_pending_invitations(
+    session: Session,
+    *,
+    user: HumanUser,
+    limit: int,
+) -> list[OrganizationInvitationInboxItem]:
+    rows = session.execute(
+        select(OrganizationInvitation, Organization)
+        .join(Organization, Organization.id == OrganizationInvitation.organization_id)
+        .where(
+            OrganizationInvitation.email == user.email,
+            OrganizationInvitation.status == "pending",
+            Organization.status == "active",
+        )
+        .order_by(OrganizationInvitation.created_at.desc())
+        .limit(limit)
+    ).all()
+    now = utc_now()
+    items: list[OrganizationInvitationInboxItem] = []
+    changed = False
+    for invitation, organization in rows:
+        if _as_utc(invitation.expires_at) <= now:
+            invitation.status = "expired"
+            changed = True
+            continue
+        items.append(
+            OrganizationInvitationInboxItem(
+                invitation_id=invitation.id,
+                organization_id=organization.id,
+                organization_slug=organization.slug,
+                organization_name=organization.name,
+                organization_description=organization.description,
+                role=invitation.role,
+                expires_at=_as_utc(invitation.expires_at),
+            )
+        )
+    if changed:
+        session.commit()
+    return items
+
+
+def accept_inbox_invitation(
+    session: Session,
+    *,
+    user: HumanUser,
+    invitation_id: UUID,
+    human_session_id: UUID | None,
+    request_id: str,
+) -> OrganizationInvitationAccepted:
+    invitation = session.scalar(
+        select(OrganizationInvitation)
+        .where(OrganizationInvitation.id == invitation_id)
+        .with_for_update()
+    )
+    now = utc_now()
+    if (
+        invitation is None
+        or invitation.status != "pending"
+        or _as_utc(invitation.expires_at) <= now
+        or not hmac.compare_digest(invitation.email, user.email)
+    ):
+        raise OrganizationInvitationInvalidError
+    organization = session.scalar(
+        select(Organization)
+        .where(
+            Organization.id == invitation.organization_id,
+            Organization.status == "active",
+        )
+        .with_for_update()
+    )
+    if organization is None:
+        raise OrganizationInvitationInvalidError
+    existing = session.scalar(
+        select(OrganizationMembership).where(
+            OrganizationMembership.organization_id == organization.id,
+            OrganizationMembership.human_user_id == user.id,
+        )
+    )
+    if existing is not None:
+        raise OrganizationAlreadyMemberError
+    membership = OrganizationMembership(
+        organization_id=organization.id,
+        human_user_id=user.id,
+        role=invitation.role,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(membership)
+    invitation.status = "accepted"
+    invitation.accepted_at = now
+    invitation.accepted_by_user_id = user.id
+    add_human_action_audit(
+        session,
+        human_user_id=user.id,
+        human_session_id=human_session_id,
+        action="organization.invitation_accepted",
+        target_type="organization_invitation",
+        target_id=str(invitation.id),
+        outcome="success",
+        request_id=request_id,
+        audit_metadata={"organization_id": str(organization.id), "role": membership.role},
+    )
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        raise OrganizationAlreadyMemberError from exc
+    return OrganizationInvitationAccepted(
+        organization=organization_response(session, organization),
+        membership=_membership_response(membership, user),
+    )
 
 
 def list_members(

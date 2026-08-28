@@ -2430,7 +2430,7 @@ summary:focus-visible {
 
 .organization-agent-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 7px 10px;
   align-items: end;
   padding: 12px;
@@ -2447,20 +2447,26 @@ summary:focus-visible {
   grid-column: 1;
 }
 
-.organization-agent-actions label[for="organization-agent-password"] {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.organization-agent-actions input {
-  grid-column: 2;
-  grid-row: 2;
-}
-
 .organization-agent-actions button {
-  grid-column: 3;
+  grid-column: 2;
   grid-row: 2;
   white-space: nowrap;
+}
+
+.organization-agent-remove-confirmation {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.organization-agent-remove-confirmation summary {
+  cursor: pointer;
+}
+
+.organization-agent-remove-confirmation[open] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
 }
 
 .organization-domain-section {

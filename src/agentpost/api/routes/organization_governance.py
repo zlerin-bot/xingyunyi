@@ -40,6 +40,7 @@ from agentpost.organizations.schemas import (
     OrganizationInvitationAccepted,
     OrganizationInvitationCreate,
     OrganizationInvitationCreated,
+    OrganizationInvitationInboxItem,
     OrganizationInvitationPreview,
     OrganizationInvitationResponse,
     OrganizationMembershipUpdate,
@@ -56,8 +57,10 @@ from agentpost.organizations.service import (
     OrganizationDomainNotVerifiedError,
     OrganizationInvitationAlreadyPendingError,
     OrganizationInvitationInvalidError,
+    OrganizationInviteeNotFoundError,
     OrganizationSelfGovernanceNotFoundError,
     OrganizationSlugConflictError,
+    accept_inbox_invitation,
     accept_invitation,
     assign_owned_agent,
     authorize_owned_agent_management,
@@ -68,6 +71,7 @@ from agentpost.organizations.service import (
     list_domains,
     list_invitations,
     list_members,
+    list_pending_invitations,
     preview_invitation,
     remove_member,
     remove_owned_agent,
@@ -298,21 +302,9 @@ def assign_my_agent_to_organization(
     request: Request,
     current_human: CurrentHumanDep,
     session: SessionDep,
-    settings: SettingsDep,
     csrf_guard: HumanCsrfDep,
-    confirmation: Annotated[str | None, Header(alias=HUMAN_CONFIRMATION_HEADER)] = None,
 ) -> OrganizationAgentResponse:
     del csrf_guard
-    _consume_organization_agent_confirmation(
-        organization_id=organization_id,
-        agent_id=agent_id,
-        intent="assign",
-        raw_confirmation=confirmation,
-        request=request,
-        current_human=current_human,
-        session=session,
-        settings=settings,
-    )
     try:
         return assign_owned_agent(
             session,
@@ -419,6 +411,14 @@ def invite_organization_member(
             status_code=409,
             detail={"code": "organization_invitation_already_pending"},
         ) from exc
+    except OrganizationInviteeNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "organization_invitee_not_found",
+                "message": "No active Human account matches that username",
+            },
+        ) from exc
     except EmailDeliveryError as exc:
         session.rollback()
         raise HTTPException(
@@ -450,6 +450,50 @@ def get_organization_invitations(
         raise _not_found() from exc
     except OrganizationAccessDeniedError as exc:
         raise _forbidden() from exc
+
+
+@router.get(
+    "/organization-invitations",
+    response_model=dict[str, list[OrganizationInvitationInboxItem]],
+)
+def get_my_pending_organization_invitations(
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    limit: Limit = 100,
+) -> dict[str, list[OrganizationInvitationInboxItem]]:
+    return {"items": list_pending_invitations(session, user=current_human, limit=limit)}
+
+
+@router.post(
+    "/organization-invitations/{invitation_id}/accept",
+    response_model=OrganizationInvitationAccepted,
+)
+def accept_my_pending_organization_invitation(
+    invitation_id: UUID,
+    request: Request,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    csrf_guard: HumanCsrfDep,
+) -> OrganizationInvitationAccepted:
+    del csrf_guard
+    try:
+        return accept_inbox_invitation(
+            session,
+            user=current_human,
+            invitation_id=invitation_id,
+            human_session_id=human_session_id_from_request(request),
+            request_id=request.state.request_id,
+        )
+    except OrganizationInvitationInvalidError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "organization_invitation_invalid"},
+        ) from exc
+    except OrganizationAlreadyMemberError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "organization_already_member"},
+        ) from exc
 
 
 @router.post(

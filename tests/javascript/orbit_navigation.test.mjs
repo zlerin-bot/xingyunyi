@@ -319,7 +319,7 @@ test("organization governance explains all roles and requires explicit invitatio
     assert.match(organizationsPanel, new RegExp(`>${role}<`));
   }
   assert.match(organizationsPanel, /不会自动拥有或冒充组织 Agent/);
-  assert.match(organizationsPanel, /不能审批或管理 Agent/);
+  assert.match(organizationsPanel, /可查看组织协作，并把自己拥有的 Agent 加入或移出组织/);
   assert.match(organizationsPanel, /正文、附件内容、审批理由和参数保持隐藏/);
 
   assert.match(html, /id="organization-invitation-dialog"/);
@@ -329,6 +329,12 @@ test("organization governance explains all roles and requires explicit invitatio
   assert.doesNotMatch(script, /maybeAcceptOrganizationInvitation/);
   assert.match(script, /\/api\/v1\/orbit\/organization-invitations\/preview/);
   assert.match(script, /organizationInvitationForm\.addEventListener\("submit", acceptOrganizationInvitation\)/);
+  assert.match(html, /id="organization-pending-list"/);
+  assert.match(html, /不需要再到邮箱确认/);
+  assert.match(html, /id="organization-invite-username"/);
+  assert.match(script, /\/api\/v1\/orbit\/organization-invitations\/\$\{encodeURIComponent\(invitation\.invitation_id\)\}\/accept/);
+  assert.match(script, /username: elements\.organizationInviteUsername\.value/);
+  assert.doesNotMatch(html, /邀请邮箱/);
 });
 
 test("organization role controls mirror the server authorization boundary", () => {
@@ -338,6 +344,7 @@ test("organization role controls mirror the server authorization boundary", () =
   assert.match(script, /auditor: Object\.freeze\(\{/);
   assert.match(script, /actorRole === "owner" \? \["member", "auditor", "admin"\] : \["member", "auditor"\]/);
   assert.match(script, /organizationInviteSection\.hidden = !isManager/);
+  assert.match(script, /\["owner", "admin", "member"\]\.includes\(organization\.membership_role\)/);
   assert.match(script, /organization\?\.membership_role === "owner" && ownerCount <= 1/);
   assert.match(script, /最后一名 Owner 不能直接退出/);
   assert.match(script, /退出后只撤销组织派生权限，个人和直接授权保持不变/);

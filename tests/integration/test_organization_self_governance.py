@@ -227,6 +227,50 @@ def test_owner_creates_organization_and_invitation_is_email_bound_and_one_time(
         assert raw_token not in stored.token_digest
 
 
+def test_username_invitation_is_accepted_inside_orbit_without_email_link(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with TestClient(create_app(settings=_runtime(settings), database=database)) as client:
+        invitee = _register(client, "site-invitee@example.com")
+        invitee_username = str(invitee["user"]["username"])
+        _logout(client, str(invitee["csrf_token"]))
+        owner = _register(client, "site-owner@example.com")
+        organization = _create_organization(client, str(owner["csrf_token"]))
+        organization_id = str(organization["organization"]["id"])
+
+        created = client.post(
+            f"/api/v1/orbit/organizations/{organization_id}/invitations",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+            json={"username": invitee_username, "role": "member"},
+        )
+        assert created.status_code == 201, created.text
+        assert created.json()["verification_uri"] is None
+        assert created.json()["test_acceptance_token"] is None
+        assert created.json()["invitation"]["username"] == invitee_username
+        assert created.json()["invitation"]["email"] is None
+        invitation_id = created.json()["invitation"]["invitation_id"]
+        assert client.get("/api/v1/orbit/organization-invitations").json() == {"items": []}
+        wrong_human = client.post(
+            f"/api/v1/orbit/organization-invitations/{invitation_id}/accept",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+        )
+        assert wrong_human.status_code == 404
+        _logout(client, str(owner["csrf_token"]))
+
+        invitee_login = _login(client, "site-invitee@example.com")
+        inbox = client.get("/api/v1/orbit/organization-invitations")
+        assert inbox.status_code == 200, inbox.text
+        assert inbox.json()["items"][0]["invitation_id"] == invitation_id
+        accepted = client.post(
+            f"/api/v1/orbit/organization-invitations/{invitation_id}/accept",
+            headers={"X-CSRF-Token": invitee_login["csrf_token"]},
+        )
+        assert accepted.status_code == 200, accepted.text
+        assert accepted.json()["membership"]["role"] == "member"
+        assert client.get("/api/v1/orbit/organization-invitations").json() == {"items": []}
+
+
 def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
     settings: Settings,
     database: Database,
@@ -259,31 +303,16 @@ def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
         )
         assert pre_assignment.status_code == 201, pre_assignment.text
 
-        wrong_password = client.post(
-            f"/api/v1/orbit/organizations/{organization_id}/agents/{sender['agent']['id']}/confirmation",
-            headers={"X-CSRF-Token": owner["csrf_token"]},
-            json={"intent": "assign", "password": "incorrect password"},
-        )
-        assert wrong_password.status_code == 403
-        confirmation = client.post(
-            f"/api/v1/orbit/organizations/{organization_id}/agents/{sender['agent']['id']}/confirmation",
-            headers={"X-CSRF-Token": owner["csrf_token"]},
-            json={"intent": "assign", "password": PASSWORD},
-        )
-        assert confirmation.status_code == 200, confirmation.text
-        missing_confirmation = client.put(
-            f"/api/v1/orbit/organizations/{organization_id}/agents/{sender['agent']['id']}",
-            headers={"X-CSRF-Token": owner["csrf_token"]},
-        )
-        assert missing_confirmation.status_code == 403
         assigned = client.put(
             f"/api/v1/orbit/organizations/{organization_id}/agents/{sender['agent']['id']}",
-            headers={
-                "X-CSRF-Token": owner["csrf_token"],
-                "X-Human-Confirmation": confirmation.json()["confirmation_token"],
-            },
+            headers={"X-CSRF-Token": owner["csrf_token"]},
         )
         assert assigned.status_code == 200, assigned.text
+        repeated = client.put(
+            f"/api/v1/orbit/organizations/{organization_id}/agents/{sender['agent']['id']}",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+        )
+        assert repeated.status_code == 200, repeated.text
         _assign_agent_to_organization(
             client,
             organization_id=organization_id,
@@ -294,15 +323,6 @@ def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
             organization_id=organization_id,
             agent_id=str(observer["agent"]["id"]),
         )
-        replay = client.put(
-            f"/api/v1/orbit/organizations/{organization_id}/agents/{sender['agent']['id']}",
-            headers={
-                "X-CSRF-Token": owner["csrf_token"],
-                "X-Human-Confirmation": confirmation.json()["confirmation_token"],
-            },
-        )
-        assert replay.status_code == 403
-
         member = _register(client, "organization-reader@example.com")
         set_member = client.put(
             f"/api/v1/admin/organizations/{organization_id}/members/{member['user']['id']}",
@@ -310,6 +330,17 @@ def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
             json={"role": "member"},
         )
         assert set_member.status_code == 200, set_member.text
+        member_agent = _create_agent(client, "member-owned@agents.local")
+        _set_agent_owner(
+            client,
+            human_id=str(member["user"]["id"]),
+            agent_id=str(member_agent["agent"]["id"]),
+        )
+        member_assigned = client.put(
+            f"/api/v1/orbit/organizations/{organization_id}/agents/{member_agent['agent']['id']}",
+            headers={"X-CSRF-Token": member["csrf_token"]},
+        )
+        assert member_assigned.status_code == 200, member_assigned.text
         member_dashboard = client.get("/api/v1/orbit/dashboard")
         assert member_dashboard.status_code == 200
         assert "pre-assignment-private-body" not in member_dashboard.text
@@ -338,6 +369,7 @@ def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
             sender["agent"]["id"],
             recipient["agent"]["id"],
             observer["agent"]["id"],
+            member_agent["agent"]["id"],
         }
         channel_message = client.post(
             f"/api/v1/organizations/{organization_id}/channel/messages",
@@ -356,6 +388,7 @@ def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
         assert set(channel_message.json()["recipient_agent_ids"]) == {
             recipient["agent"]["id"],
             observer["agent"]["id"],
+            member_agent["agent"]["id"],
         }
         assert channel_message.json()["reply_policy"] == "addressed_agents_reply"
         replayed_channel_message = client.post(

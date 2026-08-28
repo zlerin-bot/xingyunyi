@@ -15,6 +15,7 @@ from pydantic import (
 )
 
 from agentpost.accounts.schemas import EmailChallengeStart
+from agentpost.accounts.usernames import canonicalize_human_username
 from agentpost.control.schemas import OrganizationMembershipResponse, OrganizationResponse
 from agentpost.messaging.schemas import (
     ContentCreate,
@@ -36,20 +37,33 @@ class OrganizationCreateResponse(OrganizationGovernanceModel):
 
 
 class OrganizationInvitationCreate(OrganizationGovernanceModel):
-    email: str = Field(min_length=3, max_length=320)
+    username: str | None = Field(default=None, min_length=3, max_length=32)
+    email: str | None = Field(default=None, min_length=3, max_length=320)
     role: Literal["admin", "member", "auditor"] = "member"
     expires_in_seconds: int = Field(default=72 * 60 * 60, ge=60 * 60, le=7 * 24 * 60 * 60)
 
+    @field_validator("username")
+    @classmethod
+    def canonical_username(cls, value: str | None) -> str | None:
+        return canonicalize_human_username(value) if value is not None else None
+
     @field_validator("email")
     @classmethod
-    def canonical_email(cls, value: str) -> str:
-        return EmailChallengeStart.canonical_email(value)
+    def canonical_email(cls, value: str | None) -> str | None:
+        return EmailChallengeStart.canonical_email(value) if value is not None else None
+
+    @model_validator(mode="after")
+    def one_invitee_identifier(self) -> OrganizationInvitationCreate:
+        if (self.username is None) == (self.email is None):
+            raise ValueError("supply exactly one of username or email")
+        return self
 
 
 class OrganizationInvitationResponse(OrganizationGovernanceModel):
     invitation_id: UUID
     organization_id: UUID
-    email: str
+    email: str | None
+    username: str | None = None
     role: Literal["admin", "member", "auditor"]
     status: Literal["pending", "accepted", "revoked", "expired"]
     token_prefix: str
@@ -79,6 +93,16 @@ class OrganizationInvitationPreview(OrganizationGovernanceModel):
 class OrganizationInvitationAccepted(OrganizationGovernanceModel):
     organization: OrganizationResponse
     membership: OrganizationMembershipResponse
+
+
+class OrganizationInvitationInboxItem(OrganizationGovernanceModel):
+    invitation_id: UUID
+    organization_id: UUID
+    organization_slug: str
+    organization_name: str
+    organization_description: str | None
+    role: Literal["admin", "member", "auditor"]
+    expires_at: datetime
 
 
 class OrganizationMembershipUpdate(OrganizationGovernanceModel):
