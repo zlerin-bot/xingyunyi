@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-29
 
-Current handoff stage: `v0.1.31-archive-navigation-local`; pinned production release: `0.1.30`
+Current handoff stage: `v0.1.31-archive-navigation-deployed-https-verified`; pinned production release: `0.1.31`
 
-## Archive navigation, owned-Agent visibility, and Orbit return behavior (local, 2026-08-29)
+## Archive navigation, owned-Agent visibility, and Orbit return behavior (0.1.31 deployed HTTPS verified, 2026-08-29)
 
 Star Orbit now keeps only `待我处理` and `任务进展` as desktop/mobile shortcuts. The archive library
 moves to Settings, where a Human can list archived Threads, open the complete conversation, and
@@ -23,8 +23,30 @@ The complete non-PostgreSQL suite reports 463 passed, one expected loopback sand
 PostgreSQL tests deselected. Isolated desktop browser acceptance covered both return paths and the
 Settings archive/open/restore flow. At 390×844, only two shortcuts share one row, body/document
 scroll width equals the 390px viewport, the bottom Star Orbit entry returns from Tasks, and the
-console is empty. PostgreSQL-specific tests and deployment remain pending; production stays on
-`b4d3217 / 0.1.30`.
+console is empty. PostgreSQL-specific tests were not run locally.
+
+Feature commit is `31c9e7b`; release commit is `1430601`. Source, public wheel, and Workbench
+single-upload bundle SHA-256 values are
+`b207d15e231f3dac39bbd8e8a5582a8a8d57cba10974cc51e4c3c65068457542`,
+`f26bf81009b06dd984269d45e80f685443e2a61b8e3bb3cf7798107f68a0dd9d`, and
+`eccc7ca998a3b806b1a752c6b41497870f42b0875bbe7952b86f0c0c26bab613`. Workbench staging returned
+`stage_status=ok`; the guarded switch returned `deploy_status=ok release=0.1.31 commit=1430601` in
+40 seconds with backup `/opt/agentpost/backups/20260829-063458-1430601-pre-031/`.
+
+Independent postflight returned `postflight_status=ok` in 3 seconds with schema
+`0025_human_thread_archives`. Preflight and postflight counts both report 60 Agents, 234 Messages,
+234 Deliveries, 27 Attachments, and 15 Humans. AgentPost changed from PID `300439` to `306456`, while
+Nginx remained PID `245451`. One external production event is explicit: after the read-only preflight
+and before staging, `apt-daily-upgrade/unattended-upgrade` restarted PostgreSQL at 06:33:36, changing
+PID `245492` to `304910`. The release switch did not restart PostgreSQL. It was active before the
+guarded switch, and the migration rehearsal, production reads, and count checks subsequently passed;
+therefore PostgreSQL continuity across the whole deployment window must not be claimed.
+
+Development-machine HTTPS checks confirmed 0.1.31 health/readiness, the exact public wheel hash,
+all six host platform lists, and 404 for an unknown download. The production sign-in page renders,
+but this browser has no authenticated production session; signed-in Settings archive behavior and
+real owned-Agent archive/restore reads remain pending. Status is `deployed_https_verified`, not
+`production_accepted`.
 
 ## Editable Human username in profile (0.1.30 deployed HTTPS verified, 2026-08-28)
 

@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.31-archive-navigation-local`
+- 交接阶段：`v0.1.31-archive-navigation-deployed-https-verified`
 - 核验日期：2026-08-29
 - 代码分支：`main`
-- 阶段性质：归档入口、Agent 归档可见性和星轨返回逻辑已完成本地实现与验收，尚未发布
-- 当前生产状态：`b4d3217 / 0.1.30`，schema 为 `0025_human_thread_archives`；功能提交为 `85f3643`
+- 阶段性质：归档入口、Agent 归档可见性和星轨返回逻辑已部署并完成 HTTPS 后检，真实登录态验收待确认
+- 当前生产状态：`1430601 / 0.1.31`，schema 为 `0025_human_thread_archives`；功能提交为 `31c9e7b`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 归档入口、Agent 可见性与星轨返回逻辑（本地完成，待发布）
+### 归档入口、Agent 可见性与星轨返回逻辑（0.1.31 已部署并完成 HTTPS 后检）
 
 星轨桌面端和移动端主界面恢复为“待我处理、任务进展”两个快捷入口；“已归档对话”迁到
 “设置”，并提供独立列表、完整对话查看和恢复路径。归档仍不删除服务器消息、不改变其他 Human
@@ -24,8 +24,28 @@
 non-PostgreSQL 回归 463 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected。
 隔离浏览器桌面端完成待处理/任务页空白返回、两个“我的对话”入口返回、设置归档、打开和恢复；
 390×844 下只有两个快捷入口同排，`body/document scrollWidth = innerWidth = 390`，底部星轨可从任务
-页返回全部对话，控制台无 warning/error。PostgreSQL 专属测试未在本地运行，尚未部署；生产仍为
-`b4d3217 / 0.1.30`。
+页返回全部对话，控制台无 warning/error。PostgreSQL 专属测试未在本地运行。
+
+发布提交为 `1430601 / 0.1.31`。干净归档生成的源码、公开 wheel、Workbench 单上传包 SHA-256
+分别为 `b207d15e231f3dac39bbd8e8a5582a8a8d57cba10974cc51e4c3c65068457542`、
+`f26bf81009b06dd984269d45e80f685443e2a61b8e3bb3cf7798107f68a0dd9d`、
+`eccc7ca998a3b806b1a752c6b41497870f42b0875bbe7952b86f0c0c26bab613`。Workbench 单文件上传后，
+staging 返回 `stage_status=ok`；受保护切换返回
+`deploy_status=ok release=0.1.31 commit=1430601`，耗时 40 秒，备份为
+`/opt/agentpost/backups/20260829-063458-1430601-pre-031/`。
+
+独立 postflight 返回 `postflight_status=ok`，耗时 3 秒，schema 保持
+`0025_human_thread_archives`；发布前后均为 60 Agents / 234 Messages / 234 Deliveries /
+27 Attachments / 15 Humans。AgentPost PID 从 `300439` 更新为 `306456`，Nginx PID 保持
+`245451`。需要单独记录：发布前只读核对之后、staging 之前，系统
+`apt-daily-upgrade/unattended-upgrade` 在 06:33:36 自动重启 PostgreSQL，PID 从 `245492`
+变为 `304910`；这不是切换脚本触发，数据库在发布开始前已恢复 active，后续迁移演练、生产读取和
+数据量校验均通过，但不能把整个发布窗口描述为 PostgreSQL 进程连续。
+
+开发机公网 health/ready 均返回 0.1.31，认证配置发布六类宿主的 macOS/Linux/Windows，公开 wheel
+哈希精确一致，未知下载返回 404。生产登录页可正常渲染，但当前浏览器没有生产登录态，因此设置中的
+归档列表、真实 Agent 归档后读取阻断及恢复后的重新读取仍为 `待确认`。当前状态是
+`deployed_https_verified`，不是 `production_accepted`。
 
 ### 个人资料用户名修改（0.1.30 已部署并完成 HTTPS 后检）
 
