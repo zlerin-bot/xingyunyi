@@ -1263,7 +1263,7 @@ function renderOrganizationMembers(members) {
     const memberAgents = Array.isArray(member.agents) ? member.agents : [];
     const agentCount = document.createElement("span");
     agentCount.className = "organization-member-agent-count";
-    agentCount.textContent = memberAgents.length ? `${memberAgents.length} 个 Agent` : "尚未加入 Agent";
+    agentCount.textContent = memberAgents.length ? `${memberAgents.length} 个 Agent` : "尚未设置可参与的 Agent";
     agentSection.append(agentCount);
     memberAgents.forEach((memberAgent) => {
       const item = document.createElement("div");
@@ -1275,12 +1275,18 @@ function renderOrganizationMembers(members) {
         (agent) => String(agent.id) === String(memberAgent.agent_id),
       );
       const agentDetail = document.createElement("span");
+      const sourceLabel = memberAgent.participation_source === "default" ? "默认参与" : "已加入组织";
       agentDetail.textContent = dashboardAgent
-        ? `${statusLabel(dashboardAgent.connection_state)} · ${safeText(memberAgent.display_name)}`
-        : safeText(memberAgent.display_name);
+        ? `${sourceLabel} · ${statusLabel(dashboardAgent.connection_state)} · ${safeText(memberAgent.display_name)}`
+        : `${sourceLabel} · ${safeText(memberAgent.display_name)}`;
       agentIdentity.append(agentName, agentDetail);
       item.append(agentIdentity);
-      if (isSelf && dashboardAgent?.role === "owner" && ["owner", "admin", "member"].includes(actorRole)) {
+      if (
+        isSelf
+        && memberAgent.participation_source !== "default"
+        && dashboardAgent?.role === "owner"
+        && ["owner", "admin", "member"].includes(actorRole)
+      ) {
         const removeAgent = document.createElement("button");
         removeAgent.type = "button";
         removeAgent.className = "quiet-button danger";
@@ -3218,7 +3224,38 @@ function renderThreadOrganizationOptions() {
 }
 
 function visibleThreadSummaries() {
-  return state.threads.filter((thread) => {
+  const organizationsWithThreads = new Set(
+    state.threads.flatMap((thread) => (thread.organizations || []).map(
+      (organization) => String(organization.id),
+    )),
+  );
+  const organizationChannels = (state.dashboard?.organizations || [])
+    .filter((organization) => !organizationsWithThreads.has(String(organization.id)))
+    .map((organization) => ({
+      thread_id: `organization:${organization.id}`,
+      topic: `${safeText(organization.name, organization.slug)} 群聊`,
+      latest_activity_at: null,
+      human_view_state: "viewed",
+      latest_sender: null,
+      latest_recipient: null,
+      latest_content_redacted: false,
+      latest_message_summary: "群聊已建立。成员未指定 Agent 时，默认 Agent 会自动参与。",
+      message_count: 0,
+      attachment_count: 0,
+      exception_count: 0,
+      conversation_state: "updated",
+      channel_scope: "organization",
+      organizations: [organization],
+      virtual_organization_channel: true,
+    }));
+  return [...organizationChannels, ...state.threads].filter((thread) => {
+    if (thread.virtual_organization_channel && state.threadQuery) {
+      const organization = (thread.organizations || [])[0];
+      const searchable = `${thread.topic} ${organization?.slug || ""}`.toLocaleLowerCase();
+      if (!searchable.includes(state.threadQuery.toLocaleLowerCase())) {
+        return false;
+      }
+    }
     if (state.threadFilter === "exception" && Number(thread.exception_count || 0) === 0) {
       return false;
     }
@@ -3296,7 +3333,9 @@ function renderThreadList() {
     recency.className = "thread-list-recency";
     const time = document.createElement("span");
     time.className = "thread-list-time";
-    time.textContent = dateText(thread.latest_activity_at);
+    time.textContent = thread.virtual_organization_channel
+      ? "群聊已建立"
+      : dateText(thread.latest_activity_at);
     recency.append(time);
     if (thread.human_view_state === "unread") {
       const unread = document.createElement("span");
@@ -3317,11 +3356,13 @@ function renderThreadList() {
     const names = document.createElement("span");
     names.className = "thread-participant-names";
     const channelOrganization = (thread.organizations || [])[0];
-    names.textContent = thread.channel_scope === "organization" && channelOrganization
-      ? `${agentConversationLabel(thread.latest_sender)} → ${safeText(channelOrganization.name)} · 全体可读`
-      : thread.latest_sender && thread.latest_recipient
-        ? `${agentConversationLabel(thread.latest_sender)} → ${agentConversationLabel(thread.latest_recipient, { currentAsMe: true })}`
-        : "参与者待确认";
+    names.textContent = thread.virtual_organization_channel && channelOrganization
+      ? `${Number(channelOrganization.member_count || 0)} 位成员 · ${Number(channelOrganization.agent_count || 0)} 个参与 Agent`
+      : thread.channel_scope === "organization" && channelOrganization
+        ? `${agentConversationLabel(thread.latest_sender)} → ${safeText(channelOrganization.name)} · 全体可读`
+        : thread.latest_sender && thread.latest_recipient
+          ? `${agentConversationLabel(thread.latest_sender)} → ${agentConversationLabel(thread.latest_recipient, { currentAsMe: true })}`
+          : "参与者待确认";
     participants.append(avatars, names);
 
     const preview = document.createElement("span");
@@ -3332,11 +3373,16 @@ function renderThreadList() {
 
     const markers = document.createElement("span");
     markers.className = "thread-list-markers";
-    const markerValues = [[`${thread.message_count} 条往来`, "conversation-count"]];
-    markerValues.push([
-      conversationStateLabel(thread.conversation_state),
-      `conversation-state ${safeText(thread.conversation_state, "updated")}`,
-    ]);
+    const markerValues = [[
+      thread.virtual_organization_channel ? "暂无消息" : `${thread.message_count} 条往来`,
+      "conversation-count",
+    ]];
+    if (!thread.virtual_organization_channel) {
+      markerValues.push([
+        conversationStateLabel(thread.conversation_state),
+        `conversation-state ${safeText(thread.conversation_state, "updated")}`,
+      ]);
+    }
     if (thread.attachment_count) markerValues.push([`附件 ${thread.attachment_count}`, ""]);
     if (thread.exception_count) markerValues.push([`异常 ${thread.exception_count}`, "exception"]);
     if (thread.channel_scope === "organization") {
@@ -3837,6 +3883,28 @@ async function markThreadViewed(threadId) {
 }
 
 async function loadThreadDetail(threadId) {
+  if (String(threadId).startsWith("organization:")) {
+    const organizationId = String(threadId).slice("organization:".length);
+    const organization = (state.dashboard?.organizations || []).find(
+      (candidate) => String(candidate.id) === organizationId,
+    );
+    if (state.selectedThreadId !== String(threadId)) {
+      return;
+    }
+    state.selectedThread = null;
+    if (!organization) {
+      setThreadDetailEmpty("无法打开这个组织群聊", "你可能已经离开组织，请刷新后重试。");
+      return;
+    }
+    const participantCopy = Number(organization.agent_count || 0) > 0
+      ? `${organization.agent_count} 个 Agent 已可参与。成员没有手动选择 Agent 时，系统会使用其默认 Agent。`
+      : "群聊已经可见；成员连接并设置默认 Agent 后即可参与协作。";
+    setThreadDetailEmpty(
+      `${safeText(organization.name, organization.slug)} 群聊`,
+      `${organization.member_count} 位成员。${participantCopy} 第一条群消息发送后，完整往来会显示在这里。`,
+    );
+    return;
+  }
   setThreadDetailEmpty("正在读取对话", "只会显示你有权查看的内容，不会改变 Agent 的已读或处理状态。");
   try {
     const thread = await requestJson(`/api/v1/orbit/threads/${encodeURIComponent(threadId)}`);

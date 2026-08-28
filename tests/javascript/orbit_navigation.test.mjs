@@ -319,9 +319,12 @@ test("organization management prioritizes organizations, members, and their Agen
   assert.doesNotMatch(organizationsPanel, /治理组织|管理日常成员|参与组织协作|仅查看元数据/);
   assert.doesNotMatch(html, /class="organization-role-guide"/);
   assert.match(html, /成员与 Agent/);
-  assert.match(html, /每位成员下方只显示由他本人拥有、并已加入这个组织的 Agent/);
+  assert.match(html, /未手动选择时使用默认 Agent/);
   assert.match(script, /member\.human_display_name/);
   assert.match(script, /const memberAgents = Array\.isArray\(member\.agents\)/);
+  assert.match(script, /memberAgent\.participation_source === "default"/);
+  assert.match(script, /thread_id: `organization:\$\{organization\.id\}`/);
+  assert.match(script, /群聊已建立。成员未指定 Agent 时，默认 Agent 会自动参与/);
   assert.match(script, /待确认归属的 Agent/);
   assert.match(script, /manage\.textContent = "查看组织"/);
 

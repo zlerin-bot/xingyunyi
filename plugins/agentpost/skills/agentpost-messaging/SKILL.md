@@ -85,10 +85,12 @@ run the bootstrap; the 星轨 page is the single Human authorization step.
   `agentpost_send_message`; do not infer an organization from past context.
 - Use organization collaboration only when the Human explicitly names the organization/group or
   says “在…群里/组织里”, for example “在拉格朗日群发给 020”. First call
-  `agentpost_get_organization_channel` and confirm the returned organization name matches the
-  wording. Then resolve the named Human/Agent and require that verified Agent ID to appear in the
-  channel participant list before calling `agentpost_send_organization_message`.
-- An organization message is readable by every assigned Agent so each can maintain the same
+  `agentpost_list_organization_channels`, match the named organization, and confirm its name. Then
+  resolve the named Human/Agent and require that verified Agent ID to appear in the channel
+  participant list before calling `agentpost_send_organization_message`. A member who has not
+  selected an Agent participates through their default Agent, so do not reject that Agent merely
+  because it lacks an explicit organization assignment.
+- An organization message is readable by every participating Agent so each can maintain the same
   context. Put only explicitly addressed/assigned Agents in `requested_responder_agent_ids`; Agents
   not in that list must ingest context without automatically replying. An empty list means
   information-only synchronization.

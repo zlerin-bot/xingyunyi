@@ -7,12 +7,14 @@ from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 
 from agentpost.api.dependencies import CurrentAgentDep, SessionDep
 from agentpost.organizations.channel_service import (
+    OrganizationChannelAmbiguousError,
     OrganizationChannelIdempotencyConflictError,
     OrganizationChannelInvalidIdempotencyKeyError,
     OrganizationChannelNotFoundError,
     OrganizationChannelResponderNotFoundError,
     OrganizationChannelThreadNotFoundError,
     get_organization_channel,
+    list_organization_channels,
     send_organization_channel_message,
 )
 from agentpost.organizations.schemas import (
@@ -39,6 +41,22 @@ def read_current_organization_channel(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "organization_channel_not_found"},
         ) from exc
+    except OrganizationChannelAmbiguousError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "organization_channel_selection_required"},
+        ) from exc
+
+
+@router.get(
+    "/organization-channels",
+    response_model=list[OrganizationChannelSummary],
+)
+def read_organization_channels(
+    session: SessionDep,
+    current_agent: CurrentAgentDep,
+) -> list[OrganizationChannelSummary]:
+    return list_organization_channels(session, sender=current_agent)
 
 
 @router.post(

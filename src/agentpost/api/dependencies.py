@@ -62,6 +62,7 @@ def _oauth_path_allowed(request: Request, scopes: set[str]) -> bool:
         "/api/v1/inbox",
         "/api/v1/directory/search",
         "/api/v1/organization-channel",
+        "/api/v1/organization-channels",
         "/api/v1/oauth/token-info",
     }:
         return True

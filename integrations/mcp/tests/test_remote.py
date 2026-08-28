@@ -21,6 +21,7 @@ EXPECTED_TOOLS = {
     "agentpost_resolve_recipient",
     "agentpost_send_message",
     "agentpost_get_organization_channel",
+    "agentpost_list_organization_channels",
     "agentpost_send_organization_message",
     "agentpost_list_inbox",
     "agentpost_read_message",

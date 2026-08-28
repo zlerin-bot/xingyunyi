@@ -9,7 +9,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from agentpost.control.models import (
-    AgentOwnership,
     HumanUser,
     Organization,
     OrganizationAgent,
@@ -25,6 +24,7 @@ from agentpost.control.schemas import (
 )
 from agentpost.identity.models import Agent, utc_now
 from agentpost.messaging.models import AuditLog
+from agentpost.organizations.participants import effective_organization_participants
 
 
 class OrganizationSlugAlreadyRegisteredError(Exception):
@@ -67,12 +67,8 @@ def _organization_counts(session: Session, organization_id: UUID) -> tuple[int, 
             OrganizationMembership.organization_id == organization_id
         )
     )
-    agent_count = session.scalar(
-        select(func.count(OrganizationAgent.agent_id)).where(
-            OrganizationAgent.organization_id == organization_id
-        )
-    )
-    return int(member_count or 0), int(agent_count or 0)
+    agent_count = len(effective_organization_participants(session, organization_id=organization_id))
+    return int(member_count or 0), agent_count
 
 
 def organization_response(session: Session, organization: Organization) -> OrganizationResponse:
@@ -152,21 +148,21 @@ def list_organization_memberships(
         .order_by(HumanUser.email)
         .limit(limit)
     ).all()
-    agent_rows = session.execute(
-        select(AgentOwnership.human_user_id, Agent)
-        .join(OrganizationAgent, OrganizationAgent.agent_id == AgentOwnership.agent_id)
-        .join(Agent, Agent.id == AgentOwnership.agent_id)
-        .where(OrganizationAgent.organization_id == organization.id)
-        .order_by(Agent.handle, Agent.address)
-    ).all()
     agents_by_human: dict[UUID, list[OrganizationMemberAgentResponse]] = {}
-    for human_user_id, agent in agent_rows:
-        agents_by_human.setdefault(human_user_id, []).append(
+    for participant in effective_organization_participants(
+        session,
+        organization_id=organization.id,
+    ):
+        if participant.human_user_id is None:
+            continue
+        agent = participant.agent
+        agents_by_human.setdefault(participant.human_user_id, []).append(
             OrganizationMemberAgentResponse(
                 agent_id=agent.id,
                 address=agent.address,
                 handle=agent.handle,
                 display_name=agent.display_name,
+                participation_source=participant.participation_source,
             )
         )
     return [

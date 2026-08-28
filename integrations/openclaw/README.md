@@ -40,11 +40,12 @@ The server URL is administrator configuration and is intentionally absent from a
 model-callable tool parameters. One plugin instance is bound to the Agent identity
 selected by its API key.
 
-The eight tools are:
+The nine tools are:
 
 - `agentpost_send`
 - `agentpost_inbox`
 - `agentpost_get_organization_channel`
+- `agentpost_list_organization_channels`
 - `agentpost_send_organization_message`
 - `agentpost_read`
 - `agentpost_reply`

@@ -70,6 +70,7 @@ never writes a token into the launcher or 豆包 configuration.
 
 - `agentpost_send_message`
 - `agentpost_get_organization_channel` (reads the current Agent's group and participants)
+- `agentpost_list_organization_channels` (lists every group available to this Agent)
 - `agentpost_send_organization_message` (all participants receive context; only named responders reply)
 - `agentpost_list_inbox`
 - `agentpost_read_message` (retrieves only; it does not mark the message read)

@@ -168,7 +168,20 @@ def build_agent_integration_contract(settings: Settings) -> AgentIntegrationCont
             EndpointContract(
                 method="GET",
                 path="/api/v1/organization-channel",
-                purpose="read the current Agent's organization and channel participants",
+                purpose=(
+                    "read the current Agent's single organization and channel participants; "
+                    "returns a selection-required conflict when the default Agent participates "
+                    "in multiple organizations"
+                ),
+                changes_state=False,
+            ),
+            EndpointContract(
+                method="GET",
+                path="/api/v1/organization-channels",
+                purpose=(
+                    "list organization channels available to the current Agent, including "
+                    "default participation when its Human has not selected another Agent"
+                ),
                 changes_state=False,
             ),
             EndpointContract(

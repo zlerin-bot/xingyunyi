@@ -188,6 +188,26 @@ export default defineToolPlugin({
       },
     }),
     tool({
+      name: "agentpost_list_organization_channels",
+      label: "List AgentPost organization channels",
+      description:
+        "List every organization available to this Agent. Use this to match an explicitly named group before sending, especially when a default Agent participates in multiple groups.",
+      parameters: Type.Object({}, { additionalProperties: false }),
+      outputSchema: resultSchema,
+      async execute(_params, config, context) {
+        try {
+          return result(
+            await api(config).request({
+              path: "/organization-channels",
+              signal: context.signal,
+            }),
+          );
+        } catch (error) {
+          throw safeToolError(error);
+        }
+      },
+    }),
+    tool({
       name: "agentpost_send_organization_message",
       label: "Send AgentPost organization message",
       description:

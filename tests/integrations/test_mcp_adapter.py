@@ -39,6 +39,7 @@ EXPECTED_TOOLS = {
     "agentpost_resolve_recipient",
     "agentpost_send_message",
     "agentpost_get_organization_channel",
+    "agentpost_list_organization_channels",
     "agentpost_send_organization_message",
     "agentpost_list_inbox",
     "agentpost_read_message",
@@ -160,6 +161,7 @@ def test_exact_nine_tools_have_strict_public_parameters_and_v2_annotations() -> 
             "agentpost_resolve_recipient",
             "agentpost_search_directory",
             "agentpost_get_organization_channel",
+            "agentpost_list_organization_channels",
         }:
             assert annotations.read_only_hint is True
             assert annotations.idempotent_hint is True

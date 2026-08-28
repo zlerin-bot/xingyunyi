@@ -347,6 +347,21 @@ def test_get_organization_channel_returns_current_group_and_agents() -> None:
     assert channel.agents[0].handle == "bob"
 
 
+def test_list_organization_channels_returns_every_available_group() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return json_response(request, 200, [organization_channel_summary_json()])
+
+    with make_client(handler) as client:
+        channels = client.list_organization_channels()
+
+    assert requests[0].method == "GET"
+    assert requests[0].url.path == "/base/api/v1/organization-channels"
+    assert channels[0].organization_name == "Research"
+
+
 def test_task_send_infers_instruction_and_rejects_invalid_type_combinations() -> None:
     requests: list[httpx.Request] = []
 

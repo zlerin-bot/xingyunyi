@@ -121,6 +121,7 @@ class OrganizationMemberAgentResponse(ControlModel):
     address: str
     handle: str | None
     display_name: str
+    participation_source: Literal["assigned", "default"] = "assigned"
 
 
 class OrganizationMembershipResponse(ControlModel):

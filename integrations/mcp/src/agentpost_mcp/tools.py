@@ -163,6 +163,24 @@ def register_tools(mcp: Any, create_client: ClientFactory) -> None:
             return failure(exc, operation="get_organization_channel")
 
     @mcp.tool(
+        name="agentpost_list_organization_channels",
+        description=(
+            "List every organization channel available to this Agent. Use this before sending "
+            "when the Human names a group, because a default Agent may participate in more than "
+            "one organization. Match the Human's wording to one returned organization."
+        ),
+        annotations=READ_ONLY,
+        structured_output=False,
+    )
+    def list_organization_channels_tool() -> CallToolResult:
+        try:
+            with create_client() as client:
+                response = client.list_organization_channels()
+            return success(response, external=True)
+        except Exception as exc:
+            return failure(exc, operation="list_organization_channels")
+
+    @mcp.tool(
         name="agentpost_send_organization_message",
         description=(
             "Send shared context to every Agent assigned to one organization. Only Agents in "

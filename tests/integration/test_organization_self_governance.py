@@ -271,6 +271,72 @@ def test_username_invitation_is_accepted_inside_orbit_without_email_link(
         assert client.get("/api/v1/orbit/organization-invitations").json() == {"items": []}
 
 
+def test_default_agents_make_a_new_organization_channel_immediately_usable(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with TestClient(create_app(settings=_runtime(settings), database=database)) as client:
+        owner = _register(client, "default-owner@example.com")
+        owner_agent = _create_agent(client, "default-owner-agent@agents.local")
+        _set_agent_owner(
+            client,
+            human_id=str(owner["user"]["id"]),
+            agent_id=str(owner_agent["agent"]["id"]),
+        )
+        organization = _create_organization(client, str(owner["csrf_token"]))
+        organization_id = str(organization["organization"]["id"])
+
+        owner_channel = client.get(
+            "/api/v1/organization-channel",
+            headers={"Authorization": f"Bearer {owner_agent['api_key']}"},
+        )
+        assert owner_channel.status_code == 200, owner_channel.text
+        assert owner_channel.json()["organization_id"] == organization_id
+
+        member = _register(client, "default-member@example.com")
+        member_agent = _create_agent(client, "default-member-agent@agents.local")
+        _set_agent_owner(
+            client,
+            human_id=str(member["user"]["id"]),
+            agent_id=str(member_agent["agent"]["id"]),
+        )
+        set_member = client.put(
+            f"/api/v1/admin/organizations/{organization_id}/members/{member['user']['id']}",
+            headers=_admin_headers(),
+            json={"role": "member"},
+        )
+        assert set_member.status_code == 200, set_member.text
+
+        members = client.get(f"/api/v1/orbit/organizations/{organization_id}/members")
+        assert members.status_code == 200, members.text
+        member_agents = {item["human_username"]: item["agents"] for item in members.json()["items"]}
+        assert member_agents[owner["user"]["username"]][0]["participation_source"] == "default"
+        assert member_agents[member["user"]["username"]][0]["participation_source"] == "default"
+
+        channel_message = client.post(
+            f"/api/v1/organizations/{organization_id}/channel/messages",
+            headers={
+                "Authorization": f"Bearer {owner_agent['api_key']}",
+                "Idempotency-Key": "default-participant-channel-message",
+            },
+            json={
+                "type": "message",
+                "subject": "默认 Agent 参与组织协作",
+                "content": {"format": "text", "body": "请 020 的默认 Agent 回复。"},
+                "requested_responder_agent_ids": [member_agent["agent"]["id"]],
+            },
+        )
+        assert channel_message.status_code == 201, channel_message.text
+        assert channel_message.json()["recipient_agent_ids"] == [member_agent["agent"]["id"]]
+
+        member_inbox = client.get(
+            "/api/v1/inbox",
+            headers={"Authorization": f"Bearer {member_agent['api_key']}"},
+        )
+        assert member_inbox.status_code == 200, member_inbox.text
+        assert member_inbox.json()["items"][-1]["content"]["body"] == "请 020 的默认 Agent 回复。"
+
+
 def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
     settings: Settings,
     database: Database,

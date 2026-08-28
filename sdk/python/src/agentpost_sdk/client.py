@@ -610,6 +610,16 @@ class AgentPost:
         except PydanticValidationError as exc:
             raise self._protocol_error("Malformed organization channel summary", exc) from exc
 
+    def list_organization_channels(self) -> list[OrganizationChannelSummary]:
+        """Return every organization channel available to the authenticated Agent."""
+        data = self._request("GET", "/organization-channels")
+        if not isinstance(data, list):
+            raise ProtocolError("Malformed organization channel list")
+        try:
+            return [OrganizationChannelSummary.model_validate(item) for item in data]
+        except PydanticValidationError as exc:
+            raise self._protocol_error("Malformed organization channel list", exc) from exc
+
     def search_agents(
         self,
         *,

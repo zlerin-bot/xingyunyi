@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 from agentpost.control.models import Organization, OrganizationAgent
 from agentpost.identity.models import Agent, utc_now
 from agentpost.messaging.models import AuditLog, Delivery, IdempotencyRecord, Message
+from agentpost.organizations.participants import effective_organization_participants
 from agentpost.organizations.schemas import (
     OrganizationChannelAgent,
     OrganizationChannelMessageCreate,
@@ -21,6 +22,10 @@ from agentpost.organizations.schemas import (
 
 
 class OrganizationChannelNotFoundError(Exception):
+    pass
+
+
+class OrganizationChannelAmbiguousError(Exception):
     pass
 
 
@@ -52,13 +57,25 @@ def get_organization_channel(
     sender: Agent,
 ) -> OrganizationChannelSummary:
     assignment = session.get(OrganizationAgent, sender.id)
-    if assignment is None:
+    if assignment is not None:
+        organization, agents = _organization_and_agents(
+            session,
+            organization_id=assignment.organization_id,
+            sender=sender,
+        )
+        return _channel_summary(organization, agents)
+    channels = list_organization_channels(session, sender=sender)
+    if not channels:
         raise OrganizationChannelNotFoundError(str(sender.id))
-    organization, agents = _organization_and_agents(
-        session,
-        organization_id=assignment.organization_id,
-        sender=sender,
-    )
+    if len(channels) > 1:
+        raise OrganizationChannelAmbiguousError(str(sender.id))
+    return channels[0]
+
+
+def _channel_summary(
+    organization: Organization,
+    agents: list[Agent],
+) -> OrganizationChannelSummary:
     return OrganizationChannelSummary(
         organization_id=organization.id,
         organization_slug=organization.slug,
@@ -73,6 +90,28 @@ def get_organization_channel(
             for agent in agents
         ],
     )
+
+
+def list_organization_channels(
+    session: Session,
+    *,
+    sender: Agent,
+) -> list[OrganizationChannelSummary]:
+    organizations = session.scalars(
+        select(Organization)
+        .where(Organization.status == "active")
+        .order_by(Organization.name, Organization.slug)
+    ).all()
+    channels: list[OrganizationChannelSummary] = []
+    for organization in organizations:
+        participants = effective_organization_participants(
+            session,
+            organization_id=organization.id,
+        )
+        agents = [participant.agent for participant in participants]
+        if sender.id in {agent.id for agent in agents}:
+            channels.append(_channel_summary(organization, agents))
+    return channels
 
 
 def _request_hash(organization_id: UUID, payload: OrganizationChannelMessageCreate) -> str:
@@ -111,24 +150,15 @@ def _organization_and_agents(
             Organization.status == "active",
         )
     )
-    sender_assignment = session.get(OrganizationAgent, sender.id)
-    if (
-        organization is None
-        or sender_assignment is None
-        or sender_assignment.organization_id != organization_id
-    ):
+    if organization is None:
         raise OrganizationChannelNotFoundError(str(organization_id))
-    agents = list(
-        session.scalars(
-            select(Agent)
-            .join(OrganizationAgent, OrganizationAgent.agent_id == Agent.id)
-            .where(
-                OrganizationAgent.organization_id == organization_id,
-                Agent.status == "active",
-            )
-            .order_by(Agent.address)
-        )
+    participants = effective_organization_participants(
+        session,
+        organization_id=organization_id,
     )
+    agents = [participant.agent for participant in participants]
+    if sender.id not in {agent.id for agent in agents}:
+        raise OrganizationChannelNotFoundError(str(organization_id))
     return organization, agents
 
 

@@ -43,6 +43,10 @@ class FakeClient:
             "agents": [],
         }
 
+    def list_organization_channels(self) -> list[dict[str, object]]:
+        self.calls.append(("list_organization_channels", None))
+        return [self.get_organization_channel()]
+
     def resolve_recipient(self, query: str) -> dict[str, object]:
         self.calls.append(("resolve", query))
         return {
@@ -92,6 +96,7 @@ async def test_v2_tool_contract_and_calls(adapter: tuple[object, list[tuple[str,
             "agentpost_resolve_recipient",
             "agentpost_send_message",
             "agentpost_get_organization_channel",
+            "agentpost_list_organization_channels",
             "agentpost_send_organization_message",
             "agentpost_list_inbox",
             "agentpost_read_message",

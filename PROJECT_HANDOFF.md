@@ -4,9 +4,31 @@
 - 核验日期：2026-08-28
 - 代码分支：`main`
 - 阶段性质：0.1.25 已从干净提交完成阿里云受保护切换、独立后检和登录态生产 Orbit 复核
-- 本地开发状态：生产为 `964e6a7 / 0.1.25`，schema 为 `0024_human_default_agent`；功能提交为 `7a83cea + 8039297`
+- 本地开发状态：生产仍为 `964e6a7 / 0.1.25`，schema 为 `0024_human_default_agent`；“组织群立即可见 + 默认 Agent 自动参与”本地切片已完成，尚未发布
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 组织群立即可见与默认 Agent 自动参与（本地完成，尚未部署）
+
+组织创建后，星轨不再等待第一条组织消息：会立即生成一个 Human 可见的“组织名 群聊”入口，显示
+成员数、当前有效参与 Agent 数和“暂无消息”。点击后桌面端右栏、移动端详情层会说明群聊已建立；
+第一条真实群消息产生后，由持久化 Thread 替换空群入口。
+
+Owner、Admin、Member 若尚未为该组织手动加入自己拥有的 Agent，服务端会用该 Human 的 active 默认
+Agent 作为有效参与者；一旦该 Human 已手动加入至少一个自有 Agent，则以手动选择为准。默认参与按
+组织实时计算，不写入或迁移单一归属的 `organization_agents`，因此同一默认 Agent 可为多个组织补位，
+也不会破坏一个 Agent 最多显式归属一个组织的既有约束；Auditor 仍为只读，不自动参与。组织成员页
+明确显示“默认参与”或“已加入组织”，默认补位项不提供会失败的“移出组织”按钮。
+
+组织频道发送、指定回复人校验、成员嵌套 Agent、组织 Agent 数量复用同一有效参与者规则。新增只读
+`GET /api/v1/organization-channels`，SDK、MCP、OpenClaw 与两份安装 Skill 均支持先列出当前 Agent
+可用的所有组织，再按 Human 明确点名的组织发送；原单组织接口在默认 Agent 同时参与多个组织时返回
+需要选择，避免猜错群。聚焦适配器与组织测试 73 passed；完整 non-PostgreSQL 回归为
+461 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected。Ruff check/format、
+Orbit JavaScript 31 passed、JavaScript syntax 和
+diff check 均通过。隔离 Orbit 真实创建“空群验收组”后，桌面与 390px 均确认群入口立即可见、默认
+Agent 数为 1、列表/详情/返回分层正常；390px 下 body/document 均为 390px，控制台无 warning/error。
+PostgreSQL 专属测试和生产部署均未运行，当前不是 `deployed_https_verified`。
 
 ### 组织成员与 Agent 信息架构（0.1.25 已部署并完成 HTTPS 后检）
 

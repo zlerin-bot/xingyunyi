@@ -18,6 +18,7 @@ EXPECTED_TOOLS = {
     "agentpost_send",
     "agentpost_inbox",
     "agentpost_get_organization_channel",
+    "agentpost_list_organization_channels",
     "agentpost_send_organization_message",
     "agentpost_read",
     "agentpost_reply",
@@ -67,7 +68,7 @@ def test_openclaw_plugin_has_native_manifest_and_package_contract() -> None:
     assert "baseurl" in serialized_manifest.replace("_", "")
 
 
-def test_plugin_is_a_native_tool_plugin_with_exact_eight_tools() -> None:
+def test_plugin_is_a_native_tool_plugin_with_exact_nine_tools() -> None:
     source = _source(INDEX_PATH)
     assert 'from "openclaw/plugin-sdk/tool-plugin"' in source
     assert "defineToolPlugin" in source
@@ -75,7 +76,7 @@ def test_plugin_is_a_native_tool_plugin_with_exact_eight_tools() -> None:
     assert _tool_names(source) == EXPECTED_TOOLS
 
     registrations = re.findall(r"\btool\s*\(\s*\{", source)
-    assert len(registrations) == 8
+    assert len(registrations) == 9
     assert len(re.findall(r"optional\s*:\s*true", source)) == 4
     manifest = _json(MANIFEST_PATH)
     optional_tools = {
@@ -106,19 +107,20 @@ def test_model_tool_schemas_cannot_choose_transport_or_credentials() -> None:
     # Admin-only configuration may appear in the plugin factory, so inspect the
     # schema declarations rather than banning these strings from the whole file.
     tool_regions = re.findall(r"\btool\s*\(\s*\{(.*?)(?=\n\s*\}\),)", source, flags=re.DOTALL)
-    assert len(tool_regions) == 8
+    assert len(tool_regions) == 9
     for region in tool_regions:
         schema = region.partition("async execute")[0]
         assert "parameters:" in schema
         assert not any(name in schema for name in forbidden_schema_names)
 
 
-def test_eight_tools_map_to_protocol_routes_without_read_side_effects() -> None:
+def test_nine_tools_map_to_protocol_routes_without_read_side_effects() -> None:
     source = _source(INDEX_PATH) + "\n" + _source(CLIENT_PATH)
     compact = re.sub(r"\s+", "", source)
     assert 'method:"POST",path:"/messages"' in compact
     assert 'path:"/inbox"' in compact
     assert 'path:"/organization-channel"' in compact
+    assert 'path:"/organization-channels"' in compact
     assert "/channel/messages" in source
     assert "path:`/messages/${" in compact
     assert 'path:"/directory/search"' in compact
