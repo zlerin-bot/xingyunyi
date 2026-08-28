@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.27-release-candidate`
+- 交接阶段：`v0.1.27-deployed-https-verified`
 - 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：星轨组织群父子对话与点名回复者友好名称已完成本地验收，0.1.27 版本一致性已准备，待构建和部署
-- 当前生产状态：仍为 `2c143c6 / 0.1.26`，schema 为 `0024_human_default_agent`；目标功能提交为 `6c6ae90`
+- 阶段性质：星轨组织群父子对话与点名回复者友好名称已随 0.1.27 部署并完成独立 HTTPS 后检
+- 当前生产状态：`b297d13 / 0.1.27`，schema 为 `0024_human_default_agent`；功能提交为 `6c6ae90`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 星轨组织群父子对话与回复者名称（本地已验证，待部署）
+### 星轨组织群父子对话与回复者名称（0.1.27 已部署并完成 HTTPS 后检）
 
 生产 0.1.26 的组织消息数据本身已正确带有 `channel_scope=organization`、组织 ID 和独立持久化
 `thread_id`，但星轨中栏仍把每个组织 Thread 与私聊并列，只把组织名显示成标签，因此用户会误以为
@@ -25,8 +25,21 @@
 本地证据：Ruff check/format、JavaScript syntax、Orbit JavaScript 26 passed；完整
 non-PostgreSQL 回归 461 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected。
 隔离 Orbit 在桌面端确认组织父节点、子对话、未读汇总和折叠交互；390px 下确认列表/详情分层，
-`document/body scrollWidth = 390`，控制台无 warning/error。PostgreSQL 专属测试未运行，生产尚未
-上传或切换，当前生产仍为 0.1.26。
+`document/body scrollWidth = 390`，控制台无 warning/error。PostgreSQL 专属测试未在本地运行。
+
+发布提交为 `b297d13 / 0.1.27`。干净归档生成的源码、公开 wheel、Workbench 单上传包 SHA-256
+分别为 `62abb6cbeddc9b8a08bc62e43cc886b1c04ff2f36e2d5fdd4a41d798e00a17b6`、
+`c9ab86b59104fa846bf3243b9c92a17d8582ad48239e7dc2e71ba34234ab30c7`、
+`6f49dba55d2f88b4d194c9dc5fe2c2a0200471d330132d426b3e32d510ec5941`。Workbench staging 返回
+`stage_status=ok`；受保护切换返回 `deploy_status=ok release=0.1.27 commit=b297d13`，耗时 39 秒，
+备份为 `/opt/agentpost/backups/20260828-170008-b297d13-pre-027/`。
+
+独立 postflight 返回 `postflight_status=ok`，schema 为 `0024_human_default_agent`；切换后为
+58 Agents / 197 Messages / 197 Deliveries / 25 Attachments / 15 Humans。AgentPost、Nginx、
+PostgreSQL PID 为 `290943/245451/245492`，确认 Nginx 与 PostgreSQL 未重启。开发机公网复核
+health/ready 均为 0.1.27，公开 wheel 哈希精确一致，未知下载返回 404。生产登录页可正常渲染；
+当前浏览器没有生产登录态，因此登录后的拉格朗日父子对话和 `020 · pa020` 真实数据展示仍为
+`待确认`。当前状态是 `deployed_https_verified`，不是 `production_accepted`。
 
 ### 组织群立即可见与默认 Agent 自动参与（0.1.26 已部署并完成 HTTPS 后检）
 

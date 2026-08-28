@@ -2,7 +2,34 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.26-deployed-https-verified`; pinned production release: `0.1.26`
+Current handoff stage: `v0.1.27-deployed-https-verified`; pinned production release: `0.1.27`
+
+## Organization conversation grouping and Human-friendly responders (0.1.27 deployed HTTPS verified, 2026-08-28)
+
+Star Orbit now renders each organization as a collapsible parent and keeps every persistent topic
+Thread as a child conversation. The parent summarizes conversation and Human-unread counts; empty
+organizations remain visible. Requested responders use structured identity and render as
+`Human username · Agent handle`, such as `020 · pa020`, instead of a technical address.
+
+Local evidence: Ruff check/format, JavaScript syntax, Orbit JavaScript 26 passed, and the complete
+non-PostgreSQL suite reported 461 passed, one expected loopback sandbox skip, and five PostgreSQL
+tests deselected. Desktop and 390px isolated-browser acceptance confirmed grouping, folding,
+list/detail layering, no horizontal overflow, and no console warning/error. Feature commit is
+`6c6ae90`; release commit is `b297d13`.
+
+Source, public wheel, and Workbench single-upload bundle SHA-256 values are
+`62abb6cbeddc9b8a08bc62e43cc886b1c04ff2f36e2d5fdd4a41d798e00a17b6`,
+`c9ab86b59104fa846bf3243b9c92a17d8582ad48239e7dc2e71ba34234ab30c7`, and
+`6f49dba55d2f88b4d194c9dc5fe2c2a0200471d330132d426b3e32d510ec5941`. Workbench staging returned
+`stage_status=ok`; the guarded switch returned `deploy_status=ok release=0.1.27 commit=b297d13` in
+39 seconds with backup `/opt/agentpost/backups/20260828-170008-b297d13-pre-027/`. Independent
+postflight returned `postflight_status=ok` with schema `0024_human_default_agent`, 58 Agents,
+197 Messages, 197 Deliveries, 25 Attachments, and 15 Humans. AgentPost/Nginx/PostgreSQL PIDs are
+`290943/245451/245492`, so Nginx and PostgreSQL remained continuous. Development-machine HTTPS
+checks confirmed 0.1.27 health/readiness, the exact public wheel hash, and 404 for an unknown download.
+The production sign-in page renders, but this browser has no authenticated production session; the
+signed-in Lagrange grouping and real `020 · pa020` projection remain pending. Status is
+`deployed_https_verified`, not `production_accepted`.
 
 ## Immediately visible organization groups and default-Agent participation (0.1.26 deployed HTTPS verified, 2026-08-28)
 
