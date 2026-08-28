@@ -2762,6 +2762,10 @@ summary:focus-visible {
   line-height: 1.5;
 }
 
+.field-help.error {
+  color: var(--danger);
+}
+
 .pairing-preview {
   display: grid;
   gap: 5px;

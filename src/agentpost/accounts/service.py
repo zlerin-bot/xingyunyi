@@ -477,6 +477,7 @@ def verify_password_and_mfa(
     password: str,
     totp_code: str | None,
     recovery_code: str | None,
+    session_mfa_authenticated: bool = False,
 ) -> bool:
     credential = _password_credential(session, user)
     if not verify_password(password, credential.salt, credential.password_hash):
@@ -484,6 +485,8 @@ def verify_password_and_mfa(
     totp = session.get(HumanTotpCredential, user.id)
     if totp is None or totp.pending or totp.enabled_at is None:
         return False
+    if session_mfa_authenticated:
+        return True
     verify_mfa_proof(
         session,
         settings,
@@ -503,6 +506,7 @@ def verify_human_reauthentication(
     password: str | None,
     totp_code: str | None,
     recovery_code: str | None,
+    session_mfa_authenticated: bool = False,
 ) -> str:
     if access_key_user is not None:
         if access_key_user.id != user.id:
@@ -517,6 +521,7 @@ def verify_human_reauthentication(
         password=password,
         totp_code=totp_code,
         recovery_code=recovery_code,
+        session_mfa_authenticated=session_mfa_authenticated,
     )
     session.commit()
     return "password_mfa" if mfa_authenticated else "password"

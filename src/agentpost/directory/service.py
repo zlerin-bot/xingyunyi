@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from uuid import UUID
@@ -87,7 +88,7 @@ def _normalize_text_query(value: str | None) -> str | None:
         return None
     if len(value) > MAX_QUERY_LENGTH:
         raise InvalidDirectoryFilterError(f"q must contain at most {MAX_QUERY_LENGTH} characters")
-    normalized = value.strip().lower()
+    normalized = unicodedata.normalize("NFKC", value.strip()).casefold()
     if not normalized:
         raise InvalidDirectoryFilterError("q must not be blank")
     if any(ord(character) < 32 or ord(character) == 127 for character in normalized):

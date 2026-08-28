@@ -63,11 +63,15 @@ def test_api_key_digest_is_hmac_sha256_and_pepper_bound() -> None:
 
 def test_agent_handle_is_short_canonical_and_human_memorable() -> None:
     assert canonicalize_agent_handle("  ZiLiang-Codex  ") == "ziliang-codex"
+    assert canonicalize_agent_handle("研") == "研"
+    assert canonicalize_agent_handle("小助手") == "小助手"
+    assert canonicalize_agent_handle("020") == "020"
+    assert canonicalize_agent_handle("ＡＩ-助手") == "ai-助手"
 
 
 @pytest.mark.parametrize(
     "handle",
-    ["ab", "starts--twice", "-leading", "trailing-", "中文", "api", "a" * 33],
+    ["starts--twice", "-leading", "trailing-", "有 空格", "下划线_", "api", "a" * 33],
 )
 def test_invalid_or_reserved_agent_handles_are_rejected(handle: str) -> None:
     with pytest.raises(ValueError):

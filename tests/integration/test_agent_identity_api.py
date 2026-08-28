@@ -105,6 +105,14 @@ def test_agent_can_register_and_rename_a_global_short_handle(client: TestClient)
     assert updated.json()["address"] == "alice@agents.local"
     assert updated.json()["handle"] == "ziliang-codex"
 
+    chinese = client.patch(
+        f"/api/v1/agents/{agent_id}",
+        headers=bearer(alice["api_key"]),
+        json={"handle": "研"},
+    )
+    assert chinese.status_code == 200, chinese.text
+    assert chinese.json()["handle"] == "研"
+
 
 def test_duplicate_handle_returns_friendly_short_suggestions(client: TestClient) -> None:
     register(client, "alice@agents.local", handle="kcode")

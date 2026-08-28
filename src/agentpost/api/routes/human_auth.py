@@ -45,10 +45,12 @@ from agentpost.accounts.service import (
 from agentpost.accounts.usernames import HumanUsernameAlreadyRegisteredError
 from agentpost.api.dependencies import SessionDep, SettingsDep
 from agentpost.control.auth import CurrentHumanDep
-from agentpost.control.human_security import HumanCsrfDep
+from agentpost.control.human_security import HumanCsrfDep, human_session_id_from_request
+from agentpost.control.models import HumanSession
 from agentpost.control.schemas import HumanProfile
 from agentpost.control.service import human_profile
 from agentpost.control.sessions import HUMAN_SESSION_COOKIE, create_human_session
+from agentpost.identity.models import utc_now
 from agentpost.protocol_contract import PROTOCOL_CONTRACT_VERSION
 from agentpost.security.rate_limit import (
     client_rate_limit_subject,
@@ -450,6 +452,11 @@ def complete_totp_setup(
         raise HTTPException(status_code=409, detail={"code": "totp_setup_not_pending"}) from exc
     except MfaInvalidError as exc:
         _raise_auth_error(exc)
+    human_session_id = human_session_id_from_request(request)
+    browser_session = session.get(HumanSession, human_session_id) if human_session_id else None
+    if browser_session and browser_session.human_user_id == current_human.id:
+        browser_session.mfa_authenticated_at = utc_now()
+        session.commit()
     return TotpEnabledResponse(recovery_codes=codes)
 
 

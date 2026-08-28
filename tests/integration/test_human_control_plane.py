@@ -238,11 +238,14 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "organizationDomainProofs.clear()" in script.text
     assert "单位域名验证" in orbit.text
     assert "Agent 连接" in orbit.text
-    assert "短名称（可选）" in orbit.text
+    assert '<label for="pairing-handle">短名称</label>' in orbit.text
+    assert 'id="pairing-handle-help"' in orbit.text
+    assert "1–32 个中文、英文字母或数字" in orbit.text
+    assert 'id="pairing-mfa"' not in orbit.text
     assert "handle-dialog" in orbit.text
     assert "设置 Agent 短名称" in orbit.text
     assert "pairing-handle" in orbit.text
-    assert "连接时就可以设置" in orbit.text
+    assert "系统会按 Agent 平台自动填写" in orbit.text
     assert "/api/v1/orbit/agents/${encodeURIComponent(agentId)}/handle" in script.text
     assert "/api/v1/orbit/agents/${encodeURIComponent(agent.id)}/default" in script.text
     assert "设为默认 Agent" in orbit.text

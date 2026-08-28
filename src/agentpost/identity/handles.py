@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Callable
 
-MIN_HANDLE_LENGTH = 3
+MIN_HANDLE_LENGTH = 1
 MAX_HANDLE_LENGTH = 32
-HANDLE_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$", flags=re.ASCII)
+HANDLE_PATTERN = re.compile(r"^[^\W_]+(?:-[^\W_]+)*$", flags=re.UNICODE)
 RESERVED_HANDLES = frozenset(
     {
         "admin",
@@ -32,16 +33,13 @@ RESERVED_HANDLES = frozenset(
 
 
 def canonicalize_agent_handle(value: str) -> str:
-    canonical = value.strip().lower()
+    canonical = unicodedata.normalize("NFKC", value.strip()).casefold()
     if not MIN_HANDLE_LENGTH <= len(canonical) <= MAX_HANDLE_LENGTH:
         raise ValueError(
             f"handle must contain between {MIN_HANDLE_LENGTH} and {MAX_HANDLE_LENGTH} characters"
         )
     if not HANDLE_PATTERN.fullmatch(canonical):
-        raise ValueError(
-            "handle must start with a letter and contain only letters, digits, "
-            "and single internal hyphens"
-        )
+        raise ValueError("handle must contain only letters, digits, and single internal hyphens")
     if canonical in RESERVED_HANDLES:
         raise ValueError("handle is reserved by AgentPost")
     return canonical

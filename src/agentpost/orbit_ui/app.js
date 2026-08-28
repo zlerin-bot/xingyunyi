@@ -6,6 +6,11 @@ const FALLBACK_CONNECTOR_RELEASE = Object.freeze({
   wheel_sha256: "1fc3f42e8c1141ce65481778587544fc9bf441438c852c0332594ab24a75fdf7",
 });
 const LOCAL_AGENT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/;
+const RESERVED_AGENT_HANDLES = new Set([
+  "admin", "agentpost", "api", "app", "connect", "directory", "help", "inbox",
+  "login", "logout", "mcp", "orbit", "root", "security", "settings", "signup",
+  "support", "system", "www",
+]);
 
 const state = {
   dashboard: null,
@@ -25,6 +30,7 @@ const state = {
   selectedPairingHost: "",
   pairingTargetAgent: null,
   pairingNewAgentIntent: "",
+  pairingSuggestedHandle: "",
   connectors: [],
   threads: [],
   selectedThread: null,
@@ -201,6 +207,7 @@ const elements = {
   pairingTargetMode: document.querySelector("#pairing-target-mode"),
   pairingTargetSummary: document.querySelector("#pairing-target-summary"),
   pairingHandle: document.querySelector("#pairing-handle"),
+  pairingHandleHelp: document.querySelector("#pairing-handle-help"),
   pairingExistingAgentField: document.querySelector("#pairing-existing-agent-field"),
   pairingExistingAgent: document.querySelector("#pairing-existing-agent"),
   pairingNewAgentFields: document.querySelector("#pairing-new-agent-fields"),
@@ -209,7 +216,6 @@ const elements = {
   pairingDisplayName: document.querySelector("#pairing-display-name"),
   pairingCapabilities: document.querySelector("#pairing-capabilities"),
   pairingAccessKey: document.querySelector("#pairing-access-key"),
-  pairingMfa: document.querySelector("#pairing-mfa"),
   pairingPreview: document.querySelector("#pairing-preview"),
   pairingResult: document.querySelector("#pairing-result"),
   handleDialog: document.querySelector("#handle-dialog"),
@@ -642,7 +648,7 @@ function errorMessage(payload, status) {
       return "Agent 名称格式不正确：名称不能为空，且不能超过 200 个字符。";
     }
     if (fields.has("handle")) {
-      return "短名称格式不正确：请使用 3–32 位字母、数字和单个连字符，并以字母开头。";
+      return "短名称格式不正确：请使用 1–32 个中文、英文字母或数字；连字符只能放在名称中间且不能连续。";
     }
     if (fields.has("username")) {
       return "用户名格式不正确：请使用 3–32 位小写字母、数字或单个连字符。";
@@ -757,7 +763,6 @@ function clearSensitiveInputs() {
     elements.approvalAccessKey,
     elements.approvalMfa,
     elements.pairingAccessKey,
-    elements.pairingMfa,
     elements.revokeAccessKey,
     elements.revokeMfa,
   ].forEach((input) => {
@@ -1998,15 +2003,9 @@ async function saveAgentHandle(event) {
   const agentId = elements.handleAgentId.value.trim();
   const handle = elements.agentHandle.value.trim().toLowerCase();
   elements.agentHandle.value = handle;
-  if (
-    !agentId
-    || (handle && (
-      handle.length < 3
-      || handle.length > 32
-      || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(handle)
-    ))
-  ) {
-    elements.handleResult.textContent = "请使用 3–32 位字母、数字和单个连字符，并以字母开头。";
+  const handleProblem = agentHandleProblem(handle);
+  if (!agentId || handleProblem) {
+    elements.handleResult.textContent = handleProblem || "没有找到要修改的 Agent，请关闭后重试。";
     elements.handleResult.className = "form-status error";
     return;
   }
@@ -2196,13 +2195,61 @@ function showPairingGuide(targetAgent = state.pairingTargetAgent, preferredHost 
 }
 
 const PAIRING_HOSTS = Object.freeze({
-  workbuddy: { name: "WorkBuddy", code: "AP-WORKBUDDY-V1" },
-  doubao_work: { name: "豆包工作", code: "AP-DOUBAO-WORK-V1", connectionMode: "local_bootstrap" },
-  openclaw: { name: "OpenClaw", code: "AP-OPENCLAW-V1" },
-  hermes: { name: "Hermes", code: "AP-HERMES-V1" },
-  codex: { name: "Codex", code: "AP-CODEX-V1" },
-  manus: { name: "Manus", code: "AP-MANUS-V1", connectionMode: "local_bootstrap" },
+  workbuddy: { name: "WorkBuddy", code: "AP-WORKBUDDY-V1", defaultHandle: "workbuddy" },
+  doubao_work: { name: "豆包工作", code: "AP-DOUBAO-WORK-V1", defaultHandle: "doubao", connectionMode: "local_bootstrap" },
+  openclaw: { name: "OpenClaw", code: "AP-OPENCLAW-V1", defaultHandle: "openclaw" },
+  hermes: { name: "Hermes", code: "AP-HERMES-V1", defaultHandle: "hermes" },
+  codex: { name: "Codex", code: "AP-CODEX-V1", defaultHandle: "codex" },
+  manus: { name: "Manus", code: "AP-MANUS-V1", defaultHandle: "manus", connectionMode: "local_bootstrap" },
 });
+
+function agentHandleProblem(value) {
+  const handle = value.trim().toLowerCase();
+  if (!handle) return "";
+  if (handle.length > 32) return `短名称最多 32 位；目前有 ${handle.length} 位。`;
+  if (handle.startsWith("-") || handle.endsWith("-") || handle.includes("--")) {
+    return "连字符不能放在开头或结尾，也不能连续使用。";
+  }
+  if (!/^[\p{L}\p{N}-]+$/u.test(handle)) {
+    return "短名称只能使用中文、英文字母、数字和连字符“-”，不能使用空格、下划线或其他符号。";
+  }
+  if (RESERVED_AGENT_HANDLES.has(handle)) {
+    return `“${handle}”是系统保留名称，请换一个更具体的名称。`;
+  }
+  return "";
+}
+
+function defaultPairingHandle(connectorType) {
+  const base = PAIRING_HOSTS[connectorType]?.defaultHandle || "agent";
+  const used = new Set((state.dashboard?.agents || [])
+    .map((agent) => safeText(agent.handle, "").toLowerCase())
+    .filter(Boolean));
+  if (!used.has(base)) return base;
+  for (let suffix = 2; suffix < 1000; suffix += 1) {
+    const candidate = `${base}-${suffix}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return base;
+}
+
+function setSuggestedPairingHandle(connectorType) {
+  const current = elements.pairingHandle.value.trim().toLowerCase();
+  if (current && current !== state.pairingSuggestedHandle) return;
+  const suggestion = defaultPairingHandle(connectorType);
+  state.pairingSuggestedHandle = suggestion;
+  elements.pairingHandle.value = suggestion;
+  updatePairingHandleHelp();
+}
+
+function updatePairingHandleHelp() {
+  const handle = elements.pairingHandle.value.trim().toLowerCase();
+  const problem = agentHandleProblem(handle);
+  elements.pairingHandleHelp.textContent = problem
+    || (handle
+      ? `连接后可用“${handle}”找到这个 Agent，以后也可以修改。`
+      : "系统会按 Agent 平台自动填写；也可以改为 1–32 个中文、英文字母或数字。");
+  elements.pairingHandleHelp.classList.toggle("error", Boolean(problem));
+}
 
 function pairingPrompt(host) {
   const selected = PAIRING_HOSTS[host];
@@ -2282,7 +2329,6 @@ async function copyPairingPrompt() {
 
 function closePairingDialog({ clear = true } = {}) {
   elements.pairingAccessKey.value = "";
-  elements.pairingMfa.value = "";
   elements.pairingResult.textContent = "";
   if (clear) {
     elements.pairingId.value = "";
@@ -2294,6 +2340,8 @@ function closePairingDialog({ clear = true } = {}) {
     elements.pairingDisplayName.value = "";
     elements.pairingCapabilities.value = "";
     elements.pairingHandle.value = "";
+    state.pairingSuggestedHandle = "";
+    updatePairingHandleHelp();
     elements.pairingPreview.replaceChildren();
     elements.pairingPreview.hidden = true;
     state.pairingTargetResolution = "pending";
@@ -2363,6 +2411,9 @@ function configurePairingTarget(pairing) {
     elements.pairingTargetMode.value = "existing";
     elements.pairingExistingAgent.value = requestedAgent.id;
     elements.pairingTargetSummary.textContent = `将重新连接 ${safeText(requestedAgent.handle, requestedAgent.display_name)}；原身份、权限、任务和历史保持不变。`;
+    elements.pairingHandle.value = safeText(requestedAgent.handle, "");
+    state.pairingSuggestedHandle = elements.pairingHandle.value;
+    updatePairingHandleHelp();
     elements.pairingSubmit.disabled = false;
   } else if (requestedAgentId) {
     state.pairingTargetResolution = "invalid-target";
@@ -2374,6 +2425,7 @@ function configurePairingTarget(pairing) {
     state.pairingCreateNewAutomatically = true;
     elements.pairingTargetMode.value = "new";
     elements.pairingTargetSummary.textContent = `将为 ${safeText(pairing.connector_display_name, "当前 Agent")} 创建新的独立身份和可读地址，不会替换你已有的任何 Agent。`;
+    setSuggestedPairingHandle(safeText(pairing.connector_type, ""));
     elements.pairingSubmit.disabled = false;
   }
   updatePairingTargetMode();
@@ -2481,16 +2533,8 @@ function pairingPayloadProblem(decision, payload) {
   if (decision !== "approved") {
     return "";
   }
-  if (
-    payload.handle
-    && (
-      payload.handle.length < 3
-      || payload.handle.length > 32
-      || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(payload.handle)
-    )
-  ) {
-    return "短名称请使用 3–32 位字母、数字和单个连字符，并以字母开头。";
-  }
+  const handleProblem = agentHandleProblem(payload.handle || "");
+  if (handleProblem) return handleProblem;
   if (payload.create_new_agent || payload.existing_agent_id) {
     return "";
   }
@@ -2521,7 +2565,6 @@ async function decidePairing(event, forcedDecision = null) {
   const pairingId = elements.pairingId.value.trim();
   const userCode = elements.pairingUserCode.value.trim();
   const humanKey = elements.pairingAccessKey.value.trim();
-  const mfa = elements.pairingMfa.value.trim();
   const payload = pairingPayload(decision);
   const payloadProblem = pairingPayloadProblem(decision, payload);
   if (!state.csrfToken || !pairingId.startsWith("pair_") || !userCode || !validReauthenticationCandidate(humanKey)) {
@@ -2542,7 +2585,11 @@ async function decidePairing(event, forcedDecision = null) {
   if (payloadProblem) {
     elements.pairingResult.textContent = payloadProblem;
     elements.pairingResult.className = "form-status error";
-    elements.pairingLocalId.focus();
+    if (agentHandleProblem(payload.handle || "")) {
+      elements.pairingHandle.focus();
+    } else {
+      elements.pairingLocalId.focus();
+    }
     return;
   }
   elements.pairingSubmit.disabled = true;
@@ -2552,7 +2599,7 @@ async function decidePairing(event, forcedDecision = null) {
   try {
     let confirmation;
     try {
-      const proof = reauthentication(humanKey, mfa, {
+      const proof = reauthentication(humanKey, "", {
         intent: decision === "approved" ? "approve" : "deny",
         user_code: userCode,
       });
@@ -2566,7 +2613,6 @@ async function decidePairing(event, forcedDecision = null) {
       );
     } finally {
       elements.pairingAccessKey.value = "";
-      elements.pairingMfa.value = "";
     }
     elements.pairingResult.textContent = decision === "approved"
       ? (payload.create_new_agent
@@ -2609,7 +2655,6 @@ async function decidePairing(event, forcedDecision = null) {
     );
   } catch (error) {
     elements.pairingAccessKey.value = "";
-    elements.pairingMfa.value = "";
     elements.pairingResult.textContent = error.message;
     elements.pairingResult.className = "form-status error";
   } finally {
@@ -4488,6 +4533,7 @@ elements.handleCancel.addEventListener("click", closeHandleDialog);
 elements.handleDialog.addEventListener("close", closeHandleDialog);
 elements.pairingId.addEventListener("change", loadPairingPreview);
 elements.pairingTargetMode.addEventListener("change", updatePairingTargetMode);
+elements.pairingHandle.addEventListener("input", updatePairingHandleHelp);
 elements.pairingExistingAgent.addEventListener("change", () => {
   if (state.pairingTargetResolution !== "ambiguous") {
     return;

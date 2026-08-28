@@ -197,7 +197,7 @@ test("mobile Thread list and detail are separate layers", () => {
 });
 
 test("Relay groups Agents and derives five explicit connection states", () => {
-  assert.match(html, /我的 Agent/);
+  assert.match(html, /Agent 与连接/);
   assert.match(html, /全部 Agent/);
   assert.match(html, /正常连接/);
   assert.match(html, /等待 Agent/);
@@ -217,14 +217,14 @@ test("new Agent guide offers six host-specific paths in the product order", () =
     .map((match) => match[1]);
 
   assert.deepEqual(hosts, ["workbuddy", "doubao_work", "openclaw", "hermes", "codex", "manus"]);
-  assert.match(script, /doubao_work: \{ name: "豆包工作", code: "AP-DOUBAO-WORK-V1", connectionMode: "local_bootstrap" \}/);
-  assert.match(script, /manus: \{ name: "Manus", code: "AP-MANUS-V1", connectionMode: "local_bootstrap" \}/);
+  assert.match(script, /doubao_work: \{ name: "豆包工作", code: "AP-DOUBAO-WORK-V1", defaultHandle: "doubao", connectionMode: "local_bootstrap" \}/);
+  assert.match(script, /manus: \{ name: "Manus", code: "AP-MANUS-V1", defaultHandle: "manus", connectionMode: "local_bootstrap" \}/);
   assert.match(
     script,
     /const connectionMode = selected\.connectionMode \|\| state\.authConfig\?\.host_connection_modes\?\.\[host\]/,
   );
   assert.match(script, /Custom MCP 连接和星轨网页授权直接完成接入/);
-  assert.match(script, /hermes: \{ name: "Hermes", code: "AP-HERMES-V1" \}/);
+  assert.match(script, /hermes: \{ name: "Hermes", code: "AP-HERMES-V1", defaultHandle: "hermes" \}/);
   assert.match(script, /使用 \$\{selected\.name\} 内置的 Custom MCP 连接/);
   assert.match(script, /不能改用长期密钥或假装已连接/);
   assert.match(html, /<strong>Manus<\/strong>\s*<span>本地文件夹<\/span>/);
@@ -233,6 +233,23 @@ test("new Agent guide offers six host-specific paths in the product order", () =
   assert.match(script, /不要改用 Custom MCP 或 Remote MCP/);
   assert.match(stylesheet, /\.pairing-host-picker\s*\{[^}]*repeat\(3, minmax\(0, 1fr\)\)/s);
   assert.match(stylesheet, /@media \(max-width: 580px\)[\s\S]*\.pairing-host-picker\s*\{\s*grid-template-columns: 1fr/);
+});
+
+test("new Agent approval suggests a platform handle and explains each invalid shape", () => {
+  const approvalStart = html.indexOf('id="pairing-approval"');
+  const approvalEnd = html.indexOf("</section>", approvalStart);
+  const approval = html.slice(approvalStart, approvalEnd);
+
+  assert.match(script, /codex: \{ name: "Codex", code: "AP-CODEX-V1", defaultHandle: "codex" \}/);
+  assert.match(script, /workbuddy: \{ name: "WorkBuddy", code: "AP-WORKBUDDY-V1", defaultHandle: "workbuddy" \}/);
+  assert.match(script, /const candidate = `\$\{base\}-\$\{suffix\}`/);
+  assert.match(html, /1–32 个中文、英文字母或数字/);
+  assert.match(script, /\^\[\\p\{L\}\\p\{N\}-\]\+\$\/u/);
+  assert.match(script, /不能使用空格、下划线或其他符号/);
+  assert.match(script, /连字符不能放在开头或结尾，也不能连续使用/);
+  assert.match(script, /是系统保留名称/);
+  assert.match(approval, /id="pairing-handle-help"/);
+  assert.doesNotMatch(approval, /pairing-mfa|双重验证验证码或恢复码/);
 });
 
 test("Agent detail keeps current connection, history, access and actions distinct", () => {

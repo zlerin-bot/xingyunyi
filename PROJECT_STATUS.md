@@ -4,6 +4,28 @@ Last updated: 2026-08-28
 
 Current handoff stage: `v0.1.22-deployed-https-verified`; pinned production release: `0.1.22`
 
+## New-Agent naming and simplified confirmation (local, not deployed, 2026-08-28)
+
+The connection approval now suggests the plain host name (`codex`, `workbuddy`, `doubao`,
+`openclaw`, `hermes`, or `manus`) without a Human-name prefix, adding `-2`, `-3`, and so on when
+that name is already present in the current account. Handles now accept 1-32 Chinese characters,
+letters, or digits, with optional single internal hyphens; one-character and all-Chinese names are
+valid, and the first character no longer has to be a letter. Validation identifies the exact
+unsupported-character, length, hyphen-placement, or reserved-name problem; server-side global
+conflicts still return available alternatives.
+
+The new-Agent dialog no longer asks for a second-factor or recovery code and still requires the
+current password. MFA state is reused only from the active browser session after MFA login or after
+TOTP was enabled in that same session; other high-risk reauthentication flows keep their existing
+fresh-proof requirements.
+
+Local evidence: 124 focused Python tests and 27 Orbit JavaScript tests pass. The full non-PostgreSQL
+suite reports 454 passed, one expected loopback sandbox skip, and five PostgreSQL tests deselected;
+JavaScript syntax, Ruff check/format, and diff check pass. The isolated page has no console warnings
+or errors and no 390px horizontal overflow. The authenticated pairing-dialog browser screenshot flow
+was not run because no local demo password was submitted through browser automation. Production is
+unchanged at `aa1d98d / 0.1.22`.
+
 ## 0.1.22 machine-readable integration contract and Human/Agent presentation split (deployed HTTPS verified, 2026-08-28)
 
 Release 0.1.22 adds public `GET /api/v1/protocol/contract` version `0.1` as the Agent-facing

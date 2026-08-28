@@ -23,6 +23,7 @@ from agentpost.control.human_security import (
     create_human_confirmation,
     human_session_id_from_request,
 )
+from agentpost.control.models import HumanSession
 from agentpost.onboarding.schemas import (
     ConnectorConfirmationCreate,
     ConnectorConfirmationResponse,
@@ -168,6 +169,13 @@ def _verify_reauthentication(
                 "message": "Current Human credentials and MFA proof are required",
             },
         )
+    raw_session_id = human_session_id_from_request(request)
+    browser_session = session.get(HumanSession, raw_session_id) if raw_session_id else None
+    session_mfa_authenticated = bool(
+        browser_session
+        and browser_session.human_user_id == current_human.id
+        and browser_session.mfa_authenticated_at is not None
+    )
     try:
         verify_human_reauthentication(
             session,
@@ -177,6 +185,7 @@ def _verify_reauthentication(
             password=password,
             totp_code=totp_code,
             recovery_code=recovery_code,
+            session_mfa_authenticated=session_mfa_authenticated,
         )
     except (
         AuthenticationFailedError,

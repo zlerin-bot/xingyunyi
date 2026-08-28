@@ -254,6 +254,23 @@ def test_totp_recovery_codes_and_human_key_rotation(
         assert confirm.status_code == 200, confirm.text
         recovery_codes = confirm.json()["recovery_codes"]
         assert len(recovery_codes) == 10
+
+        newly_enabled_pairing = client.post(
+            "/api/v1/connect/pairings",
+            json={"connector_type": "workbuddy", "display_name": "WorkBuddy after MFA setup"},
+        )
+        assert newly_enabled_pairing.status_code == 201, newly_enabled_pairing.text
+        newly_enabled_payload = newly_enabled_pairing.json()
+        newly_enabled_confirmation = client.post(
+            f"/api/v1/orbit/pairings/{newly_enabled_payload['pairing_id']}/confirmation",
+            headers={"X-CSRF-Token": csrf},
+            json={
+                "intent": "approve",
+                "user_code": newly_enabled_payload["user_code"],
+                "password": "correct horse battery staple",
+            },
+        )
+        assert newly_enabled_confirmation.status_code == 200, newly_enabled_confirmation.text
         _logout(client, csrf)
 
         missing = client.post(
@@ -281,6 +298,23 @@ def test_totp_recovery_codes_and_human_key_rotation(
         assert login.status_code == 200, login.text
         assert login.json()["mfa_authenticated"] is True
         csrf = login.json()["csrf_token"]
+
+        pairing = client.post(
+            "/api/v1/connect/pairings",
+            json={"connector_type": "codex", "display_name": "Codex after MFA login"},
+        )
+        assert pairing.status_code == 201, pairing.text
+        pairing_payload = pairing.json()
+        pairing_confirmation = client.post(
+            f"/api/v1/orbit/pairings/{pairing_payload['pairing_id']}/confirmation",
+            headers={"X-CSRF-Token": csrf},
+            json={
+                "intent": "approve",
+                "user_code": pairing_payload["user_code"],
+                "password": "correct horse battery staple",
+            },
+        )
+        assert pairing_confirmation.status_code == 200, pairing_confirmation.text
 
         rotated = client.post(
             "/api/v1/orbit/security/human-keys/rotate",

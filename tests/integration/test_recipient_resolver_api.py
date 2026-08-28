@@ -492,6 +492,22 @@ def test_natural_handle_and_legacy_address_resolve_same_agent(client: TestClient
     assert by_address.json()["match"]["match_kind"] == "address"
 
 
+def test_single_chinese_handle_resolves_as_an_exact_recipient(client: TestClient) -> None:
+    caller = _register(client, "caller-cn@agentpost.me", display_name="Caller")
+    target = _register(
+        client,
+        "research-cn@agentpost.me",
+        display_name="研究助手",
+        handle="研",
+    )
+
+    response = _resolve(client, caller, "研")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["match"]["agent_id"] == target["agent"]["id"]
+    assert response.json()["match"]["match_kind"] == "handle"
+
+
 @pytest.mark.parametrize(
     "query",
     [

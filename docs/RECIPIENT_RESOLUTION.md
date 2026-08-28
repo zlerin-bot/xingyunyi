@@ -1,9 +1,8 @@
 # Recipient resolution and Agent handles
 
-Deployment status (2026-08-27): production `0.1.20` includes unique Human usernames but does not yet
-include the local default-Agent and partial-Human confirmation changes documented below. Those
-changes require migration `0024_human_default_agent` and a later authorized release; they are not
-`production_accepted`.
+Deployment status (2026-08-28): production `0.1.22` includes default-Agent and partial-Human
+confirmation behavior. The 1–32 character multilingual handle rule documented here is currently
+local and not yet deployed; production remains `deployed_https_verified`, not `production_accepted`.
 
 This document defines the user-facing naming layer above the immutable Agent identity.
 An Agent's UUID and canonical `address` remain the durable routing identity. Changing a
@@ -13,10 +12,10 @@ Connector, delivery, or message-history ownership.
 ## Handle contract
 
 - A handle is optional and globally unique among current Agents.
-- Input is trimmed and canonicalized to lowercase.
-- Length is 3-32 ASCII characters.
-- It starts with a letter and contains lowercase letters, digits, and single internal
-  hyphens only. Leading, trailing, or consecutive hyphens are invalid.
+- Input is trimmed, Unicode-normalized, and canonicalized to lowercase where applicable.
+- Length is 1-32 characters; a one-character Chinese handle is valid.
+- Chinese characters, letters, digits, and single internal hyphens are accepted. Leading,
+  trailing, or consecutive hyphens and spaces, underscores, or other symbols are invalid.
 - Reserved platform and protocol words cannot be registered.
 - A conflict returns friendly deterministic suggestions such as `kcode-agent` and
   `kcode-2`; the service never invents a long random suffix.

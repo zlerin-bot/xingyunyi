@@ -8,6 +8,25 @@
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
+### 新 Agent 默认短名称与简化确认（本地已完成，尚未部署）
+
+连接确认页现在按宿主直接预填可编辑的短名称：`codex`、`workbuddy`、`doubao`、`openclaw`、
+`hermes` 或 `manus`，不再拼接 Human 名称；当前账号已出现同名时依次建议 `-2`、`-3`。
+短名称规则同步改为用户称呼而不是技术账号：允许 1–32 个中文、英文字母或数字，名称中间可用
+单个连字符；`研`、`小助手`、`020` 均合法。不再强制首位是字母，也不再排除纯中文。输入不合法
+时会分别说明长度超限、空格/下划线/其他符号、连字符位置或系统保留名，全球短名称冲突仍由
+服务端返回可用建议。
+
+新 Agent 连接窗口已移除重复的“双重验证验证码或恢复码”，仍要求重新输入星轨密码。已启用 MFA
+的账户只有在当前浏览器会话已完成 MFA 登录时才复用该状态；刚在当前会话完成 TOTP 开启时也会
+标记该会话，其他需要新鲜 MFA 证明的高风险操作不受影响。`AGENTS.md` 已补充这一产品与安全规则。
+
+本地证据：短名称、解析、连接与控制面聚焦 Python 测试 124 passed，Orbit JavaScript 27 passed，
+完整 non-PostgreSQL 回归 454 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected；JavaScript syntax、
+Ruff check/format 和 diff check 均通过。隔离 Orbit 页面在 390px 下 `scrollWidth = clientWidth = 390`，
+控制台无 warning/error；由于未在浏览器中提交本地演示密码，本轮未做登录后连接弹窗的截图验收。
+当前切片尚未部署，生产仍为 `aa1d98d / 0.1.22`，状态仍是 `deployed_https_verified`。
+
 ### 机器接入合同与星轨 Human/Agent 双层展示（0.1.22 已部署并完成 HTTPS 后检）
 
 针对测试人员提出的“首次接入缺少统一接口、协议、数据规范、通讯与心跳说明”，本地新增公开、
