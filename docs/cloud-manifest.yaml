@@ -1,17 +1,17 @@
 schema_version: "1"
 project: xingyunyi-agentpost
-evidence_status: agent_integration_contract_deployed_https_verified
-verified_at: "2026-08-28T08:04:00+08:00"
+evidence_status: new_agent_naming_deployed_https_verified
+verified_at: "2026-08-28T09:13:00+08:00"
 
 local_stage:
   prior_tag: v0.1.12-local.1
   committed_svg_baseline: 43796a1
-  feature_commit: 0205005
-  release_commit: aa1d98d
-  package_version: 0.1.22
+  feature_commit: 7073a77
+  release_commit: 1bc986a
+  package_version: 0.1.23
   production_change: true
   validation_snapshot: clean_git_archive
-  evidence_status: agent_integration_contract_deployed_https_verified
+  evidence_status: new_agent_naming_deployed_https_verified
   excludes_preserved_uncommitted_png_experiment: false
 
 provider:
@@ -22,13 +22,13 @@ provider:
   operating_system: ubuntu-24.04
 
 release:
-  git_commit: aa1d98d
+  git_commit: 1bc986a
   current_path: /opt/agentpost/current
-  immutable_path: /opt/agentpost/releases/aa1d98d
-  virtualenv_path: /opt/agentpost/venvs/aa1d98d
+  immutable_path: /opt/agentpost/releases/1bc986a
+  virtualenv_path: /opt/agentpost/venvs/1bc986a
   alembic_revision: 0024_human_default_agent
-  package_version: 0.1.22
-  connector_wheel_sha256: 6e3987f73d22e6e0fbcbf5626fcd160be27ae16c1311afbac273a28b4255b91f
+  package_version: 0.1.23
+  connector_wheel_sha256: 031a144c2a1077e5b259611b325f192dc068f01a5ad6c409567fbcef962b20f0
   schema_change: false
 
 topology:
@@ -109,16 +109,16 @@ rollback:
     fresh_0_1_3_attempt: failed_snapshot_limit_exceeded
     existing_snapshots_preserved: true
   application_backup: /opt/agentpost/backups/20260824-https
-  current_update_backup: /opt/agentpost/backups/20260828-080233-aa1d98d-pre-022
+  current_update_backup: /opt/agentpost/backups/20260828-091243-1bc986a-pre-023
   incomplete_backups_preserved:
     - /opt/agentpost/backups/20260825-1746-e378a7e-pre-016
     - /opt/agentpost/backups/20260825-1747-e378a7e-pre-016
     - /opt/agentpost/backups/20260826-1313-f15df99-pre-013
     - /opt/agentpost/backups/20260827-080230-8429a41-pre-018
     - /opt/agentpost/backups/20260827-080509-8429a41-pre-018
-  prior_release: /opt/agentpost/releases/b66ae47
-  prior_unit: /opt/agentpost/backups/20260828-080233-aa1d98d-pre-022/agentpost.service
-  immediate_script: /opt/agentpost/backups/20260828-080233-aa1d98d-pre-022/rollback-immediate-0.1.22.sh
+  prior_release: /opt/agentpost/releases/aa1d98d
+  prior_unit: /opt/agentpost/backups/20260828-091243-1bc986a-pre-023/agentpost.service
+  immediate_script: /opt/agentpost/backups/20260828-091243-1bc986a-pre-023/rollback-immediate-0.1.23.sh
   database_dump_verified: true
   attachment_archive_verified: true
 
@@ -138,9 +138,9 @@ acceptance:
   orbit_codex_0_1_1_guide: superseded_by_connection_code_v1
   orbit_frontend_errors: none
   pinned_connector_wheel: passed
-  public_connector_wheel_version: 0.1.22
+  public_connector_wheel_version: 0.1.23
   clean_public_wheel_install: passed
-  server_sdk_mcp_package_versions: aligned_0.1.22
+  server_sdk_mcp_package_versions: aligned_0.1.23
   public_protocol_contract: passed_version_0_1_and_postflight_verified
   orbit_human_agent_presentation_split: passed_authenticated_production_smoke
   package_boundary_regression: passed
@@ -207,6 +207,7 @@ acceptance:
   production_counts_after_0_1_20: 42_agents_105_messages_105_deliveries_15_attachments_14_humans
   production_counts_after_0_1_21: 57_agents_147_messages_147_deliveries_16_attachments_15_humans
   production_counts_after_0_1_22: 57_agents_163_messages_163_deliveries_21_attachments_15_humans
+  production_counts_after_0_1_23: 57_agents_166_messages_166_deliveries_21_attachments_15_humans
   production_migration_0023_human_usernames: passed_after_upgrade_downgrade_upgrade_rehearsal
   orbit_module_branding: passed_authenticated_fresh_production_page
   connector_online_status_semantics: deployed_authenticated_wording_verified_live_state_transition_pending
@@ -220,6 +221,7 @@ acceptance:
   guarded_0_1_20_switch: passed_schema_unchanged_0023_human_usernames
   guarded_0_1_21_switch: passed_after_0023_0024_0023_0024_rehearsal
   guarded_0_1_22_switch: passed_schema_unchanged_0024_human_default_agent
+  guarded_0_1_23_switch: passed_schema_unchanged_0024_human_default_agent
   guarded_0_1_15_rollback: passed_postflight_permission_failure_restored_0_1_14
   production_counts_after_0_1_12: 23_agents_51_messages_51_deliveries_9_current_bindings
   workbuddy_020_current_connector: healthy_current

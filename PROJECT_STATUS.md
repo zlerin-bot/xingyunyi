@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.23-release-preparation`; pinned production release: `0.1.22`
+Current handoff stage: `v0.1.23-deployed-https-verified`; pinned production release: `0.1.23`
 
-## New-Agent naming and simplified confirmation (0.1.23 pending deployment, 2026-08-28)
+## New-Agent naming and simplified confirmation (0.1.23 deployed HTTPS verified, 2026-08-28)
 
 The connection approval now suggests the plain host name (`codex`, `workbuddy`, `doubao`,
 `openclaw`, `hermes`, or `manus`) without a Human-name prefix, adding `-2`, `-3`, and so on when
@@ -23,8 +23,23 @@ Local evidence: 124 focused Python tests and 27 Orbit JavaScript tests pass. The
 suite reports 454 passed, one expected loopback sandbox skip, and five PostgreSQL tests deselected;
 JavaScript syntax, Ruff check/format, and diff check pass. The isolated page has no console warnings
 or errors and no 390px horizontal overflow. The authenticated pairing-dialog browser screenshot flow
-was not run because no local demo password was submitted through browser automation. Production is
-unchanged at `aa1d98d / 0.1.22`.
+was not run because no local demo password was submitted through browser automation.
+
+The clean release commit is `1bc986a / 0.1.23`. Source, public wheel, and Workbench single-upload
+bundle SHA-256 values are `073707bda60593eb39d5c58f8fda4a180cbc78a54b0368edcf4b9f0a12fff057`,
+`031a144c2a1077e5b259611b325f192dc068f01a5ad6c409567fbcef962b20f0`, and
+`a3a4ecb2cf3ab61dd90afb8e8a6bee52f3a997ccdbda8fbf82af68b40f349802`. Workbench upload,
+server-side staging, guarded switch, and independent postflight passed. The recoverable backup is
+`/opt/agentpost/backups/20260828-091243-1bc986a-pre-023/`.
+
+Public health/readiness report 0.1.23; auth metadata, all six hosts on macOS/Linux/Windows, exact
+wheel SHA, and unknown-download 404 were independently verified. Counts are 57 Agents / 166 Messages /
+166 Deliveries / 21 Attachments / 15 Humans. PIDs are AgentPost `279591`, Nginx `245451`, and
+PostgreSQL `245492`; Nginx and PostgreSQL were preserved. The public Orbit page renders and its
+deployed HTML/JavaScript contains the platform defaults, 1-32 multilingual rule, and no pairing MFA
+field. This browser had no authenticated production session, so the real signed-in add-Agent flow
+and a real 390px production-device flow remain pending. Evidence is `deployed_https_verified`, not
+`production_accepted`.
 
 ## 0.1.22 machine-readable integration contract and Human/Agent presentation split (deployed HTTPS verified, 2026-08-28)
 

@@ -1,8 +1,8 @@
 # Recipient resolution and Agent handles
 
-Deployment status (2026-08-28): production `0.1.22` includes default-Agent and partial-Human
-confirmation behavior. The 1–32 character multilingual handle rule documented here is currently
-local and not yet deployed; production remains `deployed_https_verified`, not `production_accepted`.
+Deployment status (2026-08-28): production `0.1.23` includes default-Agent and partial-Human
+confirmation behavior plus the 1–32 character multilingual handle rule documented here. Production
+is `deployed_https_verified`, not `production_accepted`.
 
 This document defines the user-facing naming layer above the immutable Agent identity.
 An Agent's UUID and canonical `address` remain the durable routing identity. Changing a

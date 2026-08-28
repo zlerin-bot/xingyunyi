@@ -1,14 +1,14 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.23-release-preparation`
+- 交接阶段：`v0.1.23-deployed-https-verified`
 - 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：生产 0.1.22 保持健康；新 Agent 短名称与简化确认切片已完成本地验证，正在准备 0.1.23 干净发布提交
-- 本地开发状态：生产为 `aa1d98d / 0.1.22`，schema 为 `0024_human_default_agent`；目标功能提交为 `7073a77`，0.1.23 尚未切换
+- 阶段性质：0.1.23 已从干净提交完成阿里云受保护切换、独立后检和公网复核
+- 本地开发状态：生产为 `1bc986a / 0.1.23`，schema 为 `0024_human_default_agent`；目标功能提交为 `7073a77`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
 
-### 新 Agent 默认短名称与简化确认（0.1.23 待部署）
+### 新 Agent 默认短名称与简化确认（0.1.23 已部署并完成 HTTPS 后检）
 
 连接确认页现在按宿主直接预填可编辑的短名称：`codex`、`workbuddy`、`doubao`、`openclaw`、
 `hermes` 或 `manus`，不再拼接 Human 名称；当前账号已出现同名时依次建议 `-2`、`-3`。
@@ -25,7 +25,21 @@
 完整 non-PostgreSQL 回归 454 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests deselected；JavaScript syntax、
 Ruff check/format 和 diff check 均通过。隔离 Orbit 页面在 390px 下 `scrollWidth = clientWidth = 390`，
 控制台无 warning/error；由于未在浏览器中提交本地演示密码，本轮未做登录后连接弹窗的截图验收。
-当前切片尚未部署，生产仍为 `aa1d98d / 0.1.22`，状态仍是 `deployed_https_verified`。
+
+发布提交为 `1bc986a / 0.1.23`。干净归档生成的源码、公开 wheel、Workbench 单上传包 SHA-256
+分别为 `073707bda60593eb39d5c58f8fda4a180cbc78a54b0368edcf4b9f0a12fff057`、
+`031a144c2a1077e5b259611b325f192dc068f01a5ad6c409567fbcef962b20f0`、
+`a3a4ecb2cf3ab61dd90afb8e8a6bee52f3a997ccdbda8fbf82af68b40f349802`。Workbench 单文件上传和
+服务器 staging 校验全部通过；受保护切换返回 `deploy_status=ok release=0.1.23 commit=1bc986a`，
+用时 38 秒，备份为 `/opt/agentpost/backups/20260828-091243-1bc986a-pre-023/`。
+
+独立 postflight 返回 `postflight_status=ok`，确认 schema `0024_human_default_agent`、本机/公网
+health/ready、公开配置、wheel 哈希、未知下载 404、备份和服务连续性全部通过。切换后为 57 Agents /
+166 Messages / 166 Deliveries / 21 Attachments / 15 Humans；AgentPost、Nginx、PostgreSQL PID 为
+`279591/245451/245492`，Nginx 与 PostgreSQL 未重启。本机公网二次复核一致；公开 Orbit 页面正常
+渲染，生产静态资源已确认默认名称、中文/一字符规则和删除重复 MFA 输入均已发布。当前浏览器没有
+生产登录态，因此登录后的真实新增 Agent 操作与 390px 真实设备生产验收仍为 `待确认`。当前状态是
+`deployed_https_verified`，不是 `production_accepted`。
 
 ### 机器接入合同与星轨 Human/Agent 双层展示（0.1.22 已部署并完成 HTTPS 后检）
 
