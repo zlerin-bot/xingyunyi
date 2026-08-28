@@ -83,7 +83,10 @@ const elements = {
   approvalMobileCount: document.querySelector("#approval-mobile-count"),
   taskMobileCount: document.querySelector("#task-mobile-count"),
   profileName: document.querySelector("#profile-name"),
-  profileUsername: document.querySelector("#profile-username"),
+  profileUsernameForm: document.querySelector("#profile-username-form"),
+  profileUsernameInput: document.querySelector("#profile-username"),
+  profileUsernameSave: document.querySelector("#profile-username-save"),
+  profileUsernameResult: document.querySelector("#profile-username-result"),
   profileEmail: document.querySelector("#profile-email"),
   profileTimezone: document.querySelector("#profile-timezone"),
   primaryNavigation: document.querySelector("#primary-navigation"),
@@ -4262,7 +4265,9 @@ function renderDashboard(dashboard) {
   elements.topHumanName.textContent = safeText(user.display_name, "星轨用户");
   elements.topHumanAvatar.textContent = "我";
   elements.profileName.textContent = safeText(user.display_name, "未设置");
-  elements.profileUsername.textContent = safeText(user.username, "未设置");
+  if (document.activeElement !== elements.profileUsernameInput) {
+    elements.profileUsernameInput.value = safeText(user.username, "");
+  }
   elements.profileEmail.textContent = safeText(user.email);
   elements.profileTimezone.textContent = safeText(
     Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -4279,6 +4284,36 @@ function renderDashboard(dashboard) {
   renderAgents(agents);
   renderTasks(tasks);
   renderApprovals(approvals);
+}
+
+async function updateProfileUsername(event) {
+  event.preventDefault();
+  const username = elements.profileUsernameInput.value.trim().toLowerCase();
+  elements.profileUsernameInput.value = username;
+  if (username === state.dashboard?.user?.username) {
+    elements.profileUsernameResult.textContent = "用户名没有变化。";
+    elements.profileUsernameResult.className = "form-status";
+    return;
+  }
+  elements.profileUsernameSave.disabled = true;
+  elements.profileUsernameResult.textContent = "正在保存…";
+  elements.profileUsernameResult.className = "form-status";
+  try {
+    const user = await requestJson("/api/v1/orbit/me/username", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+      body: JSON.stringify({ username }),
+    });
+    state.dashboard = { ...state.dashboard, user };
+    renderDashboard(state.dashboard);
+    elements.profileUsernameResult.textContent = `用户名已修改为 ${user.username}。`;
+    elements.profileUsernameResult.className = "form-status success";
+  } catch (error) {
+    elements.profileUsernameResult.textContent = error.message;
+    elements.profileUsernameResult.className = "form-status error";
+  } finally {
+    elements.profileUsernameSave.disabled = false;
+  }
 }
 
 async function loadDashboard() {
@@ -4836,6 +4871,7 @@ elements.profileRefresh.addEventListener("click", async () => {
   }
 });
 elements.profileSignOut.addEventListener("click", signOut);
+elements.profileUsernameForm.addEventListener("submit", updateProfileUsername);
 elements.threadSearchInput.addEventListener("input", () => {
   state.threadQuery = elements.threadSearchInput.value.trim();
   state.selectedThreadId = "";

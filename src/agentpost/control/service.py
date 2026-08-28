@@ -39,6 +39,7 @@ from agentpost.control.schemas import (
     HumanCreate,
     HumanProfile,
     HumanRegistrationResponse,
+    HumanUsernameUpdate,
     OrbitAgent,
     OrbitDashboard,
     OrbitMessage,
@@ -176,6 +177,57 @@ def provision_human(
 def list_humans(session: Session, *, limit: int) -> list[HumanProfile]:
     users = session.scalars(select(HumanUser).order_by(HumanUser.email).limit(limit)).all()
     return [human_profile(user) for user in users]
+
+
+def update_human_username(
+    session: Session,
+    *,
+    user: HumanUser,
+    payload: HumanUsernameUpdate,
+    human_session_id: UUID | None,
+    request_id: str,
+) -> HumanProfile:
+    """Update the current Human's public unique username without changing identity links."""
+
+    if payload.username == user.username:
+        return human_profile(user)
+    if (
+        session.scalar(
+            select(HumanUser.id).where(
+                HumanUser.username == payload.username,
+                HumanUser.id != user.id,
+            )
+        )
+        is not None
+    ):
+        raise HumanUsernameAlreadyRegisteredError(payload.username)
+
+    previous_username = user.username
+    user.username = payload.username
+    user.updated_at = utc_now()
+    session.add(
+        HumanActionAudit(
+            human_user_id=user.id,
+            human_session_id=human_session_id,
+            action="control.human_username_updated",
+            target_type="human_user",
+            target_id=str(user.id),
+            outcome="success",
+            request_id=request_id,
+            audit_metadata={
+                "previous_username": previous_username,
+                "username": payload.username,
+            },
+            created_at=utc_now(),
+        )
+    )
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        raise HumanUsernameAlreadyRegisteredError(payload.username) from exc
+    session.refresh(user)
+    return human_profile(user)
 
 
 def _load_human_and_agent(

@@ -445,14 +445,25 @@
             </div>
             <div class="profile-summary-grid">
               <article><span>姓名</span><strong id="profile-name">—</strong></article>
-              <article><span>用户名</span><strong id="profile-username">—</strong></article>
+              <article class="profile-username-card">
+                <span>用户名</span>
+                <form id="profile-username-form" class="profile-username-form">
+                  <label class="sr-only" for="profile-username">用户名</label>
+                  <div class="profile-username-controls">
+                    <input id="profile-username" type="text" autocomplete="username" minlength="3" maxlength="32" pattern="[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?" required>
+                    <button id="profile-username-save" type="submit" class="quiet-button">保存</button>
+                  </div>
+                  <small>3–32 位小写字母、数字或名称中间的单个连字符。修改后，其他人将通过新用户名找到你。</small>
+                  <p id="profile-username-result" class="form-status" role="status"></p>
+                </form>
+              </article>
               <article><span>邮箱</span><strong id="profile-email">—</strong></article>
               <article><span>此设备时区</span><strong id="profile-timezone">—</strong></article>
               <article><span>语言</span><strong>简体中文</strong></article>
             </div>
             <div class="availability-card">
-              <span class="availability-badge">待后续切片</span>
-              <div><strong>头像、姓名、语言和时区编辑尚未开放</strong><p>当前先展示账户已有信息，开放保存能力后再提供编辑入口。</p></div>
+              <span class="availability-badge">部分开放</span>
+              <div><strong>用户名现在可以修改</strong><p>头像、姓名、语言和时区编辑尚未开放。</p></div>
             </div>
             <div class="mobile-account-actions">
               <button id="profile-refresh" type="button" class="quiet-button">刷新数据</button>

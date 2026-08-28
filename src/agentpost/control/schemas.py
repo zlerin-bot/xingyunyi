@@ -60,6 +60,15 @@ class HumanProfile(ControlModel):
     last_seen_at: datetime | None
 
 
+class HumanUsernameUpdate(ControlModel):
+    username: str = Field(min_length=3, max_length=32)
+
+    @field_validator("username")
+    @classmethod
+    def canonical_username(cls, value: str) -> str:
+        return canonicalize_human_username(value)
+
+
 class HumanRegistrationResponse(ControlModel):
     user: HumanProfile
     access_key: str

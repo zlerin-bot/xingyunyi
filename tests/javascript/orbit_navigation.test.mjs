@@ -308,8 +308,13 @@ test("mobile Agent list and detail are separate layers", () => {
   assert.match(html, /返回 Agent 列表/);
 });
 
-test("unavailable settings are explanatory, not fake controls", () => {
+test("profile username is editable while unavailable settings stay explanatory", () => {
   assert.match(html, /id="profile-username"/);
+  assert.match(html, /id="profile-username-form"/);
+  assert.match(html, /id="profile-username"[^>]*minlength="3"[^>]*maxlength="32"/);
+  assert.match(script, /requestJson\("\/api\/v1\/orbit\/me\/username"/);
+  assert.match(script, /method: "PATCH"/);
+  assert.match(script, /human_username_updated|用户名已修改为/);
   assert.match(html, /id="register-username"[^>]*required/);
   assert.match(html, /用于让他人准确找到你，例如 020/);
   assert.match(script, /username: elements\.registerUsername\.value\.trim\(\)\.toLowerCase\(\)/);

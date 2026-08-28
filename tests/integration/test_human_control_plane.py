@@ -1513,6 +1513,60 @@ def test_agent_connection_projection_uses_current_binding_heartbeat_and_error_ev
     assert dashboard.json()["metrics"]["connected_agent_count"] == 1
 
 
+def test_current_human_can_update_unique_username_from_profile(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with _control_client(settings, database) as client:
+        human = _create_human(client, "username-owner@example.com", "用户名用户")
+        other = _create_human(client, "username-other@example.com", "其他用户")
+        login = client.post(
+            "/api/v1/orbit/session",
+            headers={"Authorization": f"Bearer {human['access_key']}"},
+        )
+        csrf = login.json()["csrf_token"]
+
+        missing_csrf = client.patch(
+            "/api/v1/orbit/me/username",
+            json={"username": "new-name"},
+        )
+        invalid = client.patch(
+            "/api/v1/orbit/me/username",
+            headers={"X-CSRF-Token": csrf},
+            json={"username": "bad--name"},
+        )
+        duplicate = client.patch(
+            "/api/v1/orbit/me/username",
+            headers={"X-CSRF-Token": csrf},
+            json={"username": other["user"]["username"]},
+        )
+        updated = client.patch(
+            "/api/v1/orbit/me/username",
+            headers={"X-CSRF-Token": csrf},
+            json={"username": "Mars-Lee-2"},
+        )
+        profile = client.get("/api/v1/orbit/me")
+
+        assert missing_csrf.status_code == 403
+        assert invalid.status_code == 422
+        assert duplicate.status_code == 409
+        assert duplicate.json()["error"]["code"] == "USERNAME_ALREADY_REGISTERED"
+        assert updated.status_code == 200
+        assert updated.json()["username"] == "mars-lee-2"
+        assert profile.json()["username"] == "mars-lee-2"
+
+        with database.session_factory() as db_session:
+            stored = db_session.get(HumanUser, UUID(str(human["user"]["id"])))
+            audit = db_session.scalar(
+                select(HumanActionAudit).where(
+                    HumanActionAudit.action == "control.human_username_updated"
+                )
+            )
+            assert stored is not None and stored.username == "mars-lee-2"
+            assert audit is not None
+            assert audit.audit_metadata["username"] == "mars-lee-2"
+
+
 def test_human_key_creates_revocable_short_lived_browser_session(
     settings: Settings,
     database: Database,

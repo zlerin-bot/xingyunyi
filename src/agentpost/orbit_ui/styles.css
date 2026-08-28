@@ -1539,6 +1539,31 @@ footer {
   white-space: nowrap;
 }
 
+.profile-username-card {
+  grid-column: 1 / -1;
+}
+
+.profile-username-form {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-username-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.profile-username-controls input {
+  width: 100%;
+}
+
+.profile-username-form small {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.55;
+}
+
 .mobile-account-actions {
   display: none;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4126,6 +4151,10 @@ footer {
   }
 
   .profile-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-username-controls {
     grid-template-columns: 1fr;
   }
 

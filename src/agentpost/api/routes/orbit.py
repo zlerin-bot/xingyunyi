@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse, StreamingResponse
 
+from agentpost.accounts.usernames import HumanUsernameAlreadyRegisteredError
 from agentpost.api.dependencies import SessionDep, SettingsDep
 from agentpost.attachments.models import Attachment
 from agentpost.control.auth import CurrentHumanDep, HumanAccessKeyDep
@@ -22,6 +23,7 @@ from agentpost.control.organization_service import list_orbit_organizations
 from agentpost.control.schemas import (
     HumanProfile,
     HumanSessionResponse,
+    HumanUsernameUpdate,
     OrbitAgent,
     OrbitAgentDelete,
     OrbitAgentHandleUpdate,
@@ -50,6 +52,7 @@ from agentpost.control.service import (
     mark_orbit_thread_viewed,
     restore_orbit_thread,
     set_human_default_agent,
+    update_human_username,
 )
 from agentpost.control.sessions import (
     HUMAN_SESSION_COOKIE,
@@ -160,6 +163,34 @@ def orbit_logo() -> FileResponse:
 @router.get("/api/v1/orbit/me", response_model=HumanProfile)
 def orbit_me(current_human: CurrentHumanDep) -> HumanProfile:
     return human_profile(current_human)
+
+
+@router.patch("/api/v1/orbit/me/username", response_model=HumanProfile)
+def update_orbit_username(
+    payload: HumanUsernameUpdate,
+    request: Request,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    csrf: HumanCsrfDep,
+) -> HumanProfile:
+    _ = csrf
+    try:
+        return update_human_username(
+            session,
+            user=current_human,
+            payload=payload,
+            human_session_id=human_session_id_from_request(request),
+            request_id=request.state.request_id,
+        )
+    except HumanUsernameAlreadyRegisteredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "username_already_registered",
+                "message": "This username is already in use",
+                "details": {"username": str(exc.args[0])},
+            },
+        ) from exc
 
 
 @router.post(

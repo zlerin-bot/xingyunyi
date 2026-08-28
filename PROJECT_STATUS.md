@@ -2,7 +2,22 @@
 
 Last updated: 2026-08-28
 
-Current handoff stage: `v0.1.29-deployed-https-verified`; pinned production release: `0.1.29`
+Current handoff stage: `v0.1.30-username-edit-local`; pinned production release: `0.1.29`
+
+## Editable Human username in profile (local, pending deployment, 2026-08-28)
+
+Settings → Profile now provides a real username edit and save flow. The server canonicalizes the
+value, enforces the existing 3–32 character format and global uniqueness, requires the current
+browser CSRF proof, and records `control.human_username_updated`. Only the public addressing label
+changes; immutable Human ID relationships retain organizations, messages, Agent ownership, and
+history. New recipient resolution uses the new username immediately and the old username is released.
+
+Evidence: focused backend 2 passed; the complete non-PostgreSQL suite reported 463 passed, one
+expected loopback sandbox skip, and five PostgreSQL tests deselected. Ruff check/format, JavaScript
+syntax, and Orbit JavaScript 27 passed. The isolated desktop flow saved and displayed a new username.
+At Chrome 390×844, login and save succeeded, body/document scroll width matched the 390px viewport,
+the form/input/button remained inside 47–343px, and there were no console warnings or errors.
+PostgreSQL-specific tests and deployment remain pending.
 
 ## Organization contact invitations and visible Agent eligibility (0.1.29 deployed HTTPS verified, 2026-08-28)
 

@@ -1,12 +1,25 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.29-deployed-https-verified`
+- 交接阶段：`v0.1.30-username-edit-local`
 - 核验日期：2026-08-28
 - 代码分支：`main`
-- 阶段性质：组织好友邀请和自有 Agent 候选解释已部署并完成 HTTPS 后检；登录后真实数据验收待确认
+- 阶段性质：个人资料用户名修改已完成本地实现与验收，尚未发布；生产仍为 0.1.29
 - 当前生产状态：`26ee7c7 / 0.1.29`，schema 为 `0025_human_thread_archives`；功能提交为 `0b46da7`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 个人资料用户名修改（本地完成，待发布）
+
+“设置 → 个人资料”已从用户名只读展示改为可直接编辑和保存。用户名继续遵守 3–32 位小写字母、
+数字或名称中间单个连字符的规则，并由服务端和数据库共同保证全平台唯一；已占用和格式错误都会给出
+普通用户可理解的明确提示。修改只更新公开寻址标识，Human ID、组织关系、消息、Agent 所有权和历史
+审计不变；成功操作写入 `control.human_username_updated` 审计记录，新目标解析立即使用新用户名。
+
+本地证据：聚焦后端 2 passed；完整 non-PostgreSQL 回归 463 passed、1 个预期 loopback sandbox
+skip、5 个 PostgreSQL tests deselected；Ruff check/format、JavaScript syntax 和 Orbit JavaScript
+27 passed。隔离 Orbit 桌面端完成真实修改并即时显示成功结果；Chrome 390×844 下完成登录、修改和
+保存，`body/document scrollWidth = innerWidth = 390`，输入框、按钮和表单均位于 47–343px，控制台
+无 warning/error。PostgreSQL 专属测试未在本地运行，尚未部署。
 
 ### 组织好友邀请与自有 Agent 候选解释（0.1.29 已部署并完成 HTTPS 后检）
 
