@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from agentpost.config import Settings
+from agentpost.control.models import Organization, OrganizationAgent
 from agentpost.db import Database
 from agentpost.main import create_app
 from agentpost.organizations import service as organization_service
@@ -240,6 +243,12 @@ def test_username_invitation_is_accepted_inside_orbit_without_email_link(
     with TestClient(create_app(settings=_runtime(settings), database=database)) as client:
         invitee = _register(client, "site-invitee@example.com")
         invitee_username = str(invitee["user"]["username"])
+        invitee_agent = _create_agent(client, "site-invitee-agent@agents.local")
+        _set_agent_owner(
+            client,
+            human_id=str(invitee["user"]["id"]),
+            agent_id=str(invitee_agent["agent"]["id"]),
+        )
         _logout(client, str(invitee["csrf_token"]))
         owner = _register(client, "site-owner@example.com")
         organization = _create_organization(client, str(owner["csrf_token"]))
@@ -268,6 +277,8 @@ def test_username_invitation_is_accepted_inside_orbit_without_email_link(
         inbox = client.get("/api/v1/orbit/organization-invitations")
         assert inbox.status_code == 200, inbox.text
         assert inbox.json()["items"][0]["invitation_id"] == invitation_id
+        assert inbox.json()["items"][0]["invited_by_username"] == owner["user"]["username"]
+        assert inbox.json()["items"][0]["invited_by_display_name"] == "site-owner"
         accepted = client.post(
             f"/api/v1/orbit/organization-invitations/{invitation_id}/accept",
             headers={"X-CSRF-Token": invitee_login["csrf_token"]},
@@ -275,6 +286,25 @@ def test_username_invitation_is_accepted_inside_orbit_without_email_link(
         assert accepted.status_code == 200, accepted.text
         assert accepted.json()["membership"]["role"] == "member"
         assert client.get("/api/v1/orbit/organization-invitations").json() == {"items": []}
+        dashboard = client.get("/api/v1/orbit/dashboard")
+        assert dashboard.status_code == 200, dashboard.text
+        assert organization_id in {str(item["id"]) for item in dashboard.json()["organizations"]}
+        members = client.get(f"/api/v1/orbit/organizations/{organization_id}/members")
+        assert members.status_code == 200, members.text
+        invitee_membership = next(
+            item
+            for item in members.json()["items"]
+            if item["human_user_id"] == invitee["user"]["id"]
+        )
+        assert invitee_membership["agents"] == [
+            {
+                "agent_id": invitee_agent["agent"]["id"],
+                "address": "site-invitee-agent@agents.local",
+                "handle": None,
+                "display_name": "site-invitee-agent",
+                "participation_source": "default",
+            }
+        ]
 
 
 def test_invitation_candidates_include_only_humans_with_real_agent_conversations(
@@ -796,6 +826,91 @@ def test_invitation_listing_revocation_and_non_manager_isolation(
         assert rejected.status_code == 404
         hidden = client.get(f"/api/v1/orbit/organizations/{organization_id}/members")
         assert hidden.status_code == 404
+
+
+def test_owner_can_disband_organization_and_hide_its_group_history(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with TestClient(create_app(settings=_runtime(settings), database=database)) as client:
+        invitee = _register(client, "disband-invitee@example.com", username="disband-invitee")
+        _logout(client, str(invitee["csrf_token"]))
+        owner = _register(client, "disband-owner@example.com", username="disband-owner")
+        owner_agent = _create_agent(client, "disband-owner-agent@agents.local")
+        _set_agent_owner(
+            client,
+            human_id=str(owner["user"]["id"]),
+            agent_id=str(owner_agent["agent"]["id"]),
+        )
+        organization = _create_organization(client, str(owner["csrf_token"]))
+        organization_id = str(organization["organization"]["id"])
+        organization_name = str(organization["organization"]["name"])
+        assigned = client.put(
+            f"/api/v1/orbit/organizations/{organization_id}/agents/{owner_agent['agent']['id']}",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+        )
+        assert assigned.status_code == 200, assigned.text
+        invitation = client.post(
+            f"/api/v1/orbit/organizations/{organization_id}/invitations",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+            json={"username": "disband-invitee", "role": "member"},
+        )
+        assert invitation.status_code == 201, invitation.text
+        invitation_id = invitation.json()["invitation"]["invitation_id"]
+        message = client.post(
+            f"/api/v1/organizations/{organization_id}/channel/messages",
+            headers={
+                "Authorization": f"Bearer {owner_agent['api_key']}",
+                "Idempotency-Key": "organization-disband-history",
+            },
+            json={
+                "type": "message",
+                "subject": "解散前的组织消息",
+                "content": {"format": "text", "body": "archived-organization-body"},
+            },
+        )
+        assert message.status_code == 201, message.text
+        assert "archived-organization-body" in client.get("/api/v1/orbit/threads").text
+
+        wrong_name = client.post(
+            f"/api/v1/orbit/organizations/{organization_id}/disband",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+            json={"confirmation_name": "不是这个组织", "password": PASSWORD},
+        )
+        assert wrong_name.status_code == 400
+        wrong_password = client.post(
+            f"/api/v1/orbit/organizations/{organization_id}/disband",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+            json={"confirmation_name": organization_name, "password": "wrong password value"},
+        )
+        assert wrong_password.status_code == 403
+        disbanded = client.post(
+            f"/api/v1/orbit/organizations/{organization_id}/disband",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+            json={"confirmation_name": organization_name, "password": PASSWORD},
+        )
+        assert disbanded.status_code == 204, disbanded.text
+        dashboard = client.get("/api/v1/orbit/dashboard")
+        assert organization_id not in {
+            str(item["id"]) for item in dashboard.json()["organizations"]
+        }
+        assert "archived-organization-body" not in client.get("/api/v1/orbit/threads").text
+        assert (
+            client.get(
+                "/api/v1/organization-channel",
+                headers={"Authorization": f"Bearer {owner_agent['api_key']}"},
+            ).status_code
+            == 404
+        )
+
+        with database.session_factory() as session:
+            stored = session.get(Organization, UUID(organization_id))
+            assert stored is not None
+            assert stored.status == "archived"
+            assert session.get(OrganizationAgent, UUID(str(owner_agent["agent"]["id"]))) is None
+            stored_invitation = session.get(OrganizationInvitation, UUID(invitation_id))
+            assert stored_invitation is not None
+            assert stored_invitation.status == "revoked"
 
 
 def test_owner_can_transfer_ownership_before_leaving(

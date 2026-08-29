@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -101,6 +101,10 @@ class OrganizationAgentAlreadyAssignedError(Exception):
 
 
 class OrganizationAgentAssignmentNotFoundError(Exception):
+    pass
+
+
+class OrganizationDisbandConfirmationError(Exception):
     pass
 
 
@@ -567,6 +571,9 @@ def list_pending_invitations(
             invitation.status = "expired"
             changed = True
             continue
+        inviter = session.get(HumanUser, invitation.invited_by_user_id)
+        if inviter is None:
+            continue
         items.append(
             OrganizationInvitationInboxItem(
                 invitation_id=invitation.id,
@@ -574,6 +581,8 @@ def list_pending_invitations(
                 organization_slug=organization.slug,
                 organization_name=organization.name,
                 organization_description=organization.description,
+                invited_by_username=inviter.username,
+                invited_by_display_name=inviter.display_name,
                 role=invitation.role,
                 expires_at=_as_utc(invitation.expires_at),
             )
@@ -581,6 +590,71 @@ def list_pending_invitations(
     if changed:
         session.commit()
     return items
+
+
+def authorize_organization_disband(
+    session: Session,
+    *,
+    user: HumanUser,
+    organization_id: UUID,
+    confirmation_name: str,
+) -> OrganizationContext:
+    context = _load_context(session, organization_id=organization_id, user=user)
+    _require_owner(context)
+    if not hmac.compare_digest(
+        confirmation_name.strip().encode("utf-8"),
+        context.organization.name.encode("utf-8"),
+    ):
+        raise OrganizationDisbandConfirmationError
+    return context
+
+
+def archive_owned_organization(
+    session: Session,
+    *,
+    user: HumanUser,
+    organization_id: UUID,
+    human_session_id: UUID | None,
+    request_id: str,
+) -> None:
+    context = _load_context(
+        session,
+        organization_id=organization_id,
+        user=user,
+        lock=True,
+    )
+    _require_owner(context)
+    organization = context.organization
+    now = utc_now()
+    organization.status = "archived"
+    organization.updated_at = now
+    session.execute(
+        delete(OrganizationAgent).where(OrganizationAgent.organization_id == organization.id)
+    )
+    pending_invitations = session.scalars(
+        select(OrganizationInvitation).where(
+            OrganizationInvitation.organization_id == organization.id,
+            OrganizationInvitation.status == "pending",
+        )
+    ).all()
+    for invitation in pending_invitations:
+        invitation.status = "revoked"
+        invitation.revoked_at = now
+    add_human_action_audit(
+        session,
+        human_user_id=user.id,
+        human_session_id=human_session_id,
+        action="organization.disbanded",
+        target_type="organization",
+        target_id=str(organization.id),
+        outcome="success",
+        request_id=request_id,
+        audit_metadata={
+            "organization_slug": organization.slug,
+            "revoked_invitation_count": len(pending_invitations),
+        },
+    )
+    session.commit()
 
 
 def list_invitation_candidates(

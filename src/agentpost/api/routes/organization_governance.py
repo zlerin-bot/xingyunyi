@@ -33,6 +33,7 @@ from agentpost.organizations.schemas import (
     OrganizationAgentConfirmationCreate,
     OrganizationAgentConfirmationResponse,
     OrganizationCreateResponse,
+    OrganizationDisbandCreate,
     OrganizationDomainCreate,
     OrganizationDomainCreated,
     OrganizationDomainResponse,
@@ -53,6 +54,7 @@ from agentpost.organizations.service import (
     OrganizationAgentAssignmentNotFoundError,
     OrganizationAgentOwnershipRequiredError,
     OrganizationAlreadyMemberError,
+    OrganizationDisbandConfirmationError,
     OrganizationDomainConflictError,
     OrganizationDomainLookupError,
     OrganizationDomainNotVerifiedError,
@@ -63,7 +65,9 @@ from agentpost.organizations.service import (
     OrganizationSlugConflictError,
     accept_inbox_invitation,
     accept_invitation,
+    archive_owned_organization,
     assign_owned_agent,
+    authorize_organization_disband,
     authorize_owned_agent_management,
     change_member_role,
     create_domain_claim,
@@ -702,6 +706,57 @@ def leave_organization(
         raise _not_found() from exc
     except LastOrganizationOwnerError as exc:
         raise HTTPException(status_code=409, detail={"code": "last_organization_owner"}) from exc
+
+
+@router.post(
+    "/organizations/{organization_id}/disband",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def disband_organization(
+    organization_id: UUID,
+    payload: OrganizationDisbandCreate,
+    request: Request,
+    current_human: CurrentHumanDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    csrf_guard: HumanCsrfDep,
+) -> None:
+    del csrf_guard
+    try:
+        authorize_organization_disband(
+            session,
+            user=current_human,
+            organization_id=organization_id,
+            confirmation_name=payload.confirmation_name,
+        )
+    except OrganizationSelfGovernanceNotFoundError as exc:
+        raise _not_found() from exc
+    except OrganizationAccessDeniedError as exc:
+        raise _forbidden() from exc
+    except OrganizationDisbandConfirmationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "organization_disband_name_mismatch"},
+        ) from exc
+    _verify_password_reauthentication(
+        request,
+        session,
+        settings,
+        current_human,
+        password=payload.password.get_secret_value(),
+    )
+    try:
+        archive_owned_organization(
+            session,
+            user=current_human,
+            organization_id=organization_id,
+            human_session_id=human_session_id_from_request(request),
+            request_id=request.state.request_id,
+        )
+    except OrganizationSelfGovernanceNotFoundError as exc:
+        raise _not_found() from exc
+    except OrganizationAccessDeniedError as exc:
+        raise _forbidden() from exc
 
 
 @router.post(

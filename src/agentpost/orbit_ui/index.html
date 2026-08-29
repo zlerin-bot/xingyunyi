@@ -198,7 +198,7 @@
                 <span><strong>账户安全</strong><small>登录与双重验证</small></span><span aria-hidden="true">›</span>
               </button>
               <button type="button" class="context-nav-item" data-module="settings" data-section="organizations">
-                <span><strong>组织与成员</strong><small>成员、邀请与企业登录</small></span><span aria-hidden="true">›</span>
+                <span><strong>组织与成员</strong><small>成员、邀请与企业登录</small></span><span id="organization-nav-invite-count" class="thread-unread-count" hidden>0</span><span aria-hidden="true">›</span>
               </button>
               <button type="button" class="context-nav-item" data-module="settings" data-section="archives">
                 <span><strong>已归档对话</strong><small>查看和恢复隐藏的对话</small></span><span aria-hidden="true">›</span>
@@ -274,7 +274,7 @@
             </p>
             <section id="organization-pending-section" class="organization-governance-section" hidden>
               <h3>待你确认的邀请</h3>
-              <p class="section-intro">组织邀请会直接显示在这里，不需要再到邮箱确认。</p>
+              <p class="section-intro">组织邀请会直接显示在这里，不需要再到邮箱确认。点击“接受并进入组织”后，你会立即出现在成员列表中，星轨也会显示该组织群聊。</p>
               <div id="organization-pending-list" class="organization-grid" aria-live="polite"></div>
             </section>
             <div id="organization-list" class="organization-grid" aria-live="polite"></div>
@@ -745,6 +745,15 @@
           </div>
           <div id="organization-oidc-list" class="governance-list"></div>
         </section>
+        <details id="organization-disband-section" class="organization-disband-section" hidden>
+          <summary>解散这个组织</summary>
+          <p class="dialog-summary">解散后，所有成员将无法再进入这个组织，待接受邀请会失效，已加入的 Agent 会自动移出。历史消息会保留在服务器审计记录中，但不再出现在星轨。</p>
+          <div class="organization-disband-fields">
+            <div><label for="organization-disband-name">输入组织名称确认</label><input id="organization-disband-name" type="text" autocomplete="off" maxlength="200"></div>
+            <div><label for="organization-disband-password">当前星轨密码</label><input id="organization-disband-password" type="password" autocomplete="current-password" minlength="12"></div>
+          </div>
+          <button id="organization-disband" type="button" class="quiet-button danger">确认解散组织</button>
+        </details>
         <div class="dialog-actions"><button id="organization-leave" type="button" class="quiet-button danger">退出组织</button><button id="organization-manage-cancel" type="button" class="quiet-button">完成</button></div>
       </form>
     </dialog>

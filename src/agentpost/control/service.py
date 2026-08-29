@@ -1063,6 +1063,30 @@ def _orbit_thread_data(
         for row in _message_rows(session, agent_ids=agent_ids, limit=None, thread_id=thread_id)
         if _row_visible_after_access_grant(row, entries_by_agent)
     ]
+    organization_ids = {
+        UUID(str(metadata["organization_id"]))
+        for message, _, _, _ in rows
+        if (metadata := message.message_metadata or {}).get("channel_scope") == "organization"
+        and metadata.get("organization_id")
+    }
+    active_organization_ids = (
+        set(
+            session.scalars(
+                select(Organization.id).where(
+                    Organization.id.in_(organization_ids),
+                    Organization.status == "active",
+                )
+            )
+        )
+        if organization_ids
+        else set()
+    )
+    rows = [
+        row
+        for row in rows
+        if (metadata := row[0].message_metadata or {}).get("channel_scope") != "organization"
+        or UUID(str(metadata["organization_id"])) in active_organization_ids
+    ]
     grouped: dict[UUID, list[tuple[Message, Delivery, Agent, Agent]]] = {}
     for row in rows:
         grouped.setdefault(row[0].thread_id, []).append(row)

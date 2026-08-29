@@ -369,6 +369,9 @@ test("organization management prioritizes organizations, members, and their Agen
   assert.match(html, /id="organization-invite-contact"/);
   assert.match(html, /只显示你名下 Agent 有过真实沟通/);
   assert.match(script, /\/api\/v1\/orbit\/organization-invitations\/\$\{encodeURIComponent\(invitation\.invitation_id\)\}\/accept/);
+  assert.match(html, /id="organization-nav-invite-count"/);
+  assert.match(script, /accept\.textContent = "接受并进入组织"/);
+  assert.match(script, /invited_by_display_name/);
   assert.match(script, /username: elements\.organizationInviteUsername\.value/);
   assert.match(script, /\/invitation-candidates/);
   assert.match(script, /renderOrganizationInvitationCandidates/);
@@ -389,6 +392,8 @@ test("organization role controls mirror the server authorization boundary", () =
   assert.match(script, /organizationInviteSection\.hidden = !isManager/);
   assert.match(script, /\["owner", "admin", "member"\]\.includes\(organization\.membership_role\)/);
   assert.match(script, /organization\?\.membership_role === "owner" && ownerCount <= 1/);
+  assert.match(html, /id="organization-disband-section"/);
+  assert.match(script, /\/disband`/);
   assert.match(script, /最后一名 Owner 不能直接退出/);
   assert.match(script, /退出后只撤销组织派生权限，个人和直接授权保持不变/);
 });

@@ -2542,6 +2542,41 @@ summary:focus-visible {
   display: none;
 }
 
+.organization-disband-section {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 38%, var(--line));
+  border-radius: 12px;
+}
+
+.organization-disband-section[hidden] {
+  display: none;
+}
+
+.organization-disband-section > summary {
+  cursor: pointer;
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.organization-disband-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.organization-disband-fields > div {
+  display: grid;
+  gap: 7px;
+}
+
+@media (max-width: 620px) {
+  .organization-disband-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 .organization-dialog h3 {
   margin: 12px 0 0;
   color: var(--gold);

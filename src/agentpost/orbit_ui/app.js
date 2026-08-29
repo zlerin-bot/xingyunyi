@@ -349,6 +349,7 @@ const elements = {
   organizationManageResult: document.querySelector("#organization-manage-result"),
   organizationMemberList: document.querySelector("#organization-member-list"),
   organizationInvitationList: document.querySelector("#organization-invitation-list"),
+  organizationNavInviteCount: document.querySelector("#organization-nav-invite-count"),
   organizationDomainSection: document.querySelector("#organization-domain-section"),
   organizationDomainName: document.querySelector("#organization-domain-name"),
   organizationDomainAdd: document.querySelector("#organization-domain-add"),
@@ -360,6 +361,10 @@ const elements = {
   organizationOidcClientSecret: document.querySelector("#organization-oidc-client-secret"),
   organizationOidcAdd: document.querySelector("#organization-oidc-add"),
   organizationOidcList: document.querySelector("#organization-oidc-list"),
+  organizationDisbandSection: document.querySelector("#organization-disband-section"),
+  organizationDisbandName: document.querySelector("#organization-disband-name"),
+  organizationDisbandPassword: document.querySelector("#organization-disband-password"),
+  organizationDisband: document.querySelector("#organization-disband"),
   organizationLeave: document.querySelector("#organization-leave"),
 };
 
@@ -989,13 +994,15 @@ function renderOrganizations(organizations) {
 function renderPendingOrganizationInvitations(invitations) {
   elements.organizationPendingList.replaceChildren();
   elements.organizationPendingSection.hidden = invitations.length === 0;
+  elements.organizationNavInviteCount.textContent = String(invitations.length);
+  elements.organizationNavInviteCount.hidden = invitations.length === 0;
   invitations.forEach((invitation) => {
     const card = document.createElement("article");
     card.className = "organization-card";
     const name = document.createElement("strong");
     name.textContent = safeText(invitation.organization_name, invitation.organization_slug);
     const detail = document.createElement("p");
-    detail.textContent = `${statusLabel(invitation.role)} · 有效至 ${dateText(invitation.expires_at)}`;
+    detail.textContent = `${safeText(invitation.invited_by_display_name, invitation.invited_by_username)}（@${safeText(invitation.invited_by_username)}）邀请你加入 · 有效至 ${dateText(invitation.expires_at)}`;
     const description = document.createElement("p");
     description.textContent = safeText(invitation.organization_description, "邀请你加入该组织。加入前不会共享你的个人对话。");
     const actions = document.createElement("div");
@@ -1003,7 +1010,7 @@ function renderPendingOrganizationInvitations(invitations) {
     const accept = document.createElement("button");
     accept.type = "button";
     accept.className = "primary-action";
-    accept.textContent = "接受邀请";
+    accept.textContent = "接受并进入组织";
     accept.addEventListener("click", () => acceptPendingOrganizationInvitation(invitation, accept));
     actions.append(accept);
     card.append(name, detail, description, actions);
@@ -1014,13 +1021,21 @@ function renderPendingOrganizationInvitations(invitations) {
 async function acceptPendingOrganizationInvitation(invitation, button) {
   button.disabled = true;
   try {
-    await requestJson(
+    const accepted = await requestJson(
       `/api/v1/orbit/organization-invitations/${encodeURIComponent(invitation.invitation_id)}/accept`,
       { method: "POST", headers: { "X-CSRF-Token": state.csrfToken } },
     );
     await loadDashboard();
     activateRoute("settings", "organizations", { updateHistory: true });
-    setConnection("组织邀请已接受", "success");
+    const organization = (state.dashboard?.organizations || []).find(
+      (item) => String(item.id) === String(accepted.organization.id),
+    );
+    if (organization) {
+      await openOrganizationManagement(organization);
+      elements.organizationManageResult.textContent = `你已加入“${safeText(organization.name, organization.slug)}”，成员列表已更新；星轨已显示群聊，未手动选择 Agent 时会使用你的默认 Agent。`;
+      elements.organizationManageResult.className = "form-status success";
+    }
+    setConnection(`已加入“${safeText(accepted.organization.name, accepted.organization.slug)}”`, "success");
   } catch (error) {
     setConnection(error.message, "error");
     button.disabled = false;
@@ -1166,6 +1181,8 @@ function closeOrganizationManagement() {
   elements.organizationOidcIssuer.value = "";
   elements.organizationOidcClientId.value = "";
   elements.organizationOidcClientSecret.value = "";
+  elements.organizationDisbandName.value = "";
+  elements.organizationDisbandPassword.value = "";
   elements.organizationManageResult.textContent = "";
   elements.organizationMemberList.replaceChildren();
   elements.organizationInvitationList.replaceChildren();
@@ -1649,6 +1666,7 @@ async function loadOrganizationManagement() {
   configureOrganizationInvitationRoles(organization.membership_role);
   elements.organizationInvitationList.hidden = !isManager;
   const isOwner = organization.membership_role === "owner";
+  elements.organizationDisbandSection.hidden = !isOwner;
   elements.organizationDomainName.disabled = !isOwner;
   elements.organizationDomainAdd.hidden = !isOwner;
   elements.organizationOidcSection.hidden = !(
@@ -1757,6 +1775,52 @@ async function leaveOrganization() {
     elements.organizationManageResult.className = "form-status error";
   } finally {
     elements.organizationLeave.disabled = false;
+  }
+}
+
+async function disbandOrganization() {
+  const organization = state.managedOrganization;
+  if (!organization || organization.membership_role !== "owner") {
+    return;
+  }
+  const confirmationName = elements.organizationDisbandName.value.trim();
+  const password = elements.organizationDisbandPassword.value;
+  if (confirmationName !== organization.name) {
+    elements.organizationManageResult.textContent = `请输入完整组织名称“${organization.name}”后再确认。`;
+    elements.organizationManageResult.className = "form-status error";
+    elements.organizationDisbandName.focus();
+    return;
+  }
+  if (!password) {
+    elements.organizationManageResult.textContent = "请输入当前星轨密码。";
+    elements.organizationManageResult.className = "form-status error";
+    elements.organizationDisbandPassword.focus();
+    return;
+  }
+  elements.organizationDisband.disabled = true;
+  try {
+    await requestJson(
+      `/api/v1/orbit/organizations/${encodeURIComponent(organization.id)}/disband`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrfToken },
+        body: JSON.stringify({ confirmation_name: confirmationName, password }),
+      },
+    );
+    closeOrganizationManagement();
+    await loadDashboard();
+    activateRoute("settings", "organizations", { updateHistory: true });
+    setConnection(`“${safeText(organization.name, organization.slug)}”已解散`, "success");
+  } catch (error) {
+    const messages = {
+      organization_disband_name_mismatch: `组织名称不一致，请完整输入“${organization.name}”。`,
+      human_reauthentication_failed: "密码不正确，或当前登录需要先完成双重验证。",
+    };
+    elements.organizationManageResult.textContent = messages[error.code] || error.message;
+    elements.organizationManageResult.className = "form-status error";
+  } finally {
+    elements.organizationDisband.disabled = false;
+    elements.organizationDisbandPassword.value = "";
   }
 }
 
@@ -5217,6 +5281,15 @@ elements.organizationManageClose.addEventListener("click", closeOrganizationMana
 elements.organizationManageCancel.addEventListener("click", closeOrganizationManagement);
 elements.organizationManageDialog.addEventListener("close", closeOrganizationManagement);
 elements.organizationLeave.addEventListener("click", leaveOrganization);
+elements.organizationDisband.addEventListener("click", disbandOrganization);
+[elements.organizationDisbandName, elements.organizationDisbandPassword].forEach((input) => {
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      disbandOrganization();
+    }
+  });
+});
 elements.organizationDomainAdd.addEventListener("click", addOrganizationDomain);
 elements.organizationOidcAdd.addEventListener("click", addOrganizationOidcProvider);
 elements.openMfa.addEventListener("click", () => {

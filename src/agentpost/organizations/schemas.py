@@ -101,6 +101,8 @@ class OrganizationInvitationInboxItem(OrganizationGovernanceModel):
     organization_slug: str
     organization_name: str
     organization_description: str | None
+    invited_by_username: str
+    invited_by_display_name: str
     role: Literal["admin", "member", "auditor"]
     expires_at: datetime
 
@@ -127,6 +129,11 @@ class OrganizationAgentConfirmationResponse(OrganizationGovernanceModel):
     organization_id: UUID
     agent_id: UUID
     expires_at: datetime
+
+
+class OrganizationDisbandCreate(OrganizationGovernanceModel):
+    confirmation_name: str = Field(min_length=1, max_length=200)
+    password: SecretStr
 
 
 class OrganizationChannelMessageCreate(OrganizationGovernanceModel):
