@@ -1,12 +1,51 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.31-archive-navigation-deployed-https-verified`
+- 交接阶段：`v0.1.32-organization-invitation-lifecycle-deployed-https-verified`
 - 核验日期：2026-08-29
 - 代码分支：`main`
-- 阶段性质：归档入口、Agent 归档可见性和星轨返回逻辑已部署并完成 HTTPS 后检，真实登录态验收待确认
-- 当前生产状态：`1430601 / 0.1.31`，schema 为 `0025_human_thread_archives`；功能提交为 `31c9e7b`
+- 阶段性质：组织邀请闭环和组织解散已部署并完成 HTTPS 后检，真实登录态邀请/解散验收待确认
+- 当前生产状态：`18101fb / 0.1.32`，schema 为 `0025_human_thread_archives`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 组织邀请闭环、组织解散与协作群改进评审（0.1.32 已部署并完成 HTTPS 后检）
+
+待接受的组织邀请现在明确显示邀请人、组织名称和有效期；“接受并进入组织”成功后直接打开组织详情，
+确认本人已经出现在成员列表中、默认或显式参与 Agent 已生效，并说明星轨中的组织群聊已经可见。
+“组织与成员”入口同步显示待确认邀请数量。Owner 可以在组织详情中解散组织，但必须输入完整组织名称
+和当前星轨密码重新确认；服务端将组织归档、撤销待接受邀请并释放显式 Agent 归属，不硬删除历史消息
+或审计记录，归档组织及其历史群聊不再进入 Human 或 Agent 的可见读取范围。
+
+本地证据：Ruff check 通过、Ruff format 全部 255 files 通过；组织治理、系统 API、安装 Skill 与包边界
+聚焦测试 35 passed，Orbit JavaScript 28 passed；完整 non-PostgreSQL 回归 465 passed、1 个预期
+loopback sandbox skip、5 个 PostgreSQL tests deselected。隔离 Orbit 桌面端和 390×844 均完成组织解散
+界面、名称校验和布局检查，窄屏 `body/document scrollWidth = innerWidth = 390`，控制台无
+warning/error；为避免破坏测试组织，真实浏览器未执行最后一步成功解散，服务端成功路径由集成测试覆盖。
+PostgreSQL 专属测试未在本地运行。
+
+发布提交为 `18101fb / 0.1.32`。干净归档生成的源码、公开 wheel、Workbench 单上传包 SHA-256
+分别为 `0a8c3af9f707b1c21ff701ee7ed1dbbb6c5d1283411367061be463598f5b38a3`、
+`fddc1d89594e69200bf217e6e0de40d6f9350582776101544700fd340479c9ad`、
+`af686bc4175246f9de157b17fbc39a239472524faf38375082cc3289d144ebf2`。本轮进入生产核对时，
+`current` 已由同目标既有发布切到 `/opt/agentpost/releases/18101fb`，因此没有重复执行生产切换。
+现网记录的部署时间为 `2026-08-29T08:34:51+08:00`，备份为
+`/opt/agentpost/backups/20260829-083421-18101fb-pre-032/`。
+
+独立重跑 postflight 返回 `postflight_status=ok release=0.1.32 commit=18101fb
+schema=0025_human_thread_archives`，耗时 2 秒；当时数据量为 60 Agents / 246 Messages /
+246 Deliveries / 27 Attachments / 15 Humans。AgentPost、Nginx、PostgreSQL PID 分别为
+`309741/245451/304910`，服务均 active；受保护环境文件权限为 `600 root:root`，磁盘使用率 26%。
+开发机公网 health/ready 均返回 0.1.32，公开 wheel 哈希精确一致，未知下载返回 404。生产登录页可正常
+渲染，但当前浏览器的既有登录态已经失效，因此真实受邀者接受、成员列表即时刷新、星轨群聊出现和
+Owner 解散仍为 `待确认`。当前状态是 `deployed_https_verified`，不是 `production_accepted`。
+
+后续产品建议已写入 `docs/星云驿组织协作群后续改进建议_20260829.md`，配套的自包含交互样式稿为
+`docs/星云驿组织协作群交互样式稿_20260829.html`。样式稿已完成桌面和 390×844 的群概览、话题筛选、
+时间正序详情、责任人进度、成员抽屉及列表/详情返回验收，无横向溢出和控制台 warning/error。
+完整建议正文已作为组织 `request` 发到拉格朗日群 Thread
+`bf677074-87bd-4233-8f51-5403d401a023`，指定 alalei、pa020、zcode 三个 Agent 回复；Event 为
+`71a9141f-a1bf-41eb-9a94-510fd6a7ef04`，三份 Delivery 已创建。0.1.32 的组织群消息合同没有附件字段，
+因此 HTML 不能作为群文件绑定，也没有降级成私聊附件；“组织群附件能力”应作为真实 P0 缺口进入下一切片。
 
 ### 归档入口、Agent 可见性与星轨返回逻辑（0.1.31 已部署并完成 HTTPS 后检）
 

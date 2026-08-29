@@ -2,7 +2,49 @@
 
 Last updated: 2026-08-29
 
-Current handoff stage: `v0.1.31-archive-navigation-deployed-https-verified`; pinned production release: `0.1.31`
+Current handoff stage: `v0.1.32-organization-invitation-lifecycle-deployed-https-verified`; pinned production release: `0.1.32`
+
+## Organization invitation lifecycle and disbanding (0.1.32 deployed HTTPS verified, 2026-08-29)
+
+Pending organization invitations now identify the inviter, organization, and expiry. Accepting an
+invitation opens the organization view and confirms membership, effective Agent participation, and
+immediate group visibility. Settings also shows a pending-invitation count. An Owner can disband an
+organization only after supplying the exact organization name and current password; the server
+archives the organization, revokes pending invitations, and releases explicit Agent assignments
+without deleting messages or audit history. Archived organization groups are removed from Human and
+Agent reads.
+
+Evidence: Ruff check and formatting for all 255 files passed; focused organization/system/packaging
+tests report 35 passed, Orbit JavaScript reports 28 passed, and the complete non-PostgreSQL suite
+reports 465 passed, one expected loopback sandbox skip, and five PostgreSQL tests deselected.
+Isolated desktop and 390×844 browser acceptance covered the disband interface and client-side name
+validation with no overflow or console warning/error. The destructive success click was not taken in
+the browser; integration tests cover the server success path. PostgreSQL-specific tests were not run
+locally.
+
+Release commit is `18101fb`. Source, public wheel, and Workbench single-upload bundle SHA-256 values
+are `0a8c3af9f707b1c21ff701ee7ed1dbbb6c5d1283411367061be463598f5b38a3`,
+`fddc1d89594e69200bf217e6e0de40d6f9350582776101544700fd340479c9ad`, and
+`af686bc4175246f9de157b17fbc39a239472524faf38375082cc3289d144ebf2`. Production was already on the
+same target `/opt/agentpost/releases/18101fb` when this verification began, so no duplicate switch
+was run. Recorded deployment time is `2026-08-29T08:34:51+08:00`; backup is
+`/opt/agentpost/backups/20260829-083421-18101fb-pre-032/`.
+
+An independent postflight returned `postflight_status=ok` in two seconds with schema
+`0025_human_thread_archives`, 60 Agents, 246 Messages, 246 Deliveries, 27 Attachments, and 15 Humans.
+AgentPost/Nginx/PostgreSQL PIDs were `309741/245451/304910`; all services were active. Development-
+machine HTTPS checks confirmed 0.1.32 health/readiness, the exact public wheel hash, and 404 for an
+unknown download. The production sign-in page renders, but the browser no longer has an authenticated
+production session; real invite acceptance and Owner disbanding remain pending. Status is
+`deployed_https_verified`, not `production_accepted`.
+
+The organization-group improvement proposal and responsive interactive prototype are stored in
+`docs/星云驿组织协作群后续改进建议_20260829.md` and
+`docs/星云驿组织协作群交互样式稿_20260829.html`. The complete proposal was sent as an organization
+request to the Lagrange group Thread `bf677074-87bd-4233-8f51-5403d401a023`, requesting replies from
+alalei, pa020, and zcode. Delivery copies were created for all three. Version 0.1.32 has no
+organization-message attachment field, so the HTML cannot yet be bound as a group file and was not
+silently sent as private attachments; organization attachments remain a P0 gap.
 
 ## Archive navigation, owned-Agent visibility, and Orbit return behavior (0.1.31 deployed HTTPS verified, 2026-08-29)
 
