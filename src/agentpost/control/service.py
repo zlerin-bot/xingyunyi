@@ -945,22 +945,33 @@ def list_orbit_messages(
     ]
 
 
-def _thread_organizations(
-    entries_by_agent: dict[UUID, AccessEntry],
-    participant_ids: set[UUID],
+def _thread_channel_organization(
+    rows: list[tuple[Message, Delivery, Agent, Agent]],
 ) -> list[OrbitOrganizationReference]:
-    organizations: dict[UUID, OrbitOrganizationReference] = {}
-    for agent_id in participant_ids:
-        entry = entries_by_agent.get(agent_id)
-        if entry is None or entry.organization is None:
-            continue
-        organizations[entry.organization.id] = OrbitOrganizationReference(
-            id=entry.organization.id,
-            slug=entry.organization.slug,
-            name=entry.organization.name,
-            membership_role=entry.organization_role,
+    """Project an organization Thread from its durable channel metadata only."""
+
+    organization_message = next(
+        (
+            message
+            for message, _, _, _ in rows
+            if (message.message_metadata or {}).get("channel_scope") == "organization"
+        ),
+        None,
+    )
+    if organization_message is None:
+        return []
+    metadata = organization_message.message_metadata or {}
+    organization_id = metadata.get("organization_id")
+    if not organization_id:
+        return []
+    return [
+        OrbitOrganizationReference(
+            id=UUID(str(organization_id)),
+            slug=str(metadata.get("organization_slug") or "organization"),
+            name=str(metadata.get("organization_name") or "组织协作"),
+            membership_role=None,
         )
-    return sorted(organizations.values(), key=lambda item: (item.name.casefold(), str(item.id)))
+    ]
 
 
 def _row_visible_after_access_grant(
@@ -1126,11 +1137,7 @@ def list_orbit_threads(
         organization_metadata = (
             organization_message.message_metadata or {} if organization_message is not None else {}
         )
-        organizations = (
-            _thread_organizations(entries_by_agent, participant_ids)
-            if is_organization_channel
-            else []
-        )
+        organizations = _thread_channel_organization(rows)
         if not _thread_rows_match_query(
             rows,
             role_map=role_map,
@@ -1255,7 +1262,6 @@ def get_orbit_thread(
     for _, _, sender, recipient in rows:
         participant_agents[sender.id] = sender
         participant_agents[recipient.id] = recipient
-    entries_by_agent = {entry.agent.id: entry for entry in entries}
     agents_by_id = {entry.agent.id: entry.agent for entry in entries}
     thread_view = session.get(HumanThreadView, (user.id, thread_id))
     thread_archive = session.get(HumanThreadArchive, (user.id, thread_id))
@@ -1275,14 +1281,7 @@ def get_orbit_thread(
                 key=lambda item: (item.display_name.casefold(), item.address),
             )
         ],
-        organizations=(
-            _thread_organizations(entries_by_agent, set(participant_agents))
-            if any(
-                (message.message_metadata or {}).get("channel_scope") == "organization"
-                for message, _, _, _ in rows
-            )
-            else []
-        ),
+        organizations=_thread_channel_organization(rows),
         messages=[
             _orbit_message(
                 row,

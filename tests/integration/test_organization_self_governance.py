@@ -443,6 +443,68 @@ def test_default_agents_make_a_new_organization_channel_immediately_usable(
         assert requested[0]["handle"] == "pa020"
 
 
+def test_orbit_groups_default_participant_message_by_message_organization(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with TestClient(create_app(settings=_runtime(settings), database=database)) as client:
+        owner = _register(client, "multi-organization-owner@example.com")
+        owner_agent = _create_agent(client, "multi-organization-agent@agents.local")
+        _set_agent_owner(
+            client,
+            human_id=str(owner["user"]["id"]),
+            agent_id=str(owner_agent["agent"]["id"]),
+        )
+        explicit_organization = _create_organization(client, str(owner["csrf_token"]))
+        _assign_agent_to_organization(
+            client,
+            organization_id=str(explicit_organization["organization"]["id"]),
+            agent_id=str(owner_agent["agent"]["id"]),
+        )
+        default_organization = client.post(
+            "/api/v1/orbit/organizations",
+            headers={"X-CSRF-Token": owner["csrf_token"]},
+            json={"slug": "small-group", "name": "小孔", "description": "默认 Agent 参与"},
+        )
+        assert default_organization.status_code == 201, default_organization.text
+        default_organization_id = default_organization.json()["organization"]["id"]
+
+        sent = client.post(
+            f"/api/v1/organizations/{default_organization_id}/channel/messages",
+            headers={
+                "Authorization": f"Bearer {owner_agent['api_key']}",
+                "Idempotency-Key": "default-participant-small-group-message",
+            },
+            json={
+                "type": "request",
+                "subject": "请确认是否收到小孔群信息",
+                "content": {"format": "text", "body": "请在小孔群确认收到。"},
+                "requested_responder_agent_ids": [],
+            },
+        )
+        assert sent.status_code == 201, sent.text
+
+        orbit_threads = client.get("/api/v1/orbit/threads")
+        assert orbit_threads.status_code == 200, orbit_threads.text
+        summary = next(
+            item for item in orbit_threads.json() if item["thread_id"] == sent.json()["thread_id"]
+        )
+        assert summary["organization_id"] == default_organization_id
+        assert summary["organization_name"] == "小孔"
+        assert summary["organizations"] == [
+            {
+                "id": default_organization_id,
+                "slug": "small-group",
+                "name": "小孔",
+                "membership_role": None,
+            }
+        ]
+
+        thread = client.get(f"/api/v1/orbit/threads/{sent.json()['thread_id']}")
+        assert thread.status_code == 200, thread.text
+        assert thread.json()["organizations"] == summary["organizations"]
+
+
 def test_owner_assigns_only_owned_agent_and_organization_sees_only_new_messages(
     settings: Settings,
     database: Database,
