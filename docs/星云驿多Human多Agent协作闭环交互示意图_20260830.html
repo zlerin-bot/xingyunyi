@@ -1,0 +1,1442 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>星云驿多 Human、多 Agent 协作闭环交互示意图</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #182033;
+      --muted: #697185;
+      --paper: #f5f1e8;
+      --panel: rgba(255,255,255,.88);
+      --line: #d9d2c5;
+      --purple: #5b36ad;
+      --purple-soft: #eee8ff;
+      --cyan: #0d7f86;
+      --cyan-soft: #ddf5f3;
+      --orange: #b65325;
+      --orange-soft: #fff0e2;
+      --green: #247047;
+      --green-soft: #e4f5ea;
+      --red: #a53c45;
+      --red-soft: #ffe8ea;
+      --shadow: 0 16px 46px rgba(37,31,23,.09);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 2%, rgba(101,60,180,.15), transparent 29rem),
+        radial-gradient(circle at 91% 25%, rgba(27,143,145,.13), transparent 27rem),
+        linear-gradient(180deg, #faf7f0 0, var(--paper) 100%);
+      font: 15px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+
+    button { font: inherit; }
+
+    button:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 3px solid rgba(91,54,173,.35);
+      outline-offset: 3px;
+    }
+
+    .page {
+      width: min(1440px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 22px 0 56px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 10px 0 22px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 13px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--purple), #8d67db 52%, var(--cyan));
+      box-shadow: 0 8px 22px rgba(91,54,173,.25);
+    }
+
+    .prototype-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 440px;
+      padding: 8px 12px;
+      border: 1px solid #dfbd87;
+      border-radius: 999px;
+      color: #7d4d1b;
+      background: #fff7df;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .prototype-badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #d69029;
+      box-shadow: 0 0 0 4px rgba(214,144,41,.15);
+      flex: 0 0 auto;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+      gap: 22px;
+      align-items: stretch;
+      margin-bottom: 22px;
+    }
+
+    .hero-main,
+    .hero-side,
+    .panel {
+      border: 1px solid rgba(171,159,141,.55);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(15px);
+    }
+
+    .hero-main {
+      padding: clamp(26px, 4.4vw, 58px);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero-main::after {
+      content: "∞";
+      position: absolute;
+      right: 2%;
+      bottom: -35%;
+      color: rgba(91,54,173,.07);
+      font: 250px/1 Georgia, serif;
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--purple);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 820px;
+      margin: 0;
+      font-size: clamp(34px, 5.1vw, 70px);
+      line-height: 1.08;
+      letter-spacing: -.045em;
+    }
+
+    .hero-lead {
+      max-width: 820px;
+      margin: 24px 0 0;
+      color: #3e4659;
+      font-size: clamp(17px, 1.5vw, 22px);
+      line-height: 1.65;
+    }
+
+    .hero-lead strong { color: var(--purple); }
+
+    .hero-side {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 20px;
+      background:
+        linear-gradient(145deg, rgba(40,25,75,.97), rgba(30,46,71,.96)),
+        var(--panel);
+      color: #fff;
+    }
+
+    .hero-side h2 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.3;
+    }
+
+    .equation {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .equation-card {
+      min-height: 108px;
+      padding: 18px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 17px;
+      background: rgba(255,255,255,.08);
+    }
+
+    .equation-card b {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 16px;
+    }
+
+    .equation-card span {
+      color: rgba(255,255,255,.68);
+      font-size: 13px;
+    }
+
+    .plus {
+      color: #cab5ff;
+      font-size: 28px;
+      font-weight: 300;
+    }
+
+    .boundary-note {
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,.16);
+      color: rgba(255,255,255,.72);
+      font-size: 13px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 38px 0 14px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(24px, 2.4vw, 36px);
+      letter-spacing: -.03em;
+    }
+
+    .section-head p {
+      max-width: 680px;
+      margin: 0;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .mode-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .mode-button,
+    .view-button,
+    .action-button,
+    .step-button,
+    .bridge-button {
+      border: 1px solid var(--line);
+      color: var(--ink);
+      background: #fff;
+      cursor: pointer;
+      transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+
+    .mode-button:hover,
+    .view-button:hover,
+    .action-button:hover,
+    .step-button:hover,
+    .bridge-button:hover {
+      transform: translateY(-1px);
+      border-color: #9f8dcc;
+      box-shadow: 0 8px 22px rgba(67,50,104,.1);
+    }
+
+    .mode-button {
+      min-height: 108px;
+      padding: 16px;
+      border-radius: 17px;
+      text-align: left;
+    }
+
+    .mode-button small {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .mode-button b {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 17px;
+    }
+
+    .mode-button span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .mode-button[aria-pressed="true"] {
+      border-color: var(--purple);
+      background: var(--purple-soft);
+      box-shadow: inset 0 0 0 1px var(--purple);
+    }
+
+    .mode-button[data-mode="event"][aria-pressed="true"] {
+      border-color: var(--cyan);
+      background: var(--cyan-soft);
+      box-shadow: inset 0 0 0 1px var(--cyan);
+    }
+
+    .collab-shell {
+      display: grid;
+      grid-template-columns: minmax(255px, .74fr) minmax(390px, 1.28fr) minmax(285px, .9fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .cockpits,
+    .control-plane,
+    .human-console {
+      min-width: 0;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.84);
+      box-shadow: var(--shadow);
+    }
+
+    .column-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .column-label h3 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .column-label span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .agent-card {
+      position: relative;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    .agent-card + .agent-card { margin-top: 10px; }
+
+    .agent-card.active {
+      border-color: #9b86d0;
+      box-shadow: 0 8px 22px rgba(91,54,173,.10);
+    }
+
+    .agent-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .avatar {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 40px;
+      height: 40px;
+      border-radius: 13px;
+      color: #fff;
+      background: linear-gradient(145deg, #6f4db6, #3d2c70);
+      font-weight: 900;
+    }
+
+    .agent-card:nth-child(3) .avatar { background: linear-gradient(145deg, #148e91, #145c67); }
+    .agent-card:nth-child(4) .avatar { background: linear-gradient(145deg, #d07337, #8e432b); }
+
+    .agent-name { min-width: 0; }
+
+    .agent-name b,
+    .agent-name span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .agent-name span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      margin-left: auto;
+      border-radius: 50%;
+      background: #48a776;
+      box-shadow: 0 0 0 4px rgba(72,167,118,.12);
+    }
+
+    .agent-task {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .control-plane {
+      background:
+        linear-gradient(180deg, rgba(245,241,255,.96), rgba(255,255,255,.92));
+      border-color: #cfc0ee;
+    }
+
+    .thread-card {
+      padding: 18px;
+      border: 1px solid #cfc0ee;
+      border-radius: 18px;
+      background: #fff;
+    }
+
+    .thread-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .thread-top h3 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.35;
+    }
+
+    .state-pill,
+    .mini-pill {
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .state-pill {
+      color: var(--purple);
+      background: var(--purple-soft);
+    }
+
+    .state-pill.paused {
+      color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .thread-meta {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .thread-summary {
+      margin-top: 15px;
+      padding: 13px 15px;
+      border-left: 4px solid var(--purple);
+      border-radius: 3px 12px 12px 3px;
+      background: #f8f5ff;
+    }
+
+    .thread-summary b {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .source-note {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .flow-track {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 5px;
+      margin: 16px 0 14px;
+    }
+
+    .flow-node {
+      position: relative;
+      min-width: 0;
+      padding: 9px 5px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: var(--muted);
+      background: #fff;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .flow-node::after {
+      content: "→";
+      position: absolute;
+      right: -7px;
+      top: 50%;
+      z-index: 2;
+      color: #9f94b7;
+      transform: translateY(-50%);
+    }
+
+    .flow-node:last-child::after { display: none; }
+
+    .flow-node.done {
+      color: var(--green);
+      border-color: #97c9ac;
+      background: var(--green-soft);
+    }
+
+    .flow-node.current {
+      color: #fff;
+      border-color: var(--purple);
+      background: var(--purple);
+      box-shadow: 0 7px 16px rgba(91,54,173,.20);
+    }
+
+    .step-detail {
+      min-height: 170px;
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: rgba(255,255,255,.72);
+    }
+
+    .step-kicker {
+      margin: 0 0 5px;
+      color: var(--purple);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .1em;
+    }
+
+    .step-detail h4 {
+      margin: 0 0 9px;
+      font-size: 18px;
+    }
+
+    .step-detail p {
+      margin: 0;
+      color: #4d5568;
+    }
+
+    .step-evidence {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      color: #435064;
+      background: #f0f3f7;
+      font-size: 12px;
+    }
+
+    .step-nav {
+      display: flex;
+      gap: 8px;
+      margin-top: 13px;
+    }
+
+    .step-button {
+      flex: 1;
+      padding: 10px;
+      border-radius: 12px;
+      font-weight: 800;
+    }
+
+    .step-button.primary {
+      color: #fff;
+      border-color: var(--purple);
+      background: var(--purple);
+    }
+
+    .view-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      margin-bottom: 13px;
+      padding: 5px;
+      border-radius: 14px;
+      background: #ede9e2;
+    }
+
+    .view-button {
+      padding: 9px 8px;
+      border-color: transparent;
+      border-radius: 10px;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 850;
+    }
+
+    .view-button[aria-pressed="true"] {
+      color: var(--purple);
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(45,38,29,.08);
+    }
+
+    .console-card {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: #fff;
+    }
+
+    .console-card h4 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+
+    .console-list {
+      display: grid;
+      gap: 9px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .console-list li {
+      padding: 10px 11px;
+      border-radius: 11px;
+      color: #4e5668;
+      background: #f5f4f1;
+      font-size: 12px;
+    }
+
+    .console-list b {
+      display: block;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .action-title {
+      margin: 17px 0 8px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .action-button {
+      min-height: 44px;
+      padding: 9px;
+      border-radius: 11px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .action-button.danger {
+      color: var(--red);
+      border-color: #e9b7bb;
+      background: var(--red-soft);
+    }
+
+    .action-button.resume {
+      color: var(--green);
+      border-color: #a7d3b7;
+      background: var(--green-soft);
+    }
+
+    .demo-log {
+      min-height: 54px;
+      margin-top: 10px;
+      padding: 10px 11px;
+      border: 1px dashed #cbbfdd;
+      border-radius: 12px;
+      color: #5e526d;
+      background: #fbf9ff;
+      font-size: 12px;
+    }
+
+    .bridge {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 10px;
+      align-items: stretch;
+      margin-top: 14px;
+    }
+
+    .bridge-button {
+      padding: 13px;
+      border-radius: 13px;
+      text-align: left;
+    }
+
+    .bridge-button b,
+    .bridge-button span {
+      display: block;
+    }
+
+    .bridge-button span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .bridge-arrow {
+      display: grid;
+      place-items: center;
+      color: var(--purple);
+      font-weight: 900;
+    }
+
+    .architecture {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      padding: 22px;
+    }
+
+    .arch-card {
+      position: relative;
+      min-height: 172px;
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: #fff;
+    }
+
+    .arch-card:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      top: 50%;
+      right: -10px;
+      z-index: 2;
+      width: 20px;
+      color: var(--purple);
+      text-align: center;
+      font-weight: 900;
+      transform: translateY(-50%);
+    }
+
+    .arch-no {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      margin-bottom: 12px;
+      border-radius: 9px;
+      color: var(--purple);
+      background: var(--purple-soft);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .arch-card h3 {
+      margin: 0 0 7px;
+      font-size: 16px;
+    }
+
+    .arch-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .arch-card .mini-pill {
+      margin-top: 12px;
+      color: var(--cyan);
+      background: var(--cyan-soft);
+    }
+
+    .layers {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .layer-card {
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: rgba(255,255,255,.84);
+    }
+
+    .layer-card:first-child {
+      color: #fff;
+      border-color: var(--purple);
+      background: var(--purple);
+    }
+
+    .layer-card small {
+      display: block;
+      margin-bottom: 7px;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    .layer-card h3 {
+      margin: 0 0 7px;
+      font-size: 16px;
+    }
+
+    .layer-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .layer-card:first-child p { color: rgba(255,255,255,.75); }
+
+    .decision-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .decision-card {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.88);
+      box-shadow: var(--shadow);
+    }
+
+    .decision-card h3 { margin: 0 0 12px; }
+
+    .decision-card ul {
+      margin: 0;
+      padding-left: 20px;
+      color: #4e5668;
+    }
+
+    .decision-card li + li { margin-top: 7px; }
+
+    .decision-card.target {
+      border-color: #96c9c5;
+      background: linear-gradient(145deg, #eefaf8, #fff);
+    }
+
+    .footer-note {
+      margin: 30px 0 0;
+      padding: 16px 18px;
+      border: 1px solid #dfbd87;
+      border-radius: 15px;
+      color: #6e512d;
+      background: #fff8e9;
+      font-size: 13px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 1080px) {
+      .hero { grid-template-columns: 1fr; }
+      .collab-shell { grid-template-columns: minmax(220px, .7fr) minmax(0, 1.3fr); }
+      .human-console { grid-column: 1 / -1; }
+      .architecture { grid-template-columns: repeat(3, 1fr); }
+      .arch-card:nth-child(3)::after { display: none; }
+      .layers { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .page { width: min(100% - 22px, 600px); padding-top: 10px; }
+      .topbar { align-items: flex-start; }
+      .prototype-badge { max-width: 220px; border-radius: 14px; line-height: 1.35; }
+      .hero-main, .hero-side { padding: 23px; border-radius: 19px; }
+      h1 { font-size: clamp(35px, 12vw, 52px); }
+      .hero-main::after { font-size: 180px; bottom: -18%; }
+      .equation { grid-template-columns: 1fr; }
+      .plus { transform: rotate(90deg); text-align: center; line-height: .8; }
+      .section-head { display: block; }
+      .section-head p { margin-top: 7px; text-align: left; }
+      .mode-strip { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
+      .mode-button { min-width: min(82vw, 290px); scroll-snap-align: start; }
+      .collab-shell { grid-template-columns: 1fr; }
+      .human-console { grid-column: auto; }
+      .cockpits { order: 2; }
+      .control-plane { order: 1; }
+      .human-console { order: 3; }
+      .flow-track {
+        grid-template-columns: repeat(7, 82px);
+        overflow-x: auto;
+        padding: 2px 2px 7px;
+        scroll-snap-type: x mandatory;
+      }
+      .flow-node { scroll-snap-align: center; }
+      .bridge { grid-template-columns: 1fr; }
+      .bridge-arrow { transform: rotate(90deg); }
+      .architecture { grid-template-columns: 1fr; padding: 14px; }
+      .arch-card { min-height: auto; }
+      .arch-card:not(:last-child)::after {
+        content: "↓";
+        top: auto;
+        right: 50%;
+        bottom: -18px;
+        transform: translateX(50%);
+      }
+      .arch-card:nth-child(3)::after { display: block; }
+      .layers, .decision-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">驿</div>
+        <span>星云驿 · 协作模式</span>
+      </div>
+      <div class="prototype-badge">脱敏交互示意 · 不连接生产 · 按钮仅演示</div>
+    </header>
+
+    <section class="hero" aria-labelledby="page-title">
+      <div class="hero-main">
+        <p class="eyebrow">Shared control plane × personal agent cockpit</p>
+        <h1 id="page-title">多个人，多个 Agent，仍然能朝同一个目标工作</h1>
+        <p class="hero-lead">
+          星云驿不是“让 Human 看 Agent 日志”的超级群聊，而是一个<strong>共享控制面</strong>：
+          Human 看目标、责任、风险和结果；每个人的 Agent 在自己的驾驶舱里完成工作，再把必要事实带回同一 Thread。
+        </p>
+      </div>
+      <aside class="hero-side" aria-label="核心产品结构">
+        <h2>最终形态不是一个界面，而是两个空间的闭环</h2>
+        <div class="equation">
+          <div class="equation-card">
+            <b>星云驿共享控制面</b>
+            <span>共同目标 · 责任 · 进展 · 风险 · Human 决策</span>
+          </div>
+          <div class="plus" aria-hidden="true">+</div>
+          <div class="equation-card">
+            <b>个人 Agent 驾驶舱</b>
+            <span>完整上下文 · 私有资料 · 工具执行 · 本人授权</span>
+          </div>
+        </div>
+        <div class="boundary-note">
+          两边共享经授权进入 Thread 的事实，不共享各自驾驶舱的全部日志、推理和私有资料。
+        </div>
+      </aside>
+    </section>
+
+    <section aria-labelledby="demo-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Interactive walkthrough</p>
+          <h2 id="demo-title">同一件事，三种协同方式</h2>
+        </div>
+        <p>切换方式、逐步推进流程，再从 Human 视图切到 Agent 视图，观察两边为何不能完全相同。</p>
+      </div>
+
+      <div class="mode-strip" role="group" aria-label="选择协同方式">
+        <button class="mode-button" type="button" data-mode="manual" aria-pressed="false">
+          <small>现在可用</small>
+          <b>Human 手动接力</b>
+          <span>看到消息后，回到个人 Agent 界面下达任务。</span>
+        </button>
+        <button class="mode-button" type="button" data-mode="scheduled" aria-pressed="false">
+          <small>过渡方案</small>
+          <b>定时 / 常驻轮询</b>
+          <span>Connector 读取 Inbox，但智能宿主唤醒仍需适配。</span>
+        </button>
+        <button class="mode-button" type="button" data-mode="event" aria-pressed="true">
+          <small>目标方案 · 尚未上线</small>
+          <b>事件驱动适配器</b>
+          <span>新 Event 唤醒指定 Agent，结果自动回到原 Thread。</span>
+        </button>
+      </div>
+
+      <div class="collab-shell">
+        <section class="cockpits" aria-labelledby="cockpit-title">
+          <div class="column-label">
+            <h3 id="cockpit-title">个人 Agent 驾驶舱</h3>
+            <span>私有执行空间</span>
+          </div>
+          <article class="agent-card active">
+            <div class="agent-row">
+              <div class="avatar" aria-hidden="true">M</div>
+              <div class="agent-name">
+                <b>mars 的 codex</b>
+                <span>星云驿长期连接适配器</span>
+              </div>
+              <div class="status-dot" title="演示：连接可用"></div>
+            </div>
+            <div class="agent-task" id="mars-task">正在恢复 Thread 对应 Run，并准备执行。</div>
+          </article>
+          <article class="agent-card">
+            <div class="agent-row">
+              <div class="avatar" aria-hidden="true">0</div>
+              <div class="agent-name">
+                <b>020 的 pa020</b>
+                <span>同步上下文，未被指定执行</span>
+              </div>
+              <div class="status-dot" title="演示：连接可用"></div>
+            </div>
+            <div class="agent-task">可读取组织 Thread；未被指定时不自动抢答。</div>
+          </article>
+          <article class="agent-card">
+            <div class="agent-row">
+              <div class="avatar" aria-hidden="true">Z</div>
+              <div class="agent-name">
+                <b>张子良的 zcode</b>
+                <span>等待下一次明确分派</span>
+              </div>
+              <div class="status-dot" title="演示：连接可用"></div>
+            </div>
+            <div class="agent-task">组织成员关系不自动扩大私有资料权限。</div>
+          </article>
+        </section>
+
+        <section class="control-plane" aria-labelledby="control-title">
+          <div class="column-label">
+            <h3 id="control-title">星云驿共享控制面</h3>
+            <span>组织 → 群 → Thread</span>
+          </div>
+          <article class="thread-card">
+            <div class="thread-top">
+              <div>
+                <p class="eyebrow">拉格朗日 · Thread</p>
+                <h3>完善多 Human、多 Agent 协作闭环</h3>
+              </div>
+              <span class="state-pill" id="work-state">正在处理</span>
+            </div>
+            <p class="thread-meta">责任：mars 的 codex · 同步：020 的 pa020、张子良的 zcode</p>
+            <div class="thread-summary">
+              <b id="summary-title">当前结论</b>
+              <span id="summary-text">共享控制面负责目标与 Human 决策，个人 Agent 驾驶舱负责完整执行。</span>
+              <div class="source-note" id="source-note">来源：Human 确认的讨论结论 · 不是网站自动生成</div>
+            </div>
+
+            <div class="flow-track" aria-label="协作闭环步骤">
+              <div class="flow-node current">共同目标</div>
+              <div class="flow-node">明确分派</div>
+              <div class="flow-node">唤醒 Agent</div>
+              <div class="flow-node">协同执行</div>
+              <div class="flow-node">Human 把握</div>
+              <div class="flow-node">纠偏恢复</div>
+              <div class="flow-node">结构化结果</div>
+            </div>
+
+            <div class="step-detail" aria-live="polite">
+              <p class="step-kicker" id="step-kicker">步骤 1 / 7 · Human 管理视图</p>
+              <h4 id="step-title">Human 形成共同目标</h4>
+              <p id="step-body">在星云驿中明确目标、边界、责任和验收标准。Human 不需要把个人驾驶舱里的全部资料复制到群里。</p>
+              <div class="step-evidence" id="step-evidence">此层只看：目标、责任 Human/Agent、期限、风险和待决。</div>
+            </div>
+            <div class="step-nav">
+              <button class="step-button" type="button" id="prev-step">上一步</button>
+              <button class="step-button primary" type="button" id="next-step">下一步</button>
+            </div>
+          </article>
+        </section>
+
+        <aside class="human-console" aria-labelledby="console-title">
+          <div class="column-label">
+            <h3 id="console-title">Human 把握与干预</h3>
+            <span>可随时下钻</span>
+          </div>
+          <div class="view-switch" role="group" aria-label="选择信息视图">
+            <button class="view-button" type="button" data-view="human" aria-pressed="true">Human 看什么</button>
+            <button class="view-button" type="button" data-view="agent" aria-pressed="false">Agent 看什么</button>
+          </div>
+          <div class="console-card">
+            <h4 id="view-heading">管理结论，不是机器日志</h4>
+            <ul class="console-list" id="console-list">
+              <li><b>当前结论</b>共享控制面与个人驾驶舱分工明确</li>
+              <li><b>责任与下一步</b>mars 的 codex 负责，下一检查点待设置</li>
+              <li><b>风险</b>自动唤醒尚未成为已上线统一能力</li>
+              <li><b>下钻入口</b>关键过程 → 完整会话 → 技术审计</li>
+            </ul>
+          </div>
+
+          <p class="action-title">演示 Human 控制回路</p>
+          <div class="actions">
+            <button class="action-button danger" type="button" data-action="pause">暂停 Thread</button>
+            <button class="action-button" type="button" data-action="correct">修正目标</button>
+            <button class="action-button" type="button" data-action="add">增加 Agent</button>
+            <button class="action-button" type="button" data-action="confirm">要求本人确认</button>
+            <button class="action-button resume" type="button" data-action="resume">恢复执行</button>
+            <button class="action-button" type="button" data-action="audit">打开完整会话</button>
+          </div>
+          <div class="demo-log" id="demo-log" aria-live="polite">尚未触发演示动作。按钮不会连接生产或发送消息。</div>
+
+          <div class="bridge" aria-label="星云驿与个人 Agent 的双向桥接">
+            <button class="bridge-button" type="button" data-action="handoff">
+              <b>在我的 Agent 中处理</b>
+              <span>先确认要带入驾驶舱的 Thread 上下文</span>
+            </button>
+            <div class="bridge-arrow" aria-hidden="true">⇄</div>
+            <button class="bridge-button" type="button" data-action="publish">
+              <b>发布正式意见到星云驿</b>
+              <span>只回传选择的结果、证据与附件</span>
+            </button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section aria-labelledby="architecture-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Target architecture</p>
+          <h2 id="architecture-title">目标链路：一个长期适配器，映射多个 Thread Run</h2>
+        </div>
+        <p>不是每个群建一个项目，也不是依赖定时任务不停唤醒；Thread 是协作单元，适配器是长期基础设施。</p>
+      </div>
+      <div class="panel architecture">
+        <article class="arch-card">
+          <div class="arch-no">01</div>
+          <h3>星云驿 Event</h3>
+          <p>结构化责任、上下文、附件与 Human 决策进入同一 Thread。</p>
+          <span class="mini-pill">事实已存在</span>
+        </article>
+        <article class="arch-card">
+          <div class="arch-no">02</div>
+          <h3>推送 / 长轮询</h3>
+          <p>用 cursor 去重和断线恢复，避免重复执行或丢失离线消息。</p>
+          <span class="mini-pill">目标能力</span>
+        </article>
+        <article class="arch-card">
+          <div class="arch-no">03</div>
+          <h3>个人连接适配器</h3>
+          <p>复用长期身份，只唤醒结构化指定的本人 Agent，先执行权限策略。</p>
+          <span class="mini-pill">需要建设</span>
+        </article>
+        <article class="arch-card">
+          <div class="arch-no">04</div>
+          <h3>Agent Run</h3>
+          <p>按 Thread 恢复上下文，使用私有资料和工具；高风险行动回到 Human。</p>
+          <span class="mini-pill">宿主内执行</span>
+        </article>
+        <article class="arch-card">
+          <div class="arch-no">05</div>
+          <h3>结果回写</h3>
+          <p>阶段进展、阻塞、结构化 Result 和获准附件回到原 Thread。</p>
+          <span class="mini-pill">闭环目标</span>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="layers-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Human visibility contract</p>
+          <h2 id="layers-title">Human 不看全部，但随时可以看得更深</h2>
+        </div>
+        <p>四层都读取同一份持久化事实；查看动作不等于 Agent read、ACK、完成或审批。</p>
+      </div>
+      <div class="layers">
+        <article class="layer-card">
+          <small>L1 · 默认</small>
+          <h3>管理结论</h3>
+          <p>结果、状态、责任、下一步、风险、Human 待决和重要附件。</p>
+        </article>
+        <article class="layer-card">
+          <small>L2 · 按需</small>
+          <h3>关键过程</h3>
+          <p>分派、澄清、阶段意见、阻塞、恢复、结果和 Human 决定。</p>
+        </article>
+        <article class="layer-card">
+          <small>L3 · 主动打开</small>
+          <h3>完整会话</h3>
+          <p>该 Thread 内授权可见的 Agent 原始往来，用于检查中断和方向偏误。</p>
+        </article>
+        <article class="layer-card">
+          <small>L4 · 深层</small>
+          <h3>技术审计</h3>
+          <p>Event、Delivery、ACK、原始格式、编号、错误和附件哈希。</p>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="decision-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Decision</p>
+          <h2 id="decision-title">本轮讨论最终定下来的边界</h2>
+        </div>
+      </div>
+      <div class="decision-grid">
+        <article class="decision-card">
+          <h3>不这样做</h3>
+          <ul>
+            <li>不让 Human 靠阅读 Agent 日志拼装管理结论；</li>
+            <li>不让网站冒充一个并不存在的 AI 自动归纳；</li>
+            <li>不因加入组织就共享个人驾驶舱的全部私有上下文；</li>
+            <li>不把定时任务包装成实时自动协同；</li>
+            <li>不让未被指定的 Agent 在群里自动抢答。</li>
+          </ul>
+        </article>
+        <article class="decision-card target">
+          <h3>接下来这样做</h3>
+          <ul>
+            <li>先实现 Human 控制面的四层视图和纠偏事件；</li>
+            <li>服务端聚合确定性事实，语义摘要由有身份的 Agent 生成；</li>
+            <li>每个 Human 建一个可复用连接适配器；</li>
+            <li>把星云驿 Thread 映射为个人 Agent Run；</li>
+            <li>再逐步升级为可恢复、可授权、事件驱动的自动协同。</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <p class="footer-note">
+      当前事实边界：星云驿 0.1.33 已有持久 Inbox、cursor、heartbeat、组织 Thread 和附件；
+      统一的“新 Event 安全唤醒个人智能 Agent”与生产 A2A 运行时端点尚未上线。本图表达目标方案，不冒充现有能力。
+    </p>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var state = {
+        mode: "event",
+        view: "human",
+        step: 0,
+        paused: false
+      };
+
+      var modes = {
+        manual: {
+          state: "等待 Human 接力",
+          task: "Human 需要回到个人 Agent 界面手动提供 Thread 上下文。",
+          source: "现状：Human 手动接力 · 不是自动唤醒"
+        },
+        scheduled: {
+          state: "等待轮询窗口",
+          task: "Connector 将在下一次轮询读取新 Event；智能宿主调用仍需适配。",
+          source: "过渡方案：定时或常驻轮询 · 时延与宿主唤醒仍有限制"
+        },
+        event: {
+          state: "正在处理",
+          task: "正在恢复 Thread 对应 Run，并准备执行。",
+          source: "目标方案：事件驱动适配器 · 尚未上线"
+        }
+      };
+
+      var humanSteps = [
+        ["Human 形成共同目标", "在星云驿中明确目标、边界、责任和验收标准。Human 不需要把个人驾驶舱里的全部资料复制到群里。", "此层只看：目标、责任 Human/Agent、期限、风险和待决。"],
+        ["结构化指定责任 Agent", "责任写成“mars 的 codex”，020 的 pa020 与张子良的 zcode 只同步上下文。未被指定的 Agent 不自动抢答。", "确定性来源：requested_responder_agent_ids；正文点名冲突时暂停。"],
+        ["连接适配器唤醒个人 Agent", "目标模式下，长期适配器按 Thread 恢复对应 Agent Run。Human 可看到是否已唤醒、卡在哪里，但不看启动日志。", "当前限制：统一的事件驱动宿主唤醒尚未上线。"],
+        ["Agent 在各自驾驶舱执行", "责任 Agent 使用本人授权的私有资料和工具；只把必要协作事实发布回 Thread。其他 Human 的私有上下文不会自动共享。", "Human 可见：阶段状态、证据摘要、异常与下一检查点。"],
+        ["Human 从摘要下钻检查方向", "默认看管理结论；需要时进入关键过程、完整会话或技术审计，判断协作是否中断、偏离或越权。", "打开页面不会改变 Agent read、ACK、Result 或审批事实。"],
+        ["Human 纠偏后恢复", "暂停、修正目标、增援或改派都形成新的 Human Decision Event，不覆盖原始消息；Agent 在新边界下继续。", "控制回路：暂停 → 决定 → 重新分派 → 恢复。"],
+        ["结构化结果回到原 Thread", "Agent 发布 completed、partial、failed 或 cancelled 结果，星云驿更新 Human 管理视图，并保留来源与重要附件。", "Result 是工作状态权威；普通回复或 ACK 不能冒充完成。"]
+      ];
+
+      var agentSteps = [
+        ["接收 Thread 目标与授权边界", "读取组织、Thread、Event、内容格式、附件元数据、责任分派和 Human Decision，不获得 Thread 之外的隐含权限。", "机器字段：organization_id、thread_id、event_id、task、attachments。"],
+        ["校验 requested responders", "只有自身 agent_id 被结构化指定时才执行。正文点名与结构化分派冲突时返回阻塞，不猜测责任。", "机器字段：requested_responder_agent_ids、assignment_conflict。"],
+        ["恢复 cursor 与 Agent Run 映射", "适配器使用 inbox cursor 去重，查找 thread_id 对应的宿主 Run；断线后只恢复未处理 Event。", "目标能力：push/SSE/long-poll → adapter → host invocation。"],
+        ["执行工具与策略检查", "Agent 在本人工作区读取获准资料、调用工具；高风险外部动作必须产生 Human 授权请求，不能因群消息扩大权限。", "私有上下文留在个人驾驶舱；只输出获准共享的事实。"],
+        ["发布 progress / blocker", "有意义的状态变化结构化发布；普通 ACK 与重复接收确认仍保留，但 Human 默认折叠。", "Event 类型：task、response、result、request、notification。"],
+        ["应用新的 Human Decision", "适配器读取暂停、目标修订、改派、增援或恢复 Event，终止旧执行路径并创建可追溯的新状态。", "旧 Event 不改写；新授权边界覆盖后续动作。"],
+        ["发布结构化 Result 与附件", "结果回到原 thread_id，带状态、结论、证据、附件和来源。每个 Delivery 保持独立。", "工作状态与 delivered、read、ACK、Human view 相互独立。"]
+      ];
+
+      var humanList = [
+        ["当前结论", "共享控制面与个人驾驶舱分工明确"],
+        ["责任与下一步", "mars 的 codex 负责，下一检查点待设置"],
+        ["风险", "自动唤醒尚未成为已上线统一能力"],
+        ["下钻入口", "关键过程 → 完整会话 → 技术审计"]
+      ];
+
+      var agentList = [
+        ["路由与身份", "organization_id + thread_id + immutable agent_id"],
+        ["任务事实", "requested responders、task、attachments、Human decision"],
+        ["通信事实", "Event、Message、Delivery、read、ACK 分开保存"],
+        ["恢复信息", "cursor、idempotency key、Thread ↔ Run mapping"]
+      ];
+
+      var modeButtons = Array.prototype.slice.call(document.querySelectorAll(".mode-button"));
+      var viewButtons = Array.prototype.slice.call(document.querySelectorAll(".view-button"));
+      var flowNodes = Array.prototype.slice.call(document.querySelectorAll(".flow-node"));
+      var actionButtons = Array.prototype.slice.call(document.querySelectorAll("[data-action]"));
+      var workState = document.getElementById("work-state");
+      var marsTask = document.getElementById("mars-task");
+      var sourceNote = document.getElementById("source-note");
+      var summaryTitle = document.getElementById("summary-title");
+      var summaryText = document.getElementById("summary-text");
+      var stepKicker = document.getElementById("step-kicker");
+      var stepTitle = document.getElementById("step-title");
+      var stepBody = document.getElementById("step-body");
+      var stepEvidence = document.getElementById("step-evidence");
+      var consoleList = document.getElementById("console-list");
+      var viewHeading = document.getElementById("view-heading");
+      var demoLog = document.getElementById("demo-log");
+
+      function renderList(items) {
+        while (consoleList.firstChild) {
+          consoleList.removeChild(consoleList.firstChild);
+        }
+        items.forEach(function (item) {
+          var li = document.createElement("li");
+          var b = document.createElement("b");
+          b.textContent = item[0];
+          li.appendChild(b);
+          li.appendChild(document.createTextNode(item[1]));
+          consoleList.appendChild(li);
+        });
+      }
+
+      function renderMode() {
+        var data = modes[state.mode];
+        modeButtons.forEach(function (button) {
+          button.setAttribute("aria-pressed", String(button.getAttribute("data-mode") === state.mode));
+        });
+        if (!state.paused) {
+          workState.textContent = data.state;
+          workState.classList.remove("paused");
+        }
+        marsTask.textContent = data.task;
+        sourceNote.textContent = data.source;
+      }
+
+      function renderView() {
+        viewButtons.forEach(function (button) {
+          button.setAttribute("aria-pressed", String(button.getAttribute("data-view") === state.view));
+        });
+        if (state.view === "human") {
+          viewHeading.textContent = "管理结论，不是机器日志";
+          summaryTitle.textContent = "当前结论";
+          summaryText.textContent = "共享控制面负责目标与 Human 决策，个人 Agent 驾驶舱负责完整执行。";
+          renderList(humanList);
+        } else {
+          viewHeading.textContent = "完整机器上下文与协议事实";
+          summaryTitle.textContent = "Agent 读取范围";
+          summaryText.textContent = "同一 Thread 的授权原文、结构化任务、附件、分派和恢复游标。";
+          renderList(agentList);
+        }
+        renderStep();
+      }
+
+      function renderStep() {
+        var steps = state.view === "human" ? humanSteps : agentSteps;
+        var current = steps[state.step];
+        stepKicker.textContent = "步骤 " + (state.step + 1) + " / 7 · " + (state.view === "human" ? "Human 管理视图" : "Agent 协作视图");
+        stepTitle.textContent = current[0];
+        stepBody.textContent = current[1];
+        stepEvidence.textContent = current[2];
+        flowNodes.forEach(function (node, index) {
+          node.classList.toggle("done", index < state.step);
+          node.classList.toggle("current", index === state.step);
+        });
+      }
+
+      function setLog(text) {
+        demoLog.textContent = text + "（仅本地原型演示，未产生真实 Event。）";
+      }
+
+      function handleAction(action) {
+        if (action === "pause") {
+          state.paused = true;
+          workState.textContent = "Human 已暂停";
+          workState.classList.add("paused");
+          marsTask.textContent = "等待新的 Human Decision；不继续自动执行。";
+          setLog("拟生成 Human Decision：暂停当前 Thread，保留既有事实");
+        } else if (action === "resume") {
+          state.paused = false;
+          renderMode();
+          setLog("拟生成 Human Decision：在修订后的目标与授权下恢复");
+        } else if (action === "correct") {
+          setLog("拟打开目标修订：新目标将作为 Event 追加，不覆盖旧目标");
+        } else if (action === "add") {
+          setLog("拟选择增援 Agent：界面将显示 Human 的 Agent、能力和共享边界");
+        } else if (action === "confirm") {
+          setLog("拟创建真实 Human 待决：暂停相关外部行动，等待本人授权");
+        } else if (action === "audit") {
+          state.view = "agent";
+          renderView();
+          setLog("已切换到完整机器上下文示意；生产界面还应提供完整会话与技术审计分层");
+        } else if (action === "handoff") {
+          setLog("拟进入“在我的 Agent 中处理”：先预览将带入驾驶舱的目标、事件和附件");
+        } else if (action === "publish") {
+          setLog("拟进入“发布正式意见”：只选择要回传的结论、证据、状态和附件");
+        }
+      }
+
+      modeButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          state.mode = button.getAttribute("data-mode");
+          state.paused = false;
+          renderMode();
+          setLog("已切换协同方式：" + button.querySelector("b").textContent);
+        });
+      });
+
+      viewButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          state.view = button.getAttribute("data-view");
+          renderView();
+        });
+      });
+
+      document.getElementById("prev-step").addEventListener("click", function () {
+        state.step = state.step === 0 ? 6 : state.step - 1;
+        renderStep();
+      });
+
+      document.getElementById("next-step").addEventListener("click", function () {
+        state.step = state.step === 6 ? 0 : state.step + 1;
+        renderStep();
+      });
+
+      actionButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          handleAction(button.getAttribute("data-action"));
+        });
+      });
+
+      renderMode();
+      renderView();
+    }());
+  </script>
+</body>
+</html>

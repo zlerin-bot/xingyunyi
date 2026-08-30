@@ -1,12 +1,56 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.33-human-collaboration-contract-prototype-local`
+- 交接阶段：`v0.1.33-multi-human-agent-loop-prototype-sent`
 - 核验日期：2026-08-30
 - 代码分支：`main`
-- 阶段性质：生产仍为 0.1.33；Human 协作视图信息合同与新版群交互原型已在本地冻结并完成响应式浏览器验收
+- 阶段性质：生产仍为 0.1.33；多 Human、多 Agent 协作结论与闭环交互图已完成验收并续发到拉格朗日原 Thread
 - 当前生产状态：`765ec5a / 0.1.33`，schema 为 `0026_message_attachment_links`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 多 Human、多 Agent 协作闭环结论与交互示意图（已续发拉格朗日原 Thread）
+
+`docs/星云驿多Human多Agent协作结论_20260830.md` 固化了 2026-08-30 的讨论结论：星云驿不是让 Human
+阅读 Agent 日志的超级群聊，也不替代每个人的 Agent，而是“星云驿共享控制面 + 个人 Agent 驾驶舱”。
+星云驿统一承载共同目标、责任、进展、风险、结果和 Human 决策；个人 Agent 保留完整上下文、私有资料
+和工具执行，只把经授权的协作事实发布回原 Thread。
+
+Human 信息架构扩展为四层：默认管理结论、按需关键过程、主动打开的完整会话、深层技术审计。Human
+必须能通过暂停、修正目标、增援、改派、要求本人确认和恢复形成可追溯的控制回路。服务端只聚合 Task、
+Result、Delivery、责任和期限等确定性事实；需要语义理解的摘要由明确指定、有授权的摘要 Agent 生成，
+并展示生成者、来源范围、时间和确认状态，网站本身不冒充一个不存在的 AI。
+
+`docs/星云驿多Human多Agent协作闭环交互示意图_20260830.html` 是对应的自包含可点击示意图。它可以在
+Human 手动接力、定时/常驻轮询和目标事件驱动适配器之间切换，逐步演示“共同目标 → 明确分派 → 唤醒
+Agent → 协同执行 → Human 把握 → 纠偏恢复 → 结构化结果”，并切换 Human/Agent 信息视图、暂停/恢复
+Thread、目标修订、增援、Human 确认、完整会话以及双向的“在我的 Agent 中处理 / 发布正式意见到
+星云驿”入口。界面明确使用“mars 的 codex / 020 的 pa020 / 张子良的 zcode”，并标注所有按钮仅为
+脱敏原型，不连接生产。
+
+静态证据：内联 JavaScript 语法检查通过；页面不含外部 URL、iframe、表单、fetch/XHR、动态代码执行、
+innerHTML、cookie 或浏览器持久化。1280×844 桌面端完成协同方式、七步流程、Human/Agent 视图、暂停
+和恢复验收；390×844 移动端完成方式切换、流程推进和双向桥接验收；两种视口均为
+`body/document scrollWidth = innerWidth`，控制台无 warning/error。最终稿已留在本地浏览器前台。
+
+两份文件已复用当前健康的 `magent / codex` 身份，作为信息同步续发到拉格朗日原 Thread
+`bf677074-87bd-4233-8f51-5403d401a023`，回复前一 Event
+`1edf242f-74cc-4a4a-a673-eafa15ce0615`。新 Event 为
+`7eb53b8d-82a5-4de0-8668-d1b27e7873be`，三份 Message 为
+`msg_05567e55418f41f3a9e3bf3746cb9ca2`、`msg_1cec1911512749049134dbc5929b83b7`、
+`msg_bb2360b19e874e3aa8419d463f707ee4`；`attachment_count=2`，服务端返回 `accepted`。本次
+`requested_responder_agent_ids=[]`，因此三位群参与 Agent 只同步上下文，不应自动回复或执行；Agent
+ACK 仍是独立待观察事实。
+
+发送前，Skill 规定的 pinned bootstrap 成功读取公开 0.1.33 元数据，但在新 runtime 安装阶段返回
+`connector_install_failed`，未产生消息、未触发配对。随后只读公开合同确认固定 Connector 仍为
+0.1.33、wheel SHA-256 仍为
+`e85ec3f0d1db321a91126e62475a669fcb1bca909667761316e29b66d231bcfb`，因此复用当前 MCP 注册中的原
+`AGENTPOST_PROFILE` 和已经安装的 `0.1.33-py312` runtime 完成发送，没有派生新 profile。
+
+下一实现切片应先落地 Human 四层视图和 Human Decision Event，并让服务端维护确定性协作读模型；
+语义摘要由有身份的摘要 Agent 生成。随后实现每个 Human 一个可复用连接适配器，建立
+`Thread ↔ Agent Run` 映射、cursor 去重、断线恢复和安全宿主唤醒；定时任务只用于周期工作和兜底。
+`2c8e5a3` 的连接复用说明修复仍待与下一版本一起部署，不能算入当前生产 0.1.33。
 
 ### Human 协作视图信息合同与新版群交互原型（本地设计切片）
 
@@ -30,8 +74,9 @@ Human 可见 Agent 身份统一使用“Human 的 Agent”格式，例如“mars
 审计抽屉和附件信息边界检查，`body/document scrollWidth = innerWidth`；抽屉 Escape 关闭后焦点返回
 原触发按钮。该切片没有改动生产代码或接口，生产仍为 `765ec5a / 0.1.33`。
 
-下一实现切片应让服务端生成同一份 `human_summary` 读模型，并先落地小孔/拉格朗日所需的结果、待决、
-异常和协作就绪口径；`2c8e5a3` 的连接复用说明修复仍待与下一版本一起部署，不能算入当前生产 0.1.33。
+原合同中的 `human_summary` 现按本轮结论进一步拆分：服务端维护确定性协作读模型；需要语义理解的摘要
+由有身份、有授权的摘要 Agent 生成并带来源。`2c8e5a3` 的连接复用说明修复仍待与下一版本一起部署，
+不能算入当前生产 0.1.33。
 
 ### 组织协作群附件与拉格朗日反馈原型（0.1.33 已部署并完成 HTTPS 后检）
 

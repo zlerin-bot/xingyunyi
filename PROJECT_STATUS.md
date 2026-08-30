@@ -2,7 +2,53 @@
 
 Last updated: 2026-08-30
 
-Current handoff stage: `v0.1.33-human-collaboration-contract-prototype-local`; pinned production release: `0.1.33`
+Current handoff stage: `v0.1.33-multi-human-agent-loop-prototype-sent`; pinned production release: `0.1.33`
+
+## Multi-Human, multi-Agent collaboration loop conclusion (prototype sent, 2026-08-30)
+
+`docs/星云驿多Human多Agent协作结论_20260830.md` records the product conclusion that AgentPost is a
+shared control plane rather than a replacement for each Human's personal Agent. AgentPost carries
+the shared goal, responsibility, progress, risk, results, and Human decisions; each personal Agent
+keeps its complete context, private material, tool execution, and owner authorization in its own
+cockpit. Only authorized collaboration facts enter the organization Thread.
+
+Human disclosure now has four levels: management conclusions by default, meaningful process on
+demand, the complete authorized Thread conversation by deliberate action, and deep technical audit.
+Human interventions such as pause, goal correction, reinforcement, reassignment, confirmation, and
+resume are append-only decision Events. The server aggregates deterministic Task, Result, Delivery,
+responsibility, and deadline facts. Semantic summaries belong to an explicitly identified and
+authorized summary Agent with generator, source range, timestamp, and confirmation state; the web
+application does not pretend to contain an unspecified AI.
+
+`docs/星云驿多Human多Agent协作闭环交互示意图_20260830.html` is a self-contained clickable diagram.
+It compares manual Human handoff, scheduled/persistent polling, and the proposed event-driven
+adapter; walks through the seven-step collaboration loop; switches Human and Agent information
+projections; demonstrates the Human control loop; and shows the two-way bridge between the shared
+Thread and a personal Agent cockpit. All visible Agent identities use `Human 的 Agent`. The page
+labels proposed capabilities and prototype-only controls instead of presenting them as production.
+
+Evidence: inline JavaScript syntax and static isolation checks passed. There are no external URLs,
+iframes, forms, network APIs, dynamic evaluation, `innerHTML`, cookies, or browser-storage calls.
+Browser acceptance covered the collaboration mode, seven-step flow, Human/Agent projection,
+pause/resume, and bridge actions at 1280×844 desktop and 390×844 mobile. Both layouts report
+`body/document scrollWidth = innerWidth`, and browser diagnostics report no warning/error.
+
+The Markdown conclusion and HTML diagram were sent as two real attachments in the existing
+Lagrange Thread `bf677074-87bd-4233-8f51-5403d401a023`, replying to Event
+`1edf242f-74cc-4a4a-a673-eafa15ce0615`. New Event
+`7eb53b8d-82a5-4de0-8668-d1b27e7873be` created Messages
+`msg_05567e55418f41f3a9e3bf3746cb9ca2`, `msg_1cec1911512749049134dbc5929b83b7`, and
+`msg_bb2360b19e874e3aa8419d463f707ee4`; the server returned `accepted` with
+`attachment_count=2`. The responder list was empty, so this was information-only synchronization,
+not an automatic task. Agent ACK remains a separate pending fact.
+
+The Skill-mandated pinned bootstrap read the 0.1.33 release metadata but failed while installing a
+new runtime with `connector_install_failed`; it produced no message and opened no pairing. The
+public release contract was then verified as 0.1.33 with wheel SHA-256
+`e85ec3f0d1db321a91126e62475a669fcb1bca909667761316e29b66d231bcfb`. The send reused the current
+MCP registration's exact profile and already installed `0.1.33-py312` runtime. No new profile was
+derived. Production remains `765ec5a / 0.1.33`; the `2c8e5a3` connection-reuse correction is still
+pending deployment.
 
 ## Human collaboration view contract and interactive group prototype (local, 2026-08-30)
 
