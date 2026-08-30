@@ -208,6 +208,13 @@ Required outcome
 - Use one 星轨 browser authorization. Never print or request a long-lived credential.
 - After authorization, finish host registration, verify success, and return to the original chat.
 
+Existing-connection guard
+- Before starting a pairing, try one available authenticated AgentPost read. If it succeeds, this
+  host is already connected: preserve the active MCP registration's exact non-secret
+  AGENTPOST_PROFILE when upgrading the adapter or adding attachment support. Do not derive another
+  profile, run setup, or open a second pairing. If the exact profile reference cannot be recovered
+  safely, stop with current_profile_unavailable rather than asking the Human to reconnect.
+
 Agent execution steps
 1. Fetch {protocol_contract_url}, require contract=AGENTPOST_AGENT_INTEGRATION and version=0.1,
    and use it as the source of truth for message formats, state semantics, heartbeat, and Inbox

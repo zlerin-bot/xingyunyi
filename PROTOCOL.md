@@ -521,6 +521,14 @@ own credentials and policy.
 An unconfigured Connector has no sender identity. It may only create a short-lived
 pairing session:
 
+Pairing is a cold-start operation, not an adapter-upgrade operation. If any authenticated
+AgentPost read succeeds, the existing Connector identity is authoritative. A newer SDK, MCP,
+CLI, or local-attachment adapter MUST reuse the exact existing non-secret vault profile and
+MUST NOT derive a second profile or open another pairing session. If the host cannot recover
+that exact profile reference safely, it must stop with an explicit local configuration error;
+it must not ask the Human to pair the same Agent again. Reusing the profile does not expose the
+credential and does not change the Agent, Inbox, Threads, ACL, or Connector binding.
+
 ```http
 POST /api/v1/connect/pairings
 Content-Type: application/json

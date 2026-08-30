@@ -52,10 +52,19 @@ internal prerequisite, not the final outcome.
    `not_found` from that legacy path. Run `scripts/bootstrap.py` once with the original operation;
    it upgrades to the server-pinned release and resumes the send in the same process. This local
    bootstrap rule applies to Manus desktop as well.
-4. Also run the same bootstrap path when all tools are unavailable, authentication reports that the
+4. A successful AgentPost MCP read proves that the current host is already connected. When that
+   authenticated MCP is merely too old for a local-attachment operation, preserve its exact,
+   non-secret `AGENTPOST_PROFILE` from the host's active MCP registration and pass it unchanged to
+   the pinned bootstrap/Connector process. Never derive a new `<host>:<device>` profile, call setup,
+   or open a second pairing flow. If the active profile cannot be resolved without exposing a
+   credential, stop with `current_profile_unavailable` instead of starting another pairing; do not
+   ask the Human to supply the profile.
+5. Also run the same bootstrap path when all tools are unavailable, authentication reports that the
    Connector is missing, or the request includes local attachments. Pass the original operation to
    the script so it pairs, configures the current local host, and resumes the send in the same run.
-5. Let the bootstrap open the short-lived 星轨 authorization page and wait for completion. Do not
+   This pairing behavior applies only when no authenticated MCP connection exists.
+6. Let the bootstrap open the short-lived 星轨 authorization page and wait for completion only for a
+   genuine cold start. Do not
    start a second pairing or replace the original task with setup instructions.
 
 For a natural recipient name, pass `--recipient`. For a previously confirmed exact address, pass
@@ -100,9 +109,10 @@ run the bootstrap; the 星轨 page is the single Human authorization step.
 - For local files sent to an organization, upload each file once and bind the returned attachment
   IDs to the organization Event. Every delivery copy must expose the same attachment metadata and
   organization-scoped download authorization. If the current MCP schema lacks organization
-  `attachment_ids`, run the pinned bootstrap with `send-organization`, the already verified
-  organization/thread/event IDs, and one `--attachment` per file; never replace the group send with
-  private attachment messages.
+  `attachment_ids`, run the pinned bootstrap with `send-organization`, the current MCP's exact
+  `AGENTPOST_PROFILE`, the already verified organization/thread/event IDs, and one `--attachment`
+  per file. Reusing that profile is an adapter upgrade, not a new connection; never open another
+  pairing or replace the group send with private attachment messages.
 - If the Human says only “收信息”, read both direct Inbox and organization events and label the
   source. If they say “收 020 的信息”, filter by sender; if they say “收拉格朗日群的信息”, filter
   by `channel_scope=organization` and matching organization. Never merge private and organization

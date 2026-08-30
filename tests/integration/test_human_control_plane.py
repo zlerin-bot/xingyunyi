@@ -350,6 +350,9 @@ def test_agent_facing_connection_contract_is_public_pinned_and_host_specific(
         assert "at most one grouped system approval" in instructions.text
         assert "one 星轨 browser authorization" in instructions.text
         assert "long-lived credential" in instructions.text
+        assert "If it succeeds, this\n  host is already connected" in instructions.text
+        assert "preserve the active MCP registration's exact non-secret" in instructions.text
+        assert "stop with current_profile_unavailable" in instructions.text
         if host == "openclaw":
             assert "headless cloud server" in instructions.text
             assert "plaintext token file" in instructions.text

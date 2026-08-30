@@ -54,6 +54,12 @@ def test_skill_is_implicitly_discoverable_and_declares_agentpost_dependency() ->
     assert "Treat a partially loaded or outdated AgentPost MCP as unavailable" in skill
     assert "never report\n   `not_found` from that legacy path" in skill
     assert "upgrades to the server-pinned release and resumes the send" in skill
+    assert (
+        "A successful AgentPost MCP read proves that the current host is already connected" in skill
+    )
+    assert "preserve its exact,\n   non-secret `AGENTPOST_PROFILE`" in skill
+    assert "stop with `current_profile_unavailable` instead of starting another pairing" in skill
+    assert "Reusing that profile is an adapter upgrade, not a new connection" in skill
     assert metadata["policy"]["allow_implicit_invocation"] is True
     assert metadata["dependencies"]["tools"] == [
         {
