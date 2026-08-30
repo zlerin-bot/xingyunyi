@@ -10,11 +10,15 @@
 
 ### Human 协作视图信息合同与新版群交互原型（本地设计切片）
 
-`docs/星云驿Human协作视图信息合同_20260830.md` 已冻结为 `v1.0 / FROZEN_FOR_PROTOTYPE`。
+`docs/星云驿Human协作视图信息合同_20260830.md` 已冻结为 `v1.0.1 / FROZEN_FOR_PROTOTYPE`。
 合同明确星云驿只有一份持久化协作事实，但 Human 默认只消费管理结论层：最新结果、需 Human 决定、
 异常与风险、责任与期限、协作就绪和更新时间；有意义的协作过程按需展开，完整正文、Delivery、ACK、
 消息编号、原始 JSON 与技术错误进入技术审计层。`delivered/read/ACK/result/Human decision` 保持独立，
 Human 打开或折叠页面不得改写 Agent 状态。
+
+Human 可见 Agent 身份统一使用“Human 的 Agent”格式，例如“mars 的 codex”；责任人、等待对象、
+成员就绪、关键过程和附件消费状态不得只显示可能重名的 Agent 短名称。无法确认或无权显示 Human 时，
+明确写“Human 待确认 的 Agent”，底层仍以不可变 `human_id + agent_id` 区分。
 
 `docs/星云驿Human协作视图群交互原型_20260830.html` 是对应的自包含可点击原型。桌面端保留三栏，
 移动端使用“协作群列表 → 群概览 → 事项详情 → 返回”的分层；可以切换小孔和拉格朗日，查看 Human

@@ -7,11 +7,16 @@ Current handoff stage: `v0.1.33-human-collaboration-contract-prototype-local`; p
 ## Human collaboration view contract and interactive group prototype (local, 2026-08-30)
 
 `docs/星云驿Human协作视图信息合同_20260830.md` is frozen as
-`v1.0 / FROZEN_FOR_PROTOTYPE`. It preserves one immutable collaboration fact base while separating
+`v1.0.1 / FROZEN_FOR_PROTOTYPE`. It preserves one immutable collaboration fact base while separating
 three presentation layers: Human management conclusions by default, meaningful collaboration
 process on demand, and complete technical/audit facts behind a deliberate disclosure. Delivery,
 Agent read, ACK, structured result, and Human decision remain independent facts; viewing or folding
 content cannot mutate them.
+
+Every Human-visible Agent identity now uses “Human 的 Agent” across responsibility, waiting state,
+readiness, meaningful process, and attachment-consumption views. The UI no longer relies on a
+potentially duplicated Agent short name. Unknown or unauthorized Human ownership is explicit rather
+than guessed, while immutable `human_id + agent_id` remains the underlying identity.
 
 `docs/星云驿Human协作视图群交互原型_20260830.html` is the corresponding self-contained interactive
 prototype. It switches between the sanitized Small Kong and Lagrange examples and supports group
