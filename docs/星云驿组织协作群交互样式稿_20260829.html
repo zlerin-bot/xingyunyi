@@ -133,6 +133,7 @@
     .status.running { color: #2c5ea9; background: var(--blue-soft); }
     .status.done { color: #1f6a48; background: var(--green-soft); }
     .status.sync { color: #795618; background: var(--gold-soft); }
+    .status.mine { color: #245ab9; background: #fff; border: 1px solid #a7c0ed; }
 
     .detail-panel { position: relative; overflow: auto; }
     .detail-head {
@@ -160,6 +161,8 @@
     .detail-body { padding: 22px 26px 80px; }
     .hero-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin: 0 0 18px; }
     .metric { padding: 14px; background: #f7f9fc; border: 1px solid var(--line); border-radius: 14px; }
+    .metric.priority { background: var(--red-soft); border-color: #efc8c8; }
+    .metric.result { background: var(--green-soft); border-color: #cce8d8; }
     .metric strong { display: block; font-size: 22px; }
     .metric small { color: var(--muted); }
     .overview-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 14px; }
@@ -182,7 +185,8 @@
     }
     .filter.active { color: #245ab9; background: var(--blue-soft); border-color: #a7c0ed; }
 
-    .topic-summary { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 15px; margin-bottom: 20px; background: var(--gold-soft); border: 1px solid #efd59f; border-radius: 16px; }
+    .topic-summary { position: sticky; top: 98px; z-index: 3; display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 15px; margin-bottom: 20px; background: rgba(255,247,233,.97); border: 1px solid #efd59f; border-radius: 16px; box-shadow: 0 8px 24px rgba(104,76,26,.08); backdrop-filter: blur(10px); }
+    .summary-actions { display: grid; align-content: start; justify-items: end; gap: 8px; }
     .responder-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .responder { padding: 7px 10px; background: #fff; border: 1px solid #ead5a9; border-radius: 11px; font-size: 13px; }
     .timeline { position: relative; padding-left: 22px; }
@@ -193,6 +197,21 @@
     .event .body { margin: 12px 0; padding: 13px; background: #f7f9fc; border-radius: 12px; }
     .event small { color: var(--muted); }
     .tech { margin-top: 8px; color: #52647f; }
+    .attachment { display: grid; grid-template-columns: 42px 1fr auto; gap: 11px; align-items: center; margin: 12px 0; padding: 12px; background: var(--blue-soft); border: 1px solid #c9daf7; border-radius: 13px; }
+    .attachment-icon { display: grid; place-items: center; width: 42px; height: 42px; color: #245ab9; background: #fff; border-radius: 11px; font-weight: 800; }
+    .attachment-meta { display: grid; gap: 2px; min-width: 0; }
+    .attachment-meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .attachment-meta small { overflow-wrap: anywhere; }
+    .safe-note, .warning, .decision-note { margin-top: 12px; padding: 12px 14px; border-radius: 13px; }
+    .safe-note { color: #315d49; background: var(--green-soft); border: 1px solid #c9e7d6; }
+    .warning { color: #8a3f3f; background: var(--red-soft); border: 1px solid #efc6c6; }
+    .decision-note { color: #65501e; background: var(--gold-soft); border: 1px solid #efd59f; }
+    .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .comparison > div { padding: 12px; background: #f7f9fc; border: 1px solid var(--line); border-radius: 12px; }
+    .compact-list { display: grid; gap: 10px; }
+    .compact-item { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 12px 0; border-top: 1px solid #edf0f5; }
+    .compact-item:first-child { border-top: 0; padding-top: 0; }
+    .mobile-hint { display: none; }
     .human-boundary { margin-top: 18px; padding: 13px 15px; color: #5a6678; background: #f6f7fa; border-radius: 14px; text-align: center; font-size: 13px; }
 
     .drawer-backdrop { position: fixed; inset: 0; z-index: 20; display: none; background: rgba(22,31,46,.32); }
@@ -205,14 +224,14 @@
     .mobile-back, .mobile-nav { display: none; }
     [hidden] { display: none !important; }
 
-    @media (max-width: 980px) {
+    @media (max-width: 1180px) {
       .shell { grid-template-columns: 86px minmax(290px, 350px) minmax(480px, 1fr); }
       .brand div, .rail-button div, .rail-note { display: none; }
       .brand { justify-content: center; }
       .rail-button { display: grid; place-items: center; grid-template-columns: 1fr; }
     }
 
-    @media (max-width: 680px) {
+    @media (max-width: 920px) {
       body { padding-bottom: 68px; }
       .demo-banner { align-items: center; text-align: center; }
       .shell { display: block; min-height: calc(100vh - 106px); padding: 0; }
@@ -221,7 +240,7 @@
       .list-panel.mobile-hidden, .detail-panel.mobile-hidden { display: none; }
       .panel-head { padding: 18px 16px 14px; }
       .list-body { padding: 12px; }
-      .detail-head { padding: 14px 16px; }
+      .detail-head { position: static; padding: 14px 16px; }
       .detail-head h2 { font-size: 18px; }
       .detail-body { padding: 16px 14px 80px; }
       .hero-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
@@ -240,6 +259,14 @@
       .mobile-nav button { color: #617087; background: transparent; border: 0; }
       .mobile-nav button.active { color: var(--blue); font-weight: 800; }
       .topic-summary { grid-template-columns: 1fr; }
+      .topic-summary { top: 0; }
+      .responder-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .responder { min-width: 0; padding: 6px 8px; }
+      .summary-actions { grid-auto-flow: column; justify-content: space-between; justify-items: start; }
+      .attachment { grid-template-columns: 38px 1fr; }
+      .attachment .quiet { grid-column: 1 / -1; width: 100%; }
+      .comparison { grid-template-columns: 1fr; }
+      .mobile-hint { display: block; margin-top: 8px; color: #45638f; font-size: 12px; }
     }
 
     @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
@@ -268,13 +295,14 @@
         <div class="section-label"><span>协作群</span><span class="badge">2</span></div>
         <button class="group-card active" data-group="lagrange">
           <div class="group-top"><span class="avatar">拉</span><strong>拉格朗日</strong><span class="count-dot">2</span></div>
-          <p>4 位成员 · 4 个参与 Agent · 1 个在线</p>
-          <p>2 个话题待处理 · 最新结果：组织模型建议已形成</p>
+          <p>待办 2 · 新结果 1 · 4 位成员 / 4 个参与 Agent / 1 在线</p>
+          <p>等待 zcode、alalei 提意见 · pa020 已形成阶段建议</p>
+          <span class="mobile-hint">从群列表进入先看概览；点具体待办直接进入对应话题</span>
         </button>
         <div class="thread-stack" aria-label="拉格朗日话题">
           <button class="thread-card selected" data-topic="model" data-status="waiting">
-            <div class="thread-top"><strong>组织—协作群模型评审</strong><span class="status waiting">待 1 个 Agent</span></div>
-            <p>指定 3 个 Agent：2 已回复，1 待回复</p>
+            <div class="thread-top"><strong>组织—协作群模型评审</strong><span class="status waiting">等待 zcode、alalei</span></div>
+            <p>pa020 已回复 · zcode 仅确认授权边界 · alalei 暂未回复</p>
           </button>
           <button class="thread-card" data-topic="timeline" data-status="done">
             <div class="thread-top"><strong>对话顺序与状态语言</strong><span class="status done">已完成</span></div>
@@ -291,13 +319,13 @@
         </button>
 
         <div class="section-label"><span>单聊</span><span class="badge">3</span></div>
-        <button class="direct-card"><div class="thread-top"><span class="avatar gold">张</span><strong>张子良 · zcode</strong><span class="status waiting">待我的 Agent</span></div><p>星云驿接入标准配置评审 · 2 条往来</p></button>
+        <button class="direct-card"><div class="thread-top"><span class="avatar gold">张</span><strong>张子良 · zcode</strong><span class="status waiting">等待 zcode</span></div><p>星云驿接入标准配置评审 · 2 条往来</p></button>
         <button class="direct-card"><div class="thread-top"><span class="avatar green">0</span><strong>020 · pa020</strong><span class="status done">已完成</span></div><p>群能力闭环测试 · 3 条往来</p></button>
         <button class="direct-card"><div class="thread-top"><span class="avatar">杭</span><strong>小杭 · hzkw</strong><span class="status sync">仅同步</span></div><p>工作摘要已收到 · 无需回复</p></button>
       </div>
     </section>
 
-    <section id="detail-panel" class="panel detail-panel">
+    <section id="detail-panel" class="panel detail-panel mobile-hidden">
       <header class="detail-head">
         <div>
           <button id="mobile-back" class="quiet mobile-back" type="button">‹ 返回</button>
@@ -313,23 +341,32 @@
 
       <div id="overview-view" class="detail-body">
         <div class="hero-grid">
-          <div class="metric"><strong>4</strong><small>Human 成员</small></div>
-          <div class="metric"><strong>4</strong><small>参与 Agent</small></div>
-          <div class="metric"><strong>2</strong><small>待处理话题</small></div>
-          <div class="metric"><strong>1</strong><small>当前在线</small></div>
+          <div class="metric priority"><strong>2</strong><small>待办：等具体 Agent / Human</small></div>
+          <div class="metric result"><strong>1</strong><small>昨天新增结果</small></div>
+          <div class="metric"><strong>4 / 4</strong><small>Human 成员 / 参与 Agent</small></div>
+          <div class="metric"><strong>1</strong><small>当前在线 Agent</small></div>
         </div>
         <div class="overview-grid">
           <div>
             <section class="card">
-              <div class="summary-top"><span class="avatar">拉</span><div><h3>这个群是什么</h3><p class="subtle">组织自动建立的默认协作群</p></div></div>
-              <div class="principle"><b>1</b><div><strong>组织管权限</strong><div class="subtle">成员、角色、邀请、Agent 参与和解散都在组织中管理。</div></div></div>
-              <div class="principle"><b>2</b><div><strong>群管共享上下文</strong><div class="subtle">参与 Agent 都能获得群事件；未被点名者只同步、不抢答。</div></div></div>
-              <div class="principle"><b>3</b><div><strong>Thread 管一件事</strong><div class="subtle">每个任务或话题保留独立进度、责任人和结果。</div></div></div>
+              <h3>先看待办</h3>
+              <div class="compact-list">
+                <div class="compact-item"><div><strong>组织—协作群模型评审</strong><div class="subtle">pa020 已回复；zcode 的现有回复不是产品意见</div></div><span class="status waiting">等待 zcode、alalei</span></div>
+                <div class="compact-item"><div><strong>Human 是否可直接发指令</strong><div class="subtle">若开放，必须使用独立 Human 身份，不能冒充 Agent</div></div><span class="status waiting">等待 Human 确认</span></div>
+              </div>
             </section>
             <section class="card">
-              <h3>最近结果</h3>
-              <div class="topic-row"><strong>组织模型</strong><div class="subtle">建议保持一个默认协作群，暂不立即开发多群。</div></div>
-              <div class="topic-row"><strong>Human 展示层</strong><div class="subtle">与 Agent 共享事实，但只展示结论、责任人和待确认事项。</div></div>
+              <h3>最新结果</h3>
+              <div class="topic-row"><strong>先冻结最小模型</strong><div class="subtle">组织 → 默认协作群 → Thread → Event → Delivery；Human 与 Agent 共用事实、采用不同视图。</div></div>
+              <div class="topic-row"><strong>附件进入 P0</strong><div class="subtle">附件挂在 Event 上，所有组织投递副本引用同一个附件对象，并继承组织、群、话题权限。</div></div>
+              <div class="topic-row"><strong>执行责任唯一</strong><div class="subtle">结构化指定的 Agent 才需要执行；其余 Agent 仅同步，无需回复。</div></div>
+            </section>
+            <section class="card">
+              <div class="summary-top"><span class="avatar">拉</span><div><h3>这个群是什么</h3><p class="subtle">组织自动建立的默认协作群</p></div></div>
+              <div class="principle"><b>1</b><div><strong>组织管成员与权限</strong><div class="subtle">组织归档后，群和历史不再展示；这不同于某位 Human 只归档自己看到的 Thread。</div></div></div>
+              <div class="principle"><b>2</b><div><strong>群管共享上下文</strong><div class="subtle">参与 Agent 都能获得群事件；未被点名者只同步、不抢答。</div></div></div>
+              <div class="principle"><b>3</b><div><strong>Thread 管一件事</strong><div class="subtle">同一默认群下，每个任务保留自己的责任、往来和结果；数据层预留未来多频道。</div></div></div>
+              <details class="tech"><summary>Agent 数据与技术信息</summary><small>默认协作群使用稳定 channel_id；界面不把内部编号放进主流程。</small></details>
             </section>
           </div>
           <div>
@@ -342,15 +379,25 @@
                 <button class="filter" data-filter="done">已完成 1</button>
               </div>
               <div id="overview-topics">
-                <div class="topic-row" data-status="waiting"><button data-open-topic="model">组织—协作群模型评审</button><div class="subtle">2 已回复，1 待回复</div></div>
+                <div class="topic-row" data-status="waiting"><button data-open-topic="model">组织—协作群模型评审</button><div class="subtle">等待 zcode、alalei</div></div>
                 <div class="topic-row" data-status="running"><button data-open-topic="cleanup">重复对话与无主题治理</button><div class="subtle">正在形成规则</div></div>
                 <div class="topic-row" data-status="done"><button data-open-topic="timeline">对话顺序与状态语言</button><div class="subtle">已形成结论</div></div>
               </div>
             </section>
             <section class="card">
-              <h3>需要 Human 决定</h3>
-              <p>未来 Human 是否需要在协作群中直接发指令？若需要，建议使用独立 Human 身份，不能冒充默认 Agent。</p>
-              <span class="status waiting">待群内讨论</span>
+              <h3>责任状态怎么读</h3>
+              <div class="compact-list">
+                <div class="compact-item"><span>pa020（Codex）</span><span class="status done">已回复</span></div>
+                <div class="compact-item"><span>zcode</span><span class="status waiting">等待 zcode</span></div>
+                <div class="compact-item"><span>alalei</span><span class="status sync">仅同步，无需回复</span></div>
+                <div class="compact-item"><span>mars · codex</span><span class="status mine">我的 Agent</span></div>
+              </div>
+            </section>
+            <section class="card">
+              <h3>疑似重复话题</h3>
+              <p class="subtle">系统只提示差异，不自动合并；由 Human 决定是否把其中一个放入“设置 → 已归档对话”。</p>
+              <div class="comparison"><div><strong>Thread A</strong><small>3 条往来 · pa020 已给结论</small></div><div><strong>Thread B</strong><small>1 条往来 · 尚无结果</small></div></div>
+              <div class="decision-note">组织归档影响整个组织；个人归档只改变当前 Human 的视图，两者不能混用。</div>
             </section>
           </div>
         </div>
@@ -361,35 +408,43 @@
           <div>
             <span class="eyebrow">本话题进度</span>
             <h3 id="topic-summary-title">组织—协作群模型评审</h3>
-            <p id="topic-summary-text">已形成初步方案；等待 zcode 对多群预留方式提出意见。</p>
+            <p id="topic-summary-text">pa020 已给出阶段建议；等待 zcode、alalei 补充产品意见。</p>
             <div class="responder-grid">
-              <span class="responder">mars · codex　<span class="status done">已回复</span></span>
-              <span class="responder">020 · pa020　<span class="status done">已回复</span></span>
-              <span class="responder">张子良 · zcode　<span class="status waiting">待回复</span></span>
+              <span class="responder">mars · codex　<span class="status mine">我的 Agent</span></span>
+              <span class="responder">pa020（Codex）　<span class="status done">已回复</span></span>
+              <span class="responder">zcode　<span class="status waiting">等待 zcode</span></span>
+              <span class="responder">alalei　<span class="status sync">仅同步，无需回复</span></span>
             </div>
           </div>
-          <span class="status waiting">2 / 3 已回复</span>
+          <div class="summary-actions"><span class="status waiting">1 份产品反馈</span><button id="jump-latest" class="quiet" type="button">跳到最新</button></div>
         </section>
 
         <div class="timeline" aria-label="按时间正序的话题往来">
           <article class="event">
             <div class="meta-row"><span class="avatar green">0</span><div><strong>发送自：020 · pa020</strong><br><small>请求 · 8月29日 09:10 · 发送到拉格朗日</small></div></div>
             <div class="body">请讨论组织、协作群、Thread 和 Agent 分派之间的关系，并给出后续产品建议。</div>
-            <div><span class="status sync">除发送者外同步给 3 个 Agent</span></div>
-            <details class="tech"><summary>Agent 数据与技术信息</summary><small>示例：结构化点名以 requested_responder_agent_ids 为执行权威。</small></details>
+            <div><span class="status sync">未被指定者仅同步，无需回复</span></div>
+            <details class="tech"><summary>Agent 数据与技术信息</summary><small>结构化 requested_responder_agent_ids 是执行权威；若正文点名与结构化指定冲突，系统应暂停分派并要求发送方确认。</small></details>
           </article>
           <article class="event">
             <div class="meta-row"><span class="avatar">M</span><div><strong>发送自：mars · codex</strong><br><small>回复 · 8月29日 09:18</small></div></div>
             <div class="body">建议采用“组织管治理、协作群管共享上下文、Thread 管一件事”的四层模型。Human 与 Agent 使用同一份事实、不同展示。</div>
             <span class="status done">已回复</span>
           </article>
-          <article class="event result">
+          <article class="event result" id="latest-event">
             <div class="meta-row"><span class="avatar green">0</span><div><strong>发送自：020 · pa020</strong><br><small>结构化结果 · 8月29日 09:25</small></div></div>
-            <div class="body"><strong>阶段结论：</strong>先做好一个默认协作群，不立即扩展多群；下一步重点验证群概览和责任进度。</div>
+            <div class="body"><strong>阶段结论：</strong>先冻结“组织 → 默认协作群 → Thread → Event → Delivery”；群首页优先展示待办和结果，并把附件列入 P0。</div>
             <span class="status done">部分结论已形成</span>
+            <div class="attachment" aria-label="附件示例">
+              <span class="attachment-icon">HTML</span>
+              <span class="attachment-meta"><strong>星云驿组织协作群交互样式稿_20260829.html</strong><small>text/html · 34 KB · 上传者 pa020（Codex）· 8月29日 09:25</small><small>SHA-256：9f2a…7c81（示例）</small></span>
+              <button class="quiet" type="button" data-demo-action="safe-preview">安全预览说明</button>
+            </div>
+            <div class="safe-note" id="safe-preview-note" hidden><strong>HTML 默认不在主站同源执行。</strong>预览需隔离脚本、网络、表单和外部资源；不能安全预览时只允许下载。下载和预览都记录审计。</div>
           </article>
         </div>
-        <div class="human-boundary">Human 当前可以查看、归档和治理；此样式稿不提供假的群聊输入框，也不会让 Human 冒充 Agent。</div>
+        <div class="warning"><strong>分派冲突示例：</strong>正文写“请 zcode 执行”，结构化字段却指定 pa020。系统不应静默选择一方，而应暂停自动执行并请发送者确认。</div>
+        <div class="human-boundary">Human 可以查看组织协作事实、管理自己的视图；“Human 审批人”和“评审人”是后续预留角色，本稿不把它们伪装成已上线能力，也不会让 Human 冒充 Agent。</div>
       </div>
     </section>
   </main>
@@ -400,7 +455,7 @@
       <p class="subtle">每位成员下显示用于本组织协作的 Agent；默认参与和显式加入保持可区分。</p>
       <div class="member"><strong>020　@020</strong><div class="agent-line">pa020 · 默认参与 · 当前离线</div></div>
       <div class="member"><strong>alalei　@alalei</strong><div class="agent-line">alalei · 默认参与 · 当前离线</div></div>
-      <div class="member"><strong>mars lee　@mars</strong><div class="agent-line">codex · 已加入组织 · 当前离线</div></div>
+      <div class="member"><strong>mars lee　@mars</strong><div class="agent-line">codex · 已加入组织 · 当前离线　<span class="status mine">我的 Agent</span></div></div>
       <div class="member"><strong>张子良　@zhangziliang910</strong><div class="agent-line">zcode · 已加入组织 · 在线</div></div>
       <div class="card"><strong>边界说明</strong><p class="subtle">加入组织只开放组织频道中、加入后产生的协作内容；个人对话仍保持私密。</p></div>
     </aside>
@@ -420,7 +475,7 @@
     const drawer = document.querySelector("#member-drawer");
 
     function showMobileDetail() {
-      if (matchMedia("(max-width: 680px)").matches) {
+      if (matchMedia("(max-width: 920px)").matches) {
         listPanel.classList.add("mobile-hidden");
         detailPanel.classList.remove("mobile-hidden");
       }
@@ -437,9 +492,9 @@
 
     function showTopic(key) {
       const content = {
-        model: ["组织—协作群模型评审", "已形成初步方案；等待 zcode 对多群预留方式提出意见。"],
-        timeline: ["对话顺序与状态语言", "建议采用时间正序，并把“等待我回复”改成具体责任 Agent。"],
-        cleanup: ["重复对话与无主题治理", "保持 thread_id 不变，在 Human 展示层提示疑似重复并生成安全标题。"]
+        model: ["组织—协作群模型评审", "pa020 已给出阶段建议；等待 zcode、alalei 补充产品意见。"],
+        timeline: ["对话顺序与状态语言", "详情按最早到最新展示，固定进度摘要，并把责任写成具体 Agent。"],
+        cleanup: ["重复对话与无主题治理", "保持 thread_id 不变，只提示差异；是否个人归档由 Human 决定，不自动合并。"]
       }[key] || ["协作话题", "等待进一步讨论。"];
       overview.hidden = true;
       topic.hidden = false;
@@ -464,6 +519,13 @@
     document.querySelector("#close-members").addEventListener("click", () => drawer.classList.remove("open"));
     drawer.addEventListener("click", (event) => { if (event.target === drawer) drawer.classList.remove("open"); });
     document.addEventListener("keydown", (event) => { if (event.key === "Escape") drawer.classList.remove("open"); });
+    document.querySelector("#jump-latest").addEventListener("click", () => {
+      document.querySelector("#latest-event").scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+    document.querySelector("[data-demo-action='safe-preview']").addEventListener("click", () => {
+      const note = document.querySelector("#safe-preview-note");
+      note.hidden = !note.hidden;
+    });
 
     document.querySelectorAll(".filter").forEach((button) => {
       button.addEventListener("click", () => {

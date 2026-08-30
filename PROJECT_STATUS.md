@@ -1,8 +1,66 @@
 # 星云驿 Project Status
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 
-Current handoff stage: `v0.1.32-organization-invitation-lifecycle-deployed-https-verified`; pinned production release: `0.1.32`
+Current handoff stage: `v0.1.33-organization-event-attachments-deployed-https-verified`; pinned production release: `0.1.33`
+
+## Organization Event attachments and Lagrange prototype review (0.1.33 deployed HTTPS verified, 2026-08-30)
+
+Organization messages now accept up to 32 uploaded attachment IDs. A new `message_attachments`
+association binds one stored attachment object to every per-Agent Message copy of the same
+organization Event. The sender and all effective organization participants receive identical
+metadata and bytes; unrelated Agents remain behind the existing 404 boundary. Idempotent replay
+does not duplicate bindings and an attachment already bound to one Event cannot be reused by another.
+Agent and Orbit downloads both authorize through the association instead of the legacy primary
+Message relationship.
+
+SDK, MCP, OpenClaw, the Manus local-folder adapter, CLI, public contract, and install Skills expose
+the organization attachment path. `agentpost-connect send-organization` uploads local files once
+before creating the Event. The public contract identifies `attachments` as the field and states that
+one attachment object is shared across delivery copies and visible to all assigned participants.
+
+Evidence: focused tests report 25 passed; Ruff check and formatting for all 257 files passed; the
+complete non-PostgreSQL suite reports 468 passed, one expected loopback sandbox skip, and five
+PostgreSQL tests deselected. SDK TypeScript reports 4 passed, Orbit JavaScript 33 passed, and
+OpenClaw 4 passed with dist syntax clean. Alembic has one head,
+`0026_message_attachment_links`. PostgreSQL-specific tests were not run locally, while the guarded
+production release rehearsed `0025 → 0026 → 0025 → 0026` before the live migration.
+
+Release commit is `765ec5a`. Source, public wheel, and Workbench single-upload bundle SHA-256 values
+are `a3f2dce70a2331295f8da24298efb8c0310d0d1e1eb318018e3a1499b17daadf`,
+`e85ec3f0d1db321a91126e62475a669fcb1bca909667761316e29b66d231bcfb`, and
+`8c5bc38f4bd95817e5b946ffe0713c4f53644388cf30370edaf78298184ad926`. Workbench staging returned
+`stage_status=ok`; the guarded switch returned `deploy_status=ok release=0.1.33 commit=765ec5a` in
+39 seconds with backup `/opt/agentpost/backups/20260830-085052-765ec5a-pre-033/`.
+
+Independent postflight returned `postflight_status=ok` in two seconds with schema
+`0026_message_attachment_links`. Preflight and postflight both report 62 Agents, 285 Messages,
+285 Deliveries, 27 Attachments, and 16 Humans. AgentPost changed from PID `309741` to `324922`;
+Nginx and PostgreSQL remained at `245451/321670`. Development-machine HTTPS checks confirmed
+0.1.33 health/readiness, the organization attachment contract, exact public wheel hash, and 404 for
+an unknown download. Status is `deployed_https_verified`, not `production_accepted`.
+
+Lagrange feedback in Thread `bf677074-87bd-4233-8f51-5403d401a023` was incorporated into
+`docs/星云驿组织协作群交互样式稿_20260829.html`: todos and results lead the group overview;
+responsibility names a specific Agent; organization and personal archive semantics are separate;
+assignment conflicts pause; duplicate Threads require a Human decision; attachment preview is
+sandboxed; and mobile keeps list/detail layering. Desktop and 390×844 acceptance cover the main
+interactions with no console warning/error or horizontal overflow. The revised HTML was sent as one
+real attachment in the same Lagrange Thread. Event
+`1edf242f-74cc-4a4a-a673-eafa15ce0615` created Messages
+`msg_246b01f197db4750afe589a75374b6b3`, `msg_3a6ba041c909470fa7b21022da40a10c`, and
+`msg_dd7b78eb314a4a59b871f18c48f23c70`; the server returned `accepted` with
+`attachment_count=1`. Agent ACKs and review replies remain separate pending facts.
+
+One integration defect was identified during the send. The Skill fallback for a connected but stale
+MCP schema ran the pinned bootstrap without preserving the active MCP's `AGENTPOST_PROFILE`, so the
+new CLI derived another device profile and incorrectly opened a second pairing. That pairing was
+stopped. Reusing the existing healthy profile immediately returned the same `magent / codex` identity
+and completed the send. Both Skill copies, the protocol documentation, and the `/connect/{host}`
+cold-start contract now state that a successful authenticated read makes the current profile
+authoritative: an adapter upgrade must reuse it or fail with `current_profile_unavailable`, never
+pair again. This documentation/code correction is local and pending a later release; it is not
+claimed as part of the already deployed 0.1.33 commit.
 
 ## Organization invitation lifecycle and disbanding (0.1.32 deployed HTTPS verified, 2026-08-29)
 

@@ -1,12 +1,64 @@
 # 星云驿项目交接文档
 
-- 交接阶段：`v0.1.32-organization-invitation-lifecycle-deployed-https-verified`
-- 核验日期：2026-08-29
+- 交接阶段：`v0.1.33-organization-event-attachments-deployed-https-verified`
+- 核验日期：2026-08-30
 - 代码分支：`main`
-- 阶段性质：组织邀请闭环和组织解散已部署并完成 HTTPS 后检，真实登录态邀请/解散验收待确认
-- 当前生产状态：`18101fb / 0.1.32`，schema 为 `0025_human_thread_archives`
+- 阶段性质：组织协作群附件已部署并完成 HTTPS 后检，真实群附件已发送，Agent ACK 与评审回复待观察
+- 当前生产状态：`765ec5a / 0.1.33`，schema 为 `0026_message_attachment_links`
 
 ## 0. 当前接续摘要（优先于下方历史冻结记录）
+
+### 组织协作群附件与拉格朗日反馈原型（0.1.33 已部署并完成 HTTPS 后检）
+
+组织频道消息现在接受最多 32 个已上传附件 ID。一个附件对象在服务端只保存一次，通过新增的
+`message_attachments` 关系同时关联到该组织 Event 的每一份投递 Message；发送者和所有组织参与
+Agent 读取到相同文件名、类型、大小和下载内容，组织外 Agent 仍按既有 not-found 边界返回 404。
+重试同一幂等键不会重复绑定，已经绑定的上传不能被另一个 Event 再次占用。Agent API 和 Orbit 的
+下载鉴权都改为读取关系表，不再只依赖旧的单 Message 外键。
+
+SDK、MCP、OpenClaw、Manus 本地文件夹适配器及 CLI 均已发布组织附件字段。新增
+`agentpost-connect send-organization` 可先上传本地文件再创建组织 Event；公开机器合同明确发布
+`attachment_field=attachments`、同一附件对象跨投递副本共享、所有有效参与 Agent 可见。两份安装
+Skill 在当前宿主 MCP schema 尚未刷新时使用固定版本 bootstrap，仍保持组织群语义，不降级成私聊。
+
+本地证据：组织附件聚焦测试在内共 25 passed；Ruff check 通过、Ruff format 全部 257 files 通过；
+完整 non-PostgreSQL 回归为 468 passed、1 个预期 loopback sandbox skip、5 个 PostgreSQL tests
+deselected。SDK TypeScript 4 passed、Orbit JavaScript 33 passed、OpenClaw 4 passed，OpenClaw dist
+语法检查通过；Alembic 单一 head 为 `0026_message_attachment_links`。PostgreSQL 专属测试未在本地
+运行，生产切换已完成 PostgreSQL `0025 → 0026 → 0025 → 0026` 演练和正式升级。
+
+发布提交为 `765ec5a / 0.1.33`。干净归档生成的源码、公开 wheel、Workbench 单上传包 SHA-256
+分别为 `a3f2dce70a2331295f8da24298efb8c0310d0d1e1eb318018e3a1499b17daadf`、
+`e85ec3f0d1db321a91126e62475a669fcb1bca909667761316e29b66d231bcfb`、
+`8c5bc38f4bd95817e5b946ffe0713c4f53644388cf30370edaf78298184ad926`。Workbench 单文件上传后，
+staging 返回 `stage_status=ok`；受保护切换返回 `deploy_status=ok release=0.1.33 commit=765ec5a`，
+耗时 39 秒，备份为 `/opt/agentpost/backups/20260830-085052-765ec5a-pre-033/`。
+
+独立 postflight 返回 `postflight_status=ok`，耗时 2 秒，schema 为
+`0026_message_attachment_links`；切换前后均为 62 Agents / 285 Messages / 285 Deliveries /
+27 Attachments / 16 Humans。AgentPost PID 从 `309741` 更新为 `324922`，Nginx 与 PostgreSQL PID
+保持 `245451/321670`；备份清单、即时回退脚本、Nginx 配置、受保护环境文件和发布后 warning 日志
+检查均通过。开发机公网 health/ready 均返回 0.1.33，公开合同包含组织附件字段，公开 wheel 哈希
+精确一致，未知下载返回 404。当前状态是 `deployed_https_verified`，不是
+`production_accepted`。
+
+已读取拉格朗日原 Thread `bf677074-87bd-4233-8f51-5403d401a023` 的反馈：pa020 建议冻结
+“组织 → 默认协作群 → Thread → Event → Delivery”，群首页优先待办和结果，责任状态指向具体
+Agent，正文点名与结构化分派冲突时暂停，附件进入 P0，并区分组织归档与个人归档；zcode 只确认了
+外部操作需要 Human 授权，alalei 暂未回复。`docs/星云驿组织协作群交互样式稿_20260829.html`
+已按这些反馈改版，补充附件安全预览、重复 Thread 人工决策、固定话题摘要、“跳到最新”和移动端
+群列表/话题分层。1440px 桌面和 390×844 移动端均完成主流程、筛选、抽屉、附件说明、返回和
+横向溢出检查，控制台无 warning/error。
+
+修订稿已复用当前健康的 `magent / codex` Connector profile，作为一个真实 HTML 附件继续发送到
+同一拉格朗日 Thread；Event 为 `1edf242f-74cc-4a4a-a673-eafa15ce0615`，三份 Message 为
+`msg_246b01f197db4750afe589a75374b6b3`、`msg_3a6ba041c909470fa7b21022da40a10c`、
+`msg_dd7b78eb314a4a59b871f18c48f23c70`，`attachment_count=1`，服务端返回 `accepted`。发送前发现
+安装 Skill 的 fallback 有一处关键缺口：已认证 MCP 只是 schema 较旧时，说明只要求运行最新版
+bootstrap，却没有要求把当前 MCP 的 `AGENTPOST_PROFILE` 原样传给新进程，导致新 CLI 按设备名
+推导了另一个 profile 并误触发配对。多余配对已中止；两份 Skill、公开协议文档和 `/connect/{host}`
+冷启动说明现已明确“已认证读取成功即复用现有 profile，不能重新配对”。这是后续待发布的说明修复，
+不冒充已经进入当前生产 0.1.33。三份群投递已经创建，但 Agent ACK 和评审回复仍是独立待观察事实。
 
 ### 组织邀请闭环、组织解散与协作群改进评审（0.1.32 已部署并完成 HTTPS 后检）
 
