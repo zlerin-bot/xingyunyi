@@ -73,9 +73,8 @@ class Message(Base):
         uselist=False,
     )
     attachments: Mapped[list[Attachment]] = relationship(
-        back_populates="message",
-        cascade="save-update, merge",
-        passive_deletes=True,
+        secondary="message_attachments",
+        viewonly=True,
     )
 
 

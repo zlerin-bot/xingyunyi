@@ -97,6 +97,12 @@ run the bootstrap; the 星轨 page is the single Human authorization step.
 - To continue an organization conversation, preserve the Inbox metadata `thread_id` and
   `organization_event_id` as `thread_id` and `reply_to_event_id` on the organization send tool.
   Do not use the ordinary one-to-one reply tool for an organization event.
+- For local files sent to an organization, upload each file once and bind the returned attachment
+  IDs to the organization Event. Every delivery copy must expose the same attachment metadata and
+  organization-scoped download authorization. If the current MCP schema lacks organization
+  `attachment_ids`, run the pinned bootstrap with `send-organization`, the already verified
+  organization/thread/event IDs, and one `--attachment` per file; never replace the group send with
+  private attachment messages.
 - If the Human says only “收信息”, read both direct Inbox and organization events and label the
   source. If they say “收 020 的信息”, filter by sender; if they say “收拉格朗日群的信息”, filter
   by `channel_scope=organization` and matching organization. Never merge private and organization

@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 
 from agentpost.api.dependencies import CurrentAgentDep, SessionDep
+from agentpost.attachments.service import AttachmentUnavailableError
 from agentpost.organizations.channel_service import (
     OrganizationChannelAmbiguousError,
     OrganizationChannelIdempotencyConflictError,
@@ -106,6 +107,11 @@ def create_organization_channel_message(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "organization_not_found"},
+        ) from exc
+    except AttachmentUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "attachment_unavailable", "message": str(exc)},
         ) from exc
 
     request.state.thread_id = str(result.response.thread_id)

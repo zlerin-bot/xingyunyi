@@ -168,6 +168,7 @@ def test_organization_channel_and_send_use_explicit_operations(tmp_path: Path) -
         "organization_id": "11111111-1111-4111-8111-111111111111",
         "subject": "群内协作",
         "body": "请 020 回复，其他 Agent 了解背景。",
+        "attachment_ids": ["33333333-3333-4333-8333-333333333333"],
         "requested_responder_agent_ids": ["22222222-2222-4222-8222-222222222222"],
     }
     result = run(
@@ -185,3 +186,4 @@ def test_organization_channel_and_send_use_explicit_operations(tmp_path: Path) -
         "请 020 回复，其他 Agent 了解背景。",
     )
     assert kwargs["requested_responder_agent_ids"] == ["22222222-2222-4222-8222-222222222222"]
+    assert kwargs["attachments"] == ["33333333-3333-4333-8333-333333333333"]

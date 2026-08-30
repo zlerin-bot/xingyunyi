@@ -173,8 +173,13 @@ def _run_request(client: AgentPost, payload: dict[str, Any]) -> dict[str, Any]:
         }
     if operation == "organization_send":
         responder_ids = payload.get("requested_responder_agent_ids", [])
+        attachment_ids = payload.get("attachment_ids", [])
         if not isinstance(responder_ids, list) or any(
             not isinstance(value, str) or not value.strip() for value in responder_ids
+        ):
+            raise ManusLocalAdapterError("manus_request_invalid")
+        if not isinstance(attachment_ids, list) or any(
+            not isinstance(value, str) or not value.strip() for value in attachment_ids
         ):
             raise ManusLocalAdapterError("manus_request_invalid")
         message = client.send_organization_message(
@@ -186,6 +191,7 @@ def _run_request(client: AgentPost, payload: dict[str, Any]) -> dict[str, Any]:
             format=_text(payload, "format", required=False) or "text",
             task=payload.get("task"),
             result=payload.get("result"),
+            attachments=attachment_ids,
             priority=_text(payload, "priority", required=False) or "normal",
             requires_ack=bool(payload.get("requires_ack", True)),
             metadata=payload.get("metadata"),

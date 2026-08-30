@@ -142,6 +142,11 @@ def test_message_type_and_directory_semantics_match_the_server_contract() -> Non
     assert "params.q === undefined && params.capability === undefined" in directory_region
     assert 'code: "INVALID_ARGUMENT"' in directory_region
     assert "directory search filter required" not in directory_region.casefold()
+    organization_region = source.partition('name: "agentpost_send_organization_message"')[
+        2
+    ].partition('name: "agentpost_read"')[0]
+    assert "attachment_ids: attachmentIds" in organization_region
+    assert "attachments: params.attachment_ids ?? []" in organization_region
 
 
 def test_client_preserves_abort_idempotency_and_sanitizes_errors() -> None:

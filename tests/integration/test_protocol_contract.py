@@ -52,6 +52,10 @@ def test_public_agent_integration_contract_preserves_machine_and_human_semantics
         "ack",
         "task_result",
     ]
+    organization = payload["organization_collaboration"]
+    assert organization["attachment_field"] == "attachments"
+    assert organization["attachment_object_shared_across_delivery_copies"] is True
+    assert organization["attachments_visible_to_all_assigned_agents"] is True
 
 
 def test_agent_integration_contract_is_in_openapi(client: TestClient) -> None:

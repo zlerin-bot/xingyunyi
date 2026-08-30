@@ -13,7 +13,7 @@ from agentpost.accounts.usernames import (
     HumanUsernameAlreadyRegisteredError,
     available_human_username,
 )
-from agentpost.attachments.models import Attachment
+from agentpost.attachments.models import Attachment, message_attachments
 from agentpost.config import Settings
 from agentpost.control.api_keys import (
     digest_human_key,
@@ -1423,9 +1423,10 @@ def get_orbit_attachment(
 
     deliveries = session.execute(
         select(Message, Delivery.recipient_agent_id)
+        .join(message_attachments, message_attachments.c.message_id == Message.id)
         .join(Delivery, Delivery.message_id == Message.id)
         .where(
-            Message.id == attachment.message_id,
+            message_attachments.c.attachment_id == attachment.id,
             or_(
                 Message.sender_agent_id.in_(role_map),
                 Delivery.recipient_agent_id.in_(role_map),

@@ -142,6 +142,7 @@ class OrganizationChannelMessageCreate(OrganizationGovernanceModel):
     content: ContentCreate
     task: TaskPayload | None = None
     result: ResultPayload | None = None
+    attachments: list[UUID] = Field(default_factory=list, max_length=32)
     priority: Priority = Priority.normal
     requires_ack: bool = True
     metadata: dict[str, JsonValue] = Field(default_factory=dict, max_length=64)
@@ -159,6 +160,13 @@ class OrganizationChannelMessageCreate(OrganizationGovernanceModel):
     def responders_are_unique(cls, value: list[UUID]) -> list[UUID]:
         if len(value) != len(set(value)):
             raise ValueError("requested responder Agent IDs must be unique")
+        return value
+
+    @field_validator("attachments")
+    @classmethod
+    def attachments_are_unique(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("attachment IDs must be unique")
         return value
 
     @model_validator(mode="after")
@@ -185,6 +193,7 @@ class OrganizationChannelMessageResponse(OrganizationGovernanceModel):
     sender_agent_id: UUID
     recipient_agent_ids: list[UUID]
     requested_responder_agent_ids: list[UUID]
+    attachments: list[dict[str, JsonValue]] = Field(default_factory=list)
     reply_policy: Literal["addressed_agents_reply"] = "addressed_agents_reply"
     message_ids: list[str]
     created_at: datetime

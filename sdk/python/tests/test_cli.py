@@ -247,6 +247,20 @@ def _sent_message() -> SimpleNamespace:
     )
 
 
+def _sent_organization_event() -> SimpleNamespace:
+    return SimpleNamespace(
+        organization_id=UUID("50000000-0000-4000-8000-000000000001"),
+        event_id=UUID("50000000-0000-4000-8000-000000000002"),
+        thread_id=UUID("50000000-0000-4000-8000-000000000003"),
+        message_ids=["msg_group_one", "msg_group_two"],
+        recipient_agent_ids=[
+            UUID("50000000-0000-4000-8000-000000000004"),
+            UUID("50000000-0000-4000-8000-000000000005"),
+        ],
+        attachments=[SimpleNamespace(id=UUID("30000000-0000-0000-0000-000000000001"))],
+    )
+
+
 def test_send_can_resume_after_codex_setup_resolve_recipient_and_upload_attachment(
     monkeypatch,
     capsys,
@@ -342,6 +356,90 @@ def test_send_can_resume_after_codex_setup_resolve_recipient_and_upload_attachme
     assert result["host_configured"] is True
     assert result["restart_required"] is True
     assert "agt_" not in output
+
+
+def test_send_organization_can_resume_after_codex_setup_and_upload_one_shared_attachment(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    connector = DummyConnector()
+    prototype = tmp_path / "prototype.html"
+    prototype.write_text("<html>prototype</html>", encoding="utf-8")
+    calls: dict[str, object] = {}
+
+    def connect(args):
+        calls["connector_type"] = args.connector_type
+        connector.profile = f"{args.connector_type}:test-device"
+        return connector
+
+    def upload(path, **kwargs):
+        calls["upload"] = (path, kwargs)
+        return SimpleNamespace(id=UUID("30000000-0000-0000-0000-000000000001"))
+
+    def send_organization(*args, **kwargs):
+        calls["send_organization"] = (args, kwargs)
+        return _sent_organization_event()
+
+    connector.client.attachments = SimpleNamespace(upload=upload)
+    connector.client.send_organization_message = send_organization
+    monkeypatch.setattr(cli, "_connect", connect)
+    monkeypatch.setattr(cli, "_mcp_command", lambda: tmp_path / "agentpost-mcp")
+    monkeypatch.setattr(
+        cli,
+        "configure_codex_mcp",
+        lambda **_kwargs: CodexSetupResult(
+            server_name="agentpost",
+            approval_mode="writes",
+            config_path=tmp_path / "config.toml",
+        ),
+    )
+
+    exit_code = cli.main(
+        [
+            "--device-name",
+            "test-device",
+            "send-organization",
+            "--ensure-host",
+            "codex",
+            "--organization-id",
+            "50000000-0000-4000-8000-000000000001",
+            "--subject",
+            "原型复评",
+            "--body",
+            "请查看附件。",
+            "--requested-responder-agent-id",
+            "50000000-0000-4000-8000-000000000004",
+            "--thread-id",
+            "50000000-0000-4000-8000-000000000003",
+            "--reply-to-event-id",
+            "50000000-0000-4000-8000-000000000002",
+            "--attachment",
+            str(prototype),
+        ]
+    )
+
+    assert exit_code == 0
+    assert calls["connector_type"] == "codex"
+    assert calls["upload"] == (prototype, {"content_type": "text/html"})
+    send_args, send_kwargs = calls["send_organization"]
+    assert send_args == (
+        UUID("50000000-0000-4000-8000-000000000001"),
+        "原型复评",
+        "请查看附件。",
+    )
+    assert send_kwargs == {
+        "requested_responder_agent_ids": [UUID("50000000-0000-4000-8000-000000000004")],
+        "type": "message",
+        "attachments": ["30000000-0000-0000-0000-000000000001"],
+        "thread_id": UUID("50000000-0000-4000-8000-000000000003"),
+        "reply_to_event_id": UUID("50000000-0000-4000-8000-000000000002"),
+    }
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "accepted"
+    assert result["attachment_count"] == 1
+    assert result["message_ids"] == ["msg_group_one", "msg_group_two"]
+    assert result["host_configured"] is True
 
 
 def test_send_returns_one_structured_clarification_without_sending(

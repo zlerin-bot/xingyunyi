@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from agentpost.attachments.models import message_attachments
 from agentpost.config import Settings
 from agentpost.control.models import Organization, OrganizationAgent
 from agentpost.db import Database
@@ -471,6 +472,157 @@ def test_default_agents_make_a_new_organization_channel_immediately_usable(
         requested = orbit_thread.json()["messages"][0]["requested_responders"]
         assert requested[0]["owner_username"] == "020"
         assert requested[0]["handle"] == "pa020"
+
+
+def test_organization_event_shares_one_attachment_with_every_delivery_copy(
+    settings: Settings,
+    database: Database,
+) -> None:
+    with TestClient(create_app(settings=_runtime(settings), database=database)) as client:
+        owner = _register(client, "attachment-owner@example.com", username="attachment-owner")
+        owner_agent = _create_agent(client, "attachment-owner-agent@agents.local")
+        _set_agent_owner(
+            client,
+            human_id=str(owner["user"]["id"]),
+            agent_id=str(owner_agent["agent"]["id"]),
+        )
+        organization = _create_organization(client, str(owner["csrf_token"]))
+        organization_id = str(organization["organization"]["id"])
+
+        member_agents: list[dict[str, object]] = []
+        for index in (1, 2):
+            member = _register(
+                client,
+                f"attachment-member-{index}@example.com",
+                username=f"attachment-member-{index}",
+            )
+            member_agent = _create_agent(
+                client,
+                f"attachment-member-{index}-agent@agents.local",
+            )
+            _set_agent_owner(
+                client,
+                human_id=str(member["user"]["id"]),
+                agent_id=str(member_agent["agent"]["id"]),
+            )
+            membership = client.put(
+                f"/api/v1/admin/organizations/{organization_id}/members/{member['user']['id']}",
+                headers=_admin_headers(),
+                json={"role": "member"},
+            )
+            assert membership.status_code == 200, membership.text
+            member_agents.append(member_agent)
+
+        raw = b"<html><body>organization prototype</body></html>"
+        uploaded = client.post(
+            "/api/v1/attachments",
+            headers={"Authorization": f"Bearer {owner_agent['api_key']}"},
+            files={"file": ("prototype.html", raw, "text/html")},
+        )
+        assert uploaded.status_code == 201, uploaded.text
+        attachment = uploaded.json()
+
+        payload = {
+            "type": "request",
+            "subject": "评审组织附件",
+            "content": {"format": "text", "body": "请共同查看同一个原型文件。"},
+            "attachments": [attachment["id"]],
+            "requested_responder_agent_ids": [
+                member_agents[0]["agent"]["id"],
+                member_agents[1]["agent"]["id"],
+            ],
+        }
+        sent = client.post(
+            f"/api/v1/organizations/{organization_id}/channel/messages",
+            headers={
+                "Authorization": f"Bearer {owner_agent['api_key']}",
+                "Idempotency-Key": "organization-shared-attachment",
+            },
+            json=payload,
+        )
+        assert sent.status_code == 201, sent.text
+        assert sent.json()["attachments"] == [
+            {
+                "id": attachment["id"],
+                "filename": "prototype.html",
+                "content_type": "text/html",
+                "size": len(raw),
+                "sha256": attachment["sha256"],
+            }
+        ]
+        assert len(sent.json()["message_ids"]) == 2
+
+        for member_agent in member_agents:
+            inbox = client.get(
+                "/api/v1/inbox",
+                headers={"Authorization": f"Bearer {member_agent['api_key']}"},
+            )
+            assert inbox.status_code == 200, inbox.text
+            event = next(
+                item
+                for item in inbox.json()["items"]
+                if item["thread_id"] == sent.json()["thread_id"]
+            )
+            assert event["attachments"] == sent.json()["attachments"]
+            downloaded = client.get(
+                f"/api/v1/attachments/{attachment['id']}",
+                headers={"Authorization": f"Bearer {member_agent['api_key']}"},
+            )
+            assert downloaded.status_code == 200, downloaded.text
+            assert downloaded.content == raw
+
+        owner_download = client.get(
+            f"/api/v1/attachments/{attachment['id']}",
+            headers={"Authorization": f"Bearer {owner_agent['api_key']}"},
+        )
+        assert owner_download.status_code == 200, owner_download.text
+        unrelated = _create_agent(client, "attachment-outsider@agents.local")
+        hidden = client.get(
+            f"/api/v1/attachments/{attachment['id']}",
+            headers={"Authorization": f"Bearer {unrelated['api_key']}"},
+        )
+        assert hidden.status_code == 404
+
+        replay = client.post(
+            f"/api/v1/organizations/{organization_id}/channel/messages",
+            headers={
+                "Authorization": f"Bearer {owner_agent['api_key']}",
+                "Idempotency-Key": "organization-shared-attachment",
+            },
+            json=payload,
+        )
+        assert replay.status_code == 200, replay.text
+        assert replay.json()["event_id"] == sent.json()["event_id"]
+        assert replay.json()["attachments"] == sent.json()["attachments"]
+
+        reused = client.post(
+            f"/api/v1/organizations/{organization_id}/channel/messages",
+            headers={
+                "Authorization": f"Bearer {owner_agent['api_key']}",
+                "Idempotency-Key": "organization-shared-attachment-reuse",
+            },
+            json=payload,
+        )
+        assert reused.status_code == 409
+
+        with database.session_factory() as session:
+            links = session.execute(
+                select(
+                    message_attachments.c.message_id,
+                    message_attachments.c.attachment_id,
+                ).where(message_attachments.c.attachment_id == UUID(attachment["id"]))
+            ).all()
+            assert len(links) == 2
+
+        owner_login = _login(client, "attachment-owner@example.com")
+        thread = client.get(f"/api/v1/orbit/threads/{sent.json()['thread_id']}")
+        assert thread.status_code == 200, thread.text
+        organization_events = [
+            item for item in thread.json()["messages"] if item["channel_scope"] == "organization"
+        ]
+        assert len(organization_events) == 1
+        assert organization_events[0]["attachments"][0]["id"] == attachment["id"]
+        assert owner_login["user"]["id"] == owner["user"]["id"]
 
 
 def test_orbit_groups_default_participant_message_by_message_organization(

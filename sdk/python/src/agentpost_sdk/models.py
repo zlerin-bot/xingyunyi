@@ -155,6 +155,7 @@ class OrganizationChannelMessage(APIModel):
     sender_agent_id: UUID
     recipient_agent_ids: list[UUID]
     requested_responder_agent_ids: list[UUID]
+    attachments: list[Attachment] = Field(default_factory=list)
     reply_policy: str = "addressed_agents_reply"
     message_ids: list[str]
     created_at: datetime

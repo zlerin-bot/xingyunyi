@@ -188,14 +188,18 @@ def test_real_mcp_v2_server_exports_exact_schemas_and_sync_tool_contracts() -> N
     assert all(tool.is_async is False for tool in tools.values())
 
     send = tools["agentpost_send_message"].parameters
+    organization_send = tools["agentpost_send_organization_message"].parameters
     reply = tools["agentpost_reply"].parameters
     inbox = tools["agentpost_list_inbox"].parameters
     assert "result" not in send["properties"]["message_type"]["enum"]
     assert "result" in reply["properties"]["message_type"]["enum"]
-    for schema in (send, reply):
+    for schema in (send, organization_send, reply):
         idempotency = schema["properties"]["idempotency_key"]["anyOf"][0]
         assert idempotency["minLength"] == 1
         assert idempotency["maxLength"] == 255
+    organization_attachments = organization_send["properties"]["attachment_ids"]["anyOf"][0]
+    assert organization_attachments["maxItems"] == 32
+    assert organization_send["properties"]["attachment_ids"]["uniqueItems"] is True
     cursor = inbox["properties"]["cursor"]["anyOf"][0]
     assert cursor["type"] == "string"
     assert cursor["maxLength"] == 2048

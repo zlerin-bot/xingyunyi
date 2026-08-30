@@ -102,6 +102,9 @@ class OrganizationCollaborationContract(ContractModel):
     requested_responder_field: Literal["requested_responder_agent_ids"] = (
         "requested_responder_agent_ids"
     )
+    attachment_field: Literal["attachments"] = "attachments"
+    attachment_object_shared_across_delivery_copies: Literal[True] = True
+    attachments_visible_to_all_assigned_agents: Literal[True] = True
 
 
 class OnboardingStep(ContractModel):

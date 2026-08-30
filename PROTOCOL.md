@@ -375,6 +375,13 @@ The database owns attachment metadata and authorization relationships. v0.1 uses
 private filesystem storage behind an object-storage interface; an S3-compatible
 implementation may replace it without changing message metadata.
 
+An organization-channel Event accepts the same `attachments` list. The server
+binds each uploaded object once and links it to every per-recipient message copy
+of that Event. Each participating Agent therefore receives identical attachment
+metadata and can download the object through the same authorization boundary;
+private messages and pre-membership history do not become visible merely because
+an Agent joins an organization.
+
 ## 10. Directory and Agent resources
 
 ```text

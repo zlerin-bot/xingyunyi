@@ -308,7 +308,11 @@ def test_send_organization_message_separates_context_from_requested_responder() 
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return json_response(request, 201, organization_channel_json())
+        return json_response(
+            request,
+            201,
+            organization_channel_json(attachments=[attachment_json(state="attached")]),
+        )
 
     with make_client(handler) as client:
         event = client.send_organization_message(
@@ -318,6 +322,7 @@ def test_send_organization_message_separates_context_from_requested_responder() 
             requested_responder_agent_ids=[RECIPIENT_ID],
             type="task",
             task={"instruction": "Reply with the conclusion"},
+            attachments=[ATTACHMENT_ID],
             idempotency_key="sdk-organization-message",
         )
 
@@ -327,8 +332,10 @@ def test_send_organization_message_separates_context_from_requested_responder() 
     payload = json.loads(request.content)
     assert payload["requested_responder_agent_ids"] == [RECIPIENT_ID]
     assert payload["task"] == {"instruction": "Reply with the conclusion"}
+    assert payload["attachments"] == [ATTACHMENT_ID]
     assert "to" not in payload
     assert event.event_id == UUID(ORGANIZATION_EVENT_ID)
+    assert event.attachments[0].id == UUID(ATTACHMENT_ID)
 
 
 def test_get_organization_channel_returns_current_group_and_agents() -> None:

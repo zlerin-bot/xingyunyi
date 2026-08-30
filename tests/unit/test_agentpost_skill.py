@@ -72,7 +72,7 @@ def test_plugin_packages_the_same_implicit_skill_without_machine_specific_mcp_co
 
     assert manifest["name"] == "agentpost"
     plugin_version, separator, cachebuster = manifest["version"].partition("+")
-    assert plugin_version == "0.1.32"
+    assert plugin_version == "0.1.33"
     assert separator == "+"
     assert cachebuster.startswith("codex.")
     assert manifest["skills"] == "./skills/"
@@ -326,6 +326,46 @@ def test_bootstrap_installs_hash_pinned_release_once_and_resumes_original_send(
     assert exit_code == 0
     assert calls[-1] == (str(runtime / "bin" / "agentpost-connect"), *operation)
     assert sum("pip" in call for call in calls) == 1
+
+
+def test_bootstrap_allows_pinned_organization_send_with_local_attachment(
+    tmp_path: Path,
+) -> None:
+    bootstrap = _load_bootstrap()
+    runtime = tmp_path / "runtime"
+    connector = runtime / "bin" / "agentpost-connect"
+    connector.parent.mkdir(parents=True)
+    connector.touch()
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command, **_kwargs):
+        normalized = tuple(str(item) for item in command)
+        calls.append(normalized)
+        if "-I" in normalized:
+            return SimpleNamespace(returncode=0, stdout="0.1.1\n")
+        return SimpleNamespace(returncode=0, stdout="")
+
+    operation = [
+        "send-organization",
+        "--ensure-host",
+        "codex",
+        "--organization-id",
+        "11111111-1111-4111-8111-111111111111",
+        "--body",
+        "请查看附件。",
+        "--attachment",
+        str(tmp_path / "prototype.html"),
+    ]
+    assert (
+        bootstrap.execute(
+            operation,
+            fetcher=lambda **_kwargs: _release(bootstrap),
+            runtime=runtime,
+            runner=runner,
+        )
+        == 0
+    )
+    assert calls[-1] == (str(connector), *operation)
 
 
 def test_bootstrap_reports_install_timeout_without_traceback(tmp_path: Path) -> None:

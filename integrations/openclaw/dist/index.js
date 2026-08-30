@@ -262,6 +262,7 @@ export default defineToolPlugin({
                     format: Type.Optional(Type.Union(formats.map((value)=>Type.Literal(value)))),
                     task: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
                     result: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+                    attachment_ids: attachmentIds,
                     priority: Type.Optional(Type.Union(priorities.map((value)=>Type.Literal(value)))),
                     requires_ack: Type.Optional(Type.Boolean()),
                     metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
@@ -296,6 +297,7 @@ export default defineToolPlugin({
                                 ...params.result === undefined ? {} : {
                                     result: params.result
                                 },
+                                attachments: params.attachment_ids ?? [],
                                 priority: params.priority ?? "normal",
                                 requires_ack: params.requires_ack ?? true,
                                 metadata: params.metadata ?? {},

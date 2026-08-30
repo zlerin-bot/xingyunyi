@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 from threading import Event
 from typing import Any
+from uuid import UUID
 
 from agentpost_sdk import __version__
 from agentpost_sdk.client import AgentPost
@@ -157,6 +158,35 @@ def _parser() -> argparse.ArgumentParser:
         help="local file to upload and attach; repeat for multiple files",
     )
     send.add_argument(
+        "--ensure-host",
+        choices=("codex", "workbuddy", "openclaw", "hermes"),
+        help=argparse.SUPPRESS,
+    )
+
+    organization_send = commands.add_parser(
+        "send-organization",
+        help="send one shared organization event using the paired Agent identity",
+    )
+    organization_send.add_argument("--organization-id", required=True, type=UUID)
+    organization_send.add_argument("--subject", default="")
+    organization_send.add_argument("--body", required=True)
+    organization_send.add_argument("--type", choices=REPLY_TYPES, default="message")
+    organization_send.add_argument(
+        "--requested-responder-agent-id",
+        action="append",
+        default=[],
+        type=UUID,
+    )
+    organization_send.add_argument("--thread-id", type=UUID)
+    organization_send.add_argument("--reply-to-event-id", type=UUID)
+    organization_send.add_argument(
+        "--attachment",
+        action="append",
+        default=[],
+        type=Path,
+        help="local file to upload and attach; repeat for multiple files",
+    )
+    organization_send.add_argument(
         "--ensure-host",
         choices=("codex", "workbuddy", "openclaw", "hermes"),
         help=argparse.SUPPRESS,
@@ -456,10 +486,11 @@ def _run(args: argparse.Namespace) -> int:
                 "Select a dedicated Manus local folder",
                 code="manus_local_folder_not_selected",
             )
-    elif args.command == "send" and args.ensure_host:
+    elif args.command in {"send", "send-organization"} and args.ensure_host:
         args.connector_type = args.ensure_host
     if args.connector_type in {"openclaw", "hermes"} and (
-        args.command == "setup" or (args.command == "send" and args.ensure_host)
+        args.command == "setup"
+        or (args.command in {"send", "send-organization"} and args.ensure_host)
     ):
         # Fail before pairing and browser authorization when the host itself cannot load MCP.
         if args.connector_type == "openclaw":
@@ -569,6 +600,44 @@ def _run(args: argparse.Namespace) -> int:
                 "delivery_status": metadata["status"],
                 "to": recipient_address,
                 "attachment_count": len(attachment_ids),
+            }
+            if configured is not None:
+                result.update(
+                    {
+                        "host": args.ensure_host,
+                        "host_configured": True,
+                        "restart_required": configured.restart_required,
+                    }
+                )
+            _json(result)
+        elif args.command == "send-organization":
+            configured = None
+            if args.ensure_host:
+                configured = _configure_host(connector, args.ensure_host)
+                connector.heartbeat()
+            if (args.thread_id is None) != (args.reply_to_event_id is None):
+                raise ConfigurationError(
+                    "thread-id and reply-to-event-id must be supplied together"
+                )
+            attachment_ids = _upload_attachments(client, args.attachment)
+            sent = client.send_organization_message(
+                args.organization_id,
+                args.subject,
+                args.body,
+                requested_responder_agent_ids=args.requested_responder_agent_id,
+                type=args.type,
+                attachments=attachment_ids,
+                thread_id=args.thread_id,
+                reply_to_event_id=args.reply_to_event_id,
+            )
+            result = {
+                "status": "accepted",
+                "organization_id": str(sent.organization_id),
+                "event_id": str(sent.event_id),
+                "thread_id": str(sent.thread_id),
+                "message_ids": sent.message_ids,
+                "recipient_agent_ids": [str(value) for value in sent.recipient_agent_ids],
+                "attachment_count": len(sent.attachments),
             }
             if configured is not None:
                 result.update(

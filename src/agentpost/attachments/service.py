@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import or_, select, update
+from sqlalchemy import insert, or_, select, update
 from sqlalchemy.orm import Session
 
-from agentpost.attachments.models import Attachment
+from agentpost.attachments.models import Attachment, message_attachments
 from agentpost.attachments.schemas import AttachmentResponse
 from agentpost.identity.models import Agent
 from agentpost.messaging.models import Delivery, Message
@@ -41,9 +41,10 @@ def visible_attachment(session: Session, *, agent_id: UUID, attachment_id: UUID)
         return attachment
     allowed = session.scalar(
         select(Message.id)
+        .join(message_attachments, message_attachments.c.message_id == Message.id)
         .join(Delivery, Delivery.message_id == Message.id)
         .where(
-            Message.id == attachment.message_id,
+            message_attachments.c.attachment_id == attachment.id,
             or_(Message.sender_agent_id == agent_id, Delivery.recipient_agent_id == agent_id),
         )
     )
@@ -58,11 +59,15 @@ def bind_attachments(
     sender: Agent,
     attachment_ids: list[UUID],
     message_id: str,
+    visible_message_ids: list[str] | None = None,
 ) -> None:
     if not attachment_ids:
         return
     if len(set(attachment_ids)) != len(attachment_ids):
         raise AttachmentUnavailableError("attachment IDs must not be repeated")
+    linked_message_ids = visible_message_ids or [message_id]
+    if not linked_message_ids or len(set(linked_message_ids)) != len(linked_message_ids):
+        raise AttachmentUnavailableError("visible message IDs must be unique")
     for attachment_id in attachment_ids:
         result = session.execute(
             update(Attachment)
@@ -76,6 +81,14 @@ def bind_attachments(
         )
         if result.rowcount != 1:
             raise AttachmentUnavailableError("attachment is not available for this sender")
+    session.execute(
+        insert(message_attachments),
+        [
+            {"message_id": visible_message_id, "attachment_id": attachment_id}
+            for visible_message_id in linked_message_ids
+            for attachment_id in attachment_ids
+        ],
+    )
 
 
 def attachment_metadata(attachment: Attachment) -> dict[str, str | int]:

@@ -7,8 +7,9 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
+from agentpost.attachments.service import attachment_metadata, bind_attachments
 from agentpost.control.models import Organization, OrganizationAgent
 from agentpost.identity.models import Agent, utc_now
 from agentpost.messaging.models import AuditLog, Delivery, IdempotencyRecord, Message
@@ -166,7 +167,7 @@ def _event_messages(session: Session, *, thread_id: UUID, event_id: UUID) -> lis
     messages = list(
         session.scalars(
             select(Message)
-            .options(joinedload(Message.delivery))
+            .options(joinedload(Message.delivery), selectinload(Message.attachments))
             .where(Message.thread_id == thread_id)
             .order_by(Message.created_at, Message.id)
         ).unique()
@@ -201,6 +202,7 @@ def _response(
         requested_responder_agent_ids=[
             UUID(str(agent_id)) for agent_id in metadata.get("requested_responder_agent_ids", [])
         ],
+        attachments=[attachment_metadata(item) for item in first.attachments],
         message_ids=[message.id for message in messages],
         created_at=first.created_at,
         replayed=replayed,
@@ -326,6 +328,13 @@ def send_organization_channel_message(
     session.add_all([*messages, *deliveries])
     try:
         session.flush()
+        bind_attachments(
+            session,
+            sender=sender,
+            attachment_ids=payload.attachments,
+            message_id=messages[0].id,
+            visible_message_ids=[message.id for message in messages],
+        )
         session.add_all(
             [
                 IdempotencyRecord(
@@ -347,6 +356,7 @@ def send_organization_channel_message(
                         "organization_id": str(organization.id),
                         "recipient_count": len(recipients),
                         "requested_responder_count": len(requested_ids),
+                        "attachment_count": len(payload.attachments),
                     },
                     created_at=now,
                 ),

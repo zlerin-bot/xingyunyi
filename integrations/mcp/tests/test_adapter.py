@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from types import SimpleNamespace
+from uuid import UUID
 
 import pytest
 from agentpost_mcp.config import Settings
@@ -132,6 +133,7 @@ async def test_v2_tool_contract_and_calls(adapter: tuple[object, list[tuple[str,
                 "organization_id": "22222222-2222-2222-2222-222222222222",
                 "subject": "group update",
                 "body": "shared context",
+                "attachment_ids": ["44444444-4444-4444-8444-444444444444"],
                 "requested_responder_agent_ids": ["33333333-3333-3333-3333-333333333333"],
             },
         )
@@ -148,6 +150,8 @@ async def test_v2_tool_contract_and_calls(adapter: tuple[object, list[tuple[str,
     assert [call[0] for call in calls].count("close") == 9
     assert ("resolve", "send this to Bob's Codex") in calls
     assert ("get", "msg_1") in calls
+    organization_call = next(value for name, value in calls if name == "send_organization")
+    assert organization_call[1]["attachments"] == [UUID("44444444-4444-4444-8444-444444444444")]
 
 
 def test_api_key_is_excluded_from_settings_repr() -> None:

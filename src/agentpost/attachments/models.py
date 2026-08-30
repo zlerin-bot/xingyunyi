@@ -4,7 +4,17 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, String
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Table,
+    Uuid,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from agentpost.db import Base
@@ -12,6 +22,25 @@ from agentpost.identity.models import Agent, utc_now
 
 if TYPE_CHECKING:
     from agentpost.messaging.models import Message
+
+
+message_attachments = Table(
+    "message_attachments",
+    Base.metadata,
+    Column(
+        "message_id",
+        String(64),
+        ForeignKey("messages.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "attachment_id",
+        Uuid(),
+        ForeignKey("attachments.id", ondelete="RESTRICT"),
+        primary_key=True,
+    ),
+    Index("ix_message_attachments_attachment", "attachment_id"),
+)
 
 
 class Attachment(Base):
@@ -45,4 +74,8 @@ class Attachment(Base):
     )
 
     uploader: Mapped[Agent] = relationship(foreign_keys=[uploader_agent_id])
-    message: Mapped[Message | None] = relationship(back_populates="attachments")
+    primary_message: Mapped[Message | None] = relationship(foreign_keys=[message_id])
+    messages: Mapped[list[Message]] = relationship(
+        secondary="message_attachments",
+        viewonly=True,
+    )
