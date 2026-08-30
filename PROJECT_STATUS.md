@@ -2,7 +2,29 @@
 
 Last updated: 2026-08-30
 
-Current handoff stage: `v0.1.33-organization-event-attachments-deployed-https-verified`; pinned production release: `0.1.33`
+Current handoff stage: `v0.1.33-human-collaboration-contract-prototype-local`; pinned production release: `0.1.33`
+
+## Human collaboration view contract and interactive group prototype (local, 2026-08-30)
+
+`docs/星云驿Human协作视图信息合同_20260830.md` is frozen as
+`v1.0 / FROZEN_FOR_PROTOTYPE`. It preserves one immutable collaboration fact base while separating
+three presentation layers: Human management conclusions by default, meaningful collaboration
+process on demand, and complete technical/audit facts behind a deliberate disclosure. Delivery,
+Agent read, ACK, structured result, and Human decision remain independent facts; viewing or folding
+content cannot mutate them.
+
+`docs/星云驿Human协作视图群交互原型_20260830.html` is the corresponding self-contained interactive
+prototype. It switches between the sanitized Small Kong and Lagrange examples and supports group
+overview, topic detail, Human summaries, collaboration readiness, attachment-consumption state, and
+technical audit disclosure. Desktop keeps three columns; mobile uses group list → overview → topic →
+back rather than compressing the desktop layout.
+
+Evidence: inline JavaScript syntax passed. The page contains no external URL, iframe, form, network
+request, dynamic code execution, cookie, or browser-storage dependency. Browser acceptance covered
+1280px desktop and 390×844 mobile group/topic flows, drawers, attachment boundaries, and return
+navigation with no horizontal overflow. Escape closes a drawer and restores focus to its trigger.
+This slice changes no production code or API; production remains `765ec5a / 0.1.33`. The `2c8e5a3`
+connected-profile reuse correction is still pending a later release and is not claimed in 0.1.33.
 
 ## Organization Event attachments and Lagrange prototype review (0.1.33 deployed HTTPS verified, 2026-08-30)
 
