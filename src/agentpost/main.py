@@ -23,6 +23,7 @@ from agentpost.api.routes.onboarding import router as onboarding_router
 from agentpost.api.routes.orbit import router as orbit_router
 from agentpost.api.routes.organization_channels import router as organization_channels_router
 from agentpost.api.routes.organization_governance import router as organization_governance_router
+from agentpost.api.routes.projects import router as projects_router
 from agentpost.api.routes.protocol import router as protocol_router
 from agentpost.api.routes.system import router as system_router
 from agentpost.config import Settings, get_settings
@@ -61,6 +62,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(enterprise_oidc_router)
     app.include_router(organization_governance_router)
     app.include_router(organization_channels_router)
+    app.include_router(projects_router)
     app.include_router(approvals_router)
     app.include_router(onboarding_router)
     app.include_router(agents_router)

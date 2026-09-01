@@ -106,6 +106,8 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     script = client.get("/orbit/app.js")
     stylesheet = client.get("/orbit/styles.css")
     logo = client.get("/orbit/xingyun-relay-logo.png")
+    project_icon = client.get("/orbit/project-icon.svg")
+    friends_icon = client.get("/orbit/friends-icon.svg")
     auth_config = client.get("/api/v1/auth/config")
 
     assert home.status_code == orbit.status_code == 200
@@ -119,6 +121,8 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert "设置管账户" not in header
     assert 'data-module="orbit"' in orbit.text
     assert 'data-module="relay"' in orbit.text
+    assert 'data-module="projects"' in orbit.text
+    assert 'data-module="friends"' in orbit.text
     assert 'data-module="settings"' in orbit.text
     assert "我的对话" in orbit.text
     assert "Agent 总览" in orbit.text
@@ -134,6 +138,11 @@ def test_orbit_site_is_branded_and_does_not_persist_credentials(
     assert logo.headers["Cache-Control"] == "no-store"
     assert logo.headers["X-Content-Type-Options"] == "nosniff"
     assert logo.content.startswith(b"\x89PNG\r\n\x1a\n")
+    assert project_icon.status_code == friends_icon.status_code == 200
+    assert project_icon.headers["Content-Type"] == "image/svg+xml"
+    assert friends_icon.headers["Content-Type"] == "image/svg+xml"
+    assert project_icon.headers["Cache-Control"] == "no-store"
+    assert friends_icon.headers["X-Content-Type-Options"] == "nosniff"
     assert auth_config.status_code == 200
     assert auth_config.json()["managed_agent_domain"] == "agents.local"
     assert auth_config.json()["codex_setup_platforms"] == []

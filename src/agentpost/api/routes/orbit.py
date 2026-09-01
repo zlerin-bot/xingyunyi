@@ -160,6 +160,16 @@ def orbit_logo() -> FileResponse:
     return _orbit_asset("xingyun-relay-logo.png", "image/png")
 
 
+@router.get("/orbit/project-icon.svg", include_in_schema=False)
+def orbit_project_icon() -> FileResponse:
+    return _orbit_asset("project-icon.svg", "image/svg+xml")
+
+
+@router.get("/orbit/friends-icon.svg", include_in_schema=False)
+def orbit_friends_icon() -> FileResponse:
+    return _orbit_asset("friends-icon.svg", "image/svg+xml")
+
+
 @router.get("/api/v1/orbit/me", response_model=HumanProfile)
 def orbit_me(current_human: CurrentHumanDep) -> HumanProfile:
     return human_profile(current_human)

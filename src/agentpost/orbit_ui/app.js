@@ -46,11 +46,25 @@ const state = {
   agentTab: "summary",
   agentQuery: "",
   agentRelatedThreads: [],
+  projects: [],
+  selectedProject: null,
+  selectedProjectId: "",
+  projectInvitationCandidates: [],
+  projectsLoaded: false,
+  projectQuery: "",
+  projectFilter: "active",
+  friends: [],
+  friendsLoaded: false,
+  selectedFriendId: "",
+  friendQuery: "",
+  friendFilter: "all",
   activeModule: "orbit",
   activeSection: "communications",
   lastSectionByModule: {
     orbit: "communications",
     relay: "agents",
+    projects: "board",
+    friends: "directory",
     settings: "profile",
   },
 };
@@ -133,6 +147,66 @@ const elements = {
   agentSearchInput: document.querySelector("#agent-search-input"),
   agentBrowserNew: document.querySelector("#agent-browser-new"),
   agentBrowserList: document.querySelector("#agent-browser-list"),
+  projectBrowser: document.querySelector("#project-browser"),
+  projectBrowserCount: document.querySelector("#project-browser-count"),
+  projectSearchInput: document.querySelector("#project-search-input"),
+  projectFilters: Array.from(document.querySelectorAll("[data-project-filter]")),
+  projectBrowserNew: document.querySelector("#project-browser-new"),
+  projectBrowserList: document.querySelector("#project-browser-list"),
+  projectMobileBack: document.querySelector("#project-mobile-back"),
+  projectEmpty: document.querySelector("#project-empty"),
+  projectEmptyNew: document.querySelector("#project-empty-new"),
+  projectDetail: document.querySelector("#project-detail"),
+  projectDetailType: document.querySelector("#project-detail-type"),
+  projectDetailTitle: document.querySelector("#project-detail-title"),
+  projectDetailDescription: document.querySelector("#project-detail-description"),
+  projectDetailStatus: document.querySelector("#project-detail-status"),
+  projectInvitationActions: document.querySelector("#project-invitation-actions"),
+  projectAccept: document.querySelector("#project-accept"),
+  projectDecline: document.querySelector("#project-decline"),
+  projectOwner: document.querySelector("#project-owner"),
+  projectMemberCount: document.querySelector("#project-member-count"),
+  projectDue: document.querySelector("#project-due"),
+  projectActionResult: document.querySelector("#project-action-result"),
+  projectMemberList: document.querySelector("#project-member-list"),
+  projectInvite: document.querySelector("#project-invite"),
+  projectMemberInvite: document.querySelector("#project-member-invite"),
+  projectArchive: document.querySelector("#project-archive"),
+  projectActivityList: document.querySelector("#project-activity-list"),
+  friendBrowser: document.querySelector("#friend-browser"),
+  friendBrowserCount: document.querySelector("#friend-browser-count"),
+  friendSearchInput: document.querySelector("#friend-search-input"),
+  friendFilters: Array.from(document.querySelectorAll("[data-friend-filter]")),
+  friendBrowserList: document.querySelector("#friend-browser-list"),
+  friendMobileBack: document.querySelector("#friend-mobile-back"),
+  friendEmpty: document.querySelector("#friend-empty"),
+  friendDetail: document.querySelector("#friend-detail"),
+  friendDetailAvatar: document.querySelector("#friend-detail-avatar"),
+  friendDetailRelation: document.querySelector("#friend-detail-relation"),
+  friendDetailName: document.querySelector("#friend-detail-name"),
+  friendDetailRole: document.querySelector("#friend-detail-role"),
+  friendDetailOnline: document.querySelector("#friend-detail-online"),
+  friendStartProject: document.querySelector("#friend-start-project"),
+  friendCapabilities: document.querySelector("#friend-capabilities"),
+  friendDetailNote: document.querySelector("#friend-detail-note"),
+  friendAgentCount: document.querySelector("#friend-agent-count"),
+  friendAgentList: document.querySelector("#friend-agent-list"),
+  friendProjectCount: document.querySelector("#friend-project-count"),
+  friendProjectList: document.querySelector("#friend-project-list"),
+  projectCreateDialog: document.querySelector("#project-create-dialog"),
+  projectCreateForm: document.querySelector("#project-create-form"),
+  projectCreateClose: document.querySelector("#project-create-close"),
+  projectCreateCancel: document.querySelector("#project-create-cancel"),
+  projectCreateName: document.querySelector("#project-create-name"),
+  projectCreateGoal: document.querySelector("#project-create-goal"),
+  projectCreateResult: document.querySelector("#project-create-result"),
+  projectInviteDialog: document.querySelector("#project-invite-dialog"),
+  projectInviteForm: document.querySelector("#project-invite-form"),
+  projectInviteClose: document.querySelector("#project-invite-close"),
+  projectInviteCancel: document.querySelector("#project-invite-cancel"),
+  projectInviteSummary: document.querySelector("#project-invite-summary"),
+  projectInviteOptions: document.querySelector("#project-invite-options"),
+  projectInviteResult: document.querySelector("#project-invite-result"),
   agentMobileBack: document.querySelector("#agent-mobile-back"),
   agentOverview: document.querySelector("#agent-overview"),
   agentOverviewNew: document.querySelector("#agent-overview-new"),
@@ -383,6 +457,20 @@ const MODULE_DEFINITIONS = Object.freeze({
     defaultSection: "agents",
     sections: Object.freeze(["agents", "connections"]),
   }),
+  projects: Object.freeze({
+    label: "项目",
+    title: "项目工作台",
+    description: "把一对一和多人协作都作为项目管理，统一查看成员与协作动态。",
+    defaultSection: "board",
+    sections: Object.freeze(["board"]),
+  }),
+  friends: Object.freeze({
+    label: "好友",
+    title: "我的好友",
+    description: "维护自己的协作好友清单，随时选择伙伴并发起项目。",
+    defaultSection: "directory",
+    sections: Object.freeze(["directory"]),
+  }),
   settings: Object.freeze({
     label: "设置",
     title: "账户与平台",
@@ -400,6 +488,651 @@ const MODULE_DEFINITIONS = Object.freeze({
     ]),
   }),
 });
+
+function projectById(projectId) {
+  return state.projects.find((project) => project.project_id === projectId) || null;
+}
+
+function friendById(friendId) {
+  return state.friends.find((friend) => friend.human_user_id === friendId) || null;
+}
+
+function projectStatusLabel(project) {
+  return project.status === "archived" ? "已归档" : "进行中";
+}
+
+function projectKind(project) {
+  const total = project.active_member_count + project.invited_member_count;
+  if (total <= 1) {
+    return "个人项目";
+  }
+  return total === 2 ? "一对一项目" : "多人项目";
+}
+
+function dateOnlyText(value) {
+  if (!value) {
+    return "待确定";
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return safeText(value);
+  }
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(parsed);
+}
+
+function filteredProjects() {
+  const query = state.projectQuery.trim().toLowerCase();
+  return state.projects.filter((project) => {
+    const matchesFilter = state.projectFilter === "all"
+      || (state.projectFilter === "active" && project.status === "active")
+      || (state.projectFilter === "archived" && project.status === "archived");
+    const searchable = [
+      project.title,
+      project.description || "",
+      project.owner_display_name,
+      projectStatusLabel(project),
+    ].join(" ").toLowerCase();
+    return matchesFilter && (!query || searchable.includes(query));
+  });
+}
+
+function filteredFriends() {
+  const query = state.friendQuery.trim().toLowerCase();
+  return state.friends.filter((friend) => {
+    const searchable = [
+      friend.display_name,
+      friend.username,
+      ...friend.capabilities,
+      ...friend.agents.flatMap((agent) => [agent.display_name, agent.address]),
+    ].join(" ").toLowerCase();
+    return !query || searchable.includes(query);
+  });
+}
+
+function createCollaborationListButton({ title, meta, badge, active, avatar, onClick }) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "prototype-list-item";
+  button.classList.toggle("active", active);
+  if (active) {
+    button.setAttribute("aria-current", "true");
+  }
+  const avatarNode = document.createElement("span");
+  avatarNode.className = "prototype-list-avatar";
+  avatarNode.textContent = avatar;
+  avatarNode.setAttribute("aria-hidden", "true");
+  const copy = document.createElement("span");
+  copy.className = "prototype-list-copy";
+  const titleNode = document.createElement("strong");
+  titleNode.textContent = title;
+  const metaNode = document.createElement("small");
+  metaNode.textContent = meta;
+  copy.append(titleNode, metaNode);
+  const badgeNode = document.createElement("span");
+  badgeNode.className = "prototype-list-badge";
+  badgeNode.textContent = badge;
+  button.append(avatarNode, copy, badgeNode);
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+async function loadProjects({ preserveSelection = true } = {}) {
+  if (!state.dashboard) {
+    return;
+  }
+  try {
+    const payload = await requestJson("/api/v1/orbit/projects");
+    state.projects = Array.isArray(payload?.items) ? payload.items : [];
+    state.projectsLoaded = true;
+    if (!preserveSelection || !projectById(state.selectedProjectId)) {
+      state.selectedProjectId = state.projects[0]?.project_id || "";
+    }
+    renderProjectBrowser();
+    if (state.selectedProjectId) {
+      await loadProjectDetail(state.selectedProjectId);
+    } else {
+      state.selectedProject = null;
+      renderProjectDetail();
+    }
+    renderFriendDetail();
+  } catch (error) {
+    state.projectsLoaded = true;
+    state.projects = [];
+    state.selectedProject = null;
+    elements.projectActionResult.textContent = error.message;
+    renderProjectBrowser();
+  }
+}
+
+async function loadProjectDetail(projectId) {
+  if (!projectId) {
+    state.selectedProject = null;
+    renderProjectDetail();
+    return;
+  }
+  try {
+    const project = await requestJson("/api/v1/orbit/projects/" + encodeURIComponent(projectId));
+    if (state.selectedProjectId !== projectId) {
+      return;
+    }
+    state.selectedProject = project;
+    renderProjectDetail();
+  } catch (error) {
+    if (error.status === 404) {
+      await loadProjects({ preserveSelection: false });
+      return;
+    }
+    elements.projectActionResult.textContent = error.message;
+  }
+}
+
+async function loadFriends() {
+  if (!state.dashboard) {
+    return;
+  }
+  try {
+    const payload = await requestJson("/api/v1/orbit/friends");
+    state.friends = Array.isArray(payload?.items) ? payload.items : [];
+    state.friendsLoaded = true;
+    if (!friendById(state.selectedFriendId)) {
+      state.selectedFriendId = state.friends[0]?.human_user_id || "";
+    }
+    renderFriendBrowser();
+  } catch (error) {
+    state.friendsLoaded = true;
+    state.friends = [];
+    renderFriendBrowser();
+    elements.friendDetailNote.textContent = error.message;
+  }
+}
+
+function renderProjectBrowser() {
+  const projects = filteredProjects();
+  if (!projects.some((project) => project.project_id === state.selectedProjectId)) {
+    state.selectedProjectId = projects[0]?.project_id || "";
+    state.selectedProject = null;
+  }
+  elements.projectBrowserCount.textContent = projects.length + " 个";
+  elements.projectBrowserList.replaceChildren();
+  projects.forEach((project) => {
+    const pending = project.membership_status === "invited" ? "待确认" : "";
+    elements.projectBrowserList.append(createCollaborationListButton({
+      title: project.title,
+      meta: projectKind(project) + " · " + project.owner_display_name + "负责",
+      badge: pending || projectStatusLabel(project),
+      active: state.selectedProjectId === project.project_id,
+      avatar: projectKind(project) === "一对一项目" ? "1" : "项",
+      onClick: async () => {
+        state.selectedProjectId = project.project_id;
+        state.selectedProject = null;
+        renderProjectBrowser();
+        await loadProjectDetail(project.project_id);
+        elements.projectDetailTitle.focus({ preventScroll: true });
+        resetMobileLayerScroll();
+      },
+    }));
+  });
+  renderProjectDetail();
+}
+
+function activityText(activity) {
+  const actor = activity.actor_display_name || "系统";
+  const target = activity.target_display_name || "成员";
+  const labels = {
+    created: actor + "创建了项目",
+    member_invited: actor + "邀请" + target + "加入项目",
+    member_joined: target + "已加入项目",
+    member_declined: target + "拒绝了项目邀请",
+    archived: actor + "归档了项目",
+    restored: actor + "恢复了项目",
+  };
+  if (activity.kind === "agent_delivery") {
+    return actor + "通过 " + (activity.agent_display_name || "Agent")
+      + " 提交了交付物：" + (activity.subject || "未命名交付物");
+  }
+  if (activity.kind === "agent_update") {
+    return actor + "通过 " + (activity.agent_display_name || "Agent")
+      + " 更新了项目：" + (activity.subject || "未命名更新");
+  }
+  return labels[activity.kind] || "项目状态已更新";
+}
+
+function renderProjectDetail() {
+  const project = state.selectedProjectId === state.selectedProject?.project_id
+    ? state.selectedProject
+    : null;
+  elements.projectEmpty.hidden = Boolean(state.selectedProjectId);
+  elements.projectDetail.hidden = !state.selectedProjectId;
+  if (!state.selectedProjectId) {
+    return;
+  }
+  if (!project) {
+    elements.projectDetailTitle.textContent = "正在读取项目";
+    elements.projectDetailDescription.textContent = "请稍候…";
+    return;
+  }
+  const owner = project.members.find((member) => member.role === "owner");
+  const ownerAccess = project.membership_role === "owner" && project.membership_status === "active";
+  const invited = project.membership_status === "invited";
+  elements.projectInvitationActions.hidden = !invited;
+  elements.projectDetailType.textContent = projectKind(project);
+  elements.projectDetailTitle.textContent = project.title;
+  elements.projectDetailDescription.textContent = project.description || "暂未填写项目说明。";
+  elements.projectDetailStatus.textContent = invited ? "待确认" : projectStatusLabel(project);
+  elements.projectDetailStatus.classList.toggle("archived", project.status === "archived");
+  elements.projectOwner.textContent = project.owner_display_name;
+  elements.projectMemberCount.textContent = project.active_member_count + " 人"
+    + (project.invited_member_count ? " · " + project.invited_member_count + " 人待确认" : "");
+  elements.projectDue.textContent = dateOnlyText(project.due_at);
+  elements.projectInvite.hidden = !ownerAccess;
+  elements.projectMemberInvite.hidden = !ownerAccess;
+  elements.projectInvite.disabled = project.status === "archived";
+  elements.projectMemberInvite.disabled = project.status === "archived";
+  elements.projectArchive.hidden = !ownerAccess;
+  elements.projectArchive.textContent = project.status === "archived" ? "恢复项目" : "归档项目";
+
+  elements.projectMemberList.replaceChildren();
+  [...project.members].sort((left, right) => {
+    if (left.role === right.role) {
+      return left.invited_at.localeCompare(right.invited_at);
+    }
+    return left.role === "owner" ? -1 : 1;
+  }).forEach((member) => {
+    const friend = friendById(member.human_user_id);
+    const row = document.createElement(friend ? "button" : "article");
+    if (friend) {
+      row.type = "button";
+    }
+    row.className = "project-member-row" + (friend ? " interactive" : "");
+    const avatar = document.createElement("span");
+    avatar.className = "project-member-avatar" + (member.role === "owner" ? " current" : "");
+    avatar.textContent = member.role === "owner" ? "负" : member.display_name.slice(0, 1);
+    const copy = document.createElement("div");
+    const name = document.createElement("strong");
+    name.textContent = member.display_name + (member.role === "owner" ? " · 负责人" : "");
+    const agent = document.createElement("small");
+    agent.textContent = member.status === "invited"
+      ? "等待对方确认邀请"
+      : (member.agent ? member.agent.display_name + " · 已参与" : "尚未设置默认 Agent");
+    copy.append(name, agent);
+    row.append(avatar, copy);
+    if (friend) {
+      const arrow = document.createElement("span");
+      arrow.className = "project-member-arrow";
+      arrow.textContent = "›";
+      row.append(arrow);
+      row.addEventListener("click", () => {
+        state.selectedFriendId = friend.human_user_id;
+        activateRoute("friends", "directory", { focusContent: true });
+        renderFriendBrowser();
+      });
+    }
+    elements.projectMemberList.append(row);
+  });
+  if (!owner && project.members.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "prototype-inline-empty";
+    empty.textContent = "当前项目还没有成员信息。";
+    elements.projectMemberList.append(empty);
+  }
+
+  elements.projectActivityList.replaceChildren();
+  project.activities.forEach((activity) => {
+    const row = document.createElement("div");
+    row.className = "project-activity-row";
+    const marker = document.createElement("span");
+    marker.className = "project-activity-marker";
+    const copy = document.createElement("div");
+    const textNode = document.createElement("strong");
+    textNode.textContent = activityText(activity);
+    const time = document.createElement("small");
+    time.textContent = dateText(activity.created_at);
+    copy.append(textNode, time);
+    row.append(marker, copy);
+    elements.projectActivityList.append(row);
+  });
+  if (!project.activities.length) {
+    const empty = document.createElement("p");
+    empty.className = "prototype-inline-empty";
+    empty.textContent = "项目暂时没有动态。";
+    elements.projectActivityList.append(empty);
+  }
+}
+
+function renderFriendBrowser() {
+  const friends = filteredFriends();
+  if (!friends.some((friend) => friend.human_user_id === state.selectedFriendId)) {
+    state.selectedFriendId = friends[0]?.human_user_id || "";
+  }
+  elements.friendBrowserCount.textContent = friends.length + " 人";
+  elements.friendBrowserList.replaceChildren();
+  friends.forEach((friend) => {
+    elements.friendBrowserList.append(createCollaborationListButton({
+      title: friend.display_name,
+      meta: "@" + friend.username + " · " + friend.agents.length + " 个 Agent",
+      badge: dateOnlyText(friend.last_contact_at),
+      active: state.selectedFriendId === friend.human_user_id,
+      avatar: friend.display_name.slice(0, 1),
+      onClick: () => {
+        state.selectedFriendId = friend.human_user_id;
+        renderFriendBrowser();
+        elements.friendDetailName.focus({ preventScroll: true });
+        resetMobileLayerScroll();
+      },
+    }));
+  });
+  renderFriendDetail();
+}
+
+function renderFriendDetail() {
+  const friend = friendById(state.selectedFriendId);
+  elements.friendEmpty.hidden = Boolean(friend);
+  elements.friendDetail.hidden = !friend;
+  if (!friend) {
+    return;
+  }
+  elements.friendDetailAvatar.textContent = friend.display_name.slice(0, 1);
+  elements.friendDetailRelation.textContent = "最近联系 " + dateOnlyText(friend.last_contact_at);
+  elements.friendDetailName.textContent = friend.display_name;
+  elements.friendDetailRole.textContent = "@" + friend.username;
+  elements.friendDetailOnline.textContent = "已建立协作联系";
+  elements.friendDetailOnline.classList.remove("online", "offline");
+  elements.friendDetailNote.textContent = "好友关系来自双方名下 Agent 已经发生的真实沟通。";
+  elements.friendCapabilities.replaceChildren();
+  friend.capabilities.forEach((capability) => {
+    const chip = document.createElement("span");
+    chip.textContent = capability;
+    elements.friendCapabilities.append(chip);
+  });
+  if (!friend.capabilities.length) {
+    const empty = document.createElement("span");
+    empty.textContent = "暂未声明能力";
+    elements.friendCapabilities.append(empty);
+  }
+  elements.friendAgentCount.textContent = friend.agents.length + " 个";
+  elements.friendAgentList.replaceChildren();
+  friend.agents.forEach((agent) => {
+    const row = document.createElement("article");
+    row.className = "friend-agent-row";
+    const avatar = document.createElement("span");
+    avatar.textContent = "A";
+    const copy = document.createElement("div");
+    const name = document.createElement("strong");
+    name.textContent = agent.display_name;
+    const status = document.createElement("small");
+    status.textContent = agent.address + " · 最近联系 " + dateText(agent.last_contact_at);
+    copy.append(name, status);
+    row.append(avatar, copy);
+    elements.friendAgentList.append(row);
+  });
+  const relatedProjects = state.projects.filter((project) =>
+    project.member_human_user_ids.includes(friend.human_user_id));
+  elements.friendProjectCount.textContent = relatedProjects.length + " 个";
+  elements.friendProjectList.replaceChildren();
+  if (!relatedProjects.length) {
+    const empty = document.createElement("p");
+    empty.className = "prototype-inline-empty";
+    empty.textContent = "还没有共同项目，可以从右上方发起。";
+    elements.friendProjectList.append(empty);
+  }
+  relatedProjects.forEach((project) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "friend-project-row";
+    const copy = document.createElement("span");
+    const title = document.createElement("strong");
+    title.textContent = project.title;
+    const meta = document.createElement("small");
+    meta.textContent = projectKind(project) + " · " + projectStatusLabel(project);
+    copy.append(title, meta);
+    const arrow = document.createElement("span");
+    arrow.textContent = "查看项目 ›";
+    row.append(copy, arrow);
+    row.addEventListener("click", async () => {
+      state.selectedProjectId = project.project_id;
+      state.projectFilter = project.status === "archived" ? "archived" : "active";
+      elements.projectFilters.forEach((button) => {
+        const active = button.dataset.projectFilter === state.projectFilter;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
+      activateRoute("projects", "board", { focusContent: true });
+      renderProjectBrowser();
+      await loadProjectDetail(project.project_id);
+    });
+    elements.friendProjectList.append(row);
+  });
+}
+
+function openProjectCreateDialog() {
+  elements.projectCreateForm.reset();
+  elements.projectCreateResult.textContent = "";
+  elements.projectCreateDialog.showModal();
+  elements.projectCreateName.focus();
+}
+
+function closeProjectCreateDialog() {
+  elements.projectCreateDialog.close();
+}
+
+async function createProject(event) {
+  event.preventDefault();
+  if (!elements.projectCreateForm.reportValidity()) {
+    return;
+  }
+  elements.projectCreateResult.textContent = "正在创建项目…";
+  try {
+    const project = await requestJson("/api/v1/orbit/projects", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": state.csrfToken,
+      },
+      body: JSON.stringify({
+        title: elements.projectCreateName.value.trim(),
+        description: elements.projectCreateGoal.value.trim() || null,
+      }),
+    });
+    state.selectedProjectId = project.project_id;
+    state.selectedProject = project;
+    state.projectFilter = "active";
+    closeProjectCreateDialog();
+    activateRoute("projects", "board", { focusContent: true });
+    await loadProjects();
+    elements.projectActionResult.textContent = "项目已经创建。";
+  } catch (error) {
+    elements.projectCreateResult.textContent = error.message;
+  }
+}
+
+async function openProjectInviteDialog() {
+  const project = state.selectedProject;
+  if (!project) {
+    return;
+  }
+  elements.projectInviteResult.textContent = "";
+  elements.projectInviteSummary.textContent = "可以一次选择多位好友加入“" + project.title + "”。";
+  elements.projectInviteOptions.replaceChildren();
+  try {
+    const payload = await requestJson(
+      "/api/v1/orbit/projects/" + encodeURIComponent(project.project_id) + "/invite-candidates",
+    );
+    state.projectInvitationCandidates = Array.isArray(payload?.items) ? payload.items : [];
+  } catch (error) {
+    elements.projectInviteResult.textContent = error.message;
+    state.projectInvitationCandidates = [];
+  }
+  state.projectInvitationCandidates.forEach((friend) => {
+    const label = document.createElement("label");
+    label.className = "project-invite-option";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.name = "project-invite-friend";
+    input.value = friend.human_user_id;
+    const avatar = document.createElement("span");
+    avatar.className = "project-member-avatar";
+    avatar.textContent = friend.display_name.slice(0, 1);
+    const copy = document.createElement("span");
+    const name = document.createElement("strong");
+    name.textContent = friend.display_name;
+    const meta = document.createElement("small");
+    meta.textContent = "@" + friend.username + " · " + friend.agents.length + " 个 Agent";
+    copy.append(name, meta);
+    label.append(input, avatar, copy);
+    elements.projectInviteOptions.append(label);
+  });
+  if (!state.projectInvitationCandidates.length) {
+    const empty = document.createElement("p");
+    empty.className = "prototype-inline-empty";
+    empty.textContent = "当前没有可以邀请的好友。";
+    elements.projectInviteOptions.append(empty);
+  }
+  elements.projectInviteDialog.showModal();
+}
+
+function closeProjectInviteDialog() {
+  elements.projectInviteDialog.close();
+}
+
+async function inviteProjectFriends(event) {
+  event.preventDefault();
+  const project = state.selectedProject;
+  const selected = Array.from(
+    elements.projectInviteForm.querySelectorAll('input[name="project-invite-friend"]:checked'),
+  ).map((input) => input.value);
+  if (!project || !selected.length) {
+    elements.projectInviteResult.textContent = "请至少选择一位好友。";
+    return;
+  }
+  try {
+    const updated = await requestJson(
+      "/api/v1/orbit/projects/" + encodeURIComponent(project.project_id) + "/members",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": state.csrfToken,
+        },
+        body: JSON.stringify({ human_user_ids: selected }),
+      },
+    );
+    state.selectedProject = updated;
+    closeProjectInviteDialog();
+    await loadProjects();
+    elements.projectActionResult.textContent = "邀请已经发送，等待对方确认。";
+  } catch (error) {
+    elements.projectInviteResult.textContent = error.message;
+  }
+}
+
+async function updateSelectedProjectStatus() {
+  const project = state.selectedProject;
+  if (!project) {
+    return;
+  }
+  const nextStatus = project.status === "archived" ? "active" : "archived";
+  try {
+    state.selectedProject = await requestJson(
+      "/api/v1/orbit/projects/" + encodeURIComponent(project.project_id) + "/status",
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": state.csrfToken,
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      },
+    );
+    state.projectFilter = nextStatus === "archived" ? "archived" : "active";
+    elements.projectFilters.forEach((button) => {
+      const active = button.dataset.projectFilter === state.projectFilter;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    await loadProjects();
+    elements.projectActionResult.textContent = nextStatus === "archived"
+      ? "项目已经归档。"
+      : "项目已经恢复。";
+  } catch (error) {
+    elements.projectActionResult.textContent = error.message;
+  }
+}
+
+async function decideSelectedProjectInvitation(accept) {
+  const project = state.selectedProject;
+  if (!project) {
+    return;
+  }
+  try {
+    await requestJson(
+      "/api/v1/orbit/projects/" + encodeURIComponent(project.project_id)
+        + (accept ? "/accept" : "/decline"),
+      {
+        method: "POST",
+        headers: { "X-CSRF-Token": state.csrfToken },
+      },
+    );
+    await loadProjects({ preserveSelection: accept });
+    if (accept) {
+      elements.projectActionResult.textContent = "你已经加入项目。";
+    }
+  } catch (error) {
+    elements.projectActionResult.textContent = error.message;
+  }
+}
+
+function initializeCollaborationModules() {
+  renderProjectBrowser();
+  renderFriendBrowser();
+  elements.projectSearchInput.addEventListener("input", () => {
+    state.projectQuery = elements.projectSearchInput.value;
+    renderProjectBrowser();
+  });
+  elements.projectFilters.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.projectFilter = button.dataset.projectFilter;
+      elements.projectFilters.forEach((item) => {
+        const active = item === button;
+        item.classList.toggle("active", active);
+        item.setAttribute("aria-pressed", String(active));
+      });
+      renderProjectBrowser();
+      if (state.selectedProjectId) {
+        void loadProjectDetail(state.selectedProjectId);
+      }
+    });
+  });
+  elements.friendSearchInput.addEventListener("input", () => {
+    state.friendQuery = elements.friendSearchInput.value;
+    renderFriendBrowser();
+  });
+  [elements.projectBrowserNew, elements.projectEmptyNew].forEach((button) => {
+    button.addEventListener("click", openProjectCreateDialog);
+  });
+  elements.friendStartProject.addEventListener("click", openProjectCreateDialog);
+  [elements.projectInvite, elements.projectMemberInvite].forEach((button) => {
+    button.addEventListener("click", openProjectInviteDialog);
+  });
+  elements.projectArchive.addEventListener("click", updateSelectedProjectStatus);
+  elements.projectAccept.addEventListener("click", () => decideSelectedProjectInvitation(true));
+  elements.projectDecline.addEventListener("click", () => decideSelectedProjectInvitation(false));
+  elements.projectCreateForm.addEventListener("submit", createProject);
+  elements.projectCreateClose.addEventListener("click", closeProjectCreateDialog);
+  elements.projectCreateCancel.addEventListener("click", closeProjectCreateDialog);
+  elements.projectInviteForm.addEventListener("submit", inviteProjectFriends);
+  elements.projectInviteClose.addEventListener("click", closeProjectInviteDialog);
+  elements.projectInviteCancel.addEventListener("click", closeProjectInviteDialog);
+  elements.projectMobileBack.addEventListener("click", () => {
+    elements.projectBrowser.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  elements.friendMobileBack.addEventListener("click", () => {
+    elements.friendBrowser.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
 
 function normalizedRoute(module, section) {
   const definition = MODULE_DEFINITIONS[module] || MODULE_DEFINITIONS.orbit;
@@ -525,6 +1258,15 @@ function updateAgentWorkspaceMode() {
   elements.agentBrowser.hidden = !active;
 }
 
+function updateCollaborationWorkspaceMode() {
+  const projectsActive = state.activeModule === "projects" && state.activeSection === "board";
+  const friendsActive = state.activeModule === "friends" && state.activeSection === "directory";
+  elements.workspaceView.classList.toggle("project-workspace-mode", projectsActive);
+  elements.workspaceView.classList.toggle("friend-workspace-mode", friendsActive);
+  elements.projectBrowser.hidden = !projectsActive;
+  elements.friendBrowser.hidden = !friendsActive;
+}
+
 function isMobileWorkspace() {
   return window.matchMedia("(max-width: 860px)").matches;
 }
@@ -577,6 +1319,7 @@ function activateRoute(module, section, { updateHistory = true, focusContent = f
   document.title = `星云驿 · ${definition.label}`;
   updateThreadWorkspaceMode();
   updateAgentWorkspaceMode();
+  updateCollaborationWorkspaceMode();
   if (routeChanged) {
     resetMobileLayerScroll();
   }
@@ -2057,7 +2800,9 @@ function renderAgentOverviewState() {
   elements.agentDetail.hidden = true;
   elements.agentDetailMissing.hidden = true;
   updateAgentWorkspaceMode();
-  document.title = "星云驿 · 云驿";
+  if (state.activeModule === "relay") {
+    document.title = "星云驿 · 云驿";
+  }
 }
 
 function detailFact(label, value, copy = "") {
@@ -4498,6 +5243,7 @@ async function loadDashboard() {
     }
     elements.welcomeView.hidden = true;
     elements.workspaceView.hidden = false;
+    await Promise.all([loadProjects(), loadFriends()]);
     const connectedAgentCount = Number(dashboard.metrics?.connected_agent_count || 0);
     setConnection(
       `${connectedAgentCount} 个 Agent 在线`,
@@ -4662,7 +5408,7 @@ async function sendEmailChallenge(purpose) {
     }
     if (challenge.test_verification_code) {
       codeInput.value = challenge.test_verification_code;
-      result.textContent = "本地测试模式：验证码已填入；生产环境只通过邮件发送。";
+      result.textContent = "验证码已经填入，请继续完成操作。";
     } else {
       result.textContent = "验证码已发送，请检查邮箱。";
     }
@@ -4880,9 +5626,18 @@ async function signOut() {
     closeMfaDialog();
     closeKeyDialog();
     closeAttachmentPreview();
+    closeProjectCreateDialog();
+    closeProjectInviteDialog();
     closeOrganizationCreateDialog();
     closeOrganizationManagement();
     state.dashboard = null;
+    state.projects = [];
+    state.selectedProject = null;
+    state.selectedProjectId = "";
+    state.projectsLoaded = false;
+    state.friends = [];
+    state.selectedFriendId = "";
+    state.friendsLoaded = false;
     state.csrfToken = "";
     clearSensitiveInputs();
     elements.workspaceView.hidden = true;
@@ -5354,6 +6109,7 @@ window.addEventListener("pagehide", () => {
 
 async function initializeOrbit() {
   initializeWorkspaceNavigation();
+  initializeCollaborationModules();
   const hashParameters = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   state.pendingOrganizationInvitation = hashParameters.get("organization-invitation") || "";
   history.replaceState(

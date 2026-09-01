@@ -39,6 +39,7 @@ from agentpost.onboarding.models import (
     ConnectorInstance,
 )
 from agentpost.organizations.models import OrganizationDomain, OrganizationInvitation
+from agentpost.projects.models import Project, ProjectActivity, ProjectMembership
 from agentpost.security.models import RateLimitBucket
 from agentpost.sso.models import OidcLoginState, OrganizationOidcIdentity, OrganizationOidcProvider
 
@@ -73,6 +74,9 @@ _MODELS = (
     HumanTotpCredential,
     OrganizationInvitation,
     OrganizationDomain,
+    Project,
+    ProjectMembership,
+    ProjectActivity,
     OAuthAccessToken,
     OAuthRefreshToken,
     OrganizationOidcProvider,

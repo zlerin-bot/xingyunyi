@@ -11,7 +11,7 @@ const [html, script, stylesheet] = await Promise.all([
   readFile(resolve(repositoryRoot, "src/agentpost/orbit_ui/styles.css"), "utf8"),
 ]);
 
-test("Orbit exposes exactly three named primary entrances", () => {
+test("Orbit exposes five named primary entrances including projects and friends", () => {
   const primaryNavigation = html.slice(
     html.indexOf('id="primary-navigation"'),
     html.indexOf("</nav>", html.indexOf('id="primary-navigation"')),
@@ -19,13 +19,37 @@ test("Orbit exposes exactly three named primary entrances", () => {
   const modules = [...primaryNavigation.matchAll(/data-module="([^"]+)"/g)]
     .map((match) => match[1]);
 
-  assert.deepEqual(modules, ["orbit", "relay", "settings"]);
+  assert.deepEqual(modules, ["orbit", "relay", "projects", "friends", "settings"]);
   assert.match(primaryNavigation, />星轨</);
   assert.match(primaryNavigation, />云驿</);
+  assert.match(primaryNavigation, />项目</);
+  assert.match(primaryNavigation, />好友</);
   assert.match(primaryNavigation, />设置</);
   assert.match(primaryNavigation, /我的对话/);
   assert.match(primaryNavigation, /Agent 与连接/);
+  assert.match(primaryNavigation, /一对一与多人协作/);
+  assert.match(primaryNavigation, /联系人与协作邀请/);
   assert.match(primaryNavigation, /账户与平台/);
+});
+
+test("projects and friends are separate API-backed collaboration modules", () => {
+  assert.match(html, /data-module="projects" data-section="board"/);
+  assert.match(html, /data-module="friends" data-section="directory"/);
+  assert.match(script, /把一对一和多人协作都作为项目管理/);
+  assert.match(script, /维护自己的协作好友清单/);
+  assert.match(script, /\/api\/v1\/orbit\/projects/);
+  assert.match(script, /\/api\/v1\/orbit\/friends/);
+  assert.match(script, /initializeCollaborationModules\(\)/);
+  assert.match(script, /human_user_ids: selected/);
+  assert.match(script, /input\.type = "checkbox"/);
+  assert.match(script, /createProject/);
+  assert.match(script, /activateRoute\("projects", "board"/);
+  assert.match(script, /activateRoute\("friends", "directory"/);
+  assert.doesNotMatch(`${html}\n${script}`, /本地体验|本地演示|交互原型|不连接生产|演示项目/);
+  assert.doesNotMatch(html, /id="project-create-friend"|首位协作好友/);
+  assert.doesNotMatch(html, /当前进度|交付与验收|project-progress|project-task-list/);
+  assert.doesNotMatch(script, /DEMO_FRIENDS|demoProjects|confirmDemoAcceptance|inviteDemoFriend/);
+  assert.doesNotMatch(`${html}\n${script}`, /李月|张冠群|崔孝林|胡曦元|zhangziliang|panyongtong/);
 });
 
 test("module and selected view survive navigation and browser history", () => {
@@ -69,10 +93,11 @@ test("footer exposes the official ICP filing record on every view", () => {
   assert.match(stylesheet, /\.filing-record/);
 });
 
-test("mobile navigation remains a three-entry bottom bar", () => {
+test("mobile navigation remains a five-entry bottom bar", () => {
   assert.match(stylesheet, /@media \(max-width: 860px\)/);
   assert.match(stylesheet, /\.workspace-sidebar \{[\s\S]*?position: fixed;[\s\S]*?inset: auto 0 0;/);
   assert.match(stylesheet, /\.primary-navigation \{[\s\S]*?display: flex;/);
+  assert.match(stylesheet, /\.primary-nav-item \{[\s\S]*?grid-template-columns: 1fr;/);
   assert.match(script, /window\.scrollTo\(\{ top: 0, left: 0, behavior: "auto" \}\)/);
 });
 

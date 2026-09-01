@@ -102,7 +102,7 @@ def _seed(settings: Settings) -> None:
                 json={
                     "challenge_id": challenge["challenge_id"],
                     "code": challenge["test_verification_code"],
-                    "display_name": "本地体验用户",
+                    "display_name": "项目负责人",
                     "password": DEMO_PASSWORD,
                 },
             ),
@@ -133,6 +133,20 @@ def _seed(settings: Settings) -> None:
             name="行舟助理",
             capabilities=["calendar-planning", "follow-up"],
         )
+        collaborator_a = _agent(
+            client,
+            address="partner-a@agents.local",
+            handle="partner-a",
+            name="研究协作 Agent",
+            capabilities=["industry-research", "source-verification"],
+        )
+        collaborator_b = _agent(
+            client,
+            address="partner-b@agents.local",
+            handle="partner-b",
+            name="方案协作 Agent",
+            capabilities=["solution-design", "document-review"],
+        )
         _require(
             client.put(
                 f"/api/v1/admin/humans/{human_id}/agents/{personal['agent']['id']}",
@@ -141,6 +155,65 @@ def _seed(settings: Settings) -> None:
             ),
             200,
         )
+
+        collaborator_users: list[dict[str, Any]] = []
+        for email, username, display_name, agent in [
+            ("partner-a@agentpost.local", "partner-a", "协作伙伴甲", collaborator_a),
+            ("partner-b@agentpost.local", "partner-b", "协作伙伴乙", collaborator_b),
+        ]:
+            collaborator_challenge = _require(
+                client.post(
+                    "/api/v1/auth/email/challenges",
+                    json={"email": email, "purpose": "register"},
+                ),
+                202,
+            )
+            collaborator = _require(
+                client.post(
+                    "/api/v1/auth/register",
+                    json={
+                        "challenge_id": collaborator_challenge["challenge_id"],
+                        "code": collaborator_challenge["test_verification_code"],
+                        "username": username,
+                        "display_name": display_name,
+                        "password": DEMO_PASSWORD,
+                    },
+                ),
+                201,
+            )
+            collaborator_users.append(collaborator)
+            _require(
+                client.put(
+                    f"/api/v1/admin/humans/{collaborator['user']['id']}/agents/{agent['agent']['id']}",
+                    headers=admin_headers,
+                    json={"role": "owner"},
+                ),
+                200,
+            )
+
+        for index, agent in enumerate([collaborator_a, collaborator_b], start=1):
+            _require(
+                client.post(
+                    "/api/v1/messages",
+                    headers=_agent_headers(personal, f"friend-contact-{index}"),
+                    json={
+                        "to": [{"address": agent["agent"]["address"]}],
+                        "type": "message",
+                        "subject": "建立项目协作联系",
+                        "content": {"format": "text", "body": "后续可以共同参与项目协作。"},
+                    },
+                ),
+                201,
+            )
+
+        owner_session = _require(
+            client.post(
+                "/api/v1/auth/login",
+                json={"email": DEMO_EMAIL, "password": DEMO_PASSWORD},
+            ),
+            200,
+        )
+        csrf_token = owner_session["csrf_token"]
         _require(
             client.put(
                 f"/api/v1/admin/humans/{human_id}/agents/{waiting['agent']['id']}",
@@ -155,9 +228,9 @@ def _seed(settings: Settings) -> None:
                 "/api/v1/orbit/organizations",
                 headers={"X-CSRF-Token": csrf_token},
                 json={
-                    "slug": "demo-research",
-                    "name": "本地演示研究组",
-                    "description": "仅存在于本机临时数据库，用于体验组织授权边界。",
+                    "slug": "joint-research",
+                    "name": "联合研究组",
+                    "description": "用于行业资料核对与协作结论整理。",
                 },
             ),
             201,
@@ -168,6 +241,67 @@ def _seed(settings: Settings) -> None:
                 headers=admin_headers,
             ),
             200,
+        )
+
+        project = _require(
+            client.post(
+                "/api/v1/orbit/projects",
+                headers={"X-CSRF-Token": csrf_token},
+                json={
+                    "title": "算力项目联合研究",
+                    "description": "共同整理行业信息，形成可用于内部讨论的项目判断材料。",
+                },
+            ),
+            201,
+        )
+        _require(
+            client.post(
+                f"/api/v1/orbit/projects/{project['project_id']}/members",
+                headers={"X-CSRF-Token": csrf_token},
+                json={
+                    "human_user_ids": [
+                        collaborator_users[0]["user"]["id"],
+                        collaborator_users[1]["user"]["id"],
+                    ]
+                },
+            ),
+            200,
+        )
+        collaborator_session = _require(
+            client.post(
+                "/api/v1/auth/login",
+                json={"email": "partner-a@agentpost.local", "password": DEMO_PASSWORD},
+            ),
+            200,
+        )
+        _require(
+            client.post(
+                f"/api/v1/orbit/projects/{project['project_id']}/accept",
+                headers={"X-CSRF-Token": collaborator_session["csrf_token"]},
+            ),
+            200,
+        )
+        owner_session = _require(
+            client.post(
+                "/api/v1/auth/login",
+                json={"email": DEMO_EMAIL, "password": DEMO_PASSWORD},
+            ),
+            200,
+        )
+        csrf_token = owner_session["csrf_token"]
+        _require(
+            client.post(
+                "/api/v1/messages",
+                headers=_agent_headers(collaborator_a, "project-status-update"),
+                json={
+                    "to": [{"address": personal["agent"]["address"]}],
+                    "type": "message",
+                    "subject": "行业资料摘要已经提交",
+                    "content": {"format": "text", "body": "来源和适用范围已经完成核对。"},
+                    "metadata": {"project_id": project["project_id"]},
+                },
+            ),
+            201,
         )
         _require(
             client.put(
@@ -386,7 +520,7 @@ def _seed(settings: Settings) -> None:
                 human_user_id=UUID(human_id),
                 connector_type="codex",
                 display_name="这台 Mac 上的 Codex",
-                device_name="本地演示设备",
+                device_name="当前设备",
                 client_version="agentpost-connect/0.1.33",
                 status="active",
                 health_status="healthy",
@@ -401,7 +535,7 @@ def _seed(settings: Settings) -> None:
                 human_user_id=UUID(human_id),
                 connector_type="codex",
                 display_name="过去使用的 Codex",
-                device_name="旧演示设备",
+                device_name="历史设备",
                 client_version="agentpost-connect/0.1.10",
                 status="replaced",
                 health_status="unknown",

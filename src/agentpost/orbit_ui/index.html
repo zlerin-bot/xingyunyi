@@ -125,6 +125,18 @@
               </span>
               <span><strong>云驿</strong><small>Agent 与连接</small></span>
             </button>
+            <button type="button" class="primary-nav-item" data-module="projects">
+              <span class="primary-nav-icon projects-icon" aria-hidden="true">
+                <img src="/orbit/project-icon.svg" alt="">
+              </span>
+              <span><strong>项目</strong><small>一对一与多人协作</small></span>
+            </button>
+            <button type="button" class="primary-nav-item" data-module="friends">
+              <span class="primary-nav-icon friends-icon" aria-hidden="true">
+                <img src="/orbit/friends-icon.svg" alt="">
+              </span>
+              <span><strong>好友</strong><small>联系人与协作邀请</small></span>
+            </button>
             <button type="button" class="primary-nav-item" data-module="settings">
               <span class="primary-nav-icon settings-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2m-14.5-6 1.4 1.4m9.2 9.2L18 18m0-12-1.4 1.4m-9.2 9.2L6 18"/></svg>
@@ -188,6 +200,16 @@
               </button>
               <button type="button" class="context-nav-item" data-module="relay" data-section="connections">
                 <span><strong>连接管理</strong><small>连接、重连与历史</small></span><span aria-hidden="true">›</span>
+              </button>
+            </div>
+            <div data-context-module="projects" hidden>
+              <button type="button" class="context-nav-item" data-module="projects" data-section="board">
+                <span><strong>项目工作台</strong><small>查看项目、成员与协作动态</small></span><span aria-hidden="true">›</span>
+              </button>
+            </div>
+            <div data-context-module="friends" hidden>
+              <button type="button" class="context-nav-item" data-module="friends" data-section="directory">
+                <span><strong>我的好友</strong><small>查找伙伴并发起项目</small></span><span aria-hidden="true">›</span>
               </button>
             </div>
             <div data-context-module="settings" hidden>
@@ -254,6 +276,37 @@
             </label>
             <button id="agent-browser-new" type="button" class="primary-action agent-browser-new">连接新的 Agent</button>
             <div id="agent-browser-list" class="agent-browser-list" aria-live="polite"></div>
+          </section>
+          <section id="project-browser" class="prototype-browser" hidden aria-label="项目列表">
+            <div class="prototype-browser-heading">
+              <div><span>项目制协作</span><strong>我的项目</strong></div>
+              <span id="project-browser-count" class="count-pill">0 个</span>
+            </div>
+            <label class="thread-search" for="project-search-input">
+              <span>搜索项目</span>
+              <input id="project-search-input" type="search" autocomplete="off" maxlength="100" placeholder="项目名称、成员或状态">
+            </label>
+            <div id="project-filter" class="prototype-filter" aria-label="项目筛选">
+              <button type="button" class="active" data-project-filter="active" aria-pressed="true">进行中</button>
+              <button type="button" data-project-filter="all" aria-pressed="false">全部</button>
+              <button type="button" data-project-filter="archived" aria-pressed="false">已归档</button>
+            </div>
+            <button id="project-browser-new" type="button" class="primary-action prototype-browser-new">创建项目</button>
+            <div id="project-browser-list" class="prototype-browser-list" aria-live="polite"></div>
+          </section>
+          <section id="friend-browser" class="prototype-browser" hidden aria-label="好友列表">
+            <div class="prototype-browser-heading">
+              <div><span>个人通讯录</span><strong>协作好友</strong></div>
+              <span id="friend-browser-count" class="count-pill">0 人</span>
+            </div>
+            <label class="thread-search" for="friend-search-input">
+              <span>搜索好友</span>
+              <input id="friend-search-input" type="search" autocomplete="off" maxlength="100" placeholder="姓名代号、能力或 Agent">
+            </label>
+            <div id="friend-filter" class="prototype-filter" aria-label="好友筛选">
+              <button type="button" class="active" data-friend-filter="all" aria-pressed="true">全部</button>
+            </div>
+            <div id="friend-browser-list" class="prototype-browser-list" aria-live="polite"></div>
           </section>
         </aside>
 
@@ -434,6 +487,86 @@
             </div>
           </section>
 
+          <section id="project-board" class="content-section module-view prototype-module" data-module="projects" data-section="board" hidden>
+            <button id="project-mobile-back" type="button" class="thread-mobile-back">‹ 返回项目列表</button>
+            <div id="project-empty" class="thread-detail-empty" hidden>
+              <span aria-hidden="true">◇</span>
+              <h2>还没有符合条件的项目</h2>
+              <p>可以调整筛选条件，或者创建一个新项目。</p>
+              <button id="project-empty-new" type="button" class="primary-action">创建项目</button>
+            </div>
+            <div id="project-detail" class="prototype-detail">
+              <div id="project-invitation-actions" class="truth-notice" hidden>
+                <div><strong>你收到了一份项目邀请</strong><span>确认加入后，你的默认 Agent 会参与该项目的协作。</span></div>
+                <div class="prototype-detail-actions"><button id="project-decline" type="button" class="quiet-button">拒绝邀请</button><button id="project-accept" type="button" class="primary-action">加入项目</button></div>
+              </div>
+              <div class="prototype-detail-heading">
+                <div>
+                  <p class="section-tag">项目 · <span id="project-detail-type">多人项目</span></p>
+                  <h2 id="project-detail-title" tabindex="-1">—</h2>
+                  <p id="project-detail-description" class="section-intro">—</p>
+                </div>
+                <div class="prototype-detail-actions">
+                  <span id="project-detail-status" class="prototype-status">进行中</span>
+                  <button id="project-invite" type="button" class="quiet-button">邀请好友</button>
+                  <button id="project-archive" type="button" class="quiet-button">归档项目</button>
+                </div>
+              </div>
+              <div class="prototype-metrics" aria-label="项目概况">
+                <article><span>项目负责人</span><strong id="project-owner">—</strong></article>
+                <article><span>项目成员</span><strong id="project-member-count">0 人</strong></article>
+                <article><span>计划完成</span><strong id="project-due">—</strong></article>
+              </div>
+              <section class="prototype-card">
+                <div class="prototype-card-heading"><div><span>Human 与 Agent</span><h3>项目成员</h3></div><button id="project-member-invite" type="button" class="text-button">添加成员</button></div>
+                <div id="project-member-list" class="project-member-list"></div>
+                <p id="project-action-result" class="form-status" role="status"></p>
+              </section>
+              <section class="prototype-card project-activity-card">
+                <div class="prototype-card-heading"><div><span>最近动态</span><h3>项目动态</h3></div></div>
+                <div id="project-activity-list" class="project-activity-list"></div>
+              </section>
+            </div>
+          </section>
+
+          <section id="friend-directory" class="content-section module-view prototype-module" data-module="friends" data-section="directory" hidden>
+            <button id="friend-mobile-back" type="button" class="thread-mobile-back">‹ 返回好友列表</button>
+            <div id="friend-empty" class="thread-detail-empty" hidden>
+              <span aria-hidden="true">◇</span>
+              <h2>没有找到好友</h2>
+              <p>可以换一个能力关键词，或者查看全部联系人。</p>
+            </div>
+            <div id="friend-detail" class="prototype-detail">
+              <div class="friend-hero">
+                <span id="friend-detail-avatar" class="friend-detail-avatar" aria-hidden="true">甲</span>
+                <div class="friend-hero-copy">
+                  <p class="section-tag">好友 · <span id="friend-detail-relation">最近联系</span></p>
+                  <h2 id="friend-detail-name" tabindex="-1">—</h2>
+                  <p id="friend-detail-role">—</p>
+                </div>
+                <div class="friend-hero-actions">
+                  <span id="friend-detail-online" class="prototype-status">最近联系</span>
+                  <button id="friend-start-project" type="button" class="primary-action">发起项目</button>
+                </div>
+              </div>
+              <div class="prototype-two-column friend-detail-grid">
+                <section class="prototype-card">
+                  <div class="prototype-card-heading"><div><span>擅长方向</span><h3>能力标签</h3></div></div>
+                  <div id="friend-capabilities" class="capability-row"></div>
+                  <p id="friend-detail-note" class="friend-detail-note">—</p>
+                </section>
+                <section class="prototype-card">
+                  <div class="prototype-card-heading"><div><span>可参与协作</span><h3>名下 Agent</h3></div><span id="friend-agent-count" class="count-pill">0 个</span></div>
+                  <div id="friend-agent-list" class="friend-agent-list"></div>
+                </section>
+              </div>
+              <section class="prototype-card">
+                <div class="prototype-card-heading"><div><span>共同协作</span><h3>相关项目</h3></div><span id="friend-project-count" class="count-pill">0 个</span></div>
+                <div id="friend-project-list" class="friend-project-list"></div>
+              </section>
+            </div>
+          </section>
+
           <section id="profile" class="content-section module-view" data-module="settings" data-section="profile" hidden>
             <div class="section-heading">
               <div>
@@ -559,6 +692,40 @@
         </div>
       </section>
     </main>
+
+    <dialog id="project-create-dialog" class="approval-dialog prototype-dialog" aria-labelledby="project-create-title">
+      <form id="project-create-form" method="dialog" autocomplete="off">
+        <div class="dialog-heading">
+          <div><p class="section-tag">项目</p><h2 id="project-create-title">创建项目</h2></div>
+          <button id="project-create-close" type="button" class="dialog-close" aria-label="关闭创建项目窗口">×</button>
+        </div>
+        <label for="project-create-name">项目名称</label>
+        <input id="project-create-name" type="text" maxlength="200" required placeholder="例如：客户方案联合研究">
+        <label for="project-create-goal">项目说明（选填）</label>
+        <textarea id="project-create-goal" rows="3" maxlength="2000" placeholder="简要说明希望共同完成的结果"></textarea>
+        <p id="project-create-result" class="form-status" role="status"></p>
+        <div class="dialog-actions">
+          <button id="project-create-cancel" type="button" class="quiet-button">取消</button>
+          <button type="submit" class="approval-submit">创建项目</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="project-invite-dialog" class="approval-dialog prototype-dialog" aria-labelledby="project-invite-title">
+      <form id="project-invite-form" method="dialog">
+        <div class="dialog-heading">
+          <div><p class="section-tag">项目 · 邀请好友</p><h2 id="project-invite-title">选择项目成员</h2></div>
+          <button id="project-invite-close" type="button" class="dialog-close" aria-label="关闭邀请好友窗口">×</button>
+        </div>
+        <p id="project-invite-summary" class="dialog-summary">可以一次选择多位好友加入当前项目。</p>
+        <div id="project-invite-options" class="project-invite-options"></div>
+        <p id="project-invite-result" class="form-status" role="status"></p>
+        <div class="dialog-actions">
+          <button id="project-invite-cancel" type="button" class="quiet-button">取消</button>
+          <button type="submit" class="approval-submit">发送邀请</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="register-dialog" class="approval-dialog" aria-labelledby="register-dialog-title">
       <form id="register-form" method="dialog" autocomplete="on">
